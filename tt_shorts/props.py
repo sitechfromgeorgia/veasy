@@ -80,7 +80,7 @@ def _remotion(args, work):
 
 
 MUSIC_DB = -13.0  # the bed under the voice: one constant level, ~13 LU below the -16 LUFS voice (no ducking)
-MUSIC_DB_SILENT = -6.0  # a preview without a voice: the music is the sound
+MUSIC_DB_SILENT = -1.0  # a preview without a voice: the music is the sound (about -17 LUFS)
 
 
 def mix_audio(work, props, video, out):
