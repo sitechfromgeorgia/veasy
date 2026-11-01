@@ -21,6 +21,8 @@ agent server (84.46.250.149).
 - Card radius is 14 and chips are fully round. Distances are multiples of 4.
 - The source and the time are always visible (header and footer). Quotes are in „…“ with the speaker's name.
   Numbers are written in digits. No long dashes.
+- The look follows the kind of story (`meta.VARIANT_BY_FAMILY`, `--variant auto`): hard news (politics, world,
+  crime) is editorial, light news (sports, culture) is kinetic, service news (society, economy, tech) is cards.
 - The three looks differ in layout and motion, never in palette:
   - **editorial**: the grid, rising type, a cut line with the dot.
   - **kinetic**: giant type that slams in, inverted ink blocks, a panel wipe at each cut.
@@ -34,7 +36,7 @@ agent server (84.46.250.149).
 | 248-1380 | the scene (story text never goes lower) |
 | 1460-1552 | captions, lower third: up to 3 words; the spoken word is ink with a red underline |
 | 1580-1760 | moving ticker (category, date, outlets). Platforms draw their UI here, so this band carries no story text |
-| 1768-1880 | sources line + story link |
+| 1768-1880 | sources line; story link on the left, „SiTech-ის პროექტი · sitech.ge“ on the right |
 
 Below y=1100, no text goes right of x=940 (the like/share rail).
 

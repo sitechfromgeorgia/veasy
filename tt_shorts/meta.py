@@ -36,6 +36,19 @@ WEEKDAYS = ["ორშაბათი", "სამშაბათი", "ოთ�
 CTAS = ["გამოიწერე არხი", "მოიწონე და გააზიარე", "მხარი დაგვიჭირე: tbilisi.today/support"]
 
 
+# The look follows the kind of story (owner, 2026-11-01: "different styles for different kinds of stories"):
+#   editorial  hard news, calm and serious: politics, defense, world, crime, incidents
+#   kinetic    light, energetic news: sports, culture, show business, religion
+#   cards      practical service news, like the site's story cards: society, economy, tech and everything else
+VARIANT_BY_FAMILY = {"politics": "editorial", "world": "editorial", "crime": "editorial",
+                     "sports": "kinetic", "culture": "kinetic",
+                     "economy": "cards", "tech": "cards", "society": "cards"}
+
+
+def variant_for(category):
+    return VARIANT_BY_FAMILY[family(category)]
+
+
 def family(category):
     return CATEGORY_FAMILY.get(category, "society")
 

@@ -185,7 +185,13 @@ const Footer: React.FC = () => {
   return (
     <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 1768, borderTop: `2px solid ${LINE}`, paddingTop: 16, fontFamily: FONT }}>
       <div style={{ fontWeight: 400, fontSize: 28, lineHeight: 1.4, color: MUTED, whiteSpace: "nowrap", overflow: "hidden" }}>{props.sourcesLine}</div>
-      <div style={{ fontWeight: 700, fontSize: 36, lineHeight: 1.4, color: INK }}>{props.url}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <span style={{ fontWeight: 700, fontSize: 36, lineHeight: 1.4, color: INK }}>{props.url}</span>
+        {/* tbilisi.today is a SiTech platform (the site's footer says so): the agency's link, quieter than the story's */}
+        <span style={{ fontSize: 28, lineHeight: 1.4, color: MUTED }}>
+          SiTech-ის პროექტი · <span style={{ fontWeight: 700, color: INK }}>sitech.ge</span>
+        </span>
+      </div>
     </div>
   );
 };

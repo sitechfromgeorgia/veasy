@@ -27,9 +27,11 @@ VARIANTS = ("editorial", "kinetic", "cards")
 NOTES = {"edge": "დროებითი ხმა · პრევიუ", "silent": "ხმის გარეშე · პრევიუ"}
 
 
-def build(story_path, variant, engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts"):
+def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts"):
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     sid = story["id"]
+    if variant == "auto":  # the look follows the kind of story (meta.VARIANT_BY_FAMILY)
+        variant = meta.variant_for(story.get("category", "society"))
     work = ROOT / "work" / f"{sid}-{variant}-{engine}"
     public = work / "public"
     shutil.rmtree(public, ignore_errors=True)
@@ -134,7 +136,7 @@ def render_stills(work, frames, out_dir):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("story")
-    ap.add_argument("--variant", default="editorial", choices=VARIANTS)
+    ap.add_argument("--variant", default="auto", choices=("auto",) + VARIANTS, help="auto: by the story's category")
     ap.add_argument("--voice", default="edge", choices=["edge", "gemini", "silent"])
     ap.add_argument("--tone", help=f"gemini preset: {', '.join(voices.PRESETS)}")
     ap.add_argument("--edge-voice", default="eka", choices=list(speech.EDGE_VOICES))
@@ -146,5 +148,5 @@ if __name__ == "__main__":
         for p in render_stills(work, [int(x) for x in a.still.split(",")], pathlib.Path(a.out) / "stills"):
             print(p)
     else:
-        out = render_video(work, props, pathlib.Path(a.out) / f"{props['id']}-{a.variant}{'' if a.voice == 'gemini' else '-' + a.voice}.mp4")
+        out = render_video(work, props, pathlib.Path(a.out) / f"{props['id']}-{props['variant']}{'' if a.voice == 'gemini' else '-' + a.voice}.mp4")
         print(f"{out} | {props['durationInFrames'] / FPS:.1f}s | {len(props['scenes'])} scenes | music {props['music']}")

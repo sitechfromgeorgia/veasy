@@ -27,6 +27,15 @@ class Data(unittest.TestCase):
         self.assertEqual(meta.family("defense"), "politics")
         self.assertEqual(meta.family("medicine"), "society")
 
+    def test_look_follows_the_kind_of_story(self):
+        self.assertEqual(meta.variant_for("politics"), "editorial")
+        self.assertEqual(meta.variant_for("incidents"), "editorial")
+        self.assertEqual(meta.variant_for("sports"), "kinetic")
+        self.assertEqual(meta.variant_for("showbusiness"), "kinetic")
+        self.assertEqual(meta.variant_for("economy"), "cards")
+        self.assertEqual(meta.variant_for("medicine"), "cards")
+        self.assertEqual(set(meta.VARIANT_BY_FAMILY), set(meta.FAMILIES))
+
     def test_qr_points_to_the_story_page(self):
         url = meta.story_url(24725, "youtube")
         self.assertEqual(url, "https://tbilisi.today/stories/24725?utm_source=youtube&utm_medium=video")
