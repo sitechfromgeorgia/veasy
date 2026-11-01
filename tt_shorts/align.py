@@ -4,7 +4,7 @@ return them (Gemini TTS). Georgian uses a wav2vec2 CTC model with a Georgian cha
 Runs in the torch venv as its own process, so the render venv stays light:
   python -m tt_shorts.align <audio> <text file> <words.json> [lang]
 Words with no letters the model knows ("AI", "83%") get times interpolated from their neighbours.
-The same model also transcribes the track (greedy CTC) into <words>.heard.txt: render.voice_qa() compares
+The same model also transcribes the track (greedy CTC) into <words>.heard.txt: speech.voice_qa() compares
 it with the text the voice was given, to flag words the voice skipped or said differently ($0, no extra model).
 """
 import json

@@ -8,12 +8,14 @@ umask 022
 cd "$(dirname -- "${BASH_SOURCE[0]}")/.."
 VIDEO="$(pwd -P)"
 command -v ffmpeg >/dev/null || { echo "ffmpeg is missing: apt-get install -y ffmpeg" >&2; exit 1; }
+command -v npm >/dev/null || { echo "Node.js 20+ is missing (Remotion)" >&2; exit 1; }
 python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))' || { echo "python 3.11+ required" >&2; exit 1; }
 
 python3 -m venv .venv
 .venv/bin/pip install -q --upgrade pip
 .venv/bin/pip install -q -r requirements.txt
-.venv/bin/python -m playwright install chromium-headless-shell  # frames; system libs: playwright install-deps
+
+(cd remotion && npm ci --no-audit --no-fund && npx remotion browser ensure)  # frames: Remotion + chrome-headless-shell
 
 if [[ "${1:-}" == "--align" ]]; then  # Georgian word timings for the Gemini voice (~2 GB with CPU torch)
   python3 -m venv .venv-align
@@ -29,4 +31,5 @@ install -d -m 700 data
 [[ -f data/.env ]] || install -m 600 ops/env.example data/.env
 
 .venv/bin/python -m unittest discover -s tests
-echo "ok: $VIDEO  (render a preview: .venv/bin/python -m tt_shorts.render stories/24835.json --theme A --silent)"
+(cd remotion && npx tsc --noEmit)
+echo "ok: $VIDEO  (preview: .venv/bin/python -m tt_shorts.props stories/24835.json --variant editorial)"

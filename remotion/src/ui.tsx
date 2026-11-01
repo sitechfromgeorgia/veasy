@@ -1,0 +1,110 @@
+import React, { createContext, useContext } from "react";
+import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { CANVAS, FONT, INK, LINE_STRONG, MARK_BG, RED, T_PATH } from "./brand";
+import type { ShortProps, Variant } from "./types";
+
+type Ctx = { v: Variant; props: ShortProps };
+export const Theme = createContext<Ctx>(null as unknown as Ctx);
+export const useTheme = () => useContext(Theme);
+
+/** 0..1 spring that starts `delay` frames into the current Sequence. */
+export const useIn = (delay = 0, damping = 20, stiffness = 170) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  return spring({ frame: frame - delay, fps, config: { damping, stiffness, mass: 0.8 } });
+};
+
+/** The look's entrance: editorial and cards rise, kinetic slams in from the left. */
+export const In: React.FC<{ delay?: number; style?: React.CSSProperties; children: React.ReactNode }> = ({ delay = 0, style, children }) => {
+  const { v } = useTheme();
+  const t = useIn(delay, v === "kinetic" ? 16 : 20, v === "kinetic" ? 220 : 170);
+  const move = v === "kinetic" ? `translateX(${(1 - t) * -140}px)` : `translateY(${(1 - t) * 56}px)`;
+  return <div style={{ opacity: Math.min(1, t * 1.6), transform: move, ...style }}>{children}</div>;
+};
+
+/** Width of `text` at 100px in FiraGO (synchronous canvas measure, the same in every frame). */
+const canvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
+export const measure = (text: string, weight = 700) => {
+  const ctx = canvas?.getContext("2d");
+  if (!ctx) return text.length * 60;
+  ctx.font = `${weight} 100px ${FONT}`;
+  return ctx.measureText(text).width;
+};
+
+/** The largest size (<= max, a multiple of 4) at which every line fits `width`. */
+export const fitSize = (lines: string[], width: number, max: number, min = 40, weight = 700) => {
+  const widest = Math.max(...lines.map((l) => measure(l, weight)));
+  const size = Math.max(min, Math.min(max, Math.floor((100 * width) / Math.max(1, widest))));
+  return size - (size % 4);
+};
+
+/** The mark, exactly as the guide draws it: no frame, no shadow, no recolor. */
+export const Mark: React.FC<{ size: number }> = ({ size }) => (
+  <svg width={size} height={size} viewBox="0 0 512 512">
+    <rect width={512} height={512} rx={112} fill={MARK_BG} />
+    <g transform="translate(0,512) scale(0.1,-0.1)">
+      <path d={T_PATH} fill="#FFFFFF" />
+    </g>
+    <circle cx={323} cy={295} r={34} fill={RED} />
+  </svg>
+);
+
+/** The wordmark: the dot is the one red letter-shaped thing on screen, as on the site. */
+export const Wordmark: React.FC<{ size: number }> = ({ size }) => (
+  <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, color: INK }}>
+    tbilisi<span style={{ color: RED }}>.</span>today
+  </span>
+);
+
+/** The red dot: "now". It may pulse; it is never text. */
+export const Dot: React.FC<{ size?: number; pulse?: boolean }> = ({ size = 20, pulse = false }) => {
+  const frame = useCurrentFrame();
+  const s = pulse ? 1 + 0.18 * Math.sin(frame / 5) : 1;
+  return <span style={{ display: "inline-block", flex: "none", width: size, height: size, borderRadius: size / 2, background: RED,
+    transform: `scale(${s})` }} />;
+};
+
+/** A pill, as the site's chips: 1px line, fully round; `live` gets the red border and the dot. */
+export const Chip: React.FC<{ children: React.ReactNode; live?: boolean; solid?: boolean; size?: number }> = ({ children, live, solid, size = 36 }) => (
+  <span style={{ display: "inline-flex", alignItems: "center", gap: 12, fontFamily: FONT, fontWeight: 600, fontSize: size, lineHeight: 1,
+    padding: `${size * 0.44}px ${size * 0.78}px ${size * 0.5}px`, borderRadius: 999, whiteSpace: "nowrap",
+    border: `2px solid ${live ? RED : LINE_STRONG}`, background: solid ? INK : "transparent", color: solid ? CANVAS : INK }}>
+    {live && <Dot size={size * 0.44} pulse />}
+    {children}
+  </span>
+);
+
+/** Scene label: the "now" chip with the red dot (editorial, cards) or an inverted ink block (kinetic). */
+export const Kicker: React.FC<{ text?: string; delay?: number }> = ({ text, delay = 0 }) => {
+  const { v } = useTheme();
+  const t = useIn(delay);
+  if (!text) return null;
+  if (v === "kinetic") {
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 16, background: INK, color: CANVAS, fontFamily: FONT, fontWeight: 700,
+        fontSize: 40, padding: "12px 24px 16px", clipPath: `inset(0 ${(1 - t) * 100}% 0 0)` }}>
+        <Dot size={18} />{text}
+      </span>
+    );
+  }
+  return <span style={{ opacity: t }}><Chip live>{text}</Chip></span>;
+};
+
+export const Headline: React.FC<{ text?: string; delay?: number; size?: number }> = ({ text, delay = 4, size = 60 }) => {
+  if (!text) return null;
+  return (
+    <In delay={delay}>
+      <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.2, color: INK, marginTop: 24 }}>{text}</div>
+    </In>
+  );
+};
+
+/** A count-up from 0, grouped as Georgian writes thousands ("6 400"). */
+export const CountUp: React.FC<{ to: number; delay?: number; frames?: number }> = ({ to, delay = 0, frames = 32 }) => {
+  const frame = useCurrentFrame();
+  const t = interpolate(frame - delay, [0, frames], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
+    easing: (x) => 1 - Math.pow(1 - x, 3) });
+  return <>{group(Math.round(to * t))}</>;
+};
+
+export const group = (n: number) => n.toLocaleString("en-US").replace(/,/g, " ");

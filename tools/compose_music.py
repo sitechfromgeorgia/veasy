@@ -122,7 +122,7 @@ def reverb(stereo, seconds=2.6, wet=0.28):
     return np.array(out)
 
 
-# tbilisi.today category family (tt_shorts.templates.FAMILIES) -> two pieces: tempo, progression
+# tbilisi.today category family (tt_shorts.meta.FAMILIES) -> two pieces: tempo, progression
 # [(root, octave, chord)], pad brightness, figure, drums. News beds stay calmer than SiTech's tech beds:
 # serious families (politics, crime) pulse low and sparse, light ones (sports, culture) move more.
 PIECES = {

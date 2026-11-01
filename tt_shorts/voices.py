@@ -4,7 +4,7 @@ energetic delivery; a news channel needs calmer, more trustworthy tones. The own
   python -m tt_shorts.voices                    # every preset reads the same sample text -> out/voices/<preset>.wav
   python -m tt_shorts.voices --story stories/24725.json --only anchor,warm
 
-The delivery goes in speech_metadata.style (render.gemini_speak), never in the spoken text. SHORTS_VOICE picks
+The delivery goes in speech_metadata.style (speech.gemini_speak), never in the spoken text. SHORTS_VOICE picks
 the channel's default preset; `family` sets one per category family (render picks it when the story has none).
 """
 import argparse
@@ -39,7 +39,7 @@ SAMPLE = ("ვარკეთილსა და ვაზისუბანშ�
 def preset(name=None, category=None):
     """The preset to read a story with: its own, else SHORTS_VOICE, else by family when
     SHORTS_VOICE=family, else anchor."""
-    from tt_shorts.templates import family
+    from tt_shorts.meta import family
     name = name or os.environ.get("SHORTS_VOICE", "anchor")
     if name == "family":
         name = BY_FAMILY[family(category or "society")]
@@ -47,11 +47,11 @@ def preset(name=None, category=None):
 
 
 def main():
-    from tt_shorts import normalize_ka, render
+    from tt_shorts import normalize_ka, speech
     ap = argparse.ArgumentParser()
     ap.add_argument("--story", help="read this story's narration instead of the sample text")
     ap.add_argument("--only", help="comma-separated presets")
-    ap.add_argument("--out", default=str(render.ROOT / "out" / "voices"))
+    ap.add_argument("--out", default=str(speech.ROOT / "out" / "voices"))
     a = ap.parse_args()
     if not os.environ.get("GEMINI_API_KEY"):
         raise SystemExit("GEMINI_API_KEY is not set: the samples need the Gemini TTS API")
@@ -64,7 +64,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     for name in (a.only.split(",") if a.only else PRESETS):
         wav = out / f"{name}.wav"
-        render.gemini_speak(spoken, wav, None, preset(name), slug=f"voice-sample-{name}")
+        speech.gemini_speak(spoken, wav, None, preset(name), slug=f"voice-sample-{name}")
         print(f"{name:12} {PRESETS[name]['voice']:8} {PRESETS[name]['label']} -> {wav}")
 
 

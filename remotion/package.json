@@ -1,0 +1,21 @@
+{
+  "name": "tt-shorts-remotion",
+  "private": true,
+  "description": "tbilisi.today Shorts: the Remotion compositions (render props come from video/tt_shorts/props.py)",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts NewsShort",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.539",
+    "@remotion/fonts": "4.0.539",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "remotion": "4.0.539"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.12",
+    "typescript": "5.9.3"
+  }
+}
