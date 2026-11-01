@@ -21,11 +21,12 @@ project. It is not a Worker: nothing here deploys through Workers Builds, and it
 - **Georgian:** K1-K22 come from sitech-shorts (`ka_style.md`, `ka_check.py`, `normalize_ka.py`, `lexicon_ka.json`).
   A Latin name's spoken form goes in `lexicon_ka.json` (approved) or in the story's `say` map.
 - **Safe zone:**
-  - Scene text ends at y=1296 and captions at y=1432.
+  - Scene text ends at y=1380 and captions at y=1552.
   - Below y=1100, no text goes right of x=940.
   - The band below the captions carries motion only.
 - **No publisher photos:** there is no reuse grant (`ingest/src/story-cover-assets/README.md`).
-- **Music** is composed by `tools/compose_music.py`; the m4a files are not in git.
+- **Music** is composed by `tools/compose_music.py`; the m4a files are not in git. One constant level: no build-ups,
+  no ducking (the owner heard the ducked bed pump). The mix happens in ffmpeg (`props.mix_audio`), not in Remotion.
 - **Voices:** presets in `voices.py`. SiTech's `Charon` stays SiTech's. edge-tts is a preview stand-in only.
 - **Tests:** `python -m unittest discover -s tests` and `(cd remotion && npx tsc --noEmit)`. A change to dates,
   rules, anchors or the safe zone needs a test.

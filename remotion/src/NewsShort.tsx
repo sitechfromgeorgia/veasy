@@ -107,15 +107,15 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
   );
 };
 
-/** Up to 3 words per caption, never across a pause, never wider than the safe band. The spoken word is marked by a
- *  red bar under it (an active state), never by red text. */
-const CAP = 60;
+/** Up to 3 words per caption, never across a pause, never wider than the safe band. The spoken word is ink with a red
+ *  underline that grows under it (an active state); the others wait in the secondary color. Red is never the text. */
+const CAP = 56;
 const chunk = (words: Word[]) => {
   const out: Word[][] = [];
-  const room = RAIL_X - (W - RAIL_X) - 2 * 32;
+  const room = RAIL_X - (W - RAIL_X) - 2 * 28;
   for (const w of words) {
     const cur = out[out.length - 1];
-    const wide = cur && (measure([...cur, w].map((x) => x.text).join(" "), 700) * CAP) / 100 > room;
+    const wide = cur && (measure([...cur, w].map((x) => x.text).join(" "), 600) * CAP) / 100 > room;
     if (!cur || cur.length === 3 || w.start - cur[cur.length - 1].end > 0.25 || wide) out.push([w]);
     else cur.push(w);
   }
@@ -131,19 +131,23 @@ const Captions: React.FC = () => {
   const idx = chunks.findIndex((c, k) => t >= c[0].start - 0.05 && t < Math.min(chunks[k + 1]?.[0].start ?? 1e9, c[c.length - 1].end + 0.4));
   if (idx < 0) return null;
   const c = chunks[idx];
-  const pop = interpolate(t - c[0].start, [0, 0.1], [0.94, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const enter = interpolate(t - (c[0].start - 0.05), [0, 0.14], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
     <div style={{ position: "absolute", left: W - RAIL_X, right: W - RAIL_X, bottom: H - CAPTION_BOTTOM, display: "flex", justifyContent: "center" }}>
-      <div style={{ background: PANEL, border: `2px solid ${LINE_STRONG}`, borderRadius: RADIUS, color: INK, fontFamily: FONT, fontWeight: 700,
-        fontSize: CAP, lineHeight: 1.2, padding: "16px 32px 24px", transform: `scale(${pop})`, whiteSpace: "nowrap" }}>
+      <div style={{ background: "rgba(5,8,15,.78)", border: `2px solid ${LINE}`, borderRadius: RADIUS, fontFamily: FONT, fontWeight: 600,
+        fontSize: CAP, lineHeight: 1.25, padding: "12px 28px 20px", whiteSpace: "nowrap", opacity: enter,
+        transform: `translateY(${(1 - enter) * 10}px)` }}>
         {c.map((w, k) => {
-          const on = t >= w.start && t < (c[k + 1]?.start ?? w.end + 0.4);
+          const end = c[k + 1]?.start ?? w.end + 0.4;
+          const on = t >= w.start && t < end;
+          const said = t >= end;
+          const grow = interpolate(t - w.start, [0, 0.12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
           return (
             <span key={k} style={{ position: "relative", display: "inline-block", marginRight: k < c.length - 1 ? "0.28em" : 0,
-              color: on ? INK : MUTED }}>
+              color: on || said ? INK : MUTED }}>
               {w.text}
-              <span style={{ position: "absolute", left: 0, right: 0, bottom: -8, height: 6, borderRadius: 3, background: RED,
-                opacity: on ? 1 : 0 }} />
+              <span style={{ position: "absolute", left: 0, right: 0, bottom: -6, height: 5, borderRadius: 3, background: RED,
+                transform: `scaleX(${on ? grow : 0})`, transformOrigin: "left" }} />
             </span>
           );
         })}
@@ -156,10 +160,10 @@ const Captions: React.FC = () => {
 const Ticker: React.FC = () => {
   const { v, props } = useTheme();
   const frame = useCurrentFrame();
-  const rows = [[props.category, props.date.date, "tbilisi.today"].join("  ·  "), props.sources.join("  ·  ")];
+  const rows = [[props.category, props.date.date, ...props.sources, "tbilisi.today"].join("  ·  ")];
   const speed = v === "kinetic" ? 4 : 2.2;
   return (
-    <div style={{ position: "absolute", left: 0, right: 0, top: CAPTION_BOTTOM + 36, height: 296, overflow: "hidden" }}>
+    <div style={{ position: "absolute", left: 0, right: 0, top: CAPTION_BOTTOM + 28, height: 180, overflow: "hidden" }}>
       {props.previewNote && (
         <div style={{ position: "absolute", right: SIDE, top: 0, zIndex: 1 }}><Chip size={26}>{props.previewNote}</Chip></div>
       )}
@@ -167,7 +171,7 @@ const Ticker: React.FC = () => {
         const unit = (measure(`${r}  ·  `, 700) * 128) / 100;
         const x = i === 0 ? -((frame * speed) % unit) : -unit + ((frame * speed) % unit);
         return (
-          <div key={i} style={{ position: "absolute", top: 56 + i * 128, left: x, whiteSpace: "pre", fontFamily: FONT, fontWeight: 700,
+          <div key={i} style={{ position: "absolute", top: 44, left: x, whiteSpace: "pre", fontFamily: FONT, fontWeight: 700,
             fontSize: 128, lineHeight: 1, color: TICKER }}>{[r, r, r, r].join("  ·  ")}</div>
         );
       })}
@@ -186,17 +190,9 @@ const Footer: React.FC = () => {
   );
 };
 
-/** Music under the voice: full in pauses, down ~10 dB while a word is spoken. */
-const useDuck = (words: Word[], fps: number) =>
-  useMemo(() => {
-    const speaking = (t: number) => words.some((w) => t >= w.start - 0.15 && t <= w.end + 0.35);
-    return (f: number) => (speaking(f / fps) ? 0.32 : 1);
-  }, [words, fps]);
-
 export const NewsShort: React.FC<ShortProps> = (props) => {
   const theme = useMemo(() => ({ v: props.variant, props }), [props]);
-  const { fps, durationInFrames } = useVideoConfig();
-  const duck = useDuck(props.words, fps);
+  const { durationInFrames } = useVideoConfig();
   return (
     <Theme.Provider value={theme}>
       <AbsoluteFill style={{ overflow: "hidden", fontFamily: FONT }}>
@@ -211,10 +207,11 @@ export const NewsShort: React.FC<ShortProps> = (props) => {
         ))}
         <Captions />
         <Footer />
+        {/* Studio preview only: the final mix is ffmpeg's (voice levelled alone, music at one constant level) */}
         {props.voice && <Html5Audio src={staticFile(props.voice)} volume={props.voiceVolume} />}
         {props.music && (
           <Html5Audio src={staticFile(props.music)} loop
-            volume={(f) => props.musicVolume * duck(f) *
+            volume={(f) => props.musicVolume *
               interpolate(f, [0, 30, durationInFrames - 75, durationInFrames], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} />
         )}
       </AbsoluteFill>

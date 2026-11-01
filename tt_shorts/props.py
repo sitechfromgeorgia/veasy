@@ -56,7 +56,7 @@ def build(story_path, variant, engine="edge", tone=None, edge_voice=speech.EDGE_
         "scenes": [{**s, "from": a, "duration": b - a} for s, a, b in zip(story["scenes"], marks, marks[1:])],
         "words": words,
         "voice": audio.name if audio else None, "voiceVolume": 1.0,
-        "music": music.name if music else None, "musicVolume": 0.55 if engine == "silent" else 0.30,
+        "music": music.name if music else None, "musicVolume": 0.5 if engine == "silent" else 0.22,
         "previewNote": NOTES.get(engine),
     }
     (work / "props.json").write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
@@ -79,13 +79,44 @@ def _remotion(args, work):
     subprocess.run(cmd, cwd=REMOTION, check=True)
 
 
-def render_video(work, out):
+MUSIC_DB = -13.0  # the bed under the voice: one constant level, ~13 LU below the -16 LUFS voice (no ducking)
+MUSIC_DB_SILENT = -6.0  # a preview without a voice: the music is the sound
+
+
+def mix_audio(work, props, video, out):
+    """Picture from Remotion + voice + music, mixed by ffmpeg. The voice is levelled on its own; the music sits at
+    one constant level with a fade in and out, so nothing rises and falls under the speech (the owner's ear,
+    2026-11-01: the ducked bed pumped)."""
+    dur = props["durationInFrames"] / FPS
+    public = work / "public"
+    inputs, graph, mix = ["-i", str(video)], [], []
+    if props["voice"]:
+        inputs += ["-i", str(public / props["voice"])]
+        graph.append("[1:a]aresample=48000,loudnorm=I=-16:TP=-2:LRA=7,aformat=channel_layouts=stereo,"
+                     f"apad,atrim=0:{dur:.3f}[voice]")
+        mix.append("[voice]")
+    if props["music"]:
+        k = len(inputs) // 2
+        inputs += ["-stream_loop", "-1", "-i", str(public / props["music"])]
+        db = MUSIC_DB if props["voice"] else MUSIC_DB_SILENT
+        graph.append(f"[{k}:a]aresample=48000,atrim=0:{dur:.3f},volume={db}dB,afade=t=in:d=1.2,"
+                     f"afade=t=out:st={max(0, dur - 2.5):.3f}:d=2.5[bed]")
+        mix.append("[bed]")
+    if not mix:
+        subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(video), "-c", "copy", str(out)], check=True)
+        return out
+    graph.append(f"{''.join(mix)}amix=inputs={len(mix)}:duration=first:normalize=0,alimiter=limit=0.89:level=disabled[a]")
+    subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", *inputs, "-filter_complex", ";".join(graph),
+                    "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+                    "-t", f"{dur:.3f}", "-movflags", "+faststart", str(out)], check=True)
+    return out
+
+
+def render_video(work, props, out):
     raw = work / "raw.mp4"
-    _remotion(["render", "src/index.ts", "NewsShort", str(raw), f"--concurrency={speech.workers()}"], work)
+    _remotion(["render", "src/index.ts", "NewsShort", str(raw), "--muted", f"--concurrency={speech.workers()}"], work)
     out.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(raw), "-c:v", "copy",
-                    "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-c:a", "aac", "-b:a", "160k", "-ar", "48000",
-                    "-movflags", "+faststart", str(out)], check=True)
+    mix_audio(work, props, raw, out)
     raw.unlink()
     return out
 
@@ -115,5 +146,5 @@ if __name__ == "__main__":
         for p in render_stills(work, [int(x) for x in a.still.split(",")], pathlib.Path(a.out) / "stills"):
             print(p)
     else:
-        out = render_video(work, pathlib.Path(a.out) / f"{props['id']}-{a.variant}.mp4")
+        out = render_video(work, props, pathlib.Path(a.out) / f"{props['id']}-{a.variant}{'' if a.voice == 'gemini' else '-' + a.voice}.mp4")
         print(f"{out} | {props['durationInFrames'] / FPS:.1f}s | {len(props['scenes'])} scenes | music {props['music']}")

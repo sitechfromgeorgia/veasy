@@ -24,8 +24,8 @@ export const W = 1080;
 export const H = 1920;
 export const SIDE = 64;
 export const SCENE_TOP = 248;
-export const SCENE_BOTTOM = 1296;
-export const CAPTION_BOTTOM = 1432;
+export const SCENE_BOTTOM = 1380;
+export const CAPTION_BOTTOM = 1552; // lower third, owner's request (2026-11-01); still above the platforms' caption row
 export const RAIL_X = 940;
 
 // The mark: 512 grid, radius 112, the t and the dot (diameter 68). Never framed, recolored or distorted.

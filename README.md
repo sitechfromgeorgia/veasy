@@ -31,9 +31,9 @@ agent server (84.46.250.149).
 | Band (px) | What |
 |---|---|
 | 80-210 | mark + wordmark, date, weekday · time · category, progress rule with the red dot |
-| 248-1296 | the scene (story text never goes lower) |
-| 1296-1432 | captions: up to 3 words; the spoken word is underlined in red |
-| 1468-1760 | moving ticker (category, date, outlets). Platforms draw their UI here, so this band carries no story text |
+| 248-1380 | the scene (story text never goes lower) |
+| 1460-1552 | captions, lower third: up to 3 words; the spoken word is ink with a red underline |
+| 1580-1760 | moving ticker (category, date, outlets). Platforms draw their UI here, so this band carries no story text |
 | 1768-1880 | sources line + story link |
 
 Below y=1100, no text goes right of x=940 (the like/share rail).
@@ -43,11 +43,32 @@ Below y=1100, no text goes right of x=940 (the like/share rail).
 | Part | State |
 |---|---|
 | Remotion composition `NewsShort`, 9 scene types, 3 looks | done (`remotion/src`) |
-| Voice: Gemini presets (`voices.py`); edge-tts ka-GE as a preview stand-in | Gemini samples need `GEMINI_API_KEY` |
+| Voice: Gemini presets (`voices.py`); edge-tts ka-GE as a timing stand-in only (it sounds robotic) | Gemini samples need `GEMINI_API_KEY` |
+| Audio mix (ffmpeg): voice levelled on its own, music at one constant level, with no ducking | done |
 | News rules N1-N9 (`ka_style.md` § N, `news_check.py`) | done |
-| 8 category families → composed music, 2 loops each | done (`tools/compose_music.py`) |
+| Music: a news bed per category family, written from scratch (clock tick, e-piano, pad), with an even level (≤1 dB bar to bar) | done (`tools/compose_music.py`) |
 | Feed endpoint, writer, daily run, server timer | phase 1 |
 | Auto-publishing to YouTube / Meta / TikTok, Telegram kill switch | phase 2 |
+
+## The writer (phase 1): free first, DeepSeek v4.1 Flash only when needed
+
+The owner set the rule on 2026-11-01: a free model writes the scripts, and `deepseek/deepseek-v4.1-flash` is used
+minimally.
+- **Order:**
+  1. Workers AI `@cf/deepseek-ai/deepseek-v4-flash-0731` (free daily allowance; the same model ingest already
+     falls back to);
+  2. sitech-shorts' gateway lane of free models (branch `feat/workers-ai-gateway-lane`);
+  3. `deepseek/deepseek-v4.1-flash` (Command Code), only when the free lanes fail or are out of quota.
+- **One call per video:**
+  - The input is the 3 most trusted member articles, cut to ~2 500 characters each (~3k tokens in, ~600 out).
+  - The prompt is `ka_style.md` (K1-K22, N1-N9).
+- **Code checks first, for free:**
+  - `news_check` (numbers, quotes, no relative days, sensitive skip) and `ka_check` (K rules, K9 words per scene);
+  - the Georgian normalisation;
+  - the timing QA (`speech.scene_frames`).
+- **Repairs:** only a failed check costs another call, at most 1 repair. Then the story is skipped, not forced.
+  There is no separate LLM editor pass by default (sitech-shorts runs one; here it is opt-in).
+- Every call's tokens go to `costs.py`, and the daily report shows them.
 
 ## Commands
 

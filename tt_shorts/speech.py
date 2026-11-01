@@ -101,7 +101,9 @@ def gemini_speak(text, wav, words_json, preset, slug=None):
     """Gemini TTS with the preset's voice and delivery (the style goes in speech_metadata, never in the text)."""
     body = {"model": GEMINI_TTS,
             "input": [{"type": "user_input", "content": [
-                {"type": "text", "text": text, "annotations": [{"type": "speech_metadata", "style": preset["style"]}]}]}],
+                {"type": "text", "text": text,
+                 # an empty style is a valid choice (Google: try none first); then send no annotation at all
+                 **({"annotations": [{"type": "speech_metadata", "style": preset["style"]}]} if preset["style"] else {})}]}],
             "response_format": {"type": "audio", "mime_type": "audio/wav"},
             "generation_config": {"speech_config": [{"voice": preset["voice"]}]}}
     req = urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions", json.dumps(body).encode(),

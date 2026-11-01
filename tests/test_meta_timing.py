@@ -45,7 +45,8 @@ class Data(unittest.TestCase):
             self.assertNotRegex(t, "[–—]")
 
     def test_voice_presets(self):
-        self.assertEqual(voices.preset("anchor")["voice"], "Kore")
+        self.assertEqual(voices.preset("anchor")["voice"], "Rasalgethi")
+        self.assertEqual(voices.preset("plain")["style"], "")  # Google: try an empty style first
         self.assertEqual(voices.preset("family", "crime")["name"], "documentary")
         self.assertNotIn("Charon", {p["voice"] for p in voices.PRESETS.values()})  # SiTech's voice stays SiTech's
 

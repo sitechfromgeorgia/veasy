@@ -12,26 +12,27 @@ import json
 import os
 import pathlib
 
+# Gemini 3.8 guidance (the owner's research, docs 2026-10): keep the style short or empty, put no directions in the
+# spoken text, try an empty style first. The narration guide adds: weak word stress, focus by phrase, statements
+# settle low, ~4.5-5 syllables per second with pauses. Voices: Google's descriptors (Informative, Firm, Clear, Warm,
+# Even); none is SiTech's Charon.
+NEWS = ("Natural contemporary Georgian news delivery. Calm and clear, weak word stress, focus on the key fact of "
+        "each sentence, statements settle low. Brief pauses between sentences. Not theatrical, not promotional.")
 PRESETS = {
-    "anchor": {"label": "საინფორმაციო წამყვანი", "voice": "Kore",
-               "style": "A calm, authoritative Georgian evening-news anchor. Even, unhurried pace, clear diction, "
-                        "short pauses between facts. Neutral and trustworthy: no excitement, no drama, no sales tone."},
+    "plain": {"label": "ნეიტრალური (სტილის გარეშე)", "voice": "Rasalgethi", "style": ""},
+    "anchor": {"label": "საინფორმაციო წამყვანი", "voice": "Rasalgethi", "style": NEWS},
+    "firm": {"label": "მტკიცე", "voice": "Kore", "style": NEWS},
+    "clear": {"label": "მკაფიო", "voice": "Iapetus", "style": NEWS},
     "warm": {"label": "თბილი მთხრობელი", "voice": "Sulafat",
-             "style": "A warm Georgian storyteller explaining today's news to a friend. Conversational and natural, "
-                      "gentle emphasis on what matters to people, relaxed pauses. Friendly but never casual about facts."},
-    "brisk": {"label": "დინამიკური", "voice": "Puck",
-              "style": "A young Georgian social-media news host. Brisk, upbeat, energetic pace with crisp phrasing, "
-                       "but grounded and factual: never sensational, never shouting, no hype words."},
+             "style": "Warm, conversational Georgian, like explaining today's news to one friend. Natural phrasing, "
+                      "weak word stress, relaxed pauses. Friendly but exact with facts."},
     "documentary": {"label": "დოკუმენტური", "voice": "Gacrux",
-                    "style": "A low, measured Georgian documentary narrator. Serious, steady and deliberate, with weight "
-                             "on names and numbers and calm pauses. Respectful tone for hard news."},
-    "bright": {"label": "ნეიტრალური ნათელი", "voice": "Aoede",
-               "style": "A light, clear Georgian news reader. Bright and articulate, medium pace, neutral and easy "
-                        "to follow, like a morning news brief."},
+                    "style": "Measured, serious Georgian narration for hard news. Steady pace, calm pauses, statements "
+                             "settle low. Respectful, never dramatic."},
 }
 # One option for the owner: a tone per category family (hard news reads serious, light news reads lighter).
-BY_FAMILY = {"politics": "anchor", "crime": "documentary", "world": "anchor", "economy": "bright",
-             "society": "warm", "sports": "brisk", "culture": "warm", "tech": "bright"}
+BY_FAMILY = {"politics": "anchor", "crime": "documentary", "world": "anchor", "economy": "clear",
+             "society": "warm", "sports": "firm", "culture": "warm", "tech": "clear"}
 SAMPLE = ("ვარკეთილსა და ვაზისუბანში 2 ნოემბერს გაზი შეწყდება. „თბილისი ენერჯის“ ცნობით, მიწოდება "
           "6400 აბონენტს დროებით შეუწყდება. ამ ამბავს ოთხი მედია აშუქებს. დეტალები tbilisi.today-ზე.")
 
