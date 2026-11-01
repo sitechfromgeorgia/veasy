@@ -30,18 +30,19 @@ PRESETS = {
                     "style": "Measured, serious Georgian narration for hard news. Steady pace, calm pauses, statements "
                              "settle low. Respectful, never dramatic."},
 }
-# One option for the owner: a tone per category family (hard news reads serious, light news reads lighter).
-BY_FAMILY = {"politics": "anchor", "crime": "documentary", "world": "anchor", "economy": "clear",
-             "society": "warm", "sports": "firm", "culture": "warm", "tech": "clear"}
+# A tone per category family, from the four the owner liked by ear (2026-11-01: plain, anchor, warm, clear; not firm
+# or documentary): hard news reads as the anchor, people's news warm, numbers and tech clear, sports plain.
+APPROVED = ("plain", "anchor", "warm", "clear")
+BY_FAMILY = {"politics": "anchor", "world": "anchor", "crime": "anchor", "economy": "clear", "tech": "clear",
+             "society": "warm", "culture": "warm", "sports": "plain"}
 SAMPLE = ("ვარკეთილსა და ვაზისუბანში 2 ნოემბერს გაზი შეწყდება. „თბილისი ენერჯის“ ცნობით, მიწოდება "
           "6400 აბონენტს დროებით შეუწყდება. ამ ამბავს ოთხი მედია აშუქებს. დეტალები tbilisi.today-ზე.")
 
 
 def preset(name=None, category=None):
-    """The preset to read a story with: its own, else SHORTS_VOICE, else by family when
-    SHORTS_VOICE=family, else anchor."""
+    """The preset to read a story with: its own, else SHORTS_VOICE; "family" (the default) picks by category."""
     from tt_shorts.meta import family
-    name = name or os.environ.get("SHORTS_VOICE", "anchor")
+    name = name or os.environ.get("SHORTS_VOICE", "family")
     if name == "family":
         name = BY_FAMILY[family(category or "society")]
     return {"name": name, **PRESETS[name]}

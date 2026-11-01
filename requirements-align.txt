@@ -1,6 +1,6 @@
 # Georgian forced alignment (align.py) runs in its own venv: CPU torch is large and the render venv stays light.
-# Same stack as sitech-shorts' venv-cb; pin exact versions once the server's install works.
+# Tested 2026-11-01 with Gemini 3.8 Flash TTS audio (align.py reads the WAV itself, so torchcodec is not needed).
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.4
-torchaudio>=2.4
-transformers>=4.44
+torch==2.15.0
+torchaudio==2.11.1
+transformers==5.22.1

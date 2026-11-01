@@ -13,6 +13,20 @@ import sys
 MODELS = {"ka": "xsway/wav2vec2-large-xlsr-georgian"}  # Apache-2.0; the WhisperX alignment default for ka
 
 
+def load_wav(path, torch):
+    """16-bit PCM WAV -> (channels x samples float tensor, rate) with the standard library: newer torchaudio
+    needs torchcodec just to read a file, and Gemini's WAV is plain PCM."""
+    import array
+    import wave
+    with wave.open(str(path)) as w:
+        ch, rate, width, n = w.getnchannels(), w.getframerate(), w.getsampwidth(), w.getnframes()
+        if width != 2:
+            raise ValueError(f"{path}: {8 * width}-bit WAV, expected 16-bit PCM")
+        pcm = array.array("h", w.readframes(n))
+    x = torch.tensor(pcm, dtype=torch.float32) / 32768.0
+    return x.reshape(-1, ch).T.contiguous(), rate
+
+
 def align(audio, text, lang="ka"):
     import torch
     import torchaudio
@@ -25,7 +39,7 @@ def align(audio, text, lang="ka"):
     vocab = proc.tokenizer.get_vocab()
     blank, sep = proc.tokenizer.pad_token_id, vocab.get("|")
 
-    wav, sr = torchaudio.load(audio)
+    wav, sr = load_wav(audio, torch)
     wav = torchaudio.functional.resample(wav.mean(0), sr, 16000)
     with torch.inference_mode():
         inputs = proc(wav.numpy(), sampling_rate=16000, return_tensors="pt").input_values

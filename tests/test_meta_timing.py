@@ -56,7 +56,9 @@ class Data(unittest.TestCase):
     def test_voice_presets(self):
         self.assertEqual(voices.preset("anchor")["voice"], "Rasalgethi")
         self.assertEqual(voices.preset("plain")["style"], "")  # Google: try an empty style first
-        self.assertEqual(voices.preset("family", "crime")["name"], "documentary")
+        self.assertEqual(voices.preset("family", "crime")["name"], "anchor")
+        self.assertEqual(voices.preset("family", "society")["name"], "warm")
+        self.assertTrue(set(voices.BY_FAMILY.values()) <= set(voices.APPROVED))  # only tones the owner approved
         self.assertNotIn("Charon", {p["voice"] for p in voices.PRESETS.values()})  # SiTech's voice stays SiTech's
 
 
