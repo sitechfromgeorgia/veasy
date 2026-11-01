@@ -1,0 +1,6 @@
+# Georgian forced alignment (align.py) runs in its own venv: CPU torch is large and the render venv stays light.
+# Same stack as sitech-shorts' venv-cb; pin exact versions once the server's install works.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.4
+torchaudio>=2.4
+transformers>=4.44
