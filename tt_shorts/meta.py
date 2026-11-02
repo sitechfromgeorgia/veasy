@@ -73,6 +73,16 @@ def display_url(story_id, b=None):
     return _b(b)["link"]["display"].format(id=story_id)
 
 
+def links(story, platform="shorts", b=None):
+    """(the link as shown, the URL the QR opens). The pack's story page, unless the story's source gave its own: a
+    program with "link": "source" (a law on matsne.gov.ge) sets story["link"] from the data, never from a writer
+    (engine.write_story, programs.stamp)."""
+    own = story.get("link") if story.get("program") not in (None, "news") else None  # news: always the pack's page
+    if isinstance(own, dict) and str(own.get("qr", "")).startswith(("https://", "http://")) and own.get("display"):
+        return own["display"], own["qr"]
+    return display_url(story["id"], b), story_url(story["id"], platform, b)
+
+
 def qr_svg(url, dark="#05080F"):
     return segno.make(url, error="m").svg_inline(scale=10, dark=dark, light="#FFFFFF", border=2, omitsize=True)
 

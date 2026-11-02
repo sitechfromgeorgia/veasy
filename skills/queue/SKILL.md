@@ -5,12 +5,14 @@ description: "Use when making more than one video, a daily batch, or a video tha
 
 # The queue and the storage
 
-One video is one **job**: (brand, source, ref, format, overrides). The job id is a hash of exactly that, so adding
-the same request twice returns the same job: you can't make the same video twice by accident. Every command prints
-JSON. Tool: `veasy_queue` (same arguments as the CLI).
+One video is one **job**: (brand, program, source, ref, format, overrides). The job id is a hash of exactly that, so
+adding the same request twice returns the same job: you can't make the same video twice by accident. Every command
+prints JSON. Tool: `veasy_queue` (same arguments as the CLI).
 
 ```bash
 python -m tt_shorts.engine queue add --source tbilisi-today --ref 24725 [--brand tbilisi-today] [--format news]
+python -m tt_shorts.engine queue add --program law --ref constitution:17     # a program (veasy:programs): its first
+                                                                             # source and its format by default
 python -m tt_shorts.engine queue add --story /path/story.json --brand sitech --format news-roll   # already written
 python -m tt_shorts.engine queue list [--state failed]      # newest first, plus counts per state
 python -m tt_shorts.engine queue run [--max 5]               # one worker at a time; a second one answers busy
@@ -28,7 +30,9 @@ cancelled: taken out by hand
 ```
 `error_class`: `transient` (network, 429, 5xx, timeouts: re-queued by itself after 5, 10, 20 min, then failed),
 `config` (a key, a format or a brand pack is wrong), `content` (the story failed a check: fix the story, never the
-rule), `layout` (scene timing), `render` (Remotion or ffmpeg: read the log line). Higher `--priority` runs first.
+rule), `layout` (scene timing), `render` (Remotion or ffmpeg: read the log line), `review` (`held` only: QA passed,
+but the job's program says `publish: review`, e.g. law and explainer; a person watches it before it goes out).
+Higher `--priority` runs first. A story job takes the story's own `program`.
 
 ## Where things are (VEASY_HOME, default <veasy>/data)
 

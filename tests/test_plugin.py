@@ -10,7 +10,7 @@ import unittest
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SKILLS = ("make-video", "write-script", "qa", "formats", "queue", "brands")
+SKILLS = ("make-video", "write-script", "qa", "formats", "queue", "brands", "programs")
 
 
 def load_plugin():
@@ -88,6 +88,21 @@ class Plugin(unittest.TestCase):
             self.assertFalse(again["created"])  # the same request is the same job
             out = json.loads(self.ctx.tools["veasy_queue"][1]({"action": "list"}))
             self.assertEqual(out["counts"], {"queued": 1})
+
+    def test_write_and_queue_take_a_program_and_any_source(self):
+        from tt_shorts import programs, sources
+        for tool in ("veasy_write", "veasy_queue"):
+            props = self.ctx.tools[tool][0]["parameters"]["properties"]
+            self.assertIn("program", props)
+            self.assertEqual(set(props["source"]["enum"]), set(sources.KNOWN))
+        self.assertTrue(set(programs.load_all()) >= {"news", "explainer", "law", "blog"})
+        with tempfile.TemporaryDirectory() as home, mock.patch.dict(os.environ, {"VEASY_HOME": home}):
+            out = json.loads(self.ctx.tools["veasy_queue"][1]({"action": "add", "program": "law",
+                                                                "ref": "constitution:17"}))
+            self.assertEqual((out["job"]["program"], out["job"]["source"]), ("law", "ordo"), out)
+            out = json.loads(self.ctx.tools["veasy_queue"][1]({"action": "add", "program": "law", "source": "url",
+                                                                "ref": "https://x.ge/a", "format": "neon"}))
+            self.assertTrue(out.get("problems") or out.get("error"))
 
     def test_check_tool_runs_the_checks(self):
         out = json.loads(self.ctx.tools["veasy_check"][1]({"story": "stories/24835.json",

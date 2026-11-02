@@ -29,7 +29,8 @@ What the agent gets:
   `veasy_queue` and `veasy_doctor`.
   - Each runs the engine in its own venv and returns its JSON.
   - A render takes a minute or two; the agent needs none of the render libraries.
-- **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:formats`, `veasy:queue`, `veasy:brands`.
+- **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:formats`, `veasy:queue`, `veasy:brands`,
+  `veasy:programs`.
 - **A one-line hint** on the first turn; turn it off with `VEASY_HINT=0`.
 
 Frames are rendered with [Remotion](https://github.com/remotion-dev/remotion) (React; `remotion/`). Python
@@ -46,6 +47,7 @@ python -m tt_shorts.engine doctor                                  # is this mac
 python -m tt_shorts.engine options [--brand sitech]                # every choice: brands, looks, captions, voices, music, formats, scenes
 python -m tt_shorts.engine write  --source tbilisi-today --ref 24886 [--brand tbilisi-today]
                                                                    # a story from a source -> stories/<brand>/<day>/<ref>.json
+python -m tt_shorts.engine write  --program law --source ordo --ref constitution:17   # any source in: explainer, law, blog
 python -m tt_shorts.engine check  <story.json> --sources <story>.sources.json
 python -m tt_shorts.engine render <story.json> --format news [--look kinetic] [--captions roll] [--voice warm]
 python -m tt_shorts.engine still  <story.json>                     # one PNG per scene, no video
@@ -58,9 +60,18 @@ python -m tt_shorts.engine voices --story <story.json>             # Gemini tone
 - **Formats** (`tt_shorts/formats.py`, `formats/*.json`): a show is a named set of choices (look, captions, voice,
   music, platform, length window). Built-in: `news`, `news-roll`. A new show is a JSON file, no code. Which show
   uses which format is the owner's and the agent's decision. A format works for every brand.
-- **Sources** (`tt_shorts/sources/`): where a story's facts come from. `tbilisi-today` (ref = a D1 cluster id) and
-  `text` (ref = a JSON file `{"cluster": {...}, "articles": [...]}`, for any client). A new source is one module
-  with `fetch(ref)`.
+- **Sources** (`tt_shorts/sources/`): where a story's facts come from. `tbilisi-today` (ref = a D1 cluster id),
+  `text` (ref = a JSON file `{"cluster": {...}, "articles": [...]}`, for any client), `url` (a web page: trafilatura
+  or a stdlib extractor), `pdf` (pypdf or pdftotext), `ordo` (Georgian law from matsne.gov.ge through
+  [Ordo](https://github.com/sitechfromgeorgia/ordo-mcp)'s `matsne_api.py`, `ORDO_DIR`; ref `constitution:17`) and
+  `sitech` (a sitech.ge blog post by slug). A new source is one module with `fetch(ref)`.
+- **Programs** (`tt_shorts/programs.py`, `programs/*.json` + `programs/briefs/`): what a video is made from and
+  what it may claim. `news` (the default, unchanged), `explainer` (any document, 30-45 s), `law` (one article of
+  Georgian law) and `blog` (a SiTech post). A program names its sources, the writer's brief, its scene types, a rule
+  tier (`news`; `claims`: every number, name and quote in the document; `law`: claims plus the article number on
+  screen, the act named and no advice; `tt_shorts/claims_check.py`), its default format and `publish: auto|review`
+  (review jobs end `held` for a person). A new program is a JSON file and a brief. Skill: `veasy:programs`.
+  `stories/law-constitution-17.json` is a law example (article 17 of the Constitution, fetched through Ordo).
 - What comes next (new visual blocks, render server, more outputs, the decisions needed): [ROADMAP.md](ROADMAP.md).
 - **Georgian gate: [kaeasy](https://github.com/sitechfromgeorgia/kaeasy)** (`tt_shorts/kaeasy.py`).
   - It is loaded from the plugin folder every agent shares (`KAEASY_DIR`), so a new rule there reaches the videos.
@@ -163,6 +174,7 @@ Below y=1100, no text goes right of x=940 (the like/share rail).
 | Music: a news bed per category family, written from scratch (clock tick, e-piano, pad), with an even level (≤1 dB bar to bar) | done (`tools/compose_music.py`) |
 | Brand packs (`brands/`: tbilisi-today, sitech), storage layout, job queue, sources (tbilisi-today, text) | done (2026-11-02) |
 | Writer, daily run | done; the server timer waits for the owner's OK |
+| Programs (news, explainer, law, blog), rule tiers claims and law, sources url, pdf, ordo, sitech | done (2026-11-02); `ordo` needs Ordo on the server (`ORDO_DIR`) |
 | Auto-publishing to YouTube / Meta / TikTok, Telegram kill switch | phase 2 |
 
 ## The writer (phase 1): free first, DeepSeek v4.1 Flash only when needed

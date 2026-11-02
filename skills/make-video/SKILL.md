@@ -23,6 +23,9 @@ a daily batch or retries: use the queue (`veasy:queue`); it runs these same step
   "articles": ["text", ...]}`, any client). It writes `stories/<brand>/<day>/<ref>.json` under VEASY_HOME and the
   articles beside it as `.sources.json` (kept for re-checks); the JSON result gives both paths. A non-empty
   `problems` list means: don't render.
+- Not a news cluster (a web page, a PDF, an article of Georgian law, a SiTech post): pick a program,
+  `write --program explainer|law|blog --source url|pdf|ordo|sitech --ref ...` (see `veasy:programs`). A program
+  brings its own brief, scenes, rules and default format; law and explainer videos are held for a person's review.
 - By hand or to repair one: follow the `veasy:write-script` skill.
 - The daily selection (4+ outlets, last 18 h, category caps, sensitive stories skipped, no repeats):
   `python -m ops.daily --limit 10 --dry-run` shows the picks; without `--dry-run` it writes and renders them.

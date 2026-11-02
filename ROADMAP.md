@@ -20,13 +20,21 @@ for the owner, the agents and whoever codes it. Ranked: quick wins first.
   entrances, transitions, music loops; least used per brand), the writer told the recent scene orders, drawings on
   with `art.quality` and a drop-not-fail fallback, four music loops per family.
 
+- **Programs, any source in** (D12 below, B12, B13; the owner: "a video about the Constitution of Georgia"):
+  `tt_shorts/programs.py` + `programs/*.json` (news, explainer, law, blog) with writer briefs, scene lists, rule
+  tiers (`tt_shorts/claims_check.py`: claims and law), a default format (`formats/explainer.json`) and
+  `publish: auto|review`; sources `url`, `pdf`, `ordo` (Georgian law through Ordo) and `sitech`; the queue carries
+  the program (a column, in the job id); `stories/law-constitution-17.json` is the first law video.
+
 Next for other clients:
-- **B12. The writer per pack.** `writer.py`'s prompt is written for multi-source news (tbilisi.today). A pack
-  should name its writer style (news cluster, blog post, product update) so `write --brand sitech` writes from a
-  SiTech post the way sitech-shorts does. Until then a SiTech story is written by the agent and queued with
-  `--story`.
-- **B13. A `sitech` source.** Read a post from sitech.ge (RSS + the page's ld+json, as sitech-shorts'
-  `articles.py` does), so `queue add --source sitech --ref <slug> --brand sitech` works end to end.
+- ~~**B12. The writer per pack.**~~ Done as programs: `write --program blog --brand sitech` writes from a SiTech
+  post with the blog brief, the pack's categories and the claims rules.
+  - `writer.py`'s prompt is written for multi-source news (tbilisi.today). A pack should name its writer style
+    (news cluster, blog post, product update) so `write --brand sitech` writes from a SiTech post the way
+    sitech-shorts does.
+- ~~**B13. A `sitech` source.**~~ Done (`tt_shorts/sources/sitech.py`): `queue add --program blog --ref <slug>
+  --brand sitech`.
+  - Read a post from sitech.ge (RSS + the page's ld+json, as sitech-shorts' `articles.py` does).
 
 ## Decisions only the owner can make (blocking some items)
 
@@ -235,6 +243,9 @@ Engine and agent tooling:
 12. **Programs: any source in, many outputs out:** url (trafilatura), pdf, github-release, csv/sql sources; rule
     tiers news / claims / data; deliverables: carousel, audiogram, EN/RU versions with identical facts, a two-voice
     dialogue (Gemini multi-speaker TTS); `publish: auto|review` per program.
+    - Done (2026-11-02): programs (news, explainer, law, blog), sources url, pdf, ordo (Georgian law), sitech, tiers
+      news / claims / law, `publish: auto|review` (the queue holds review jobs). Open: github-release and csv/sql
+      sources, the data tier, the deliverables, and an approve action for held review jobs.
 13. **Self-checking renders:** a layout probe from the render tabs (`onBrowserLog`: overflow, tofu, shrunken text),
     a vision rubric that can only hold (Workers AI vision, two calls must agree), golden stills, a failures table
     that feeds the writer and retires variants that fail often.

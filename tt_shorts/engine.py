@@ -12,6 +12,8 @@ Every command prints JSON on stdout (human notes go to stderr), so an agent can 
   python -m tt_shorts.engine qa     out/24725.mp4 [--format news]   # length, size, loudness + a contact sheet
   python -m tt_shorts.engine write  --source tbilisi-today --ref 24725 [--brand tbilisi-today] [--out x.json]
                                                              # a source's story -> a checked story JSON
+  python -m tt_shorts.engine write  --program law --source ordo --ref constitution:17   # a program (programs.py):
+                                                             # explainer, law, blog... from url, pdf, ordo, sitech
   python -m tt_shorts.engine queue  add --ref 24725 [--brand sitech] [--format news] | list | run [--max 5]
                                     | show <id> | retry <id> | cancel <id>          # the job queue (queue.py)
   python -m tt_shorts.engine voices [--story stories/24835.json] [--only warm,clear]   # tone samples by ear
@@ -31,7 +33,7 @@ import subprocess
 import sys
 
 from tt_shorts import brand as packs
-from tt_shorts import captions, formats, ka_check, kaeasy, meta, news_check, props, speech, store, variety, voices
+from tt_shorts import captions, formats, ka_check, kaeasy, meta, news_check, programs, props, speech, store, variety, voices
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -106,11 +108,18 @@ def options(brand_name=None):
         "engines": {"gemini": "production voice (GEMINI_API_KEY + the alignment venv)",
                     "edge": "free preview stand-in (robotic; timing only)", "silent": "music and captions only"},
         "formats": every,
+        "programs": {n: programs.summary(p) for n, p in programs.load_all().items()},
+        "sources": _sources_about(),
         "scenes": {t: {"required": r, "optional": o, "shows": d} for t, (r, o, d) in SCENES.items()},
         "categories": {c: {"label": meta.category_label(c, b), "family": meta.family(c, b),
                            "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
                        for c in b["categories"]},
     }
+
+
+def _sources_about():
+    from tt_shorts import sources
+    return dict(sources.ABOUT)
 
 
 # ---------------------------------------------------------------- check
@@ -137,6 +146,8 @@ def structure_problems(story):
             if s.get(field) in (None, "", []):
                 p.append(f"scene {i} ({t}): missing {field!r}")
         p += [f"scene {i} ({t}): {x}" for x in shape_problems(s)]
+    if "program" in story:  # a story without one is news, exactly as before programs
+        p += programs.story_problems(story)
     return p
 
 
@@ -183,7 +194,10 @@ def check_story(story, sources=None):
         return p  # the rest needs a well-formed story
     story = packs.with_say(story)  # the pack's own names (SiTech) have spoken forms too
     texts = sources or []
-    if texts:
+    if programs.name_of(story) != programs.DEFAULT:
+        p += programs.rule_problems(story, texts)  # the program's tier: claims or law (some rules need no sources)
+        p += programs.length_problems(story)  # and its format's length window
+    elif texts:
         p += news_check.problems(story, texts)
     ka = ka_check.problems(story, {"title": "", "description": "", "text": " ".join(texts)})
     if not texts:  # without the articles a quote can't be compared: that check needs --sources (the news rules say so)
@@ -241,8 +255,15 @@ def render_story(story_path, fmt, engine="gemini", out_path=None):
 
 
 def _format(a):
-    return formats.get(a.format, look=a.look, captions=a.captions, transition=a.transition, voice=a.voice, music=a.music,
+    name = a.format or program_format(a.story)
+    return formats.get(name, look=a.look, captions=a.captions, transition=a.transition, voice=a.voice, music=a.music,
                        platform=a.platform)
+
+
+def program_format(story_path):
+    """The format a story renders in when none is given: its program's (news: "news")."""
+    story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
+    return programs.of(story)["format"] if "program" in story else "news"
 
 
 def _kaeasy_required():
@@ -327,30 +348,43 @@ def qa(a):
 # ---------------------------------------------------------------- write / voices / doctor
 
 
-def write_story(source, ref, brand=packs.DEFAULT, out_path=None):
-    """A source reference -> a written, checked story file (+ its sources beside it). Used by `write` and the queue."""
+def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None):
+    """A source reference -> a written, checked story file (+ its sources beside it). Used by `write` and the queue.
+    program: news (default: the news-cluster writer, as before programs) or another program (programs.py), which
+    writes from its brief, under its scenes and rule tier."""
     from tt_shorts import sources as src, writer
     packs.load(brand)  # an unknown pack fails before any model call
+    prog = programs.get(program)
+    source = source or prog["sources"][0]
+    programs.check_source(prog, source)  # and a source the program doesn't take
     data = src.fetch(source, ref)
-    story = writer.write(data["cluster"], data["articles"], avoid=variety.recent_sequences(brand))
+    if prog["name"] == programs.DEFAULT:
+        story = writer.write(data["cluster"], data["articles"], avoid=variety.recent_sequences(brand))
+    else:
+        story = programs.write(prog, data, brand, avoid=variety.recent_sequences(brand))
     story["brand"] = brand
     story["source"] = {"name": source, "ref": str(ref)}
-    target = pathlib.Path(out_path) if out_path else store.story_path(brand, ref)
+    programs.stamp(story, prog, data["cluster"])  # program, category, the document's facts and link: data
+    name = programs.story_ref(prog, data["cluster"], ref)
+    target = pathlib.Path(out_path) if out_path else store.story_path(brand, name)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(story, ensure_ascii=False, indent=1), encoding="utf-8")
     side = store.sources_path(target)  # the articles, so `check --sources` can re-run the news rules later
     side.write_text(json.dumps(data["articles"], ensure_ascii=False), encoding="utf-8")
     problems = check_story(story, data["articles"])
     store.log("written", story=str(target), problems=problems)
-    return {"story": str(target.resolve()), "sources": str(side.resolve()),
-            "scenes": [s["type"] for s in story["scenes"]], "problems": problems}
+    result = {"story": str(target.resolve()), "sources": str(side.resolve()),
+              "scenes": [s["type"] for s in story["scenes"]], "problems": problems}
+    if prog["name"] != programs.DEFAULT:
+        result.update(program=prog["name"], rules=prog["rules"], publish=prog["publish"], format=prog["format"])
+    return result
 
 
 def write(a):
     ref = a.ref if a.ref is not None else a.cluster
     if ref is None:
         return out({"problems": ["give --ref (or --cluster for tbilisi-today)"]}, 2)
-    result = write_story(a.source, ref, a.brand, a.out)
+    result = write_story(a.source, ref, a.brand, a.out, a.program)
     return out(result, 1 if result["problems"] else 0)
 
 
@@ -366,7 +400,7 @@ def queue_cmd(a):
     if a.action == "add":
         overrides = {k: getattr(a, k) for k in ("look", "captions", "transition", "voice", "music", "platform") if getattr(a, k)}
         job, created = queue.add(a.brand, a.source if not a.story else None, a.ref, a.format, overrides, a.story,
-                                 a.priority)
+                                 a.priority, program=a.program)
         return out({"job": job, "created": created})
     if a.action == "list":
         return out({"counts": queue.counts(), "jobs": queue.listing(a.state, a.limit)})
@@ -381,6 +415,15 @@ def queue_cmd(a):
 def gc_cmd(a):
     removed = store.gc(dry_run=a.dry_run)
     return out({"dry_run": a.dry_run, "removed": {k: len(v) for k, v in removed.items()}, "home": str(store.home())})
+
+
+def _source_tools():
+    """What the document sources can use here (none of it blocks a news render)."""
+    import importlib.util as iu
+    from tt_shorts.sources import ordo
+    return {"ordo (law source, ORDO_DIR)": ordo.version() or f"missing in {ordo.directory()} (ORDO_DIR)",
+            "url extractor": "trafilatura" if iu.find_spec("trafilatura") else "stdlib fallback (pip install trafilatura)",
+            "pdf reader": "pypdf" if iu.find_spec("pypdf") else "pdftotext" if shutil.which("pdftotext") else "missing"}
 
 
 def doctor(_a):
@@ -412,6 +455,12 @@ def doctor(_a):
         checks["formats"] = n
     except formats.FormatError as e:
         checks["formats"] = f"ERROR: {e}"
+    try:
+        checks["programs"] = sorted(programs.load_all())
+    except programs.ProgramError as e:
+        checks["programs"] = f"ERROR: {e}"
+        bad_packs.append(str(e))
+    checks.update(_source_tools())
     blocking = [k for k in ("ffmpeg", "node", "remotion installed", "fonts") if checks[k] is not True]
     blocking += _kaeasy_required() + bad_packs
     if not checks["music loops"]:
@@ -427,6 +476,13 @@ def queue_states():
     return queue.STATES
 
 
+def _rules_of(story):
+    try:
+        return programs.of(story)["rules"]
+    except programs.ProgramError:
+        return None
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="tt_shorts.engine", description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -438,7 +494,7 @@ def main(argv=None):
     for name in ("render", "still"):
         r = sub.add_parser(name)
         r.add_argument("story")
-        r.add_argument("--format", default="news")
+        r.add_argument("--format", help="a format (default: the story's program's, news for news)")
         r.add_argument("--look", choices=formats.LOOKS)
         r.add_argument("--captions", choices=formats.CAPTIONS)
         r.add_argument("--transition", choices=formats.TRANSITIONS, help="the cut between scenes (auto: the look's own)")
@@ -453,7 +509,9 @@ def main(argv=None):
     q.add_argument("video")
     q.add_argument("--format", default="news")
     w = sub.add_parser("write")
-    w.add_argument("--source", default="tbilisi-today", help="tbilisi-today (ref = cluster id) or text (ref = JSON file)")
+    w.add_argument("--program", help="news (default), explainer, law, blog... (see options: programs)")
+    w.add_argument("--source", help="tbilisi-today (ref = cluster id), text (ref = JSON file), url, pdf, ordo, sitech "
+                                    "(default: the program's first source)")
     w.add_argument("--ref", help="the story's reference in its source")
     w.add_argument("--cluster", help="same as --ref, for tbilisi-today")
     w.add_argument("--brand", default=packs.DEFAULT, help="the brand pack the story will be rendered with")
@@ -466,10 +524,11 @@ def main(argv=None):
     qp.add_argument("action", choices=["add", "list", "run", "show", "retry", "cancel"])
     qp.add_argument("id", nargs="?")
     qp.add_argument("--brand", help="a pack in brands/ (default: the story's own, else tbilisi-today)")
-    qp.add_argument("--source", default="tbilisi-today")
+    qp.add_argument("--program", help="news (default; a story file's own program), explainer, law, blog...")
+    qp.add_argument("--source", help="default: the program's first source (news: tbilisi-today)")
     qp.add_argument("--ref")
     qp.add_argument("--story", help="an already written story file (skips writing)")
-    qp.add_argument("--format", default="news")
+    qp.add_argument("--format", help="default: the program's format (news: news)")
     for k in ("look", "captions", "transition", "voice", "music", "platform"):
         qp.add_argument(f"--{k}")
     qp.add_argument("--priority", type=int, default=0)
@@ -487,8 +546,11 @@ def main(argv=None):
             story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
             sources = json.loads(pathlib.Path(a.sources).read_text(encoding="utf-8")) if a.sources else None
             problems = check_story(story, sources) + _kaeasy_required()
-            return out({"story": a.story, "news_rules": bool(sources), "kaeasy": kaeasy.version(),
-                        "problems": problems, "warnings": ka_check.warnings(story)}, 1 if problems else 0)
+            result = {"story": a.story, "news_rules": bool(sources), "kaeasy": kaeasy.version(),
+                      "problems": problems, "warnings": ka_check.warnings(story)}
+            if "program" in story:
+                result.update(program=programs.name_of(story), rules=_rules_of(story))
+            return out(result, 1 if problems else 0)
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd}[a.cmd](a)
     except (formats.FormatError, ValueError) as e:

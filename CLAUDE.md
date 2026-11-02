@@ -48,6 +48,11 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   - Videos are published without a human review. Any rule that code can check goes into `news_check.py` with a
     test in `tests/test_news_check.py`.
   - Never add an opinion scene. Never let the writer set `date` or `sources`.
+- **Programs** (`programs/*.json` + `programs/briefs/`, `tt_shorts/programs.py`): what a video is made from and
+  what it may claim. `news` (no `"program"` in the story) must stay exactly as it is. A new program is a JSON file
+  and a brief; a new rule tier goes in `tt_shorts/claims_check.py` with a test in `tests/test_programs.py`; a new
+  source is `tt_shorts/sources/<name>.py` with a test in `tests/test_sources.py`. A story's `program`, `source` and
+  `link` come from the data, never from the writer.
 - **Georgian:** K1-K22 come from sitech-shorts (`ka_style.md`, `ka_check.py`, `normalize_ka.py`, `lexicon_ka.json`).
   A Latin name's spoken form goes in `lexicon_ka.json` (approved) or in the story's `say` map.
   General Georgian rules belong in **kaeasy**, SiTech's plugin (`tt_shorts/kaeasy.py` loads it from `KAEASY_DIR`):

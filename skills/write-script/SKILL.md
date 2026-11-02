@@ -74,6 +74,19 @@ The engine's Georgian gate is SiTech's kaeasy plugin.
   for what the voice reads) before writing by hand.
 - After a human or a review corrects a phrase, record it with `ka_learn` so every agent avoids it.
 
+## A story of another program
+
+A story with `"program"` (explainer, law, blog; `veasy:programs`) follows its brief in `programs/briefs/<name>.md`
+instead of the news rules N5-N9, and its scene list. `program`, `source` (the document's title, article, url) and
+`link` come from the data, like `id`, `date` and `sources`. Its rule tier adds:
+- `C1: the name 'X' is not in the source document`: every Latin name, every person in `who` and a quote's `by` must
+  be in the document (the brand's own names and the outlets are fine).
+- `L1` show the article number on screen (hook kicker „კონსტიტუცია · მუხლი 17“); `L2` no advice („უნდა მიმართო“,
+  „შეგიძლია“, „გირჩევ“: say „ყველას აქვს უფლება“); `L3` name the act in the narration.
+- `timing: ... program law wants 25-45s`: about 0.75 s per Georgian word; 45-58 words fit.
+- The writer moves the end card to the last sentence and drops it when that sentence has fewer than 4 words: end
+  with a call to action of 4+ words.
+
 ## Common check failures
 
 - `K9 … gets only N narration words`: a scene starts too late or too close to the next; move its `at` earlier,

@@ -1,0 +1,11 @@
+{
+ "label": "ბლოგი",
+ "about": "A SiTech blog post (sitech.ge, read in Georgian) as a Short, the way sitech-shorts does it: what the post reports, in its own numbers and names. Claims rules against the post. Meant for the sitech brand pack; the QR opens the post.",
+ "sources": ["sitech", "url", "text"],
+ "brief": "blog.md",
+ "scenes": "all",
+ "rules": "claims",
+ "format": "news",
+ "publish": "auto",
+ "link": "brand"
+}

@@ -30,7 +30,8 @@
   "realestate": "უძრავი ქონება",
   "tourism": "ტურიზმი",
   "ecology": "ეკოლოგია",
-  "incidents": "შემთხვევები"
+  "incidents": "შემთხვევები",
+  "law": "სამართალი"
  },
  "family_by_category": {
   "politics": "politics",
@@ -48,7 +49,8 @@
   "showbiz": "culture",
   "religion": "culture",
   "tech": "tech",
-  "science": "tech"
+  "science": "tech",
+  "law": "politics"
  },
  "default_family": "society",
  "look_by_family": {
