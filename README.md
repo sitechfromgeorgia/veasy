@@ -32,6 +32,7 @@ python -m tt_shorts.engine voices --story stories/24886.json       # Gemini tone
 - **Skills** for agents (`.claude/skills/`): `tt-shorts-make-video`, `tt-shorts-write-script`, `tt-shorts-qa`,
   `tt-shorts-formats`.
 - The voice is cached per story (`work/<id>-voice-<engine>/`): another look or caption design costs no new TTS.
+- What comes next (new visual blocks, render server, more outputs, the decisions needed): [ROADMAP.md](ROADMAP.md).
 
 ## Brand (v1.2, https://tbilisi.today/brand)
 
