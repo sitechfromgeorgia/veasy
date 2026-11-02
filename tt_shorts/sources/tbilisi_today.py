@@ -9,8 +9,8 @@ import urllib.request
 
 from tt_shorts import news_check
 
-CAPS = {"politics": 4, "world": 2, "economy": 2, "general": 2, "crime": 1}
-DEFAULT_CAP = 1
+CAPS = {"politics": 14, "world": 9, "economy": 7, "general": 9, "crime": 4}
+DEFAULT_CAP = 3
 CLUSTER_SQL = """SELECT sc.id, sc.headline, sc.source_count, sc.article_count, sc.created_at,
        COALESCE((SELECT a.category FROM articles a WHERE a.cluster_id = sc.id AND a.category IS NOT NULL
                  GROUP BY a.category ORDER BY count(*) DESC LIMIT 1), 'general') AS category
@@ -58,8 +58,8 @@ def fetch(ref):
     return payload(rows[0])
 
 
-def candidates(hours=18, limit=10, seen=(), scores=None):
-    rows = d1(CLUSTER_SQL + " WHERE sc.created_at >= datetime('now', ?1) AND sc.source_count >= 4 ORDER BY sc.created_at DESC",
+def candidates(hours=30, limit=10, seen=(), scores=None):
+    rows = d1(CLUSTER_SQL + " WHERE sc.created_at >= datetime('now', ?1) AND sc.source_count >= 3 ORDER BY sc.created_at DESC",
               [f"-{hours} hours"])
     sig = scores or {}
     rows.sort(key=lambda r: (sig.get(str(r["id"]), 0) + r["source_count"] * 2), reverse=True)

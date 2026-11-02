@@ -31,7 +31,7 @@ def scores():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=10)
-    ap.add_argument("--hours", type=int, default=18)
+    ap.add_argument("--hours", type=int, default=30)
     ap.add_argument("--format", default="news")
     ap.add_argument("--brand", default="tbilisi-today")
     ap.add_argument("--run", type=int, default=5, help="jobs to process now (0: only queue)")
