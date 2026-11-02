@@ -52,10 +52,9 @@ def ka_date(iso, b=None):
 
 
 def when(d, b=None, now=None):
-    """'დღეს' (the pack's word) when a ka_date() dict is today in the brand's time zone, else its date."""
-    b = _b(b)
-    today = (now or dt.datetime.now(tz(b))).astimezone(tz(b)).date()
-    return b["strings"]["today"] if d["day"] == today else d["date"]
+    """The hook's date chip: always the date, never the pack's word for "today". A video is watched for days, so
+    "დღეს" would be wrong tomorrow (the same reason N4 keeps relative days out of the writer's text)."""
+    return d["date"]
 
 
 def cta_for(story_id, b=None):

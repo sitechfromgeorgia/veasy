@@ -21,6 +21,12 @@ class Dates(unittest.TestCase):
         d = meta.ka_date("2026-12-31 21:30:00")
         self.assertEqual((d["date"], d["time"], d["weekday"]), ("1 იანვარი 2027", "01:30", "პარასკევი"))
 
+    def test_the_date_chip_never_says_today(self):  # a video is watched for days: "დღეს" would be wrong tomorrow
+        import datetime as dt
+        d = meta.ka_date(dt.datetime.now(dt.timezone.utc).isoformat())
+        self.assertEqual(meta.when(d), d["date"])
+        self.assertNotEqual(meta.when(d), "დღეს")
+
 
 class Data(unittest.TestCase):
     def test_every_site_category_has_a_family(self):
