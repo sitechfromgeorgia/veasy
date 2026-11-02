@@ -18,8 +18,24 @@ export type CaptionLayout = {
   pages: { start: number; end: number; lines: number[] }[];
 };
 
-// who {name, role} · pair {title, sub} · bars and trend {label, value} · points and steps: plain strings
-export type Item = string | { name?: string; role?: string; title?: string; sub?: string; label?: string; value?: number };
+// who and link {name, role} · pair {title, sub} · bars, trend and compare {label, value} · rail {when, label} ·
+// points and steps: plain strings
+export type Item = string | {
+  name?: string; role?: string; title?: string; sub?: string; label?: string; value?: number; when?: string;
+};
+
+// tt_shorts/marks.py: a scene's voice-synced mark (its "em"), resolved in Python. field: the slot it sits in
+// ("lines.2", "items.0.name", "value"...); start: where the phrase begins in that text; at: the scene frame the voice
+// starts saying it; frames: how long the stroke takes. kind is code's (never the writer's); roughness 0 is a clean
+// stroke (hard and service news), above 0 a little wobble (light news). Drawn in ink, never the accent.
+export type MarkKind = "underline" | "box" | "circle" | "highlight" | "bracket";
+export type MarkProps = {
+  field: string; start: number; phrase: string; kind: MarkKind; at: number; frames: number; seed: number;
+  roughness: number; bowing: number;
+};
+
+// stat: how the number arrives (tt_shorts: brushes/stat.json; flap never for politics or crime)
+export type StatStyle = "count" | "wheel" | "flap";
 
 // tt_shorts/art.py: one SVG element; colors are brand tokens, motion r (rise) | p (pop) | s (stroke draws itself)
 export type ArtNode = {
@@ -101,6 +117,10 @@ export type Scene = SceneBase & {
   text?: string;
   by?: string;
   via?: string;
+  style?: StatStyle; // stat: count (default), wheel (an odometer) or flap (a split-flap board)
+  edge?: string; // link: the verb on the edge, said in the scene's narration (N11)
+  em?: string; // the writer's phrase; what is drawn is `mark`
+  mark?: MarkProps; // set by tt_shorts/props.py (speech.mark_frames)
 };
 
 // tt_shorts/brand.py for_remotion(): the brand pack, without file paths

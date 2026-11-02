@@ -75,6 +75,11 @@ the safe zone or the news rules.
 
 ## 1. The brush kit (new brushes + one catalog that generates the writer's menu)
 
+Done on 2026-11-02: `brushes/<type>.json` for all 20 types, `tt_shorts/catalog.py`, `tt_shorts/marks.py`,
+`remotion/src/marker.tsx` and `scenes/brushes.tsx`, N11 in `news_check.spoken`, the demo
+`stories/veasy-brushes.json`. Code picks the mark's kind (the brush's kinds, varied per story; a number or a
+link's edge is underlined) and the strokes (clean, rough only for sports and culture). The spec it was built to:
+
 - **Marker, emphasis synced to the voice (C2).**
   - Any content scene may carry `"em": "<phrase>"`. The phrase must be in that scene's on-screen text and in its
     part of the narration; code checks both.

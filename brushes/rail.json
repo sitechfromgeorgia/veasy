@@ -1,0 +1,22 @@
+{
+ "type": "rail",
+ "order": 35,
+ "what": "2-4 dated events on a rail; the dot travels from one to the next as they light up",
+ "use_when": "the story is a sequence of dated events the articles state: announced, began, ends",
+ "avoid_when": "one from-to span (timeline); steps without dates (steps); dates the articles don't give",
+ "pairs_with": ["timeline", "steps", "where"],
+ "slots": {
+  "items": {"kind": "list", "count": [2, 4], "of": {"when": {"kind": "text", "max": 20, "required": true}, "label": {"kind": "text", "max": 40, "required": true}}, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 3.5,
+ "min_words": 8,
+ "em": {"fields": ["items.label", "items.when", "headline"], "kinds": ["underline", "box"]},
+ "schema": {"type": "rail", "at": "...", "kicker": "...", "headline": "...", "items": [{"when": "2 ნოემბერი", "label": "..."}, {"when": "3 ნოემბერი, 10:00", "label": "..."}]},
+ "rules": [
+  "\"rail\": 2-4 events in time order; each when is a date the article states (2 ნოემბერი, 2025, 22:00 or 3 ნოემბერი, 10:00);"
+ ],
+ "example": {"type": "rail", "at": "2 ნოემბერს 22:00-ზე", "kicker": "როდის", "items": [{"when": "2 ნოემბერი, 22:00", "label": "გაზი შეწყდება"}, {"when": "3 ნოემბერი, 10:00", "label": "მიწოდება აღდგება"}], "em": "მიწოდება აღდგება"}
+}

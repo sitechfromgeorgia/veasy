@@ -1,0 +1,19 @@
+{
+ "type": "hook",
+ "order": 10,
+ "what": "the opening: 2-4 short lines that say what happened",
+ "use_when": "always: every video opens with it",
+ "avoid_when": "never later in the video",
+ "pairs_with": ["stat", "where", "sign"],
+ "slots": {
+  "lines": {"kind": "list", "of": {"kind": "text", "max": 24}, "required": true},
+  "kicker": {"kind": "text", "max": 24}
+ },
+ "families_deny": [],
+ "min_seconds": 2.5,
+ "min_words": 6,
+ "em": {"fields": ["lines"], "kinds": ["underline", "highlight"]},
+ "schema": {"type": "hook", "at": "first words of the narration this scene starts at", "kicker": "short label", "lines": ["line 1", "line 2", "line 3"]},
+ "rules": [],
+ "example": {"type": "hook", "at": "ვარკეთილსა და", "kicker": "საზოგადოება · თბილისი", "lines": ["ვარკეთილსა და", "ვაზისუბანში", "გაზი შეწყდება"], "em": "გაზი შეწყდება"}
+}

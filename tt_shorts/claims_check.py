@@ -105,7 +105,7 @@ def names(story, corpus_low, allow=()):
             if len(name) <= 2 or name.lower() in allowed or name.lower() in corpus_low:
                 continue
             out.append(f"C1: {where}: the name {name!r} is not in the source document")
-    people = [it.get("name", "") for s in story.get("scenes", []) if s.get("type") == "who"
+    people = [it.get("name", "") for s in story.get("scenes", []) if s.get("type") in ("who", "link")
               for it in s.get("items") or [] if isinstance(it, dict)]
     people += [s.get("by", "") for s in story.get("scenes", []) if s.get("type") == "quote"]
     for person in dict.fromkeys(p for p in people if isinstance(p, str) and p.strip()):
@@ -162,7 +162,7 @@ def problems(story, sources, tier="claims", doc=None, allow=()):
     low = corpus.lower()
     out = opinion(story, low if sources else "") + relative_days(story)
     if sources:
-        out += numbers(story, corpus) + quotes(story, corpus) + names(story, low, allow)
+        out += numbers(story, corpus) + quotes(story, corpus) + names(story, low, allow) + news_check.stated(story, sources)
     if tier == "law":
         facts = doc_facts(story, sources, doc)
         out += article_shown(story, facts) + advice(story) + act_named(story, facts)

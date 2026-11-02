@@ -1,0 +1,23 @@
+{
+ "type": "compare",
+ "order": 125,
+ "what": "two magnitudes of one unit as squares of true proportion: each square's area is its value",
+ "use_when": "two values of the same kind the articles state, where the size difference is the story: a budget then and a budget now, two cities",
+ "avoid_when": "different units; a ratio above 40 (the small square is a speck: bars); more than two values (bars)",
+ "pairs_with": ["share", "stat", "pair"],
+ "slots": {
+  "items": {"kind": "list", "count": [2, 2], "of": {"label": {"kind": "text", "max": 20, "required": true}, "value": {"kind": "num", "required": true}}, "required": true},
+  "unit": {"kind": "text", "max": 16, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 3.2,
+ "min_words": 7,
+ "em": {"fields": ["items.label", "headline"], "kinds": ["box", "underline"]},
+ "schema": {"type": "compare", "at": "...", "kicker": "...", "headline": "...", "unit": "...", "items": [{"label": "...", "value": 1200}, {"label": "...", "value": 300}]},
+ "rules": [
+  "\"compare\": two values of one unit, both stated in the article, the larger at most 40 times the smaller;"
+ ],
+ "example": {"type": "compare", "at": "ბიუჯეტი 1200 მილიონია", "kicker": "ბიუჯეტი", "unit": "მილიონი ლარი", "items": [{"label": "ჯანდაცვა", "value": 1200}, {"label": "კულტურა", "value": 300}]}
+}

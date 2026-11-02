@@ -27,8 +27,9 @@ It never touches the facts, the palette, the fonts, the safe zone or the news ru
 | `single` | ერთი კადრი | one fact, few beats | up |
 
 `python -m tt_shorts.engine options` → `directors` lists them with their eligibility and gates. `planned` names
-brushes being built (`marker`, `rail`, `share`, `compare`). A director may list them already, and the writer
-sees one only once it exists in `engine.SCENES`.
+brushes being built (none now: `rail`, `share` and `compare` exist since the brush kit); a director may list one
+already, and the writer sees it only once it exists in `engine.SCENES` (`brushes/`). `devices` are not scene
+types: a director with `marker` asks the writer to mark the words that matter with `"em"`.
 
 ## How a story gets one
 

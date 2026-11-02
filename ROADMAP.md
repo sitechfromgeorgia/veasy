@@ -54,10 +54,13 @@ Next for other clients:
   - `news_check.screen_text()` reads only strings and a top-level int `value`.
   - A future `items:[{value:1450}]` would skip the number check.
   - Read every number at any depth; add a test.
-- **A2. A typed scene spec.**
+- **A2. A typed scene spec.** Done for the slots (2026-11-02, `brushes/`, `catalog.slot_problems`): kinds,
+  Georgian length limits, counts, enums with family gates.
   - `engine.structure_problems()` checks only that fields exist.
   - Give each field a type, a length, an enum or a count, e.g. `"items": ["list", 2, 5, {"label": ["str", 18], "value": "num"}]`.
-- **A3. One source of truth for the scene vocabulary.**
+- **A3. One source of truth for the scene vocabulary.** Done (2026-11-02): `brushes/<type>.json` +
+  `tt_shorts/catalog.py` generate the Python tables, the writer's menu and `options`; `news_check.SCENE_TYPES`
+  (N1's allowlist), the Remotion component and `types.ts` stay by hand.
   - Today a new scene type must be added in 7 places: `news_check.SCENE_TYPES`, `ka_check.FIELDS`/`MIN_WORDS`,
     `speech.MIN_SCENE`, the `writer.py` prompt, `types.ts`, `engine.SCENES`/`options()`, and the skills.
   - Generate them from one spec (see B6).
@@ -160,7 +163,9 @@ Next for other clients:
    - `"transition": "auto|cut|line|panel|wipe|slide|push|dot"`, drawn with clip-path and transform.
    - `dot`: the progress dot drops and an ink iris opens from it.
    - Wire it into `formats.validate`, `options()` and the formats skill.
-2. **C2. Emphasis synced to the voice (S-M; the most visible gain per unit of effort).**
+2. ~~**C2. Emphasis synced to the voice (S-M; the most visible gain per unit of effort).**~~ Done (`em`,
+   `marks.py`, `@remotion/rough-notation`; underline, box, circle, highlight, bracket, picked by code). Open: the
+   same cue revealing list items as they are spoken.
    - `"em": "6400 აბონენტს"` on any scene. `speech.py` resolves the phrase to a frame from the word timings.
    - At that frame an ink block sweeps behind the phrase and the red dot lands at its end.
    - The same cue mechanism reveals list items as they are spoken.
@@ -174,7 +179,7 @@ Next for other clients:
 5. ~~**C5. `trend` (S-M).**~~ Done (drawn with pathLength, no extra package).
    - 3-8 points.
    - `evolvePath` draws the line; the red "now" dot sits on the last point.
-6. **C6. Small blocks (S each):** `steps` done; the rest open:
+6. **C6. Small blocks (S each):** `steps`, `share` and `events` (as `rail`) done; `figures` open:
    - `events`: 2-4 dated items on a rail;
    - `steps`: 2-4 steps with arrows;
    - `figures`: 2-4 number tiles;
@@ -197,7 +202,7 @@ Next for other clients:
    - Gazetteer keys from Natural Earth populated places (public domain).
    - An arc draws on and the red dot rides it.
    - No distances unless the article states them.
-10. **C10. `link` diagram, who meets whom (M).**
+10. ~~**C10. `link` diagram, who meets whom (M).**~~ Done (`link`; the edge's verb is checked, N11).
     - The `verb` must appear in the narration, so no relationship is implied that the article didn't state.
 11. **C11. `compose` layout grammar (L, last).**
     - Up to 3 layouts (top-bottom, split, grid) with fixed slots inside the safe zone.
@@ -293,7 +298,8 @@ Engine and agent tooling:
 14. **Publishing with a canary window and a watchdog:** states scheduled → published → unlisted; a Telegram ⛔/✅
     window before auto-publishing; re-check the source at +1 h, +6 h, +24 h and unlist when the cluster is gone or
     the facts no longer hold; start the TikTok audit now.
-15. **Scene kit:** scenes as JSON (typed slots, layout grid, motion presets) drawn by one component, registries
+15. **Scene kit:** partly done (2026-11-02): the brush catalog (`brushes/`, `catalog.py`) generates the
+    registries and the writer's menu. Open: one component drawing every brush, the fuzz gate, `trial`. Scenes as JSON (typed slots, layout grid, motion presets) drawn by one component, registries
     generated from them (solves A3), a fuzz gate in every look × brand, `trial` until the owner approves an album.
 
 ## One combined first week

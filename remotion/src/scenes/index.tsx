@@ -3,6 +3,8 @@ import { interpolate, useCurrentFrame } from "remotion";
 import { CANVAS, fill, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import type { Scene } from "../types";
 import { MapWhere } from "./map";
+import { Mark, marked } from "../marker";
+import { Compare, flapSize, Link, Rail, Share, StatNumber } from "./brushes";
 import { Bars, Change, Draw, Pair, Steps, Trend } from "./more";
 import { isoSpan, Isotype, railWidth, Sign } from "./sign";
 import { Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, measure, useIn, useOpening, useStyle, useTheme } from "../ui";
@@ -48,7 +50,7 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
                 whiteSpace: "nowrap", color: block ? CANVAS : quiet ? MUTED : INK, background: block ? INK : "transparent",
                 display: "inline-block", padding: block ? `0 ${fs * 0.14}px ${fs * 0.1}px` : 0,
                 marginTop: block ? 12 : 0, marginBottom: quiet ? 20 : hook === "underline" ? 16 : 0 }}>
-                {l}
+                {marked(s, `lines.${i}`, l, { px: fs, inverted: block })}
                 {hook === "underline" && (
                   <div style={{ position: "absolute", left: 0, bottom: -6, height: 8, width: `${rule * 100}%`, background: INK }} />
                 )}
@@ -75,7 +77,7 @@ export const Stat: React.FC<P> = ({ s, inner = INNER }) => {
   const value = s.value ?? 0;
   const text = `${s.prefix ?? ""}${group(value)}${s.suffix ?? ""}`;
   const iso = Boolean(s.isotype && s.glyph); // a count of 2-30 things, drawn as that many icons (tt_shorts/icons.py)
-  const size = fitSize([text], inner, iso ? 240 : 360, 120);
+  const size = s.style === "flap" ? flapSize(text, low(inner), iso ? 240 : 300) : fitSize([text], inner, iso ? 240 : 360, 120);
   const span = iso ? isoSpan(s.duration) : 32;
   const frame = useCurrentFrame();
   const cells = 20;
@@ -85,7 +87,7 @@ export const Stat: React.FC<P> = ({ s, inner = INNER }) => {
     <Frame s={s}>
       <In delay={4}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1, color: INK, whiteSpace: "nowrap" }}>
-          {s.prefix}<CountUp to={value} delay={4} frames={span} />{s.suffix}
+          <Mark s={s} field="value" px={size}><StatNumber s={s} value={value} delay={4} frames={span} size={size} /></Mark>
         </div>
       </In>
       {iso ? <Isotype s={s} width={railWidth(inner)} height={inner < INNER - 40 ? 300 : 380} delay={4} span={span} /> : (
@@ -99,7 +101,7 @@ export const Stat: React.FC<P> = ({ s, inner = INNER }) => {
       <In delay={14}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 64, lineHeight: 1.2, color: INK, marginTop: iso ? 40 : 48,
           maxWidth: iso ? railWidth(inner) : low(inner) }}>
-          {s.label}
+          {marked(s, "label", s.label, { px: 64 })}
         </div>
       </In>
     </Frame>
@@ -143,7 +145,7 @@ export const Timeline: React.FC<P> = ({ s, inner = INNER }) => {
       <In delay={28}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: tight ? 48 : 56, lineHeight: 1.2, color: INK, marginTop: tight ? 24 : 40,
           maxWidth: low(inner) }}>
-          {s.label}
+          {marked(s, "label", s.label, { px: tight ? 48 : 56 })}
         </div>
       </In>
     </Frame>
@@ -196,7 +198,7 @@ const GridWhere: React.FC<P> = ({ s, inner = INNER }) => {
       <In delay={16}>
         <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 44, lineHeight: 1.3, color: MUTED, textAlign: "center", marginTop: 16,
           maxWidth: width, marginLeft: "auto", marginRight: "auto" }}>
-          {s.sub}
+          {marked(s, "sub", s.sub, { px: 44 })}
         </div>
       </In>
     </Frame>
@@ -223,7 +225,7 @@ export const Who: React.FC<P> = ({ s, inner = INNER }) => {
               </div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: fitSize([it.name], width - 300, 68, 40), lineHeight: 1.2,
-                  color: INK, whiteSpace: "nowrap" }}>{it.name}</div>
+                  color: INK, whiteSpace: "nowrap" }}>{marked(s, `items.${i}.name`, it.name, { px: 60 })}</div>
                 <div style={{ fontFamily: FONT, fontWeight: 400, fontSize: 40, color: MUTED, marginTop: 8 }}>{it.role}</div>
               </div>
             </div>
@@ -267,7 +269,7 @@ export const Points: React.FC<P> = ({ s, inner = INNER }) => {
             width: low(inner) }}>
             <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 120, lineHeight: 1, width: 120, flex: "none",
               color: i === active ? INK : MUTED }}>{i + 1}</div>
-            <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.2, color: INK, flex: 1 }}>{t}</div>
+            <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.2, color: INK, flex: 1 }}>{marked(s, `items.${i}`, t, { px: size })}</div>
             <span style={{ opacity: i === active ? 1 : 0 }}><Dot size={24} pulse /></span>
           </div>
         </In>
@@ -285,7 +287,7 @@ export const Quote: React.FC<P> = ({ s }) => {
       <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 320, lineHeight: 0.5, height: 120, color: LINE_STRONG,
         transform: `scale(${mark})`, transformOrigin: "left bottom" }}>„</div>
       <In delay={6}>
-        <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: size, lineHeight: 1.3, color: INK }}>„{text}“</div>
+        <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: size, lineHeight: 1.3, color: INK }}>„{marked(s, "text", text, { px: size })}“</div>
       </In>
       <In delay={16}>
         <div style={{ display: "flex", alignItems: "center", gap: 20, marginTop: 48, fontFamily: FONT, fontSize: 44 }}>
@@ -350,5 +352,6 @@ export const End: React.FC<P> = () => {
 
 export const SCENES: Record<string, React.FC<P>> = {
   hook: Hook, stat: Stat, timeline: Timeline, where: Where, who: Who, points: Points, quote: Quote, sources: Sources, draw: Draw,
-  pair: Pair, steps: Steps, bars: Bars, trend: Trend, change: Change, sign: Sign, end: End,
+  pair: Pair, steps: Steps, bars: Bars, trend: Trend, change: Change, sign: Sign, share: Share, rail: Rail, compare: Compare,
+  link: Link, end: End,
 };

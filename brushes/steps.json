@@ -1,0 +1,22 @@
+{
+ "type": "steps",
+ "order": 110,
+ "what": "2-4 steps in order, joined by drawn arrows: items [\"...\"]",
+ "use_when": "2-4 steps in order: a procedure, what happens next",
+ "avoid_when": "the items have no order (points)",
+ "pairs_with": ["rail", "where"],
+ "slots": {
+  "items": {"kind": "list", "count": [2, 4], "of": {"kind": "text", "max": 40}, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 3.0,
+ "min_words": 6,
+ "em": {"fields": ["items", "headline"], "kinds": ["underline", "box"]},
+ "schema": {"type": "steps", "at": "...", "kicker": "...", "items": ["...", "...", "..."]},
+ "rules": [
+  "\"steps\": 2-4 steps in order;"
+ ],
+ "example": {"type": "steps", "at": "ჯერ განაცხადი", "kicker": "როგორ", "items": ["განაცხადი", "შემოწმება", "გადახდა"], "em": "შემოწმება"}
+}

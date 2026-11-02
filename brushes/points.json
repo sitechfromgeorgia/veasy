@@ -1,0 +1,20 @@
+{
+ "type": "points",
+ "order": 60,
+ "what": "2-3 short points: items [\"...\"]",
+ "use_when": "2-3 separate points of equal weight",
+ "avoid_when": "the points are steps in order (steps) or two sides (pair)",
+ "pairs_with": ["steps", "quote"],
+ "slots": {
+  "items": {"kind": "list", "count": [2, 3], "of": {"kind": "text", "max": 64}, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 2.5,
+ "min_words": 6,
+ "em": {"fields": ["items", "headline"], "kinds": ["underline", "highlight", "bracket"]},
+ "schema": {"type": "points", "at": "...", "kicker": "...", "items": ["...", "..."]},
+ "rules": [],
+ "example": {"type": "points", "at": "ცვლილება სამ", "kicker": "რა იცვლება", "items": ["ფასი არ იცვლება", "ბილეთი 90 წუთს მოქმედებს", "ბარათი ყველა ავტობუსში"]}
+}

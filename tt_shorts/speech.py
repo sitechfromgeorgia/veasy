@@ -22,7 +22,7 @@ import urllib.request
 import wave
 import zlib
 
-from tt_shorts import brand, costs, normalize_ka, voices
+from tt_shorts import brand, catalog, costs, normalize_ka, voices
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets"
@@ -30,9 +30,10 @@ FPS = 30
 GEMINI_TTS = os.environ.get("SHORTS_GEMINI_TTS", "gemini-3.8-flash-tts")
 ALIGN_PYTHON = os.environ.get("ALIGN_PYTHON", sys.executable)
 EDGE_VOICES = {"eka": "ka-GE-EkaNeural", "giorgi": "ka-GE-GiorgiNeural"}
-MIN_SCENE = {"where": 2.8, "sources": 2.8, "draw": 3.5, "bars": 3.2, "trend": 3.2, "steps": 3.0, "change": 3.0,
-             "pair": 2.8, "sign": 3.2, "end": 3.5}  # seconds on screen: a drawing or a chart builds up and must then be seen
-MIN_SCENE_DEFAULT = 2.5
+# seconds on screen at least, per scene type (brushes/<type>.json min_seconds): a chart or a drawing builds up and
+# must then be seen
+MIN_SCENE = catalog.min_scene()
+MIN_SCENE_DEFAULT = catalog.MIN_SECONDS_DEFAULT
 LEND = 0.6  # seconds a short scene may borrow from a neighbour before it counts as too short
 END_HOLD = 1.6  # the end card stays up after the last word: time to see the QR
 MUSIC_DIR = ASSETS / "music"
@@ -288,3 +289,11 @@ def scene_frames(story, words, hold=END_HOLD):
     if short:
         raise RuntimeError("layout QA failed: " + "; ".join(short))
     return marks
+
+
+def mark_frames(scenes, words, frames, story_id, family):
+    """Each scene's voice-synced mark (its "em", marks.py): the frame its phrase starts being said, from the word
+    timings, and how it is drawn; None for a scene without one. frames: scene_frames' start frames (+ the last)."""
+    from tt_shorts import marks
+    return [marks.resolve(s, i, story_id, family, words, a, b - a, FPS) if s.get("em") else None
+            for i, (s, a, b) in enumerate(zip(scenes, frames, frames[1:]))]

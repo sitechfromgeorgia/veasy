@@ -4,6 +4,7 @@ import React, { useId } from "react";
 import { Easing, interpolate, useCurrentFrame } from "remotion";
 import { CANVAS, FONT, INK, LINE_STRONG, MUTED, PANEL, RAIL_X, RED, SIDE, W } from "../brand";
 import { GlyphAt, svgId } from "../icons";
+import { marked } from "../marker";
 import type { IconNode, Scene, Verb } from "../types";
 import { Frame, In, useTheme } from "../ui";
 
@@ -160,7 +161,7 @@ export const Sign: React.FC<P> = ({ s, inner = INNER }) => {
       {s.label && (
         <In delay={Math.round(vFrom * k)}>
           <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: (tight ? 52 : 60) - (s.label.length > 44 ? 8 : 0),
-            lineHeight: 1.2, color: INK, marginTop: tight ? 16 : 24, maxWidth: width }}>{s.label}</div>
+            lineHeight: 1.2, color: INK, marginTop: tight ? 16 : 24, maxWidth: width }}>{marked(s, "label", s.label, { px: 56 })}</div>
         </In>
       )}
     </Frame>

@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from "react";
 import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, FONT, INK, LINE_STRONG, MARK_BG, RED, T_PATH } from "./brand";
+import { marked } from "./marker";
 import type { Motion, Scene, ShortProps, Style, Variant } from "./types";
 
 type Ctx = { v: Variant; props: ShortProps };
@@ -167,11 +168,11 @@ export const Kicker: React.FC<{ text?: string; delay?: number }> = ({ text, dela
   return <span style={{ opacity: t }}><Chip live>{text}</Chip></span>;
 };
 
-export const Headline: React.FC<{ text?: string; delay?: number; size?: number }> = ({ text, delay = 4, size = 60 }) => {
+export const Headline: React.FC<{ text?: string; delay?: number; size?: number; s?: Scene }> = ({ text, delay = 4, size = 60, s }) => {
   if (!text) return null;
   return (
     <In delay={delay}>
-      <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.2, color: INK, marginTop: 24 }}>{text}</div>
+      <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.2, color: INK, marginTop: 24 }}>{s ? marked(s, "headline", text, { px: size }) : text}</div>
     </In>
   );
 };
@@ -192,7 +193,7 @@ export const Frame: React.FC<{ s: Scene; children: React.ReactNode; head?: boole
     {head && (
       <div>
         <Kicker text={s.kicker} />
-        <Headline text={s.headline} />
+        <Headline text={s.headline} s={s} />
       </div>
     )}
     <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>{children}</div>

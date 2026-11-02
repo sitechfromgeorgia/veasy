@@ -14,7 +14,7 @@ import os
 import re
 import sys
 
-from tt_shorts import kaeasy, normalize_ka
+from tt_shorts import catalog, kaeasy, normalize_ka
 
 LINT_DIR = os.environ.get("SHORTS_KA_LINT", "/root/sitech/georgian-style")
 # linter rule -> rulebook rule; the linter's high-confidence set plus calques, filler and Latin country names
@@ -22,11 +22,15 @@ LINT_RULES = {"translit": "K16", "ending_hyphen": "K16", "cyrillic": "K16", "quo
               "percent": "K21", "ellipsis": "K12", "number_plural": "K6", "space_punct": "K11",
               "double_space": "K11", "calque": "K3", "ai_filler": "K2", "country": "K17"}
 # K9: narration words (as written) a scene needs before the next one starts, so the eye can follow it
-MIN_WORDS = {"draw": 8, "bars": 7, "trend": 7, "sign": 7, "end": 4}  # sign: the icon draws, then its verb plays
-MIN_WORDS_DEFAULT = 6
-FIELDS = ("kicker", "headline", "label", "text", "big", "from", "refused", "ok", "place", "sub", "by", "via", "start",
-          "end", "cta", "unit", "between")
-ITEM_FIELDS = ("text", "title", "status", "name", "role", "label", "what", "when", "sub")
+# (brushes/<type>.json min_words: a drawing 8, a chart or a sign 7, the end card 4)
+MIN_WORDS = catalog.min_words()
+MIN_WORDS_DEFAULT = catalog.MIN_WORDS_DEFAULT
+# The on-screen text fields: every brush's text slots (catalog.text_fields), plus a few older names stories may carry
+_TOP, _INNER = catalog.text_fields()
+FIELDS = tuple(dict.fromkeys(("kicker", "headline", "label", "text", "big", "from", "refused", "ok", "place", "sub", "by",
+                              "via", "start", "end", "cta", "unit", "between") +
+                             tuple(f for f in _TOP if f not in ("prefix", "suffix"))))  # a number's sign, not words
+ITEM_FIELDS = tuple(dict.fromkeys(("text", "title", "status", "name", "role", "label", "what", "when", "sub") + _INNER))
 # K20: Latin letters as Russian names them (TPM "ტე-პე-ემ"); a voice reads letters the English way ("ტი პი ემ")
 RUSSIAN_LETTERS = {"ა", "ბე", "ცე", "დე", "ე", "გე", "ხა", "კა", "ო", "პე", "კუ", "ერ", "ტე", "უ", "ვე", "ზეტ"}
 # K22: imperial units a Georgian viewer doesn't use (a screen's diagonal in დიუმი stays: shops sell it that way)

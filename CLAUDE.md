@@ -25,9 +25,17 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   voices, doctor; JSON out). `plan` is the free storyboard to run before paying for a voice.
   The skills in `skills/` say how an agent uses it. Keep the engine, the skills and `options` in step: a new
   choice in code must appear in `engine.options()`, `formats.py` validation and the `veasy:formats` skill.
-- **A new scene type** goes in all of these (`tests/test_scenes.py` and `test_engine.py` check the first three agree):
-  `engine.SCENES` (+ `shape_problems`), `news_check.SCENE_TYPES`, `remotion/src/scenes` (`SCENES`), `types.ts`,
-  `ka_check.FIELDS` / `MIN_WORDS`, `speech.MIN_SCENE`, the `writer.py` schema and the `veasy:write-script` skill.
+- **A new scene type** is a brush (`brushes/<type>.json`, validated by `tt_shorts/catalog.py`; its docstring lists
+  the keys). The brush alone gives `engine.SCENES`/`COUNTS`, `speech.MIN_SCENE`, `ka_check.MIN_WORDS`/`FIELDS`, the
+  writer's line and rules and `engine options`. By hand, in this order:
+  1. `brushes/<type>.json` (copy a close one; a free `order`; slots with Georgian length limits; `em` fields the
+     component will mark, or empty; a real `example`);
+  2. `news_check.SCENE_TYPES` (the news rules' own allowlist, N1) and, for a rule the slots can't express,
+     `engine.shape_problems` (shape, order) or `news_check` (against the articles or the narration) with a test;
+  3. `remotion/src/scenes` (`SCENES`) and `types.ts`; mark text with `marked(s, "<field>", text)` (`marker.tsx`) for
+     each em field;
+  4. the `veasy:write-script` skill's table, a demo story, `engine probe <story> --look all` and the stills.
+  `tests/test_catalog.py`, `test_scenes.py` and `test_engine.py` check the catalog, the news list and Remotion agree.
 - **Variety is a rule** (owner, 2026-11-02: "1000 videos in one style is no good"). `tt_shorts/variety.py` gives
   each video its own hook layout, background motif, entrance, transition and music loop (the least used lately per
   brand, remembered in `veasy.db`), and the writer sees the scene orders used lately. A new layout or motion goes in

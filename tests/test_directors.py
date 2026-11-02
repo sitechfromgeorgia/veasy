@@ -30,7 +30,8 @@ class Data(unittest.TestCase):
         for name, d in every.items():
             self.assertRegex(d["label"], r"[ა-ჰ]", name)
             self.assertTrue(6 <= len(d["brief"]) <= 10, name)
-            self.assertTrue(set(d["scenes"]) <= set(engine.SCENES) | set(directors.PLANNED), name)
+            self.assertTrue(set(d["scenes"]) <= set(engine.SCENES) | set(directors.PLANNED) | set(directors.DEVICES),
+                            name)
             self.assertTrue(set(d["hooks"]) <= set(variety.OPTIONS["hook"]), name)
             self.assertTrue(set(d["motifs"]) <= set(variety.OPTIONS["motif"]), name)
             self.assertTrue(set(d["enters"]) <= set(variety.OPTIONS["enter"]), name)
@@ -49,11 +50,20 @@ class Data(unittest.TestCase):
             directors.validate("other", good)  # the id is its file name
 
     def test_a_planned_brush_is_offered_once_it_exists(self):
+        raw = json.loads((ROOT / "directors" / "data.json").read_text(encoding="utf-8"))
+        with mock.patch.object(directors, "PLANNED", ("agree",)):
+            d = directors.validate("data", {**raw, "scenes": {**raw["scenes"], "agree": 1}})
+            self.assertIn("agree", directors.planned(d))
+            self.assertNotIn("agree", directors.scene_types(d))
+            with mock.patch.dict(engine.SCENES, {"agree": (["items"], [], "facts in N outlets")}):
+                self.assertIn("agree", directors.scene_types(d))
+
+    def test_the_brushes_once_planned_are_offered_and_the_marker_is_a_device(self):
         d = directors.get("data")
-        self.assertIn("share", directors.planned(d))
-        self.assertNotIn("share", directors.scene_types(d))
-        with mock.patch.dict(engine.SCENES, {"share": (["value"], [], "a 10x10 grid")}):
-            self.assertIn("share", directors.scene_types(d))
+        self.assertIn("share", directors.scene_types(d))  # share, rail and compare exist since the brush kit
+        self.assertNotIn("marker", directors.scene_types(d))
+        self.assertNotIn("marker", directors.planned(d))
+        self.assertIn('"em"', directors.brief_block(d))  # the marker: the writer marks the words that matter
 
     def test_options_list_the_directors(self):
         o = engine.options()

@@ -1,0 +1,22 @@
+{
+ "type": "where",
+ "order": 40,
+ "what": "a place: a place in Georgia gets the real map (its region, a pin on the town; tt_shorts/geo.py), any other a pin on a grid; area: ge:<region> when the place text doesn't name it (see areas)",
+ "use_when": "the story happens in one place (in Georgia the real map)",
+ "avoid_when": "the place is only the city of every story",
+ "pairs_with": ["timeline", "sign", "stat"],
+ "slots": {
+  "place": {"kind": "text", "max": 32, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40},
+  "sub": {"kind": "text", "max": 48},
+  "area": {"kind": "area"}
+ },
+ "families_deny": [],
+ "min_seconds": 2.8,
+ "min_words": 6,
+ "em": {"fields": ["sub", "headline"], "kinds": ["underline"]},
+ "schema": {"type": "where", "at": "...", "kicker": "...", "place": "...", "sub": "..."},
+ "rules": [],
+ "example": {"type": "where", "at": "მიზეზი გაზსადენის", "kicker": "სად", "place": "ვარკეთილი · ვაზისუბანი", "sub": "თბილისი · მისამართების სია ბმულზეა"}
+}

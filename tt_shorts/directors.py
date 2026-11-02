@@ -11,7 +11,8 @@ same checks.
 Directors are data, `directors/<id>.json`, validated here:
   id, label (Georgian), about, device, form, brief (6-10 English lines for the writer)
   scenes      {type: weight}; hook and end are always allowed; a type must be in engine.SCENES, or in
-              PLANNED (brushes being built) and then it is offered to the writer only once it exists
+              PLANNED (brushes being built) and then it is offered to the writer only once it exists, or a
+              device of DEVICES ("marker": the writer marks the words that matter with "em", marks.py)
   count       [lo, hi] scenes, inside the writer's 3-6
   pacing      a line for the writer
   hooks, motifs, enters, transitions    subsets of variety's options
@@ -38,7 +39,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIR = ROOT / "directors"
 CURRENTS = {"left": (-1, 0), "right": (1, 0), "up": (0, -1)}
 # brushes being built in parallel: a director may name them (optional); the writer sees them once engine.SCENES has them
-PLANNED = ("marker", "rail", "share", "compare")
+# (rail, share and compare exist since the brush kit, brushes/)
+PLANNED = ()
+# devices a director may weigh that are not scene types: "marker" asks the writer for voice-synced marks ("em", marks.py)
+DEVICES = ("marker",)
 ALWAYS = ("hook", "end")
 FACTS = ("numbers", "quantities", "percents", "dates", "times", "places", "regions", "quotes", "speakers", "icons",
          "facts")
@@ -104,7 +108,9 @@ def validate(name, d):
     scenes = d["scenes"]
     need(isinstance(scenes, dict) and scenes, "scenes is {type: weight}")
     for t, w in scenes.items():
-        need(t in known or t in PLANNED, f"scene type {t!r} is neither a scene (engine.SCENES) nor planned ({', '.join(PLANNED)})")
+        need(t in known or t in PLANNED or t in DEVICES,
+             f"scene type {t!r} is neither a scene (engine.SCENES), a device ({', '.join(DEVICES)}) nor planned "
+             f"({', '.join(PLANNED) or 'none'})")
         need(isinstance(w, (int, float)) and not isinstance(w, bool) and w > 0, f"scene {t!r}: weight above 0")
     need(len([t for t in scenes if t in known and t not in ALWAYS]) >= 2, "at least 2 scene types that exist today")
     lo, hi = (d["count"] + [0, 0])[:2] if isinstance(d["count"], list) else (0, 0)
@@ -168,7 +174,7 @@ def scene_types(d, program_scenes="all"):
 
 def planned(d):
     """The director's brushes that don't exist yet."""
-    return [t for t in d["scenes"] if t not in _scene_types()]
+    return [t for t in d["scenes"] if t not in _scene_types() and t not in DEVICES]
 
 
 # ---------------------------------------------------------------- facts code extracts before writing
@@ -271,6 +277,9 @@ def brief_block(d, f=None, program_scenes="all"):
     lines += [f"- {x}" for x in d["brief"]]
     lines.append(f"- Use only these scene types (most wanted first): {', '.join(types)}; "
                  f"{d['count'][0]}-{d['count'][1]} scenes. Pacing: {d['pacing']}")
+    if "marker" in d["scenes"]:
+        lines.append('- Mark the words that matter with "em" on 1-3 scenes: the marker draws on them as the voice '
+                     "says them.")
     if f:
         found = f.get("found") or {}
         parts = [f"{k}: {', '.join(found[k])}" for k in ("quantities", "dates", "times", "places", "icons", "percents")
@@ -350,7 +359,7 @@ def options():
                      "for the brand); it picks the scene types, the count, the hook layouts, motifs, entrances, cuts, "
                      "the motion and the current. Never the facts, the palette or the rules. render --director <id> "
                      "or queue add --director overrides it",
-            "planned": list(PLANNED), "currents": {k: list(v) for k, v in CURRENTS.items()},
+            "planned": list(PLANNED), "devices": list(DEVICES), "currents": {k: list(v) for k, v in CURRENTS.items()},
             "directors": {n: {"label": d["label"], "about": d["about"], "form": f"{d['device']} x {d['form']}",
                               "scenes": d["scenes"], "count": d["count"], "current": d["current"],
                               "motion": d["motion"], "hooks": d["hooks"], "motifs": d["motifs"], "enters": d["enters"],

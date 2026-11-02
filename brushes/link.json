@@ -1,0 +1,23 @@
+{
+ "type": "link",
+ "order": 55,
+ "what": "who meets whom: 2-3 people or bodies as initials (no photos), joined by an edge labelled with the verb",
+ "use_when": "the story is a meeting, an agreement or a call between named people or bodies",
+ "avoid_when": "the articles don't say they met or acted together (no relationship is implied); a list of people (who)",
+ "pairs_with": ["who", "quote", "where"],
+ "slots": {
+  "items": {"kind": "list", "count": [2, 3], "of": {"name": {"kind": "text", "max": 28, "required": true}, "role": {"kind": "text", "max": 36}}, "required": true},
+  "edge": {"kind": "text", "max": 18, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 3.2,
+ "min_words": 7,
+ "em": {"fields": ["items.name", "edge", "headline"], "kinds": ["box", "underline"]},
+ "schema": {"type": "link", "at": "...", "kicker": "...", "headline": "...", "edge": "შეხვდა", "items": [{"name": "...", "role": "..."}, {"name": "...", "role": "..."}]},
+ "rules": [
+  "\"link\": the first person or body and whom it met (1-2 more); edge is the verb, word for word as that scene's narration says it (შეხვდა, მოაწერა ხელი);"
+ ],
+ "example": {"type": "link", "at": "პრემიერი შეხვდა", "kicker": "შეხვედრა", "edge": "შეხვდა", "items": [{"name": "პრემიერ-მინისტრი", "role": "მთავრობა"}, {"name": "ევროკავშირის ელჩი", "role": "ევროკავშირი"}]}
+}

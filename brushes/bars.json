@@ -1,0 +1,23 @@
+{
+ "type": "bars",
+ "order": 120,
+ "what": "2-5 values from the articles as growing bars: items [{label, value}], one unit",
+ "use_when": "2-5 values of one kind compared from zero",
+ "avoid_when": "two values only (compare); values over time (trend)",
+ "pairs_with": ["stat", "compare"],
+ "slots": {
+  "items": {"kind": "list", "count": [2, 5], "of": {"label": {"kind": "text", "max": 24, "required": true}, "value": {"kind": "num", "required": true}}, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40},
+  "unit": {"kind": "text", "max": 16}
+ },
+ "families_deny": [],
+ "min_seconds": 3.2,
+ "min_words": 7,
+ "em": {"fields": ["headline"], "kinds": ["underline"]},
+ "schema": {"type": "bars", "at": "...", "kicker": "...", "unit": "...", "items": [{"label": "...", "value": 120}, {"label": "...", "value": 80}]},
+ "rules": [
+  "\"bars\": 2-5 values the article states, above zero, one unit, no computed differences;"
+ ],
+ "example": {"type": "bars", "at": "ფასები ასე", "kicker": "ფასი", "unit": "ლარი", "items": [{"label": "პური", "value": 1.5}, {"label": "რძე", "value": 3.2}]}
+}
