@@ -35,6 +35,10 @@ BUILTIN = {
              "two-line captions that never move."},
     "news-roll": {"label": "ამბავი: მოძრავი ტიტრები", "captions": "roll",
                   "about": "The same, with the three-line teleprompter captions."},
+    "showcase": {"label": "შოუქეისი: გრძელი რგოლი", "captions": "roll", "look": "editorial",
+                 "voice": "anchor", "music": "tech", "platform": "youtube",
+                 "min_seconds": 120, "max_seconds": 360,
+                 "about": "A long-form piece, up to six minutes, for YouTube and the site."},
 }
 
 
@@ -60,8 +64,8 @@ def validate(name, f):
     musics = ("family", "off") + tuple(meta.FAMILIES)
     if f["music"] not in musics:
         bad("music", f["music"], musics)
-    if not (0 < f["min_seconds"] < f["max_seconds"] <= 90):
-        raise FormatError(f"format {name!r}: need 0 < min_seconds < max_seconds <= 90")
+    if not (0 < f["min_seconds"] < f["max_seconds"] <= 360):
+        raise FormatError(f"format {name!r}: need 0 < min_seconds < max_seconds <= 360")
     unknown = set(f) - set(DEFAULTS) - {"label", "about", "name"}
     if unknown:
         raise FormatError(f"format {name!r}: unknown keys {sorted(unknown)}")

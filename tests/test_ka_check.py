@@ -28,7 +28,7 @@ class Rules(unittest.TestCase):
 
     def test_register_punctuation_english(self):
         p = ka_check.problems(story("თქვენ რას ფიქრობთ! tethered ჰაკი — userland წვდომა. გამოიწერე tbilisi.today."), ART)
-        self.assertEqual(rules(p), ["K1", "K12", "K19", "K20"])  # an English word has no spoken form either
+        self.assertEqual([r for r in rules(p) if r != "KE"], ["K1", "K12", "K19", "K20"])  # KE is the plugin linter, tested where it lives
 
     def test_invented_quote(self):
         p = ka_check.problems(story("Eko-მ დაწერა: „რგოლი მაცვია“. მერე სხვა რამ ითამაშა. გამოიწერე tbilisi.today."), ART)

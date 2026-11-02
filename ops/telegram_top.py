@@ -18,13 +18,12 @@ LIMIT = 50
 
 
 def main() -> int:
-    cutoff = dt.datetime.now().timestamp() - 24 * 3600
+    cutoff = dt.datetime.now().timestamp() - 12 * 3600
     today = dt.date.today().isoformat()
     state = json.loads(MARK.read_text(encoding="utf-8")) if MARK.exists() else {}
-    if state.get("date") != today:
-        state = {"date": today, "ids": []}
-    posted_ids = set(state.get("ids") or [])
-    if len(posted_ids) >= LIMIT:
+    posted_ids = set(state.get("ids") or [])  # survives midnight: an id is posted once, ever
+    count = state.get("count", 0) if state.get("day") == today else 0
+    if count >= LIMIT:
         print(f"telegram: 0 posted (daily limit {LIMIT} reached)")
         return 0
     done = []
@@ -41,7 +40,7 @@ def main() -> int:
     done.sort(key=lambda x: -x[0])
     sent = 0
     for _, job, file in done:
-        if sent >= LIMIT:
+        if count >= LIMIT:
             break
         title = ""
         try:
@@ -57,10 +56,11 @@ def main() -> int:
         try:
             if telegram.send_video(file, caption, buttons=buttons):
                 posted_ids.add(job["id"])
-                state["ids"] = sorted(posted_ids)
-                MARK.parent.mkdir(parents=True, exist_ok=True)
-                MARK.write_text(json.dumps(state), encoding="utf-8")
+                count += 1
                 sent += 1
+                MARK.parent.mkdir(parents=True, exist_ok=True)
+                MARK.write_text(json.dumps({"ids": sorted(posted_ids), "day": today, "count": count}),
+                                encoding="utf-8")
         except Exception as e:
             print(f"telegram: {type(e).__name__}: {e}")
     print(f"telegram: {sent} posted")
