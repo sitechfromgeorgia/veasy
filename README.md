@@ -31,7 +31,7 @@ What the agent gets:
   - Each runs the engine in its own venv and returns its JSON.
   - A render takes a minute or two; the agent needs none of the render libraries.
 - **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:package`, `veasy:formats`, `veasy:queue`,
-  `veasy:brands`, `veasy:programs`.
+  `veasy:brands`, `veasy:programs`, `veasy:directors`.
 - **A one-line hint** on the first turn; turn it off with `VEASY_HINT=0`.
 
 Frames are rendered with [Remotion](https://github.com/remotion-dev/remotion) (React; `remotion/`). Python
@@ -153,6 +153,20 @@ used one among the brand's last 20 videos, remembered in `veasy.db`; one story k
 writer is told the scene orders used lately and asked for another shape when the facts allow, and it draws a picture
 of the story (`art.py`: whitelist + quality check; a drawing that fails is dropped, not the video).
 `variety.report()` measures how alike the last videos were.
+
+**Directors** (`tt_shorts/directors.py`, `directors/*.json`, `veasy:directors`) decide what kind of film a story
+becomes.
+- There are eight: data, map, type, draw, chronicle, witness, brief and single.
+- One is assigned before the writer runs: the least used eligible one for the brand (`variety.direct`), judged
+  from facts code extracts from the articles. Those facts are quantities, dates and times, gazetteer places,
+  quotes and their speakers, icons, deaths and the family.
+- The writer gets the director's brief, only its scene types, and the fact list. The story keeps `"director"` as
+  a code-owned field.
+- In the render, the director narrows variety's choices and sets the motion numbers (`ui.tsx` `useIn`/`In`). It
+  also sets the current: the slide entrance and every directional cut move one way.
+- `--director` on `write`, `render`, `still` and `queue add` overrides it. A story without one renders exactly as
+  before.
+- `stories/24835-brief.json` is the gas cut as a `brief` film.
 
 ## Icons and pictograms (`tt_shorts/icons.py`)
 

@@ -10,7 +10,7 @@ import unittest
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SKILLS = ("make-video", "write-script", "qa", "formats", "queue", "brands", "package", "programs")
+SKILLS = ("make-video", "write-script", "qa", "formats", "queue", "brands", "package", "programs", "directors")
 
 
 def load_plugin():
