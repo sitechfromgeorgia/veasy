@@ -11,6 +11,9 @@ Rules for every brief:
 
 ## 0. Directors (first: the owner's "separate agents each choose a different direction")
 
+Done on 2026-11-02 (`directors/`, `tt_shorts/directors.py`, skill `veasy:directors`), except the novelty guard and
+the three-director demo below: do those first.
+
 Language models drift toward the same choices when asked to "be creative", so code assigns a creative director
 before the writer runs. A director changes what kind of film a story becomes; it never touches facts, the palette,
 the safe zone or the news rules.
