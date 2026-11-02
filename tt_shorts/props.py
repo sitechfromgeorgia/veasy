@@ -56,26 +56,33 @@ def loops_for(music, family):
     return sorted(speech.MUSIC_DIR.glob(f"{fam}-*.m4a")) or sorted(speech.MUSIC_DIR.glob("society-*.m4a"))
 
 
-def choose(story, variant, transition="auto", music="family", director=None, style=None):
+def choose(story, variant, transition="auto", music="family", director=None, style=None, outro=swipe.DEFAULT_OUTRO):
     """The variety picks of one video in one look -> (style {hook, motif, enter, transition, music}, the director dict
-    or None, the music loops, the story's main icon). Reads the variety history and records nothing (render_story
-    does, after a render), so `engine plan` can show the picks for free. director: an id instead of the story's own;
-    style: picks to force."""
+    or None, the music loops, the story's main icon, the novelty guard's report). Reads the variety history and
+    records nothing (render_story does, after a render), so `engine plan` can show the picks for free. The picks
+    pass the novelty guard (variety.choose): a plan too close to one of the brand's recent videos is re-rolled here,
+    before any voice. director: an id instead of the story's own; style: picks to force (then the report measures
+    them, without a re-roll); outro: which scenes are shown (part of the fingerprint)."""
     b = brand.of(story)
     loops = loops_for(music, meta.family(story.get("category", ""), b))
     main = icons.story_icon(story)  # the story's main icon: the "icons" motif is possible only with one
     did = director or story.get("director")
     chosen = directors.get(did) if did else None  # an unknown director fails before anything renders
-    st = {**variety.pick(b["name"], story["id"], variant, transition, loops, icon=bool(main), director=chosen),
-          **(style or {})}
-    return st, chosen, loops, main
+    seq = [s["type"] for s in swipe.shown_scenes(story, outro)]
+    picked, novelty = variety.choose(b["name"], story["id"], variant, transition, loops, icon=bool(main),
+                                     director=chosen, scenes=seq)
+    st = {**picked, **(style or {})}
+    if style:  # a forced style (the goldens): report what is drawn, not what was picked
+        novelty = variety.assess(b["name"], story["id"], {**st, "director": chosen["id"] if chosen else None}, seq)
+    return st, chosen, loops, main, novelty
 
 
 def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts",
           caption_design=None, music="family", transition="auto", style=None, outro=swipe.DEFAULT_OUTRO, director=None):
     """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off".
     transition: "auto" (variety picks one that suits the look) or one of TRANSITIONS.
-    style: {hook, motif, enter, transition, music} to force; by default variety.pick() chooses the least used.
+    style: {hook, motif, enter, transition, music} to force; by default variety.choose() picks the least used, and its
+    novelty guard re-rolls a plan too close to a recent video, all before the voice is made (props "novelty").
     outro: card | overlay | loop (swipe.py: the end card, a chip over the last scene, or a seamless loop).
     director: a directors.py id to use instead of the story's own "director" (render --director); with one, the
     variety picks stay inside its subsets and props.style carries its motion numbers and current."""
@@ -100,11 +107,14 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         for place, f in b["_logo"].items():
             shutil.copy(f, public / "brand" / f"{place}.svg")
 
+    # the picks and the novelty guard come before the voice: a plan too close to a recent video is re-rolled
+    # first (choose -> variety.choose)
+    st, chosen, loops, main, novelty = choose(story, variant, transition, music, director, style, outro)
+
     audio, words = speech.voice(story, voice_dir, engine, tone, edge_voice)
     trim = swipe.lead_trim(words, swipe.leading_silence(audio)) if audio else 0.0  # the voice starts at once
     words = swipe.shift(words, trim)  # mix_audio cuts the same seconds from the track
     shown, marks, chip = swipe.plan(story, words, outro)
-    st, chosen, loops, main = choose(story, variant, transition, music, director, style)
     bed = next((f for f in loops if f.name == st["music"]), loops[0] if loops else None)
     for f in (audio, bed):
         if f:
@@ -122,6 +132,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "durationInFrames": marks[-1],
         "transition": st["transition"] if st["transition"] in TRANSITIONS else transition_for(transition, variant),
         "style": {**{k: st[k] for k in variety.OPTIONS}, **(directors.style(chosen) if chosen else {})},
+        "novelty": novelty,  # the guard's report (variety.choose): the nearest recent video, re-rolls, a warning
         "outro": outro, "outroFrom": chip,  # the frame the outro chip comes in (None: the end card)
         "scenes": icons.attach([_scene(s, a, b) for s, a, b in zip(shown, marks, marks[1:])], story),
         "motifIcon": icons.nodes(main) if st["motif"] == "icons" else None,  # the icon tiled in the background

@@ -14,11 +14,37 @@ videos keeps moving through the options instead of repeating; one story always g
 re-render in another caption design looks the same). Everything stays inside the brand pack: these change layout
 and motion, never the palette.
 
-The history is a table in $VEASY_HOME/veasy.db. recent_sequences() gives the writer the scene orders used lately,
-so it can choose a different shape for the next story.
+The novelty guard (ROADMAP D11). Least used per choice still lets two videos match on almost everything: the same
+director, the same scene order and three of the five style picks. So a planned video has a fingerprint
+    (director, scenes, hook, motif, enter, transition, music)
+and similarity(a, b) is a weighted count of the fields two fingerprints share (WEIGHTS: 1 each, so 0-7). Each of
+the six single fields counts when equal (two videos without a director, or without music, share that field); the
+scene sequence counts as its difflib ratio, 0-1 (identical orders 1; hook>stat>end against hook>stat>where>end
+0.86). distance(a, b) = 1 - similarity / 7. A plan is too close when it shares TOO_CLOSE = 5 or more of the 7 with
+any of the brand's last RECENT videos (the story's own earlier renders don't count).
+
+Then choose() re-rolls, before any voice is paid for: props.build calls it ahead of speech.voice, so `render`, the
+queue, `still` and `probe` all pass through it. The re-rolls are the other combinations of the style picks inside
+the director's subsets, cheapest first: a combination costs how far each of its picks is above that choice's least
+used option, so the run stays as even as it can. The director and the scenes belong to the story and never change,
+nor does a format's fixed transition. The first re-roll that is no longer too close is taken; at most REROLLS are
+tried, all deterministic per story and history (ties by crc32 of the story id and the combination), so a probe and
+the render after it agree. If none is far enough, the farthest plan is taken (the earliest of equals) with a
+warning: the guard never fails a video. A re-render (the story's own row in this look, under this director) gets
+its stored picks back without a re-roll.
+
+fingerprint, similarity, distance, nearest and spread are pure; assess() measures any style against the brand's
+history without re-rolling (for `engine plan`).
+
+The history is a table in $VEASY_HOME/veasy.db: each finished render's picks (the fingerprint's columns), and since
+the guard its distance to the nearest recent video and the re-rolls it took (MIGRATIONS adds the columns to an
+older database). recent_sequences() gives the writer the scene orders used lately, so it can choose a different
+shape for the next story; report() measures how alike the last videos were.
 """
 import contextlib
 import datetime as dt
+import difflib
+import itertools
 import json
 import sqlite3
 import zlib
@@ -39,13 +65,23 @@ TRANSITIONS = {
 }
 RECENT = 20
 
+# the novelty guard: the fingerprint's fields, their weights in similarity(), the threshold and the bound
+FIELDS = ("director", "scenes", "hook", "motif", "enter", "transition", "music")
+WEIGHTS = {k: 1.0 for k in FIELDS}
+TOO_CLOSE = 5.0  # similarity at or above this to one of the last RECENT videos: re-roll ("5 of 7")
+REROLLS = 64  # at most this many re-rolls per plan
+
 SCHEMA = """
 create table if not exists variety(
   ts text, brand text, story text, look text, hook text, motif text, enter text, transition text, music text,
   scenes text);
 create index if not exists variety_brand on variety(brand, ts);
 """
-MIGRATIONS = {"director": "alter table variety add column director text"}  # directors.py, before writing
+MIGRATIONS = {  # columns added since the table was first made; an older veasy.db gets them on first use
+    "director": "alter table variety add column director text",  # directors.py, before writing
+    "novelty": "alter table variety add column novelty real",  # the guard: distance to the nearest recent video
+    "rerolls": "alter table variety add column rerolls integer",  # the guard: the re-rolls it took
+}
 
 
 @contextlib.contextmanager
@@ -102,45 +138,182 @@ def direct(brand, story, facts, program_scenes="all", forced=None):
     return same or _least_used(pool, [r["director"] for r in past], story, "director")
 
 
-def pick(brand, story, look, transition="auto", loops=(), icon=False, director=None):
-    """The style for one video: {hook, motif, enter, transition, music}. A story rendered before in this look gets its
-    earlier picks back; otherwise each choice is the least used lately. transition stays as given unless "auto";
-    music is None when there are no loops. icon: the story has a main icon (icons.story_icon), so the "icons" motif
-    is one of its options. director: a directors.py director (dict): each choice stays inside its subsets."""
+# ---------------------------------------------------------------- the novelty guard (pure)
+
+
+def _scenes(v):
+    if isinstance(v, str):  # a history row keeps them as JSON
+        try:
+            v = json.loads(v or "[]")
+        except ValueError:
+            v = []
+    return tuple(v) if v is not None else None
+
+
+def fingerprint(style, scenes=None, director=None):
+    """A planned or recorded video as the guard compares it: {director, scenes (a tuple of scene types; None when
+    not known), hook, motif, enter, transition, music}, plus "story" when style has one. style: pick()'s dict,
+    props.style or a history row (whose "scenes" is JSON)."""
+    st = style or {}
+    out = {"director": director if director is not None else st.get("director"),
+           "scenes": _scenes(scenes if scenes is not None else st.get("scenes")),
+           **{k: st.get(k) for k in ("hook", "motif", "enter", "transition", "music")}}
+    if st.get("story") is not None:
+        out["story"] = str(st["story"])
+    return out
+
+
+def similarity(a, b):
+    """How much two fingerprints share, 0-7 (WEIGHTS): each single field when equal, the scene orders as their
+    difflib ratio (nothing when either is unknown)."""
+    out = 0.0
+    for k in FIELDS:
+        if k == "scenes":
+            if a.get(k) is not None and b.get(k) is not None:
+                out += WEIGHTS[k] * difflib.SequenceMatcher(None, list(a[k]), list(b[k]), autojunk=False).ratio()
+        elif a.get(k) == b.get(k):
+            out += WEIGHTS[k]
+    return round(out, 3)
+
+
+def distance(a, b):
+    """1 - similarity / the sum of the weights: 0 for the same video, 1 for nothing shared."""
+    return round(1 - similarity(a, b) / sum(WEIGHTS.values()), 3)
+
+
+def too_close(a, b):
+    return similarity(a, b) >= TOO_CLOSE
+
+
+def nearest(fp, past):
+    """(similarity, the nearest fingerprint) of fp against past fingerprints, newest first; the newest wins a tie.
+    (0.0, None) when past is empty."""
+    best, near = 0.0, None
+    for other in past:
+        s = similarity(fp, other)
+        if near is None or s > best:
+            best, near = s, other
+    return best, near
+
+
+def _others(rows, story):
+    """History rows as fingerprints, without this story's own renders."""
+    return [fingerprint(r) for r in rows if str(r["story"]) != str(story)]
+
+
+def _report(sim, near, rerolls=0, kept=False, warning=None):
+    return {"similarity": sim, "distance": round(1 - sim / sum(WEIGHTS.values()), 3),
+            "nearest": (near or {}).get("story"), "too_close": sim >= TOO_CLOSE, "rerolls": rerolls, "kept": kept,
+            "warning": warning}
+
+
+def spread(rows, window=RECENT, count=None):
+    """How far apart a run of videos is (history rows, newest first): each of the newest `count` (default all)
+    videos' distance to the nearest of the `window` videos before it (other stories), averaged, the smallest, and
+    how many were too close. None when no video has one before it."""
+    fps = [fingerprint(r) for r in rows]
+    dists, close = [], 0
+    for i, fp in enumerate(fps[:count]):
+        before = [x for x in fps[i + 1:i + 1 + window] if x.get("story") != fp.get("story")]
+        if not before:
+            continue
+        sim, _ = nearest(fp, before)
+        dists.append(1 - sim / sum(WEIGHTS.values()))
+        close += sim >= TOO_CLOSE
+    if not dists:
+        return None
+    return {"mean_distance": round(sum(dists) / len(dists), 3), "min_distance": round(min(dists), 3),
+            "too_close": close, "videos": len(dists)}
+
+
+def assess(brand, story, style, scenes=None):
+    """How close a style (and scene order) is to the brand's last RECENT videos, without re-rolling:
+    {similarity, distance, nearest (a story id), too_close, rerolls 0, kept False, warning None}."""
+    return _report(*nearest(fingerprint(style, scenes), _others(history(brand), story)))
+
+
+# ---------------------------------------------------------------- picking
+
+
+def _rerolls(first, options, used, story, n=None):
+    """The guard's re-rolls of a plan, at most n (REROLLS): every other combination of the options, cheapest first.
+    A combination's cost is how far above the least used each of its picks is (sum over the choices of the
+    option's count minus the choice's lowest count), so a re-roll keeps the run as even as it can; ties go by crc32
+    of the story id and the combination, so they are the same on every call."""
+    keys = list(options)
+    cost = {k: {o: used[k].count(o) - min(used[k].count(x) for x in options[k]) for o in options[k]} for k in keys}
+    combos = [dict(zip(keys, c)) for c in itertools.product(*(options[k] for k in keys))]
+    combos = [c for c in combos if any(c[k] != first[k] for k in keys)]
+    combos.sort(key=lambda c: (sum(cost[k][c[k]] for k in keys),
+                               zlib.crc32(f"{story}|{'|'.join(str(c[k]) for k in keys)}".encode())))
+    return [{**first, **c} for c in combos[:REROLLS if n is None else n]]
+
+
+def choose(brand, story, look, transition="auto", loops=(), icon=False, director=None, scenes=None):
+    """-> (style, novelty). style is pick()'s dict. novelty is the guard's report: assess()'s keys, with rerolls (how
+    many were tried), kept (a re-render's stored picks) and warning (no re-roll was far enough; the farthest was taken).
+    scenes: the scene types the video shows (part of the fingerprint)."""
     past = history(brand)
     did = director["id"] if director else None
     same = next((r for r in past if r["story"] == str(story) and r["look"] == look and r["director"] == did), None)
     sub = {"hook": "hooks", "motif": "motifs", "enter": "enters"}
-    out = {}
+    options = {}
     for key in OPTIONS:
-        options = options_for(key, icon)
+        options[key] = options_for(key, icon)
         if director:
-            options = _within(options, director[sub[key]])
-        out[key] = same[key] if same and same[key] in options else _least_used(options, [r[key] for r in past], story, key)
+            options[key] = _within(options[key], director[sub[key]])
     if transition in (None, "auto"):
-        options = TRANSITIONS[look] if not director else \
+        options["transition"] = TRANSITIONS[look] if not director else \
             tuple(t for t in TRANSITIONS[look] if t in director["transitions"]) or tuple(director["transitions"])
-        out["transition"] = same["transition"] if same and same["transition"] in options else \
-            _least_used(options, [r["transition"] for r in past], story, "transition")
-    else:
-        out["transition"] = transition
     names = [getattr(p, "name", str(p)) for p in loops]
     if names:
-        out["music"] = same["music"] if same and same["music"] in names else \
-            _least_used(names, [r["music"] for r in past], story, "music")
-    else:
-        out["music"] = None
-    return out
+        options["music"] = tuple(names)
+    used = {key: [r[key] for r in past] for key in options}
+    out = {key: same[key] if same and same[key] in options[key] else _least_used(options[key], used[key], story, key)
+           for key in options}
+    out.setdefault("transition", transition)
+    out.setdefault("music", None)
+    out = {k: out[k] for k in ("hook", "motif", "enter", "transition", "music")}
+    others = _others(past, story)
+    fp = lambda st: fingerprint(st, scenes, did)  # noqa: E731
+    sim, near = nearest(fp(out), others)
+    if same:  # a re-render keeps its picks
+        return out, _report(sim, near, kept=True)
+    best, k = (sim, 0, out, near), 0
+    for cand in _rerolls(out, options, used, story) if sim >= TOO_CLOSE else ():
+        k += 1
+        s, n = nearest(fp(cand), others)
+        if s < best[0]:
+            best = (s, k, cand, n)
+        if s < TOO_CLOSE:
+            break
+    sim, _, out, near = best
+    warning = None
+    if sim >= TOO_CLOSE:
+        warning = (f"novelty: after {k} re-roll(s) the plan still shares {sim:g} of {sum(WEIGHTS.values()):g} with "
+                   f"story {near.get('story')} (too close at {TOO_CLOSE:g}); took the farthest")
+    return out, _report(sim, near, k, warning=warning)  # k: the re-rolls tried (the last one is taken unless warned)
 
 
-def record(brand, story, look, style, scenes):
-    """Remember what a finished render used (engine.render_story calls this)."""
+def pick(brand, story, look, transition="auto", loops=(), icon=False, director=None, scenes=None):
+    """The style for one video: {hook, motif, enter, transition, music}. A story rendered before in this look gets its
+    earlier picks back; otherwise each choice is the least used lately, re-rolled by the novelty guard when the plan
+    is too close to a recent video (choose()). transition stays as given unless "auto"; music is None when there
+    are no loops. icon: the story has a main icon (icons.story_icon), so the "icons" motif is one of its options.
+    director: a directors.py director (dict): each choice stays inside its subsets. scenes: the shown scene types."""
+    return choose(brand, story, look, transition, loops, icon, director, scenes)[0]
+
+
+def record(brand, story, look, style, scenes, novelty=None):
+    """Remember what a finished render used (engine.render_story calls this). novelty: choose()'s report."""
+    nov = novelty or {}
     with _db() as con:
-        con.execute("insert into variety(ts, brand, story, look, hook, motif, enter, transition, music, scenes, director) "
-                    "values(?,?,?,?,?,?,?,?,?,?,?)",
+        con.execute("insert into variety(ts, brand, story, look, hook, motif, enter, transition, music, scenes, director, "
+                    "novelty, rerolls) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), brand, str(story), look,
                      style.get("hook"), style.get("motif"), style.get("enter"), style.get("transition"),
-                     style.get("music"), json.dumps(list(scenes)), style.get("director")))
+                     style.get("music"), json.dumps(list(scenes)), style.get("director"), nov.get("distance"),
+                     nov.get("rerolls")))
 
 
 def recent_sequences(brand, n=12):
@@ -156,7 +329,8 @@ def recent_sequences(brand, n=12):
 
 
 def report(brand, n=50):
-    """How varied the last n videos were: per choice, how often the most used option came up (for the daily report)."""
+    """How varied the last n videos were: per choice, how often the most used option came up (for the daily report),
+    and the guard's view (novelty: spread() of the last n, plus the re-rolls they took)."""
     past = history(brand, n)
     if not past:
         return {}
@@ -167,4 +341,8 @@ def report(brand, n=50):
         out[key] = {"distinct": len(set(vals)), "most_used_share": round(vals.count(top) / len(vals), 2)}
     names = [r["director"] for r in past]
     out["director"]["share"] = {str(n): round(names.count(n) / len(names), 2) for n in sorted(set(names), key=str)}
+    novelty = spread(history(brand, n + RECENT), count=len(past))  # each of the last n against the RECENT before it
+    if novelty:
+        novelty["rerolls"] = sum(r.get("rerolls") or 0 for r in past)
+    out["novelty"] = novelty
     return out
