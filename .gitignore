@@ -6,3 +6,6 @@ data/
 # composed on the server by tools/compose_music.py (deterministic, ~19 MB): not in git
 assets/music/*.m4a
 remotion/node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
