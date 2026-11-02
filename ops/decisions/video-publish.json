@@ -1,0 +1,152 @@
+{
+  "config": {
+    "name": "video-publish",
+    "version": "0.1.0",
+    "description": "Whether a finished story may go to the Telegram channel: checks first, then corroboration, then the category ceiling.",
+    "tags": ["tbilisi.today", "video"],
+    "enableTrace": true,
+    "timeout": 5000,
+    "inputSchema": null,
+    "outputSchema": null,
+    "metadata": {}
+  },
+  "startStepId": "check_duplicate",
+  "steps": [
+    {
+      "id": "check_duplicate",
+      "name": "Already posted?",
+      "description": null,
+      "type": "decision",
+      "branches": [
+        {
+          "id": "check_duplicate-b0",
+          "label": "duplicate == true",
+          "condition": {
+            "type": "simple",
+            "left": { "type": "variable", "path": "duplicate" },
+            "operator": "eq",
+            "right": { "type": "literal", "value": true, "valueType": "boolean" }
+          },
+          "nextStepId": "skip_duplicate"
+        }
+      ],
+      "defaultNextStepId": "check_checks"
+    },
+    {
+      "id": "check_checks",
+      "name": "Quality gate",
+      "description": null,
+      "type": "decision",
+      "branches": [
+        {
+          "id": "check_checks-b0",
+          "label": "checks_failed > 0",
+          "condition": {
+            "type": "simple",
+            "left": { "type": "variable", "path": "checks_failed" },
+            "operator": "gt",
+            "right": { "type": "literal", "value": 0, "valueType": "number" }
+          },
+          "nextStepId": "reject_checks"
+        }
+      ],
+      "defaultNextStepId": "check_sources"
+    },
+    {
+      "id": "check_sources",
+      "name": "Corroboration",
+      "description": null,
+      "type": "decision",
+      "branches": [
+        {
+          "id": "check_sources-b0",
+          "label": "sources < 2",
+          "condition": {
+            "type": "simple",
+            "left": { "type": "variable", "path": "sources" },
+            "operator": "lt",
+            "right": { "type": "literal", "value": 2, "valueType": "number" }
+          },
+          "nextStepId": "hold_low_source"
+        }
+      ],
+      "defaultNextStepId": "check_cap"
+    },
+    {
+      "id": "check_cap",
+      "name": "Category ceiling",
+      "description": null,
+      "type": "decision",
+      "branches": [
+        {
+          "id": "check_cap-b0",
+          "label": "cap_reached == true",
+          "condition": {
+            "type": "simple",
+            "left": { "type": "variable", "path": "cap_reached" },
+            "operator": "eq",
+            "right": { "type": "literal", "value": true, "valueType": "boolean" }
+          },
+          "nextStepId": "hold_cap"
+        }
+      ],
+      "defaultNextStepId": "publish"
+    },
+    {
+      "id": "publish",
+      "name": "Publish",
+      "description": null,
+      "type": "terminal",
+      "code": "PUBLISH",
+      "message": "All gates passed",
+      "output": [
+        { "name": "decision", "value": { "type": "literal", "value": "publish", "valueType": null } }
+      ]
+    },
+    {
+      "id": "skip_duplicate",
+      "name": "Skip a repeat",
+      "description": null,
+      "type": "terminal",
+      "code": "SKIP_DUPLICATE",
+      "message": "This story is already on the channel",
+      "output": [
+        { "name": "decision", "value": { "type": "literal", "value": "skip", "valueType": null } }
+      ]
+    },
+    {
+      "id": "reject_checks",
+      "name": "Reject on checks",
+      "description": null,
+      "type": "terminal",
+      "code": "REJECT_CHECKS",
+      "message": "The Georgian gate found a problem",
+      "output": [
+        { "name": "decision", "value": { "type": "literal", "value": "reject", "valueType": null } }
+      ]
+    },
+    {
+      "id": "hold_low_source",
+      "name": "Hold for a second source",
+      "description": null,
+      "type": "terminal",
+      "code": "HOLD_LOW_SOURCE",
+      "message": "Only one outlet carries the story",
+      "output": [
+        { "name": "decision", "value": { "type": "literal", "value": "hold", "valueType": null } }
+      ]
+    },
+    {
+      "id": "hold_cap",
+      "name": "Hold at the category ceiling",
+      "description": null,
+      "type": "terminal",
+      "code": "HOLD_CAP",
+      "message": "The category already has its share today",
+      "output": [
+        { "name": "decision", "value": { "type": "literal", "value": "hold", "valueType": null } }
+      ]
+    }
+  ],
+  "subRules": {}
+}

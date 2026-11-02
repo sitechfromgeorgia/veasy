@@ -1,0 +1,7 @@
+[
+  { "name": "a repeat is skipped", "input": { "duplicate": true, "checks_failed": 0, "sources": 4, "cap_reached": false }, "expect": { "code": "SKIP_DUPLICATE" } },
+  { "name": "a failed check keeps it off the channel", "input": { "duplicate": false, "checks_failed": 1, "sources": 4, "cap_reached": false }, "expect": { "code": "REJECT_CHECKS" } },
+  { "name": "one outlet is not enough", "input": { "duplicate": false, "checks_failed": 0, "sources": 1, "cap_reached": false }, "expect": { "code": "HOLD_LOW_SOURCE" } },
+  { "name": "the category already had its share", "input": { "duplicate": false, "checks_failed": 0, "sources": 3, "cap_reached": true }, "expect": { "code": "HOLD_CAP" } },
+  { "name": "a clear story goes out", "input": { "duplicate": false, "checks_failed": 0, "sources": 3, "cap_reached": false }, "expect": { "code": "PUBLISH" } }
+]
