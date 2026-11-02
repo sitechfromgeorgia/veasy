@@ -1,0 +1,84 @@
+{
+ "name": "sitech",
+ "extends": "_ka",
+ "label": "SiTech",
+ "about": "SiTech (sitech.ge), as in sitech-shorts: coal and paper with SiTech orange, the SiTech logo, the Charon voice with SiTech's tech-news delivery, the blog's categories.",
+ "colors": {
+  "canvas": "#171817",
+  "panel": "#1F201E",
+  "ink": "#F1EDE4",
+  "muted": "#B6B4AC",
+  "accent": "#FF792E",
+  "line": "rgba(241,237,228,.14)",
+  "lineStrong": "rgba(241,237,228,.26)",
+  "grid": "rgba(241,237,228,.05)",
+  "ticker": "rgba(241,237,228,.06)",
+  "waiting": "rgba(241,237,228,.42)",
+  "markBg": "#171817",
+  "onAccent": "#171817"
+ },
+ "logo": {
+  "kind": "svg",
+  "header": "logo-horizontal.svg",
+  "end": "logo-stacked.svg"
+ },
+ "wordmark": {
+  "text": "sitech.ge",
+  "accent": "."
+ },
+ "link": {
+  "display": "sitech.ge/ka/blog",
+  "qr": "https://sitech.ge/ka/blog/{id}/?utm_source={platform}&utm_medium=video"
+ },
+ "footer": {
+  "text": "ციფრული სააგენტო, სიყვარულით ბათუმიდან",
+  "strong": ""
+ },
+ "ctas": [
+  "გამოიწერე SiTech",
+  "მოიწონე და გააზიარე",
+  "მეტი sitech.ge-ზე"
+ ],
+ "categories": {
+  "security": "უსაფრთხოება",
+  "hardware": "ტექნიკა",
+  "development": "დეველოპმენტი",
+  "companies": "კომპანიები",
+  "business": "ბიზნესი",
+  "ai": "ხელოვნური ინტელექტი",
+  "other": "ტექნოლოგია"
+ },
+ "family_by_category": {
+  "security": "crime",
+  "hardware": "tech",
+  "development": "tech",
+  "ai": "tech",
+  "companies": "economy",
+  "business": "economy",
+  "other": "tech"
+ },
+ "default_family": "tech",
+ "look_by_family": {
+  "crime": "editorial",
+  "tech": "cards",
+  "economy": "cards"
+ },
+ "voices": {
+  "sitech": {
+   "label": "SiTech (Charon)",
+   "voice": "Charon",
+   "style": "Clear Georgian tech-news delivery. Energetic but trustworthy. Brisk, articulate phrasing with restrained enthusiasm. Brief pauses between ideas. Emphasize the main development and why it matters. Avoid sensational delivery and an exaggerated advertising tone."
+  }
+ },
+ "voice_by_family": {
+  "crime": "sitech",
+  "tech": "sitech",
+  "economy": "sitech"
+ },
+ "strings": {
+  "category_default": "ტექნოლოგია"
+ },
+ "say": {
+  "SiTech": "საი-თეჩი"
+ }
+}

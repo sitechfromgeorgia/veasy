@@ -3,8 +3,8 @@
 A job is one video: (brand, source, ref, format, overrides). Its id is a hash of exactly that, so adding the same
 request twice returns the same job (idempotent): an agent can't make the same video twice by accident.
 
-    queued ──> writing ──> rendering ──> done            (qa passed: ready to publish)
-                  │            │    └──> held            (rendered, but qa found problems: a person looks)
+    queued ──> writing ──> rendering ──> done            (qa passed, real voice: ready to publish)
+                  │            │    └──> held            (rendered, but qa found problems or a preview voice)
                   └────────────┴───────> failed          (content / layout / config: retry by hand after a fix)
     transient errors (network, 429, 5xx, timeouts) go back to queued with a delay: 5, 10, 20 minutes, then failed.
     cancelled: taken out by hand.
@@ -23,6 +23,7 @@ import datetime as dt
 import fcntl
 import hashlib
 import json
+import pathlib
 import socket
 import sqlite3
 import subprocess
@@ -30,6 +31,7 @@ import time
 import traceback
 import urllib.error
 
+from tt_shorts import brand as brand_pack
 from tt_shorts import formats, store
 
 STATES = ("queued", "writing", "rendering", "done", "held", "failed", "cancelled")
@@ -82,18 +84,25 @@ def _row(r):
     return d
 
 
-def add(brand="tbilisi-today", source=None, ref=None, fmt="news", overrides=None, story=None, priority=0):
-    """-> (job, created). A job needs either a story file or a source + ref. Same request -> same job."""
+def add(brand=None, source=None, ref=None, fmt="news", overrides=None, story=None, priority=0):
+    """-> (job, created). A job needs either a story file or a source + ref. Same request -> same job.
+    brand: the pack (default tbilisi-today); a story file's own "brand" is used when none is given, and a different
+    one is refused (the story decides how it looks)."""
     if not story and not (source and ref is not None):
         raise ValueError("a job needs --story, or --source and --ref")
     formats.get(fmt, **(overrides or {}))  # refuse a format the engine can't do before it is queued
     label = ref
     if story:
+        story = pathlib.Path(story).resolve()  # the worker may run from another folder
         source, ref = "story", str(story)
-        try:  # name the job after the story's own id
-            label = json.loads(open(story, encoding="utf-8").read()).get("id") or ref
-        except (OSError, ValueError):
-            label = ref
+        data = json.loads(story.read_text(encoding="utf-8"))  # unreadable or not JSON: refused now, not at run time
+        label = data.get("id") or story.stem  # name the job after the story's own id
+        own = data.get("brand")
+        if brand and own and brand != own:
+            raise ValueError(f"the story says brand {own!r}, the job {brand!r}: change the story's \"brand\"")
+        brand = brand or own
+    brand = brand or brand_pack.DEFAULT
+    brand_pack.load(brand)  # and a brand pack that doesn't exist
     jid = job_id(brand, source, ref, fmt, overrides)
     with _conn() as con:
         old = con.execute("select * from jobs where id=?", (jid,)).fetchone()
@@ -189,13 +198,16 @@ def process(job, engine="gemini"):
         fmt = formats.get(job["format"], **(job["overrides"] or {}))
         side = store.sources_path(story)
         sources = json.loads(side.read_text(encoding="utf-8")) if side.exists() else None
-        problems = eng.check_story(json.loads(open(story, encoding="utf-8").read()), sources) + eng._kaeasy_required()
+        problems = eng.check_story(json.loads(pathlib.Path(story).read_text(encoding="utf-8")), sources) + eng._kaeasy_required()
         if problems:
             _set(jid, state="failed", error_class="content", error="; ".join(problems[:5]))
             store.log("failed", job=jid, stage="check", problems=problems[:5])
             return get(jid)
         r = eng.render_story(story, fmt, engine)
         q = eng.qa_file(r["file"], fmt) if not r["problems"] else {"problems": r["problems"]}
+        if engine != "gemini":  # done means ready to publish: a preview voice never is
+            q = {**q, "problems": q["problems"] + [f"preview render (engine {engine}): not for publishing; "
+                                                   "retry with the gemini voice"]}
         result = {**r, "qa": q}
         state = "done" if not q["problems"] else "held"
         _set(jid, state=state, result=result, error="; ".join(q["problems"]) or None,

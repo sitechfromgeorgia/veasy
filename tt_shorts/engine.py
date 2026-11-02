@@ -1,18 +1,24 @@
-"""The tbilisi.today Shorts engine: one entry point for people and agents.
+"""Veasy's engine: one entry point for people and agents, for every brand pack (brands/, brand.py).
 
 Every command prints JSON on stdout (human notes go to stderr), so an agent can call it and read the result.
 
-  python -m tt_shorts.engine options                         # every choice the engine offers (looks, captions, voices,
-                                                             # music, formats, scene types and their fields)
+  python -m tt_shorts.engine options [--brand sitech]        # every choice the engine offers (brands, looks, captions,
+                                                             # voices, music, formats, scene types and their fields)
   python -m tt_shorts.engine check  stories/24725.json [--sources articles.json]
                                                              # all checks a story must pass before rendering
   python -m tt_shorts.engine render stories/24725.json --format news [--look kinetic] [--captions roll]
                                     [--voice warm] [--music off] [--engine gemini|edge|silent] [--out out/x.mp4]
   python -m tt_shorts.engine still  stories/24725.json --frames 60,300 [same choices as render]
   python -m tt_shorts.engine qa     out/24725.mp4 [--format news]   # length, size, loudness + a contact sheet
-  python -m tt_shorts.engine write  --cluster 24725 [--out stories/24725.json]   # D1 cluster -> checked story
+  python -m tt_shorts.engine write  --source tbilisi-today --ref 24725 [--brand tbilisi-today] [--out x.json]
+                                                             # a source's story -> a checked story JSON
+  python -m tt_shorts.engine queue  add --ref 24725 [--brand sitech] [--format news] | list | run [--max 5]
+                                    | show <id> | retry <id> | cancel <id>          # the job queue (queue.py)
   python -m tt_shorts.engine voices [--story stories/24835.json] [--only warm,clear]   # tone samples by ear
+  python -m tt_shorts.engine gc     [--dry-run]               # delete scratch, old renders, voices, logs (store.py)
   python -m tt_shorts.engine doctor                          # is this machine ready to render?
+
+Where things are kept and what they are called: store.py ($VEASY_HOME). Brands: brand.py (brands/<name>/).
 
 Exit status: 0 when the command did what it says, 1 when a check or QA found problems, 2 on a usage error.
 """
@@ -24,6 +30,7 @@ import shutil
 import subprocess
 import sys
 
+from tt_shorts import brand as packs
 from tt_shorts import captions, formats, ka_check, kaeasy, meta, news_check, props, speech, store, voices
 
 ROOT = speech.ROOT
@@ -56,27 +63,32 @@ def note(msg):
 # ---------------------------------------------------------------- options
 
 
-def options():
+def options(brand_name=None):
     every = formats.load_all()
+    b = packs.load(brand_name)
+    presets = voices.all_presets(b)
     return {
+        "brand": b["name"],
+        "brands": {n: packs.summary(packs.load(n)) for n in packs.names()},
         "looks": {"auto": "by the story's category", **{v: d for v, d in (
             ("editorial", "calm, grid, rising type: hard news"),
             ("kinetic", "giant type, hard cuts, inverted blocks: light news"),
             ("cards", "every scene a site-style story card: service news"))}},
-        "look_by_family": meta.VARIANT_BY_FAMILY,
+        "look_by_family": b["look_by_family"],
         "captions": {"page": "a fixed two-line block; words light up as spoken (most stable)",
                      "roll": "a three-line teleprompter that scrolls continuously"},
-        "voices": {name: {"label": p["label"], "voice": p["voice"], "approved": name in voices.APPROVED}
-                   for name, p in voices.PRESETS.items()},
-        "voice_by_family": voices.BY_FAMILY,
+        "voices": {name: {"label": p["label"], "voice": p["voice"], "approved": name in voices.APPROVED,
+                          **({"brand": b["name"]} if name in (b.get("voices") or {}) else {})}
+                   for name, p in presets.items()},
+        "voice_by_family": b["voice_by_family"],
         "music": ["family", "off", *meta.FAMILIES],
         "engines": {"gemini": "production voice (GEMINI_API_KEY + the alignment venv)",
                     "edge": "free preview stand-in (robotic; timing only)", "silent": "music and captions only"},
         "formats": every,
         "scenes": {t: {"required": r, "optional": o, "shows": d} for t, (r, o, d) in SCENES.items()},
-        "categories": {c: {"label": meta.category_label(c), "family": meta.family(c),
-                           "look": meta.variant_for(c), "voice": voices.BY_FAMILY[meta.family(c)]}
-                       for c in meta.CATEGORY_KA},
+        "categories": {c: {"label": meta.category_label(c, b), "family": meta.family(c, b),
+                           "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
+                       for c in b["categories"]},
     }
 
 
@@ -88,6 +100,8 @@ def structure_problems(story):
     for k in STORY_KEYS:
         if k not in story:
             p.append(f"story: missing {k!r}")
+    if story.get("brand") and story["brand"] not in packs.names():
+        p.append(f"story: unknown brand {story['brand']!r} (known: {', '.join(packs.names())})")
     scenes = story.get("scenes") or []
     if not scenes or scenes[0].get("type") != "hook":
         p.append("story: the first scene must be a hook")
@@ -109,6 +123,7 @@ def check_story(story, sources=None):
     p = structure_problems(story)
     if p:
         return p  # the rest needs a well-formed story
+    story = packs.with_say(story)  # the pack's own names (SiTech) have spoken forms too
     texts = sources or []
     if texts:
         p += news_check.problems(story, texts)
@@ -125,7 +140,8 @@ def check_story(story, sources=None):
     except (ValueError, RuntimeError) as e:
         p.append(f"timing: {e}")
         return p
-    p += [f"captions: {x}" for x in captions.problems(captions.layout(words, "page"), words)]
+    font = packs.of(story)["_fonts"]["700"]
+    p += [f"captions: {x}" for x in captions.problems(captions.layout(words, "page", font=font), words, font)]
     return p
 
 
@@ -133,7 +149,7 @@ def check_story(story, sources=None):
 
 
 def brand_of(story):
-    return story.get("brand") or "tbilisi-today"
+    return packs.of(story)["name"]
 
 
 def render_story(story_path, fmt, engine="gemini", out_path=None):
@@ -249,9 +265,10 @@ def qa(a):
 # ---------------------------------------------------------------- write / voices / doctor
 
 
-def write_story(source, ref, brand="tbilisi-today", out_path=None):
+def write_story(source, ref, brand=packs.DEFAULT, out_path=None):
     """A source reference -> a written, checked story file (+ its sources beside it). Used by `write` and the queue."""
     from tt_shorts import sources as src, writer
+    packs.load(brand)  # an unknown pack fails before any model call
     data = src.fetch(source, ref)
     story = writer.write(data["cluster"], data["articles"])
     story["brand"] = brand
@@ -321,13 +338,20 @@ def doctor(_a):
         "home (VEASY_HOME)": str(store.home()),
         "kaeasy (Georgian gate)": kaeasy.version() or f"missing in {kaeasy.directory()} (KAEASY_DIR)",
     }
+    bad_packs = []
+    for n in packs.names():
+        try:
+            packs.load(n)
+        except (packs.BrandError, OSError, ValueError) as e:
+            bad_packs.append(f"brand {n}: {e}")
+    checks["brands"] = packs.names() if not bad_packs else bad_packs
     try:
         n = len(formats.load_all())
         checks["formats"] = n
     except formats.FormatError as e:
         checks["formats"] = f"ERROR: {e}"
     blocking = [k for k in ("ffmpeg", "node", "remotion installed", "fonts") if checks[k] is not True]
-    blocking += _kaeasy_required()
+    blocking += _kaeasy_required() + bad_packs
     if not checks["music loops"]:
         blocking.append("music loops (run tools/compose_music.py)")
     return out({"checks": checks, "problems": blocking}, 1 if blocking else 0)
@@ -344,7 +368,8 @@ def queue_states():
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="tt_shorts.engine", description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("options")
+    o = sub.add_parser("options")
+    o.add_argument("--brand", help="the pack whose categories, looks and voices to show (default tbilisi-today)")
     c = sub.add_parser("check")
     c.add_argument("story")
     c.add_argument("--sources", help="JSON list of the member articles' texts (enables the news rules N2/N3)")
@@ -368,7 +393,7 @@ def main(argv=None):
     w.add_argument("--source", default="tbilisi-today", help="tbilisi-today (ref = cluster id) or text (ref = JSON file)")
     w.add_argument("--ref", help="the story's reference in its source")
     w.add_argument("--cluster", help="same as --ref, for tbilisi-today")
-    w.add_argument("--brand", default="tbilisi-today", help="the brand pack the story will be rendered with")
+    w.add_argument("--brand", default=packs.DEFAULT, help="the brand pack the story will be rendered with")
     w.add_argument("--out")
     v = sub.add_parser("voices")
     v.add_argument("--story")
@@ -377,7 +402,7 @@ def main(argv=None):
     qp = sub.add_parser("queue")
     qp.add_argument("action", choices=["add", "list", "run", "show", "retry", "cancel"])
     qp.add_argument("id", nargs="?")
-    qp.add_argument("--brand", default="tbilisi-today")
+    qp.add_argument("--brand", help="a pack in brands/ (default: the story's own, else tbilisi-today)")
     qp.add_argument("--source", default="tbilisi-today")
     qp.add_argument("--ref")
     qp.add_argument("--story", help="an already written story file (skips writing)")
@@ -394,7 +419,7 @@ def main(argv=None):
     a = ap.parse_args(argv)
     try:
         if a.cmd == "options":
-            return out(options())
+            return out(options(a.brand))
         if a.cmd == "check":
             story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
             sources = json.loads(pathlib.Path(a.sources).read_text(encoding="utf-8")) if a.sources else None

@@ -1,8 +1,8 @@
 import React from "react";
 import { interpolate, useCurrentFrame } from "remotion";
-import { CANVAS, FONT, INK, LINE, LINE_STRONG, MUTED, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
+import { CANVAS, fill, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import type { Scene } from "../types";
-import { Chip, CountUp, Dot, fitSize, group, Headline, In, Kicker, Mark, useIn, useTheme, Wordmark } from "../ui";
+import { Chip, CountUp, Dot, fitSize, group, Headline, In, Kicker, Logo, useIn, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
 const LOW = RAIL_X - SIDE; // text that reaches the lower part stays left of the like/share rail
@@ -49,7 +49,7 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
       </div>
       <In delay={14 + lines.length * 5}>
         <div style={{ display: "flex", gap: 16, marginTop: 48 }}>
-          <Chip solid size={38}>{props.sources.length} წყარო</Chip>
+          <Chip solid size={38}>{fill(props.brand.strings.outlets, { n: props.sources.length })}</Chip>
           <Chip size={38}>{props.when}</Chip>
         </div>
       </In>
@@ -264,7 +264,7 @@ export const Sources: React.FC<P> = ({ s, inner = INNER }) => {
         </In>
         <In delay={8}>
           <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 64, lineHeight: 1.16, color: INK, paddingBottom: 24 }}>
-            მედია<br /><span style={{ color: MUTED }}>აშუქებს</span>
+            {props.brand.strings.covered_by[0]}<br /><span style={{ color: MUTED }}>{props.brand.strings.covered_by[1]}</span>
           </div>
         </In>
       </div>
@@ -282,15 +282,14 @@ export const End: React.FC<P> = () => {
   const qr = useIn(10, 16, 140);
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <In><Mark size={176} /></In>
-      <In delay={5}><div style={{ marginTop: 24 }}><Wordmark size={88} /></div></In>
+      <In><Logo place="end" size={176} /></In>
       <div style={{ marginTop: 40, width: 416, height: 416, background: "#FFFFFF", padding: 16, borderRadius: RADIUS,
         transform: `scale(${0.7 + 0.3 * qr})`, opacity: qr }} dangerouslySetInnerHTML={{ __html: props.qrSvg }} />
       <In delay={16}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 44, color: INK, marginTop: 32 }}>{props.url}</div>
       </In>
       <In delay={22}>
-        <div style={{ marginTop: 32, background: RED, color: "#FFFFFF", fontFamily: FONT, fontWeight: 700, fontSize: 48,
+        <div style={{ marginTop: 32, background: RED, color: ON_ACCENT, fontFamily: FONT, fontWeight: 700, fontSize: 48,
           padding: "20px 48px 26px", borderRadius: 999, whiteSpace: "nowrap" }}>{props.cta}</div>
       </In>
     </div>

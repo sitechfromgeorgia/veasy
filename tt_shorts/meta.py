@@ -1,88 +1,87 @@
-"""What a video shows that comes from data, not from the writer: the date in Tbilisi time, the category word, the
-category family (it picks the music), the story link and its QR code, and the call to action.
+"""What a video shows that comes from data, not from the writer: the date in the brand's time zone, the category
+word, the category family (it picks the look, the voice and the music), the story link and its QR code, and the
+call to action. All of it is read from the story's brand pack (brand.py); `b` defaults to the default pack.
 
-Colors and layout live in remotion/src (brand.ts): the brand has one palette, so nothing here is a color.
+Layout lives in remotion/src; colors come from the pack too, so nothing here is a color.
 """
 import datetime as dt
 import zlib
 
 import segno
 
-TBILISI = dt.timezone(dt.timedelta(hours=4))  # Georgia keeps UTC+4 all year
+from tt_shorts import brand
 
-# Category families: 20 site categories, 8 music moods (tools/compose_music.py PIECES).
-FAMILIES = ("politics", "economy", "world", "crime", "sports", "culture", "tech", "society")
-CATEGORY_FAMILY = {
-    "politics": "politics", "defense": "politics",
-    "economy": "economy", "realestate": "economy", "auto": "economy",
-    "world": "world",
-    "crime": "crime", "incidents": "crime",
-    "sports": "sports", "sport": "sports",
-    "culture": "culture", "showbusiness": "culture", "showbiz": "culture", "religion": "culture",
-    "tech": "tech", "science": "tech",
-}  # everything else (society, medicine, education, region, tourism, ecology, general...) is "society"
-CATEGORY_KA = {  # web/src/index.ts CATEGORY_KA
-    "politics": "პოლიტიკა", "economy": "ეკონომიკა", "society": "საზოგადოება", "world": "მსოფლიო",
-    "sports": "სპორტი", "culture": "კულტურა", "tech": "ტექნოლოგია", "general": "ამბები", "crime": "კრიმინალი",
-    "defense": "თავდაცვა", "region": "რეგიონი", "science": "მეცნიერება", "lifestyle": "ცხოვრება",
-    "showbusiness": "შოუბიზნესი", "religion": "რელიგია", "medicine": "მედიცინა", "education": "განათლება",
-    "auto": "ავტო", "realestate": "უძრავი ქონება", "tourism": "ტურიზმი", "ecology": "ეკოლოგია",
-    "incidents": "შემთხვევები",
-}
-MONTHS = ["იანვარი", "თებერვალი", "მარტი", "აპრილი", "მაისი", "ივნისი", "ივლისი", "აგვისტო", "სექტემბერი",
-          "ოქტომბერი", "ნოემბერი", "დეკემბერი"]
-WEEKDAYS = ["ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი", "კვირა"]
-# End-card calls to action (the red button: an active action is one of red's three uses); rotated by story id.
-CTAS = ["გამოიწერე არხი", "მოიწონე და გააზიარე", "მხარი დაგვიჭირე: tbilisi.today/support"]
+FAMILIES = brand.FAMILIES
 
 
-# The look follows the kind of story (owner, 2026-11-01: "different styles for different kinds of stories"):
-#   editorial  hard news, calm and serious: politics, defense, world, crime, incidents
-#   kinetic    light, energetic news: sports, culture, show business, religion
-#   cards      practical service news, like the site's story cards: society, economy, tech and everything else
-VARIANT_BY_FAMILY = {"politics": "editorial", "world": "editorial", "crime": "editorial",
-                     "sports": "kinetic", "culture": "kinetic",
-                     "economy": "cards", "tech": "cards", "society": "cards"}
+def _b(b):
+    return b if isinstance(b, dict) else brand.load(b)
 
 
-def variant_for(category):
-    return VARIANT_BY_FAMILY[family(category)]
+def tz(b=None):
+    return dt.timezone(dt.timedelta(hours=_b(b)["utc_offset_hours"]))
 
 
-def family(category):
-    return CATEGORY_FAMILY.get(category, "society")
+def family(category, b=None):
+    b = _b(b)
+    return b["family_by_category"].get(category, b["default_family"])
 
 
-def category_label(category):
-    return CATEGORY_KA.get(category, "ამბები")
+def variant_for(category, b=None):
+    """The look follows the kind of story (owner, 2026-11-01: "different styles for different kinds of stories")."""
+    b = _b(b)
+    return b["look_by_family"][family(category, b)]
 
 
-def ka_date(iso):
+def category_label(category, b=None):
+    b = _b(b)
+    return b["categories"].get(category, b["strings"]["category_default"])
+
+
+def ka_date(iso, b=None):
     """'2026-11-01T18:38:46Z' -> {'date': '1 ნოემბერი 2026', 'time': '22:38', 'weekday': 'კვირა', 'day': date}
-    in Tbilisi time. The video's date is always the data's, never the writer's."""
+    in the brand's time zone (Tbilisi, UTC+4 all year, for the Georgian packs). The video's date is always the
+    data's, never the writer's."""
+    b = _b(b)
     t = dt.datetime.fromisoformat(iso.replace("Z", "+00:00").replace(" ", "T"))
     if t.tzinfo is None:  # D1 datetime('now') strings are UTC
         t = t.replace(tzinfo=dt.timezone.utc)
-    t = t.astimezone(TBILISI)
-    return {"date": f"{t.day} {MONTHS[t.month - 1]} {t.year}", "time": f"{t:%H:%M}", "weekday": WEEKDAYS[t.weekday()],
-            "day": t.date()}
+    t = t.astimezone(tz(b))
+    return {"date": f"{t.day} {b['months'][t.month - 1]} {t.year}", "time": f"{t:%H:%M}",
+            "weekday": b["weekdays"][t.weekday()], "day": t.date()}
 
 
-def cta_for(story_id):
-    return CTAS[zlib.crc32(str(story_id).encode()) % len(CTAS)]
+def when(d, b=None, now=None):
+    """'დღეს' (the pack's word) when a ka_date() dict is today in the brand's time zone, else its date."""
+    b = _b(b)
+    today = (now or dt.datetime.now(tz(b))).astimezone(tz(b)).date()
+    return b["strings"]["today"] if d["day"] == today else d["date"]
 
 
-def story_url(story_id, platform="shorts"):
-    return f"https://tbilisi.today/stories/{story_id}?utm_source={platform}&utm_medium=video"
+def cta_for(story_id, b=None):
+    """End-card call to action (the accent button: an active action), rotated by story id."""
+    ctas = _b(b)["ctas"]
+    return ctas[zlib.crc32(str(story_id).encode()) % len(ctas)]
+
+
+def story_url(story_id, platform="shorts", b=None):
+    """The tracked link the QR code opens."""
+    return _b(b)["link"]["qr"].format(id=story_id, platform=platform)
+
+
+def display_url(story_id, b=None):
+    """The link as the video shows it."""
+    return _b(b)["link"]["display"].format(id=story_id)
 
 
 def qr_svg(url, dark="#05080F"):
     return segno.make(url, error="m").svg_inline(scale=10, dark=dark, light="#FFFFFF", border=2, omitsize=True)
 
 
-def sources_line(names, shown=3):
-    """The footer's credit: the outlets the story comes from (brand v1.2: the source is always visible)."""
+def sources_line(names, shown=3, b=None):
+    """The footer's credit: the outlets the story comes from (the source is always visible)."""
     if not names:
         return ""
+    s = _b(b)["strings"]
     more = f" +{len(names) - shown}" if len(names) > shown else ""
-    return ("წყარო: " if len(names) == 1 else "წყაროები: ") + ", ".join(names[:shown]) + more
+    return (s["source_one"] if len(names) == 1 else s["source_many"]) + ": " + ", ".join(names[:shown]) + more

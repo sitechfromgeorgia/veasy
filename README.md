@@ -4,11 +4,14 @@
 kaeasy handles Georgian writing, Veasy handles video.
 - **What it does:** turns a story into a checked, voiced, captioned vertical video (1080×1920). It uses Remotion
   frames, a Gemini TTS voice with word-level alignment, composed music and an ffmpeg mix.
-- **Who drives it:** an agent, through formats it can choose and extend.
+- **For any client:** what makes a video one client's (colors, logo, link, footer, voice, categories, words) is a
+  **brand pack**, a folder in `brands/`. Shipped: `tbilisi-today` (the default) and `sitech`. A new client is a new
+  folder, no code.
+- **Who drives it:** an agent, through formats it can choose and extend and a **job queue** that makes each video
+  once, retries what failed for a passing reason and keeps every file in one place under one naming scheme.
 - **Built-in quality gates:** news integrity rules, Georgian quality through kaeasy, and caption stability.
-- **First client:** [tbilisi.today](https://tbilisi.today), daily Georgian news Shorts from multi-source stories.
-  Its brand (v1.2), categories and D1 story clusters are wired in. Making these a swappable "brand pack" for other
-  clients is on the [roadmap](ROADMAP.md).
+- **First client:** [tbilisi.today](https://tbilisi.today), daily Georgian news Shorts from multi-source stories
+  (D1 story clusters, read only).
 - **Layout:** the repo root is a Hermes plugin (`plugin.yaml`, `__init__.py`, `skills/`), like kaeasy. Claude Code
   sees the same skills through `.claude/skills/` (symlinks).
 
@@ -22,46 +25,42 @@ bash /root/.hermes/shared-plugins/veasy/ops/install.sh --align    # the engine's
 ```
 
 What the agent gets:
-- **Tools:** `veasy_options`, `veasy_check`, `veasy_render`, `veasy_still`, `veasy_qa`, `veasy_write` and
-  `veasy_doctor`.
+- **Tools:** `veasy_options`, `veasy_check`, `veasy_render`, `veasy_still`, `veasy_qa`, `veasy_write`,
+  `veasy_queue` and `veasy_doctor`.
   - Each runs the engine in its own venv and returns its JSON.
   - A render takes a minute or two; the agent needs none of the render libraries.
-- **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:formats`.
+- **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:formats`, `veasy:queue`, `veasy:brands`.
 - **A one-line hint** on the first turn; turn it off with `VEASY_HINT=0`.
 
-
-Turns multi-source stories (`story_clusters` with 3+ outlets) into 30-40 second Georgian vertical videos
-(1080×1920, 30 fps) for YouTube Shorts, Instagram/Facebook Reels and TikTok. Each video has a voice, background
-music, the date, the sources, a QR code to the story page and a tbilisi.today end card.
-
 Frames are rendered with [Remotion](https://github.com/remotion-dev/remotion) (React; `remotion/`). Python
-(`tt_shorts/`) handles the voice and its word timings, the scene timing, the news rules and the data. Forked from
-`sitechfromgeorgia/sitech-shorts`: the Georgian normalisation, the K rules, the music composer and the timing code.
-
-This is not a Worker: Workers Builds ignores this folder (watch paths are `<worker>/*`). It runs on the tbilisi.today
-agent server (84.46.250.149).
+(`tt_shorts/`) handles the voice and its word timings, the scene timing, the rules, the data, the brand packs, the
+queue and the storage. Forked from `sitechfromgeorgia/sitech-shorts`: the Georgian normalisation, the K rules, the
+music composer and the timing code. It runs on the tbilisi.today agent server (84.46.250.149).
 
 ## The engine (start here)
 
 One entry point for people and agents; every command prints JSON (`tt_shorts/engine.py`):
 
 ```bash
-python -m tt_shorts.engine doctor                                  # is this machine ready?
-python -m tt_shorts.engine options                                 # every choice: looks, captions, voices, music, formats, scenes
-python -m tt_shorts.engine write  --cluster 24886                  # D1 cluster -> stories/24886.json (+ .sources.json)
-python -m tt_shorts.engine check  stories/24886.json --sources stories/24886.sources.json
-python -m tt_shorts.engine render stories/24886.json --format news [--look kinetic] [--captions roll] [--voice warm]
-python -m tt_shorts.engine still  stories/24886.json               # one PNG per scene, no video
-python -m tt_shorts.engine qa     out/24886-news-cards-page.mp4    # size, length, loudness + a contact sheet
-python -m tt_shorts.engine voices --story stories/24886.json       # Gemini tone samples, by ear
+python -m tt_shorts.engine doctor                                  # is this machine ready? (brands load, keys, tools)
+python -m tt_shorts.engine options [--brand sitech]                # every choice: brands, looks, captions, voices, music, formats, scenes
+python -m tt_shorts.engine write  --source tbilisi-today --ref 24886 [--brand tbilisi-today]
+                                                                   # a story from a source -> stories/<brand>/<day>/<ref>.json
+python -m tt_shorts.engine check  <story.json> --sources <story>.sources.json
+python -m tt_shorts.engine render <story.json> --format news [--look kinetic] [--captions roll] [--voice warm]
+python -m tt_shorts.engine still  <story.json>                     # one PNG per scene, no video
+python -m tt_shorts.engine qa     <file.mp4>                       # size, length, loudness + a contact sheet
+python -m tt_shorts.engine queue  add --ref 24886 | list | run | show <id> | retry <id> | cancel <id>
+python -m tt_shorts.engine gc     [--dry-run]                      # retention (below)
+python -m tt_shorts.engine voices --story <story.json>             # Gemini tone samples, by ear
 ```
 
 - **Formats** (`tt_shorts/formats.py`, `formats/*.json`): a show is a named set of choices (look, captions, voice,
   music, platform, length window). Built-in: `news`, `news-roll`. A new show is a JSON file, no code. Which show
-  uses which format is the owner's and the agent's decision.
-- **Skills** for agents (`skills/`): `veasy:make-video`, `veasy:write-script`, `veasy:qa`,
-  `veasy:formats`.
-- The voice is cached per story (`work/<id>-voice-<engine>/`): another look or caption design costs no new TTS.
+  uses which format is the owner's and the agent's decision. A format works for every brand.
+- **Sources** (`tt_shorts/sources/`): where a story's facts come from. `tbilisi-today` (ref = a D1 cluster id) and
+  `text` (ref = a JSON file `{"cluster": {...}, "articles": [...]}`, for any client). A new source is one module
+  with `fetch(ref)`.
 - What comes next (new visual blocks, render server, more outputs, the decisions needed): [ROADMAP.md](ROADMAP.md).
 - **Georgian gate: [kaeasy](https://github.com/sitechfromgeorgia/kaeasy)** (`tt_shorts/kaeasy.py`).
   - It is loaded from the plugin folder every agent shares (`KAEASY_DIR`), so a new rule there reaches the videos.
@@ -72,7 +71,49 @@ python -m tt_shorts.engine voices --story stories/24886.json       # Gemini tone
   - The editor's fixes go back into the shared memory.
   - `SHORTS_REQUIRE_KAEASY=1` on the server: no gate, no video.
 
-## Brand (v1.2, https://tbilisi.today/brand)
+## Storage and names (`tt_shorts/store.py`)
+
+One home, `$VEASY_HOME` (default `<veasy>/data`; `SHORTS_DATA` is still read), with the same layout on every machine:
+
+```
+.env                                         secrets (chmod 600), never in git
+veasy.db                                     the job queue and the cost ledger (SQLite)
+stories/<brand>/<day>/<ref>.json             a story; <ref>.sources.json beside it (the articles)
+renders/<brand>/<day>/<ref>-<format>-<look>-<captions>.mp4   + .json (what was rendered) + .sheet.jpg (QA)
+cache/voices/<sha16>/                        one voice per (engine, voice, style, spoken text): re-renders are free
+cache/work/<job>/                            render scratch, deleted after a good render
+logs/<day>.jsonl                             one JSON line per event (queued, written, rendered, failed, gc)
+```
+Names are lowercase ASCII with hyphens (Georgian and spaces become hyphens); `day` is the server's date. A job is
+`<brand>-<ref>-<format>`, e.g. `tbilisi-today-24725-news`. Retention (`engine gc`, safe for cron): scratch 2 days,
+renders 30, voices and logs 90; stories are kept, they are the record of what was published.
+
+## The queue (`tt_shorts/queue.py`)
+
+A job is one video: (brand, source, ref, format, overrides); its id is a hash of exactly that, so the same request
+twice is the same job. `queue run` takes the oldest highest-priority job, writes the story if it has none, checks
+it (news rules, Georgian, kaeasy), renders, runs QA and ends `done` (ready to publish) or `held` (QA problems or
+a preview voice; a person looks). Errors are classed: `transient` ones (network, 429, 5xx) are re-queued after 5, 10 and 20 minutes;
+`config`, `content`, `layout` and `render` ones fail with the reason, for a fix and `queue retry`. One worker at a
+time per machine (a lock), so cron can call `queue run` every few minutes. `ops/daily.py` picks the day's
+tbilisi.today stories and queues them.
+
+## Brand packs (`brands/`, `tt_shorts/brand.py`)
+
+`brands/<name>/brand.json` holds the palette, fonts, logo (tbilisi.today's t-mark drawn in code, or SVG files),
+wordmark, link and QR URL, footer line, calls to action, categories and their families, the look and the voice per
+family, the pack's own voice presets and spoken forms, the on-screen words, the time zone and the month and weekday
+names. `brands/_ka` is a base with the Georgian defaults; a pack `"extends": "_ka"` and overrides what differs.
+`props.py` hands the pack to Remotion (`props.brand`; `remotion/src/brand.ts` applies it) and copies its fonts and
+logo into the render. A pack is validated on load: a missing key, an unknown family, look or voice, or a missing
+file fails before anything renders. The `veasy:brands` skill explains adding one.
+
+| Pack | Look | Voice |
+|---|---|---|
+| `tbilisi-today` | brand v1.2 below: black, white, one red, the t-mark, FiraGO | anchor / warm / clear / plain by family |
+| `sitech` | coal `#171817`, paper `#F1EDE4`, SiTech orange `#FF792E`, the SiTech logo, FiraGO | `sitech`: Charon with SiTech's tech-news delivery |
+
+## tbilisi.today's brand (v1.2, https://tbilisi.today/brand)
 
 - Canvas `#05080F`, panel `#0B0F17`, ink `#F8FAFC`, secondary `#A7B0BD`, one red `#EF4444`, line `rgba(248,250,252,.12)`.
 - Red is used only for the dot ("now"), an active state (the progress head, the spoken word's underline, the CTA
@@ -82,9 +123,9 @@ python -m tt_shorts.engine voices --story stories/24886.json       # Gemini tone
 - Card radius is 14 and chips are fully round. Distances are multiples of 4.
 - The source and the time are always visible (header and footer). Quotes are in „…“ with the speaker's name.
   Numbers are written in digits. No long dashes.
-- The look follows the kind of story (`meta.VARIANT_BY_FAMILY`, `--variant auto`): hard news (politics, world,
+- The look follows the kind of story (the pack's `look_by_family`, `--look auto`): hard news (politics, world,
   crime) is editorial, light news (sports, culture) is kinetic, service news (society, economy, tech) is cards.
-- The three looks differ in layout and motion, never in palette:
+- The three looks differ in layout and motion, never in palette (in every pack):
   - **editorial**: the grid, rising type, a cut line with the dot.
   - **kinetic**: giant type that slams in, inverted ink blocks, a panel wipe at each cut.
   - **cards**: every scene is a story card, like the site's cards.
@@ -93,15 +134,15 @@ python -m tt_shorts.engine voices --story stories/24886.json       # Gemini tone
 
 | Band (px) | What |
 |---|---|
-| 80-210 | mark + wordmark, date, weekday · time · category, progress rule with the red dot |
+| 80-210 | the pack's logo (mark + wordmark, or its header SVG), date, weekday · time · category, progress rule with the accent dot |
 | 248-1380 | the scene (story text never goes lower) |
 | ~1380-1552 | captions, lower third (`tt_shorts/captions.py` lays them out once with the real font; `remotion/src/Captions.tsx` draws them): `page` = a fixed two-line block whose words light up as they are spoken, `roll` = a three-line teleprompter that scrolls continuously. The spoken word gets a red underline |
 | 1580-1760 | moving ticker (category, date, outlets). Platforms draw their UI here, so this band carries no story text |
-| 1768-1880 | sources line; story link on the left, „SiTech-ის პროექტი · sitech.ge“ on the right |
+| 1768-1880 | sources line; the pack's link on the left and its footer line on the right (tbilisi.today: „SiTech-ის პროექტი · sitech.ge“) |
 
 Below y=1100, no text goes right of x=940 (the like/share rail).
 
-## Status (2026-11-01)
+## Status (2026-11-02)
 
 | Part | State |
 |---|---|
@@ -110,7 +151,8 @@ Below y=1100, no text goes right of x=940 (the like/share rail).
 | Audio mix (ffmpeg): voice levelled on its own, music at one constant level, with no ducking | done |
 | News rules N1-N9 (`ka_style.md` § N, `news_check.py`) | done |
 | Music: a news bed per category family, written from scratch (clock tick, e-piano, pad), with an even level (≤1 dB bar to bar) | done (`tools/compose_music.py`) |
-| Feed endpoint, writer, daily run, server timer | phase 1 |
+| Brand packs (`brands/`: tbilisi-today, sitech), storage layout, job queue, sources (tbilisi-today, text) | done (2026-11-02) |
+| Writer, daily run | done; the server timer waits for the owner's OK |
 | Auto-publishing to YouTube / Meta / TikTok, Telegram kill switch | phase 2 |
 
 ## The writer (phase 1): free first, DeepSeek v4.1 Flash only when needed
@@ -171,20 +213,21 @@ pacing (K9): a scene that starts too late in the narration is rejected rather th
 ## Story JSON
 
 ```json
-{"id": 24835, "category": "society", "date": "2026-11-01T14:22:16Z",
+{"id": 24835, "brand": "tbilisi-today", "category": "society", "date": "2026-11-01T14:22:16Z",
  "sources": ["ინტერპრესნიუსი", "BPN", "ფორმულა", "ON.ge"],
  "narration": "…", "say": {"Türk": "თურქ"}, "cta": "…",
  "scenes": [{"type": "hook", "at": "ვარკეთილსა და", "lines": ["…"]}, …]}
 ```
 
-`id`, `category`, `date` and `sources` come from D1, never from the writer. `at` holds the first words of the scene
+`id`, `category`, `date` and `sources` come from the source's data, never from the writer. `brand` picks the pack
+(default tbilisi-today); `stories/sitech-cybercartel.json` is a SiTech sample. `at` holds the first words of the scene
 in the narration. Scene types and their fields are in `remotion/src/types.ts` and `remotion/src/scenes/index.tsx`:
 hook (lines), stat (value, label), timeline (start, end, label), where (place, sub), who (items: name, role),
 points (items), quote (text, by, via), sources, end.
 
 ## Licences
 
-- Remotion is free for individuals and for companies with up to 3 people. A larger company needs a Remotion
-  company licence (remotion.pro); check this before production use.
+- Remotion is free for individuals and for companies with up to 3 people. SiTech is within that (owner,
+  2026-11-02); a larger team would need a company licence (remotion.pro).
 - The music is composed in code and is ours.
 - The fonts are FiraGO (OFL).

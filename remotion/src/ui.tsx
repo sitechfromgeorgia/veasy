@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from "react";
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, FONT, INK, LINE_STRONG, MARK_BG, RED, T_PATH } from "./brand";
 import type { ShortProps, Variant } from "./types";
 
@@ -22,7 +22,7 @@ export const In: React.FC<{ delay?: number; style?: React.CSSProperties; childre
   return <div style={{ opacity: Math.min(1, t * 1.6), transform: move, ...style }}>{children}</div>;
 };
 
-/** Width of `text` at 100px in FiraGO (synchronous canvas measure, the same in every frame). */
+/** Width of `text` at 100px in the brand font (synchronous canvas measure, the same in every frame). */
 const canvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
 export const measure = (text: string, weight = 700) => {
   const ctx = canvas?.getContext("2d");
@@ -38,7 +38,7 @@ export const fitSize = (lines: string[], width: number, max: number, min = 40, w
   return size - (size % 4);
 };
 
-/** The mark, exactly as the guide draws it: no frame, no shadow, no recolor. */
+/** tbilisi.today's mark, exactly as the guide draws it: no frame, no shadow, no recolor. */
 export const Mark: React.FC<{ size: number }> = ({ size }) => (
   <svg width={size} height={size} viewBox="0 0 512 512">
     <rect width={512} height={512} rx={112} fill={MARK_BG} />
@@ -49,12 +49,42 @@ export const Mark: React.FC<{ size: number }> = ({ size }) => (
   </svg>
 );
 
-/** The wordmark: the dot is the one red letter-shaped thing on screen, as on the site. */
-export const Wordmark: React.FC<{ size: number }> = ({ size }) => (
-  <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, color: INK }}>
-    tbilisi<span style={{ color: RED }}>.</span>today
-  </span>
-);
+/** The pack's name in text: its accent character (the dot of tbilisi.today) in the accent color, as on the site. */
+export const Wordmark: React.FC<{ size: number }> = ({ size }) => {
+  const { props } = useTheme();
+  const w = props.brand.wordmark;
+  const i = w.accent ? w.text.indexOf(w.accent) : -1;
+  return (
+    <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, color: INK, whiteSpace: "nowrap" }}>
+      {i < 0 ? w.text : <>{w.text.slice(0, i)}<span style={{ color: RED }}>{w.accent}</span>{w.text.slice(i + (w.accent ?? "").length)}</>}
+    </span>
+  );
+};
+
+/** The brand's logo. tmark: the mark next to the wordmark text. svg: the pack's own files (they carry the name).
+ *  `place` header: one row, `size` high; end: the end card's logo, about `size` * 2.4 wide. */
+export const Logo: React.FC<{ place: "header" | "end"; size: number }> = ({ place, size }) => {
+  const { props } = useTheme();
+  if (props.brand.logo === "svg") {
+    return place === "header"
+      ? <Img src={staticFile("brand/header.svg")} style={{ height: size, display: "block" }} />
+      : <Img src={staticFile("brand/end.svg")} style={{ width: size * 2.4, display: "block" }} />;
+  }
+  if (place === "header") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+        <Mark size={size} />
+        <Wordmark size={size / 2} />
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24 }}>
+      <Mark size={size} />
+      <Wordmark size={size / 2} />
+    </div>
+  );
+};
 
 /** The red dot: "now". It may pulse; it is never text. */
 export const Dot: React.FC<{ size?: number; pulse?: boolean }> = ({ size = 20, pulse = false }) => {

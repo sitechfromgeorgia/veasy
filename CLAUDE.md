@@ -6,6 +6,14 @@ agree: `plugin.yaml`, `__init__.TOOLS` and a skill.
 
 Read [README.md](README.md) first. Veasy is Python plus a Remotion project.
 
+Veasy belongs to no single project: a client is a **brand pack** (`brands/<name>/brand.json`, `tt_shorts/brand.py`).
+- No client's name, color, link or word goes into engine code (`tt_shorts/`, `remotion/src/`); it goes in a pack.
+  `brands/_ka` is the Georgian base; a pack extends it. A new pack key needs validation in `brand.py` and a case in
+  `tests/test_brand.py`.
+- Shipped packs: `tbilisi-today` (the default) and `sitech`.
+- Storage and names are `tt_shorts/store.py` (`$VEASY_HOME`); work for many videos goes through the queue
+  (`tt_shorts/queue.py`). Don't invent other folders or naming schemes.
+
 Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://github.com/sitechfromgeorgia/tbilisi.today)):
 - Veasy only reads that project's D1, never writes to it.
 - That repo's rules apply to anything Veasy does there.
@@ -13,17 +21,20 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
 - **Where it runs:** the tbilisi.today agent server, 84.46.250.149. Setup is `ops/install.sh`.
   - Secrets live only in `data/.env` (chmod 600, git-ignored).
   - Timers, cron and anything installed on the server need the owner's OK.
-- **Entry point:** `python -m tt_shorts.engine` (options, check, render, still, qa, write, voices, doctor; JSON out).
+- **Entry point:** `python -m tt_shorts.engine` (options, check, render, still, qa, write, queue, gc, voices, doctor;
+  JSON out).
   The skills in `skills/` say how an agent uses it. Keep the engine, the skills and `options` in step: a new
   choice in code must appear in `engine.options()`, `formats.py` validation and the `veasy:formats` skill.
-- **Data flow:** story JSON → `tt_shorts/props.py` (voice, timings, data) → `remotion/` composition `NewsShort` → mp4.
+- **Data flow:** source → story JSON → `tt_shorts/props.py` (voice, timings, data, the brand pack) → `remotion/`
+  composition `NewsShort` → mp4.
   - The writer (an LLM) fills only text fields.
   - Layout, motion, date, sources, QR and colors are code.
-- **Brand v1.2 is law** (https://tbilisi.today/brand, `remotion/src/brand.ts`):
-  - Colors: dark canvas, white ink, one red. Red is for the dot, an active state or an error, never for text.
-  - FiraGO only. No shadows, no frame on the mark, no category colors, no long dashes.
+- **The brand pack is law** (tbilisi.today: brand v1.2, https://tbilisi.today/brand):
+  - Colors: dark canvas, light ink, one accent. The accent is for the dot, an active state or the button, never for text.
+  - One font family per pack. No shadows, no frame on the mark, no category colors, no long dashes.
   - The source and the time are always on screen.
-  - A new look changes layout or motion, not the palette.
+  - A new look changes layout or motion, not the palette. Remotion reads colors from `brand.ts` live bindings
+    (`applyBrand`): read them inside components, never at module level.
 - **News rules are hard rules:** `tt_shorts/ka_style.md` § N and `news_check.py`.
   - Videos are published without a human review. Any rule that code can check goes into `news_check.py` with a
     test in `tests/test_news_check.py`.
@@ -40,7 +51,8 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
 - **No publisher photos:** tbilisi.today has no reuse grant (tbilisi.today repo: `ingest/src/story-cover-assets/README.md`).
 - **Music** is composed by `tools/compose_music.py`; the m4a files are not in git. One constant level: no build-ups,
   no ducking (the owner heard the ducked bed pump). The mix happens in ffmpeg (`props.mix_audio`), not in Remotion.
-- **Voices:** presets in `voices.py`. SiTech's `Charon` stays SiTech's. edge-tts is a preview stand-in only.
+- **Voices:** shared presets in `voices.py`; a pack's own in its `voices` (SiTech's `Charon` lives only in
+  `brands/sitech`). edge-tts is a preview stand-in only.
 - **Captions** are laid out in Python (`captions.py`, fontTools on the real woff2), never measured in the render tabs.
   One size per video, pages ≥ 1 s, gaps under 1.2 s bridged, position a pure function of time. `tests/test_captions.py`
   holds the jitter rules; a caption change needs a case there.

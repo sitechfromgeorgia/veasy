@@ -1,11 +1,12 @@
-"""Voice tones for tbilisi.today Shorts (Gemini TTS). Not SiTech's: SiTech reads tech news in `Charon` with an
-energetic delivery; a news channel needs calmer, more trustworthy tones. The owner picks by ear from the samples.
+"""Voice tones for Veasy videos (Gemini TTS). The shared presets are calm news tones. SiTech reads tech news in
+`Charon` with an energetic delivery: that preset lives in brands/sitech (a pack's own "voices"), not here. The owner
+picks by ear from the samples.
 
   python -m tt_shorts.voices                    # every preset reads the same sample text -> out/voices/<preset>.wav
   python -m tt_shorts.voices --story stories/24725.json --only anchor,warm
 
 The delivery goes in speech_metadata.style (speech.gemini_speak), never in the spoken text. SHORTS_VOICE picks
-the channel's default preset; `family` sets one per category family (render picks it when the story has none).
+the channel's default preset; `family` picks the brand pack's preset for the story's category family.
 """
 import argparse
 import json
@@ -30,22 +31,41 @@ PRESETS = {
                     "style": "Measured, serious Georgian narration for hard news. Steady pace, calm pauses, statements "
                              "settle low. Respectful, never dramatic."},
 }
-# A tone per category family, from the four the owner liked by ear (2026-11-01: plain, anchor, warm, clear; not firm
-# or documentary): hard news reads as the anchor, people's news warm, numbers and tech clear, sports plain.
+# The tones the owner liked by ear for tbilisi.today (2026-11-01: plain, anchor, warm, clear; not firm or
+# documentary). Which tone a family gets is the brand pack's voice_by_family (brands/_ka: hard news reads as the
+# anchor, people's news warm, numbers and tech clear, sports plain). A pack may add presets of its own ("voices"):
+# SiTech's Charon lives in brands/sitech, so only SiTech videos can use it.
 APPROVED = ("plain", "anchor", "warm", "clear")
-BY_FAMILY = {"politics": "anchor", "world": "anchor", "crime": "anchor", "economy": "clear", "tech": "clear",
-             "society": "warm", "culture": "warm", "sports": "plain"}
 SAMPLE = ("ვარკეთილსა და ვაზისუბანში 2 ნოემბერს გაზი შეწყდება. „თბილისი ენერჯის“ ცნობით, მიწოდება "
           "6400 აბონენტს დროებით შეუწყდება. ამ ამბავს ოთხი მედია აშუქებს. დეტალები tbilisi.today-ზე.")
 
 
-def preset(name=None, category=None):
-    """The preset to read a story with: its own, else SHORTS_VOICE; "family" (the default) picks by category."""
-    from tt_shorts.meta import family
+def all_presets(b=None):
+    """The shared presets plus the brand pack's own (a pack's preset of the same name wins)."""
+    return {**PRESETS, **((b or {}).get("voices") or {})}
+
+
+def known():
+    """Every preset name any pack can use (formats are validated against this; the pack decides at render)."""
+    from tt_shorts import brand
+    names = set(PRESETS)
+    for n in brand.names():
+        names |= set(brand.load(n).get("voices") or {})
+    return names
+
+
+def preset(name=None, category=None, b=None):
+    """The preset to read a story with: its own, else SHORTS_VOICE; "family" (the default) picks by the category's
+    family in the brand pack."""
+    from tt_shorts import brand, meta
+    b = b if isinstance(b, dict) else brand.load(b)
     name = name or os.environ.get("SHORTS_VOICE", "family")
     if name == "family":
-        name = BY_FAMILY[family(category or "society")]
-    return {"name": name, **PRESETS[name]}
+        name = b["voice_by_family"][meta.family(category or "", b)]
+    every = all_presets(b)
+    if name not in every:
+        raise ValueError(f"voice preset {name!r} is not available to brand {b['name']} (has: {', '.join(every)})")
+    return {"name": name, **every[name]}
 
 
 def main():

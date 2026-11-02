@@ -1,12 +1,16 @@
 """Veasy as a Hermes plugin (plugin.yaml + __init__.py): what an agent gets when the plugin is enabled."""
 import importlib.util
 import json
+import os
 import pathlib
 import re
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+SKILLS = ("make-video", "write-script", "qa", "formats", "queue", "brands")
 
 
 def load_plugin():
@@ -49,7 +53,7 @@ class Plugin(unittest.TestCase):
     def test_registers_what_the_manifest_promises(self):
         self.assertEqual(set(self.ctx.tools), set(manifest_list("provides_tools")))
         self.assertEqual(set(self.ctx.hooks), set(manifest_list("provides_hooks")))
-        self.assertEqual(set(self.ctx.skills), {"make-video", "write-script", "qa", "formats"})
+        self.assertEqual(set(self.ctx.skills), set(SKILLS))
 
     def test_skills_are_small_and_link_only_to_real_siblings(self):
         for md in (ROOT / "skills").glob("*/SKILL.md"):
@@ -61,13 +65,29 @@ class Plugin(unittest.TestCase):
                 self.assertTrue((ROOT / "skills" / sib / "SKILL.md").exists(), f"{md.parent.name}: unknown veasy:{sib}")
 
     def test_claude_code_sees_the_same_skills(self):
-        for name in ("make-video", "write-script", "qa", "formats"):
+        for name in SKILLS:
             self.assertTrue((ROOT / ".claude" / "skills" / name / "SKILL.md").exists(), name)
 
     def test_options_tool_returns_the_engine_json(self):
         out = json.loads(self.ctx.tools["veasy_options"][1]({}))
         self.assertIn("news", out["formats"])
         self.assertIn("page", out["captions"])
+
+    def test_options_tool_takes_a_brand(self):
+        out = json.loads(self.ctx.tools["veasy_options"][1]({"brand": "sitech"}))
+        self.assertEqual(out["brand"], "sitech")
+        self.assertIn("security", out["categories"])
+        out = json.loads(self.ctx.tools["veasy_options"][1]({"brand": "nobody"}))
+        self.assertTrue(out.get("problems") or out.get("error"))
+
+    def test_queue_tool_lists_jobs(self):
+        with tempfile.TemporaryDirectory() as home, mock.patch.dict(os.environ, {"VEASY_HOME": home}):
+            out = json.loads(self.ctx.tools["veasy_queue"][1]({"action": "add", "story": "stories/24725.json"}))
+            self.assertTrue(out["created"], out)
+            again = json.loads(self.ctx.tools["veasy_queue"][1]({"action": "add", "story": "stories/24725.json"}))
+            self.assertFalse(again["created"])  # the same request is the same job
+            out = json.loads(self.ctx.tools["veasy_queue"][1]({"action": "list"}))
+            self.assertEqual(out["counts"], {"queued": 1})
 
     def test_check_tool_runs_the_checks(self):
         out = json.loads(self.ctx.tools["veasy_check"][1]({"story": "stories/24835.json",

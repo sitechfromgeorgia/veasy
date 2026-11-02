@@ -21,7 +21,7 @@ import pathlib
 from fontTools.ttLib import TTFont
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-FONT = ROOT / "assets" / "fonts" / "firago-bold.ed7553cea8.woff2"
+FONT = ROOT / "assets" / "fonts" / "firago-bold.ed7553cea8.woff2"  # the default; a brand pack names its own 700
 W, RAIL_X = 1080, 940
 BAND = 2 * RAIL_X - W - 32  # 768 px: the caption band, left of the like/share rail
 PAD = 26  # the box's side padding
@@ -40,22 +40,22 @@ SENTENCE_END = (".", "!", "?", ":", "“", ";")
 HANG = {"და", "თუ", "ან", "რომ", "მაგრამ", "ხოლო", "კი", "არ", "ვერ", "ამ", "ის", "ეს", "იმ", "მისი", "მათი"}
 
 
-@functools.lru_cache(maxsize=1)
-def _metrics():
-    f = TTFont(FONT)
+@functools.lru_cache(maxsize=8)
+def _metrics(font=None):
+    f = TTFont(str(font or FONT))
     return f.getBestCmap(), f["hmtx"], f["head"].unitsPerEm
 
 
-def width(text, size):
-    """Advance width in px of `text` in FiraGO Bold at `size` (kerning ignored: it only narrows Georgian)."""
-    cmap, hmtx, upm = _metrics()
+def width(text, size, font=None):
+    """Advance width in px of `text` in the caption font (bold) at `size` (kerning ignored: it only narrows Georgian)."""
+    cmap, hmtx, upm = _metrics(str(font) if font else None)
     return sum(hmtx[cmap.get(ord(c), ".notdef")][0] for c in text) * size / upm
 
 
-def font_size(words, design):
+def font_size(words, design, font=None):
     """One size for the whole video: the design's size, smaller only if a single word would not fit a line."""
     size = SIZES[design]
-    longest = max((width(w["text"], 100) for w in words), default=0)
+    longest = max((width(w["text"], 100, font) for w in words), default=0)
     if longest:
         size = min(size, int(100 * MAX_W / longest))
     return max(MIN_SIZE, size - size % 2)
@@ -65,19 +65,19 @@ def _ends_sentence(text):
     return text.rstrip("»\"'").endswith(SENTENCE_END)
 
 
-def lines(words, size):
+def lines(words, size, font=None):
     """Greedy lines filled to MAX_W at `size`; a pause or a sentence end closes the line."""
     out, cur = [], []
     for i, w in enumerate(words):
         if cur:
             gap = w["start"] - cur[-1]["end"]
-            too_wide = width(" ".join(x["text"] for x in cur + [w]), size) > MAX_W
+            too_wide = width(" ".join(x["text"] for x in cur + [w]), size, font) > MAX_W
             if too_wide or gap >= PAUSE or _ends_sentence(cur[-1]["text"]):
                 carry = []
                 # a bare number or a short connective at a width break moves down with the word it belongs to
                 tail = cur[-1]["text"]
                 if too_wide and len(cur) > 1 and (tail in HANG or tail.isdigit()):
-                    if width(" ".join(x["text"] for x in [cur[-1], w]), size) <= MAX_W:
+                    if width(" ".join(x["text"] for x in [cur[-1], w]), size, font) <= MAX_W:
                         carry = [cur.pop()]
                 out.append(cur)
                 cur = carry
@@ -87,7 +87,7 @@ def lines(words, size):
     return out
 
 
-def _merge_short_lines(ls, size, min_s):
+def _merge_short_lines(ls, size, min_s, font=None):
     """A line on screen for less than min_s joins its neighbour when they still fit one line together."""
     changed = True
     while changed:
@@ -95,7 +95,7 @@ def _merge_short_lines(ls, size, min_s):
         for i in range(len(ls) - 1):
             dur = ls[i + 1][0]["start"] - ls[i][0]["start"]
             joined = ls[i] + ls[i + 1]
-            if dur < min_s and width(" ".join(x["text"] for x in joined), size) <= MAX_W:
+            if dur < min_s and width(" ".join(x["text"] for x in joined), size, font) <= MAX_W:
                 ls[i:i + 2] = [joined]
                 changed = True
                 break
@@ -130,15 +130,16 @@ def _word(w):
     return {"text": w["text"], "from": round(w["start"], 3), "to": round(w["end"], 3)}
 
 
-def layout(words, design="page", end=None):
+def layout(words, design="page", end=None, font=None):
     """-> props["captions"]: {design, size, lineHeight, box, lines:[{start, words}], pages:[{start, end, lines}]}.
-    `end` is the video's last second (the last page stays until TAIL after its last word, at most to `end`)."""
+    `end` is the video's last second (the last page stays until TAIL after its last word, at most to `end`).
+    `font` is the woff2 the captions are drawn in (the brand pack's bold; default FiraGO Bold)."""
     if not words:
         return {"design": design, "size": SIZES[design], "lineHeight": LINE_HEIGHT, "lines": [], "pages": []}
-    size = font_size(words, design)
-    ls = lines(words, size)
+    size = font_size(words, design, font)
+    ls = lines(words, size, font)
     if design == "roll":
-        ls = _merge_short_lines(ls, size, MIN_LINE)
+        ls = _merge_short_lines(ls, size, MIN_LINE, font)
     pg = pages(ls) if design == "page" else [[l] for l in ls]
     index = {id(l): k for k, l in enumerate(ls)}
     out_pages = []
@@ -162,7 +163,7 @@ def layout(words, design="page", end=None):
     }
 
 
-def problems(cap, words):
+def problems(cap, words, font=None):
     """What the jitter tests check, as messages (empty when the layout is sound)."""
     out = []
     size = cap["size"]
@@ -171,7 +172,7 @@ def problems(cap, words):
         out.append("words are missing, repeated or out of order")
     for l in cap["lines"]:
         text = " ".join(w["text"] for w in l["words"])
-        if width(text, size) > MAX_W + 0.5:
+        if width(text, size, font) > MAX_W + 0.5:
             out.append(f"line wider than {MAX_W}px: {text}")
     ps = cap["pages"]
     for a, b in zip(ps, ps[1:]):

@@ -1,8 +1,9 @@
 """Story JSON -> Remotion render props -> mp4 (remotion/, composition NewsShort).
 
 The writer's story JSON gives the text; this adds what comes from data and code: the voice and its word timings
-(speech.py), scene start frames, the date in Tbilisi time, the sources, the QR code, the music loop and the call to
-action (meta.py). Then it runs `remotion render` and levels the loudness with ffmpeg.
+(speech.py), scene start frames, the date in the brand's time zone, the sources, the QR code, the music loop and the
+call to action (meta.py), and the brand pack itself (brand.py: colors, words, logo; its fonts and logo files are
+copied into the render's public dir). Then it runs `remotion render` and mixes the sound with ffmpeg.
 
   python -m tt_shorts.props stories/24835.json --variant editorial       # preview voice (edge-tts ka-GE)
   python -m tt_shorts.props stories/24835.json --variant kinetic --voice gemini --tone anchor
@@ -10,7 +11,6 @@ action (meta.py). Then it runs `remotion render` and levels the loudness with ff
   python -m tt_shorts.props stories/24835.json --still 120,400            # PNG frames instead of a video
 """
 import argparse
-import datetime as dt
 import glob
 import json
 import os
@@ -18,13 +18,13 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import captions, meta, speech, store, voices
+from tt_shorts import brand, captions, meta, speech, store, voices
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
 FPS = speech.FPS
-VARIANTS = ("editorial", "kinetic", "cards")
-NOTES = {"edge": "დროებითი ხმა · პრევიუ", "silent": "ხმის გარეშე · პრევიუ"}
+VARIANTS = brand.LOOKS
+NOTES = {"edge": "preview_edge", "silent": "preview_silent"}  # the pack's words for a preview render
 
 
 CAPTIONS = os.environ.get("SHORTS_CAPTIONS", "page")  # page | roll (captions.py)
@@ -34,41 +34,48 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
           caption_design=None, music="family"):
     """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off"."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
+    story = brand.with_say(story)  # the pack's own names (SiTech -> საი-თეჩი) are spoken right
     sid = story["id"]
-    if variant == "auto":  # the look follows the kind of story (meta.VARIANT_BY_FAMILY)
-        variant = meta.variant_for(story.get("category", "society"))
+    b = brand.of(story)
+    category = story.get("category", "")
+    if variant == "auto":  # the look follows the kind of story (the pack's look_by_family)
+        variant = meta.variant_for(category, b)
     design = caption_design or CAPTIONS
-    work = store.work_dir(f"{sid}-{variant}-{design}-{engine}")
+    work = store.work_dir(f"{b['name']}-{sid}-{variant}-{design}-{engine}")
     key = speech.voice_key(story, engine, tone, edge_voice)
     voice_dir = store.voice_dir(key) if key else work  # one cached track per voice + text: other looks cost no TTS
     public = work / "public"
     shutil.rmtree(public, ignore_errors=True)
     (public / "fonts").mkdir(parents=True)
-    for f in (ROOT / "assets" / "fonts").glob("firago-*.woff2"):  # one family (brand v1.2); stable names for staticFile()
-        shutil.copy(f, public / "fonts" / f"firago-{f.name.split('-')[1].split('.')[0]}.woff2")
+    for weight, f in b["_fonts"].items():  # the pack's one family; stable names for staticFile() (remotion/src/Root.tsx)
+        shutil.copy(f, public / "fonts" / f"brand-{weight}.woff2")
+    if b["_logo"]:
+        (public / "brand").mkdir()
+        for place, f in b["_logo"].items():
+            shutil.copy(f, public / "brand" / f"{place}.svg")
 
     audio, words = speech.voice(story, voice_dir, engine, tone, edge_voice)
     marks = speech.scene_frames(story, words)
-    category = story.get("category", "society")
-    bed = None if music == "off" else speech.music_for(sid, category if music in (None, "family") else music)
+    bed = None if music == "off" else speech.music_for(sid, meta.family(category, b) if music in (None, "family") else music)
     for f in (audio, bed):
         if f:
             shutil.copy(f, public / f.name)
-    d = meta.ka_date(story["date"])
+    d = meta.ka_date(story["date"], b)
     props = {
-        "variant": variant, "id": sid, "category": meta.category_label(category),
+        "brand": brand.for_remotion(b),
+        "variant": variant, "id": sid, "category": meta.category_label(category, b),
         "date": {k: d[k] for k in ("date", "time", "weekday")},
-        "when": "დღეს" if d["day"] == dt.datetime.now(meta.TBILISI).date() else d["date"],
-        "sources": story.get("sources", []), "sourcesLine": meta.sources_line(story.get("sources", [])),
-        "cta": story.get("cta") or meta.cta_for(sid),
-        "url": f"tbilisi.today/stories/{sid}", "qrSvg": meta.qr_svg(meta.story_url(sid, platform)),
+        "when": meta.when(d, b),
+        "sources": story.get("sources", []), "sourcesLine": meta.sources_line(story.get("sources", []), b=b),
+        "cta": story.get("cta") or meta.cta_for(sid, b),
+        "url": meta.display_url(sid, b), "qrSvg": meta.qr_svg(meta.story_url(sid, platform, b), b["colors"]["canvas"]),
         "durationInFrames": marks[-1],
         "scenes": [{**s, "from": a, "duration": b - a} for s, a, b in zip(story["scenes"], marks, marks[1:])],
         "words": words,
-        "captions": captions.layout(words, design, end=marks[-1] / FPS),
+        "captions": captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"]),
         "voice": audio.name if audio else None, "voiceVolume": 1.0,
         "music": bed.name if bed else None, "musicVolume": 0.5 if engine == "silent" else 0.22,
-        "previewNote": NOTES.get(engine),
+        "previewNote": b["strings"][NOTES[engine]] if engine in NOTES else None,
         # words the aligner barely heard: the voice may have skipped or changed them (speech.voice_qa; Gemini only)
         "voiceQa": story.get("qa", {}).get("voice", []),
     }

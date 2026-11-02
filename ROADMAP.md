@@ -1,7 +1,24 @@
 # Veasy roadmap: from one news Short to a general generator
 
-Written 2026-11-02 from two research passes (visual building blocks; engine and product layer). Nothing here is
-built yet. It is the shared plan for the owner, the tbilisi.today agent and whoever codes it. Ranked: quick wins first.
+Written 2026-11-02 from two research passes (visual building blocks; engine and product layer). It is the shared plan
+for the owner, the agents and whoever codes it. Ranked: quick wins first.
+
+**Done on 2026-11-02** (the owner: "the system must not belong to one project"):
+- **Brand packs** (`brands/`, `tt_shorts/brand.py`): every client-specific thing is data; `tbilisi-today` and
+  `sitech` ship, `brands/_ka` is the Georgian base. Remotion draws from `props.brand`.
+- **Storage and names** (`tt_shorts/store.py`, `$VEASY_HOME`), retention with `engine gc`.
+- **The job queue** (`tt_shorts/queue.py`, B4 below in a simpler form): idempotent jobs, states queued → writing →
+  rendering → done / held / failed, transient retries with backoff, one worker per machine.
+- **Sources** (`tt_shorts/sources/`): `tbilisi-today` and `text`.
+- A4 and A6 below.
+
+Next for other clients:
+- **B12. The writer per pack.** `writer.py`'s prompt is written for multi-source news (tbilisi.today). A pack
+  should name its writer style (news cluster, blog post, product update) so `write --brand sitech` writes from a
+  SiTech post the way sitech-shorts does. Until then a SiTech story is written by the agent and queued with
+  `--story`.
+- **B13. A `sitech` source.** Read a post from sitech.ge (RSS + the page's ld+json, as sitech-shorts'
+  `articles.py` does), so `queue add --source sitech --ref <slug> --brand sitech` works end to end.
 
 ## Decisions only the owner can make (blocking some items)
 
@@ -26,14 +43,14 @@ built yet. It is the shared plan for the owner, the tbilisi.today agent and whoe
   - Today a new scene type must be added in 7 places: `news_check.SCENE_TYPES`, `ka_check.FIELDS`/`MIN_WORDS`,
     `speech.MIN_SCENE`, the `writer.py` prompt, `types.ts`, `engine.SCENES`/`options()`, and the skills.
   - Generate them from one spec (see B6).
-- **A4. The daily run through the engine.**
+- ~~**A4. The daily run through the engine.**~~ Done: `ops/daily.py` queues its picks; the queue renders and runs QA.
   - `ops/daily.py` calls props directly, ignores formats, runs no `qa` and only checks the file size.
   - Route it through `engine render` + `engine qa`, and hold anything that fails QA.
 - **A5. The cost ledger.**
   - `writer.py` logs no tokens.
   - Nothing calls `costs.paid_allowed()`, so the monthly limit is not enforced.
   - Log every model call and gate paid voices on the limit.
-- **A6. The voice cache keeps one voice per story.**
+- ~~**A6. The voice cache keeps one voice per story.**~~ Done: `cache/voices/<sha16>/` per (engine, voice, style, text).
   - Switching the tone overwrites it.
   - Make it content-addressed (`work/voices/<sha(engine|voice|style|spoken)>/`), so trying tones and looks is free
     after the first time.
@@ -60,7 +77,8 @@ built yet. It is the shared plan for the owner, the tbilisi.today agent and whoe
   - A 6-10 s teaser: the hook plus the end card, using `renderMedia` `frameRange` and a word-timed cut of the same
     voice.
   - A Telegram album of stills.
-- **B4. A jobs table (S-M).**
+- ~~**B4. A jobs table (S-M).**~~ Done in a simpler form (`tt_shorts/queue.py`, `veasy.db`); still open: the git
+  commit in the id, cost rows with the job id, a `published` state.
   - `jobs` in `state.db`. The id is a hash of spec, format, output, voice engine and git commit, so the same request
     returns the same file.
   - States: planned → voiced → framed → mixed → qa_ok/qa_failed → published/held.

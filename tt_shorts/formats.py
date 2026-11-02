@@ -3,10 +3,11 @@ which format a show uses is the agent's and the owner's decision, not code (owne
 right; which version goes where we decide later with the agent").
 
 A format chooses only among what the engine can do:
-  look      auto | editorial | kinetic | cards      (auto: by the story's category, meta.VARIANT_BY_FAMILY)
+  look      auto | editorial | kinetic | cards      (auto: by the story's category, the pack's look_by_family)
   captions  page | roll                             (captions.py)
-  voice     family | <a preset in voices.PRESETS>   (family: by category, voices.BY_FAMILY)
-  music     family | <a family in meta.FAMILIES> | off
+  voice     family | <a preset>                     (family: by category, the pack's voice_by_family; presets are
+                                                     voices.PRESETS plus the packs' own, e.g. sitech)
+  music     family | <a family in brand.FAMILIES> | off
   platform  the utm_source of the QR link           (shorts, youtube, instagram, tiktok, ...)
   min_seconds / max_seconds   the length window a render must land in
 
@@ -44,7 +45,7 @@ def validate(name, f):
         bad("look", f["look"], LOOKS)
     if f["captions"] not in CAPTIONS:
         bad("captions", f["captions"], CAPTIONS)
-    tones = ("family",) + tuple(voices.PRESETS)
+    tones = ("family",) + tuple(sorted(voices.known()))
     if f["voice"] not in tones:
         bad("voice", f["voice"], tones)
     musics = ("family", "off") + tuple(meta.FAMILIES)

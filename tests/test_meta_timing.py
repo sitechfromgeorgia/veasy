@@ -3,7 +3,9 @@ import json
 import pathlib
 import unittest
 
-from tt_shorts import meta, news_check, speech, voices
+from tt_shorts import brand, meta, news_check, speech, voices
+
+TT = brand.load("tbilisi-today")
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STORIES = sorted((ROOT / "stories").glob("*.json"))
@@ -22,7 +24,7 @@ class Dates(unittest.TestCase):
 
 class Data(unittest.TestCase):
     def test_every_site_category_has_a_family(self):
-        for cat in meta.CATEGORY_KA:
+        for cat in TT["categories"]:
             self.assertIn(meta.family(cat), meta.FAMILIES)
         self.assertEqual(meta.family("defense"), "politics")
         self.assertEqual(meta.family("medicine"), "society")
@@ -34,7 +36,7 @@ class Data(unittest.TestCase):
         self.assertEqual(meta.variant_for("showbusiness"), "kinetic")
         self.assertEqual(meta.variant_for("economy"), "cards")
         self.assertEqual(meta.variant_for("medicine"), "cards")
-        self.assertEqual(set(meta.VARIANT_BY_FAMILY), set(meta.FAMILIES))
+        self.assertEqual(set(TT["look_by_family"]), set(meta.FAMILIES))
 
     def test_qr_points_to_the_story_page(self):
         url = meta.story_url(24725, "youtube")
@@ -42,7 +44,7 @@ class Data(unittest.TestCase):
         self.assertTrue(meta.qr_svg(url).startswith("<svg"))
 
     def test_cta_rotates_by_story(self):
-        self.assertEqual({meta.cta_for(i) for i in range(30)}, set(meta.CTAS))
+        self.assertEqual({meta.cta_for(i) for i in range(30)}, set(TT["ctas"]))
 
     def test_sources_line_credits_the_outlets(self):
         self.assertEqual(meta.sources_line(["ON.ge"]), "წყარო: ON.ge")
@@ -50,7 +52,7 @@ class Data(unittest.TestCase):
         self.assertEqual(meta.sources_line([]), "")
 
     def test_no_long_dashes_in_fixed_text(self):  # brand v1.2: no em or en dash in text
-        for t in meta.CTAS + list(meta.CATEGORY_KA.values()):
+        for t in TT["ctas"] + list(TT["categories"].values()):
             self.assertNotRegex(t, "[–—]")
 
     def test_voice_presets(self):
@@ -58,7 +60,7 @@ class Data(unittest.TestCase):
         self.assertEqual(voices.preset("plain")["style"], "")  # Google: try an empty style first
         self.assertEqual(voices.preset("family", "crime")["name"], "anchor")
         self.assertEqual(voices.preset("family", "society")["name"], "warm")
-        self.assertTrue(set(voices.BY_FAMILY.values()) <= set(voices.APPROVED))  # only tones the owner approved
+        self.assertTrue(set(TT["voice_by_family"].values()) <= set(voices.APPROVED))  # only tones the owner approved
         self.assertNotIn("Charon", {p["voice"] for p in voices.PRESETS.values()})  # SiTech's voice stays SiTech's
 
 
@@ -76,8 +78,10 @@ class Timing(unittest.TestCase):
             self.assertEqual(len(marks), len(story["scenes"]) + 1)
             self.assertTrue(28 <= marks[-1] / speech.FPS <= 45, f"{path.name}: {marks[-1] / speech.FPS:.1f}s")
 
-    def test_news_rules(self):
-        for path in STORIES:
+    def test_news_rules(self):  # the news samples (their articles are in the fixtures); sitech-* is a blog post
+        news = [p for p in STORIES if str(json.loads(p.read_text(encoding="utf-8"))["id"]) in FIXTURES]
+        self.assertGreaterEqual(len(news), 2)
+        for path in news:
             story = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(news_check.problems(story, FIXTURES[str(story["id"])]), [], path.name)
             self.assertNotRegex(story["narration"] + json.dumps(story["scenes"], ensure_ascii=False), "[–—]")

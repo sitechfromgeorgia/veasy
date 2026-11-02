@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from tt_shorts import engine, formats, meta, voices
+from tt_shorts import brand, engine, formats, meta, voices
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FIXTURES = json.loads((ROOT / "tests" / "fixtures" / "sources.json").read_text(encoding="utf-8"))
@@ -53,7 +53,11 @@ class Options(unittest.TestCase):
         o = engine.options()
         for key in ("looks", "captions", "voices", "music", "formats", "scenes", "categories"):
             self.assertIn(key, o)
-        self.assertEqual(set(o["categories"]), set(meta.CATEGORY_KA))
+        self.assertEqual(set(o["categories"]), set(brand.load("tbilisi-today")["categories"]))
+        self.assertEqual(set(o["brands"]), {"tbilisi-today", "sitech"})
+        sitech = engine.options("sitech")
+        self.assertEqual(sitech["voices"]["sitech"]["brand"], "sitech")  # Charon is offered to SiTech only
+        self.assertNotIn("sitech", o["voices"])
         self.assertTrue(all(o["voices"][n]["approved"] for n in voices.APPROVED))
         json.dumps(o, ensure_ascii=False)  # an agent reads it as JSON
 

@@ -1,13 +1,12 @@
 import React from "react";
 import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
-import { CAPTION_BOTTOM, FONT, H, INK, LINE, RADIUS, RAIL_X, RED, W } from "./brand";
+import { alpha, CANVAS, CAPTION_BOTTOM, FONT, H, INK, LINE, RADIUS, RAIL_X, RED, W, WAITING } from "./brand";
 import type { CaptionLayout, CaptionWord } from "./types";
 
 // Captions draw a layout computed once in Python (tt_shorts/captions.py): the same lines and pages in every frame
 // and every render tab, one font size per video. Nothing here measures text. Position is a pure function of time:
 // "page" never moves the block, "roll" scrolls continuously, so neither can jump (owner, 2026-11-02).
 
-const WAITING = "rgba(248,250,252,.42)"; // a word not yet spoken: the ink, dimmed (no extra color)
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 const easeOut = Easing.out(Easing.cubic);
 const easeInOut = Easing.inOut(Easing.cubic);
@@ -49,7 +48,7 @@ const PageCaptions: React.FC<{ cap: CaptionLayout; t: number }> = ({ cap, t }) =
   const rowH = size * lineHeight;
   return (
     <div style={{ position: "absolute", left: W - RAIL_X, width: band, bottom: H - CAPTION_BOTTOM, height: rowH * 2 + 2 * 14,
-      background: "rgba(5,8,15,.8)", border: `2px solid ${LINE}`, borderRadius: RADIUS, opacity: Math.min(boxIn, out),
+      background: alpha(CANVAS, 0.8), border: `2px solid ${LINE}`, borderRadius: RADIUS, opacity: Math.min(boxIn, out),
       display: "flex", alignItems: "center", justifyContent: "center", padding: `0 ${pad}px` }}>
       <div style={{ opacity: enter, transform: `translateY(${(1 - enter) * 10}px)` }}>
         {p.lines.map((li) => <LineView key={li} words={lines[li].words} t={t} size={size} lineHeight={lineHeight} />)}
@@ -76,7 +75,7 @@ const RollCaptions: React.FC<{ cap: CaptionLayout; t: number }> = ({ cap, t }) =
   const viewH = rowH * 3;
   return (
     <div style={{ position: "absolute", left: W - RAIL_X, width: band, bottom: H - CAPTION_BOTTOM, height: viewH + 24,
-      background: "rgba(5,8,15,.62)", borderRadius: RADIUS, overflow: "hidden", opacity: fade,
+      background: alpha(CANVAS, 0.62), borderRadius: RADIUS, overflow: "hidden", opacity: fade,
       WebkitMaskImage: "linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%)",
       maskImage: "linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%)" }}>
       {lines.map((l, i) => {

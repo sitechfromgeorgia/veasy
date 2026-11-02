@@ -1,13 +1,13 @@
 import React, { useMemo } from "react";
 import { AbsoluteFill, Html5Audio, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import {
-  CANVAS, CAPTION_BOTTOM, FONT, GRID, H, INK, LINE, LINE_STRONG, MUTED, PANEL, RADIUS, RAIL_X, RED, SCENE_BOTTOM, SCENE_TOP, SIDE,
+  alpha, applyBrand, CANVAS, CAPTION_BOTTOM, fill, FONT, GRID, H, INK, LINE, MUTED, PANEL, RADIUS, SCENE_BOTTOM, SCENE_TOP, SIDE,
   TICKER, W,
 } from "./brand";
 import { Captions } from "./Captions";
 import { SCENES } from "./scenes";
-import type { ShortProps, Word } from "./types";
-import { Chip, Dot, fitSize, Mark, measure, Theme, useTheme, Wordmark } from "./ui";
+import type { ShortProps } from "./types";
+import { Chip, Dot, Logo, measure, Theme, useTheme } from "./ui";
 
 const EXIT = 7; // frames a scene takes to leave
 const CARD_PAD = 48;
@@ -30,7 +30,7 @@ const Background: React.FC = () => {
         </defs>
         <rect width={W} height={H + cell} fill="url(#g)" />
       </svg>
-      <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 36%, rgba(5,8,15,0) 45%, rgba(5,8,15,.9) 100%)" }} />
+      <AbsoluteFill style={{ background: `radial-gradient(ellipse at 50% 36%, ${alpha(CANVAS, 0)} 45%, ${alpha(CANVAS, 0.9)} 100%)` }} />
     </AbsoluteFill>
   );
 };
@@ -43,9 +43,8 @@ const Header: React.FC = () => {
   const x = (W - 2 * SIDE) * (frame / Math.max(1, durationInFrames - 1));
   return (
     <>
-      <div style={{ position: "absolute", left: SIDE, top: 80, display: "flex", alignItems: "center", gap: 24 }}>
-        <Mark size={88} />
-        <Wordmark size={44} />
+      <div style={{ position: "absolute", left: SIDE, top: 80, height: 88, display: "flex", alignItems: "center" }}>
+        <Logo place="header" size={88} />
       </div>
       <div style={{ position: "absolute", right: SIDE, top: 80, textAlign: "right", fontFamily: FONT }}>
         <div style={{ fontWeight: 700, fontSize: 40, lineHeight: 1.2, color: INK }}>{props.date.date}</div>
@@ -94,7 +93,7 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
         </div>
         <div style={{ position: "absolute", left: CARD_PAD, right: CARD_PAD, bottom: 40, borderTop: `2px solid ${LINE}`, paddingTop: 20,
           display: "flex", justifyContent: "space-between", fontFamily: FONT, fontSize: 30, color: MUTED }}>
-          <span>{props.sources.length} წყარო · {props.date.time}</span>
+          <span>{fill(props.brand.strings.card_meta, { n: props.sources.length, time: props.date.time })}</span>
           <span>{i + 1} / {props.scenes.length - 1}</span>
         </div>
       </div>
@@ -112,7 +111,7 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
 const Ticker: React.FC = () => {
   const { v, props } = useTheme();
   const frame = useCurrentFrame();
-  const rows = [[props.category, props.date.date, ...props.sources, "tbilisi.today"].join("  ·  ")];
+  const rows = [[props.category, props.date.date, ...props.sources, props.brand.label].join("  ·  ")];
   const speed = v === "kinetic" ? 4 : 2.2;
   return (
     <div style={{ position: "absolute", left: 0, right: 0, top: CAPTION_BOTTOM + 28, height: 180, overflow: "hidden" }}>
@@ -139,9 +138,10 @@ const Footer: React.FC = () => {
       <div style={{ fontWeight: 400, fontSize: 28, lineHeight: 1.4, color: MUTED, whiteSpace: "nowrap", overflow: "hidden" }}>{props.sourcesLine}</div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <span style={{ fontWeight: 700, fontSize: 36, lineHeight: 1.4, color: INK }}>{props.url}</span>
-        {/* tbilisi.today is a SiTech platform (the site's footer says so): the agency's link, quieter than the story's */}
-        <span style={{ fontSize: 28, lineHeight: 1.4, color: MUTED }}>
-          SiTech-ის პროექტი · <span style={{ fontWeight: 700, color: INK }}>sitech.ge</span>
+        {/* the pack's line, quieter than the story's link (tbilisi.today: "SiTech-ის პროექტი · sitech.ge") */}
+        <span style={{ fontSize: 28, lineHeight: 1.4, color: MUTED, whiteSpace: "nowrap" }}>
+          {props.brand.footer.text}
+          {props.brand.footer.strong && <span style={{ fontWeight: 700, color: INK }}>{props.brand.footer.strong}</span>}
         </span>
       </div>
     </div>
@@ -149,6 +149,7 @@ const Footer: React.FC = () => {
 };
 
 export const NewsShort: React.FC<ShortProps> = (props) => {
+  applyBrand(props.brand); // before anything below reads a color
   const theme = useMemo(() => ({ v: props.variant, props }), [props]);
   const { durationInFrames } = useVideoConfig();
   return (

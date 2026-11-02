@@ -80,6 +80,16 @@ class Queue(Home):
         self.assertEqual(job["name"], "tbilisi-today-24725-news")
         self.assertEqual(job["source"], "story")
 
+    def test_a_story_job_takes_the_story_brand(self):
+        from tt_shorts import queue
+        job, _ = queue.add(story=str(ROOT / "stories" / "sitech-cybercartel.json"))
+        self.assertEqual(job["brand"], "sitech")
+        self.assertTrue(job["name"].startswith("sitech-claude-and-grok"))
+        with self.assertRaises(ValueError):  # the story decides how it looks
+            queue.add(brand="tbilisi-today", story=str(ROOT / "stories" / "sitech-cybercartel.json"))
+        with self.assertRaises(ValueError):  # an unknown pack is refused before it is queued
+            queue.add(brand="nobody", source="tbilisi-today", ref=1)
+
     def test_classify(self):
         from tt_shorts import formats, queue
         self.assertEqual(queue.classify(TimeoutError("x")), "transient")
@@ -90,7 +100,7 @@ class Queue(Home):
         self.assertEqual(queue.classify(subprocess.CalledProcessError(1, ["npx"])), "render")
         self.assertEqual(queue.classify(ValueError("checks failed: N2")), "content")
 
-    def _run_with(self, render=None, check=None, qa=None):
+    def _run_with(self, render=None, check=None, qa=None, engine_name="gemini"):
         from tt_shorts import engine, queue
         job, _ = queue.add(story=str(ROOT / "stories" / "24725.json"))
         patches = [mock.patch.object(engine, "render_story", side_effect=render or (lambda *a, **k: {
@@ -100,7 +110,7 @@ class Queue(Home):
         for p in patches:
             p.start()
         try:
-            out = queue.run(max_jobs=1)
+            out = queue.run(max_jobs=1, engine=engine_name)
         finally:
             for p in patches:
                 p.stop()
@@ -117,6 +127,13 @@ class Queue(Home):
         queue.retry(jid)
         self._run_with(check=lambda *a, **k: ["N2: number 7000 is not in any source article"])
         self.assertEqual((queue.get(jid)["state"], queue.get(jid)["error_class"]), ("failed", "content"))
+
+    def test_a_preview_voice_is_never_done(self):  # done means ready to publish
+        from tt_shorts import queue
+        jid, _ = self._run_with(engine_name="silent")
+        j = queue.get(jid)
+        self.assertEqual(j["state"], "held")
+        self.assertIn("preview", j["error"])
 
     def test_transient_errors_wait_and_retry_then_fail(self):
         from tt_shorts import queue

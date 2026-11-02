@@ -1,0 +1,111 @@
+{
+ "about": "Shared defaults for Georgian packs: Tbilisi time, Georgian dates and on-screen words, FiraGO, the news categories and their families. A pack says \"extends\": \"_ka\" and overrides what differs.",
+ "lang": "ka",
+ "utc_offset_hours": 4,
+ "fonts": {
+  "400": "assets/fonts/firago-regular.d8b411bacd.woff2",
+  "500": "assets/fonts/firago-medium.aa3a9ffc55.woff2",
+  "600": "assets/fonts/firago-semibold.51e717afa6.woff2",
+  "700": "assets/fonts/firago-bold.ed7553cea8.woff2"
+ },
+ "categories": {
+  "politics": "პოლიტიკა",
+  "economy": "ეკონომიკა",
+  "society": "საზოგადოება",
+  "world": "მსოფლიო",
+  "sports": "სპორტი",
+  "culture": "კულტურა",
+  "tech": "ტექნოლოგია",
+  "general": "ამბები",
+  "crime": "კრიმინალი",
+  "defense": "თავდაცვა",
+  "region": "რეგიონი",
+  "science": "მეცნიერება",
+  "lifestyle": "ცხოვრება",
+  "showbusiness": "შოუბიზნესი",
+  "religion": "რელიგია",
+  "medicine": "მედიცინა",
+  "education": "განათლება",
+  "auto": "ავტო",
+  "realestate": "უძრავი ქონება",
+  "tourism": "ტურიზმი",
+  "ecology": "ეკოლოგია",
+  "incidents": "შემთხვევები"
+ },
+ "family_by_category": {
+  "politics": "politics",
+  "defense": "politics",
+  "economy": "economy",
+  "realestate": "economy",
+  "auto": "economy",
+  "world": "world",
+  "crime": "crime",
+  "incidents": "crime",
+  "sports": "sports",
+  "sport": "sports",
+  "culture": "culture",
+  "showbusiness": "culture",
+  "showbiz": "culture",
+  "religion": "culture",
+  "tech": "tech",
+  "science": "tech"
+ },
+ "default_family": "society",
+ "look_by_family": {
+  "politics": "editorial",
+  "world": "editorial",
+  "crime": "editorial",
+  "sports": "kinetic",
+  "culture": "kinetic",
+  "economy": "cards",
+  "tech": "cards",
+  "society": "cards"
+ },
+ "voice_by_family": {
+  "politics": "anchor",
+  "world": "anchor",
+  "crime": "anchor",
+  "economy": "clear",
+  "tech": "clear",
+  "society": "warm",
+  "culture": "warm",
+  "sports": "plain"
+ },
+ "strings": {
+  "outlets": "{n} წყარო",
+  "source_one": "წყარო",
+  "source_many": "წყაროები",
+  "covered_by": [
+   "მედია",
+   "აშუქებს"
+  ],
+  "today": "დღეს",
+  "preview_edge": "დროებითი ხმა · პრევიუ",
+  "preview_silent": "ხმის გარეშე · პრევიუ",
+  "card_meta": "{n} წყარო · {time}",
+  "category_default": "ამბები"
+ },
+ "months": [
+  "იანვარი",
+  "თებერვალი",
+  "მარტი",
+  "აპრილი",
+  "მაისი",
+  "ივნისი",
+  "ივლისი",
+  "აგვისტო",
+  "სექტემბერი",
+  "ოქტომბერი",
+  "ნოემბერი",
+  "დეკემბერი"
+ ],
+ "weekdays": [
+  "ორშაბათი",
+  "სამშაბათი",
+  "ოთხშაბათი",
+  "ხუთშაბათი",
+  "პარასკევი",
+  "შაბათი",
+  "კვირა"
+ ]
+}

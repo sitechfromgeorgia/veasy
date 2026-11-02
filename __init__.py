@@ -15,12 +15,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SKILLS_DIR = ROOT / "skills"
-TIMEOUTS = {"render": 1500, "write": 900, "still": 600}
+TIMEOUTS = {"render": 1500, "write": 900, "still": 600, "queue": 3600}
 
 HINT = (
     "[veasy] If this turn involves making, checking or fixing a video (a Short, a reel, a story video), first load "
-    "skill_view('veasy:make-video') and use the veasy_* tools; they return JSON. Never publish a render whose "
-    "veasy_qa has problems."
+    "skill_view('veasy:make-video') and use the veasy_* tools; they return JSON. Many videos or a daily batch: "
+    "veasy_queue (skill veasy:queue). Never publish a render whose veasy_qa has problems."
 )
 
 
@@ -62,7 +62,8 @@ def _flags(args: dict, names: tuple[str, ...]) -> list[str]:
 
 
 CHOICES = ("format", "look", "captions", "voice", "music", "platform", "engine", "out")
-STORY = {"type": "string", "description": "Path to the story JSON, relative to the Veasy folder (e.g. stories/24886.json)."}
+STORY = {"type": "string", "description": "Path to the story JSON (absolute, or relative to the Veasy folder)."}
+BRAND = {"type": "string", "description": "A brand pack in brands/ (tbilisi-today, sitech, ...; see veasy_options)."}
 CHOICE_PROPS = {
     "format": {"type": "string", "description": "A show format (see veasy_options), default news."},
     "look": {"type": "string", "enum": ["auto", "editorial", "kinetic", "cards"]},
@@ -76,10 +77,10 @@ CHOICE_PROPS = {
 }
 
 TOOLS = {
-    "veasy_options": ({"type": "object", "properties": {}},
-                      "Everything Veasy can do: looks, caption designs, voices, music, formats, scene types and fields, "
-                      "the defaults per category. Read it before choosing.",
-                      lambda a: _engine("options", [])),
+    "veasy_options": ({"type": "object", "properties": {"brand": BRAND}},
+                      "Everything Veasy can do: brand packs, looks, caption designs, voices, music, formats, scene "
+                      "types and fields, and one pack's defaults per category. Read it before choosing.",
+                      lambda a: _engine("options", _flags(a, ("brand",)))),
     "veasy_check": ({"type": "object", "properties": {
                         "story": STORY,
                         "sources": {"type": "string", "description": "JSON file with the member articles' texts "
@@ -106,11 +107,35 @@ TOOLS = {
                  "Never publish with problems.",
                  lambda a: _engine("qa", [a["video"]] + _flags(a, ("format",)))),
     "veasy_write": ({"type": "object", "properties": {
-                        "cluster": {"type": "integer", "description": "A tbilisi.today story cluster id."}},
-                     "required": ["cluster"]},
-                    "Write a checked story JSON from a tbilisi.today cluster (free model; needs the D1 and writer "
-                    "keys on the server). Returns the story path and any remaining problems.",
-                    lambda a: _engine("write", ["--cluster", str(int(a["cluster"]))])),
+                        "source": {"type": "string", "enum": ["tbilisi-today", "text"],
+                                   "description": "tbilisi-today (ref = a cluster id) or text (ref = a JSON file with "
+                                                  "the articles). Default tbilisi-today."},
+                        "ref": {"type": "string", "description": "The story's reference in its source."},
+                        "cluster": {"type": "integer", "description": "Shorthand: a tbilisi.today cluster id."},
+                        "brand": BRAND}},
+                    "Write a checked story JSON from a source (free model first; needs the writer key and, for "
+                    "tbilisi-today, the D1 keys). Stored as stories/<brand>/<day>/<ref>.json under VEASY_HOME. "
+                    "Returns the story path and any remaining problems.",
+                    lambda a: _engine("write", _flags(a, ("source", "ref", "cluster", "brand")))),
+    "veasy_queue": ({"type": "object", "properties": {
+                        "action": {"type": "string", "enum": ["add", "list", "run", "show", "retry", "cancel"]},
+                        "id": {"type": "string", "description": "A job id (show, retry, cancel)."},
+                        "source": {"type": "string", "description": "add: tbilisi-today or text."},
+                        "ref": {"type": "string", "description": "add: the story's reference in its source."},
+                        "story": {"type": "string", "description": "add: an already written story file (skips writing)."},
+                        "brand": BRAND, **{k: CHOICE_PROPS[k] for k in ("format", "look", "captions", "voice", "music",
+                                                                        "platform", "engine")},
+                        "priority": {"type": "integer", "description": "add: higher runs first (default 0)."},
+                        "state": {"type": "string", "enum": ["queued", "writing", "rendering", "done", "held",
+                                                             "failed", "cancelled"], "description": "list: filter."},
+                        "max": {"type": "integer", "description": "run: jobs to process this time (default 5)."}},
+                     "required": ["action"]},
+                    "The job queue: add a video (same request twice = the same job), list jobs and counts, run up to "
+                    "max queued jobs (write, check, render, qa; one worker at a time), show/retry/cancel one. A done "
+                    "job passed QA; held means rendered but QA found problems; failed has error_class and error.",
+                    lambda a: _engine("queue", [a["action"]] + ([str(a["id"])] if a.get("id") else []) + _flags(
+                        a, ("source", "ref", "story", "brand", "format", "look", "captions", "voice", "music",
+                            "platform", "engine", "priority", "state", "max")))),
     "veasy_doctor": ({"type": "object", "properties": {}},
                      "Is this machine ready to render? ffmpeg, Remotion, fonts, music, keys, kaeasy.",
                      lambda a: _engine("doctor", [])),

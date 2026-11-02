@@ -1,18 +1,18 @@
 import { loadFont } from "@remotion/fonts";
 import React from "react";
 import { Composition, continueRender, delayRender, staticFile } from "remotion";
+import { DEFAULT_BRAND } from "./brand";
 import { NewsShort } from "./NewsShort";
 import type { ShortProps } from "./types";
 
-// One family, FiraGO (brand v1.2), from the render's public dir (props.py copies video/assets/fonts there).
+// The brand pack's one family, from the render's public dir (props.py copies its four weights there as brand-<w>).
 const fonts = delayRender("fonts");
-Promise.all([
-  ...[["regular", "400"], ["medium", "500"], ["semibold", "600"], ["bold", "700"]].map(([n, w]) =>
-    loadFont({ family: "FiraGO", url: staticFile(`fonts/firago-${n}.woff2`), weight: w })),
-]).then(() => continueRender(fonts)).catch((e) => { throw e; });
+Promise.all(["400", "500", "600", "700"].map((w) =>
+  loadFont({ family: "Brand", url: staticFile(`fonts/brand-${w}.woff2`), weight: w })))
+  .then(() => continueRender(fonts)).catch((e) => { throw e; });
 
 const sample: ShortProps = {
-  variant: "editorial", id: 0, category: "მსოფლიო", date: { date: "1 ნოემბერი 2026", time: "22:38", weekday: "კვირა" },
+  brand: DEFAULT_BRAND, variant: "editorial", id: 0, category: "მსოფლიო", date: { date: "1 ნოემბერი 2026", time: "22:38", weekday: "კვირა" },
   when: "1 ნოემბერი 2026", sources: ["პირველი არხი", "ინტერპრესნიუსი"], cta: "გამოიწერე", url: "tbilisi.today/stories/0",
   qrSvg: "", durationInFrames: 90, scenes: [{ type: "hook", from: 0, duration: 90, lines: ["სათაური"] }], words: [], captions: null,
   voice: null, voiceVolume: 1, music: null, musicVolume: 0.3, sourcesLine: "წყარო: პირველი არხი", previewNote: null,

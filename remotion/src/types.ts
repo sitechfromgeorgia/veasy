@@ -1,5 +1,5 @@
-// Render props: built by video/tt_shorts/props.py from a story JSON (the writer's text) plus the data
-// (date, sources, QR) and the voice's word timings. The composition never invents text.
+// Render props: built by tt_shorts/props.py from a story JSON (the writer's text) plus the data (date, sources, QR),
+// the brand pack and the voice's word timings. The composition never invents text.
 
 // editorial: calm, grid, rising type · kinetic: giant type, hard cuts, inverted blocks · cards: site-style story cards
 export type Variant = "editorial" | "kinetic" | "cards";
@@ -37,7 +37,25 @@ export type Scene = SceneBase & {
   via?: string;
 };
 
+// tt_shorts/brand.py for_remotion(): the brand pack, without file paths
+export type BrandProps = {
+  name: string;
+  label: string; // "tbilisi.today", "SiTech": the ticker's name
+  colors: {
+    canvas: string; panel: string; ink: string; muted: string; accent: string; onAccent?: string; line: string;
+    lineStrong: string; grid: string; ticker: string; waiting: string; markBg: string;
+  };
+  wordmark: { text: string; accent?: string }; // the accent character is drawn in the accent color
+  logo: "tmark" | "svg"; // svg: public/brand/header.svg and end.svg
+  footer: { text: string; strong?: string };
+  strings: {
+    outlets: string; source_one: string; source_many: string; covered_by: string[]; today: string;
+    preview_edge: string; preview_silent: string; card_meta: string; category_default: string;
+  };
+};
+
 export type ShortProps = {
+  brand: BrandProps;
   variant: Variant;
   id: number;
   category: string; // Georgian label
@@ -45,7 +63,7 @@ export type ShortProps = {
   when: string; // "დღეს" or the date
   sources: string[];
   cta: string;
-  url: string; // shown: tbilisi.today/stories/<id>
+  url: string; // shown, from the pack's link.display: tbilisi.today/stories/<id>
   qrSvg: string; // segno SVG of the tracked story URL
   durationInFrames: number;
   scenes: Scene[];

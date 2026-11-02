@@ -1,4 +1,4 @@
-"""Voice and timing for tbilisi.today Shorts: the voice track, its word timings and the scene start times.
+"""Voice and timing for Veasy videos: the voice track, its word timings and the scene start times.
 
   gemini   production voice: Gemini TTS with a tone preset (voices.py); word timings by forced alignment (align.py)
   edge     preview stand-in until the Gemini key is on the machine: Microsoft's free ka-GE neural voices, which
@@ -22,7 +22,7 @@ import urllib.request
 import wave
 import zlib
 
-from tt_shorts import costs, meta, normalize_ka, voices
+from tt_shorts import brand, costs, normalize_ka, voices
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets"
@@ -37,11 +37,12 @@ END_HOLD = 1.6  # the end card stays up after the last word: time to see the QR
 MUSIC_DIR = ASSETS / "music"
 
 
-def music_for(story_id, category):
-    """The story's loop, by category family; one of the family's two picked by the story id."""
+def music_for(story_id, fam):
+    """The story's loop for a music family (meta.family gives a category's); one of the family's loops picked by
+    the story id."""
     if os.environ.get("SHORTS_MUSIC", "on").lower() in ("off", "0", "no"):
         return None
-    loops = sorted(MUSIC_DIR.glob(f"{meta.family(category)}-*.m4a")) or sorted(MUSIC_DIR.glob("society-*.m4a"))
+    loops = sorted(MUSIC_DIR.glob(f"{fam}-*.m4a")) or sorted(MUSIC_DIR.glob("society-*.m4a"))
     return loops[zlib.crc32(str(story_id).encode()) % len(loops)] if loops else None
 
 
@@ -236,7 +237,7 @@ def voice_key(story, engine, tone, edge_voice):
     spoken = normalize_ka.speech(story["narration"], story.get("say"))
     if engine == "edge":
         return f"edge|{edge_voice}|{spoken}"
-    preset = voices.preset(tone or story.get("voice"), story.get("category"))
+    preset = voices.preset(tone or story.get("voice"), story.get("category"), brand.of(story))
     return f"gemini|{preset['voice']}|{preset['style']}|{spoken}"
 
 
@@ -256,7 +257,7 @@ def voice(story, work, engine, tone, edge_voice):
             words = asyncio.run(_edge(spoken, edge_voice, mp3))
             cache.write_text(json.dumps({"key": key, "words": words}, ensure_ascii=False), encoding="utf-8")
         return mp3, to_display(words, narration, say)
-    preset = voices.preset(tone or story.get("voice"), story.get("category"))
+    preset = voices.preset(tone or story.get("voice"), story.get("category"), brand.of(story))
     audio, words_json, said = work / "voice.wav", work / "words.json", work / "voice.txt"
     key = f"gemini|{preset['voice']}|{preset['style']}|{spoken}"
     if not words_json.exists() or not said.exists() or said.read_text(encoding="utf-8") != key:

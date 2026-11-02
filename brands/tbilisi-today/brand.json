@@ -1,0 +1,39 @@
+{
+ "name": "tbilisi-today",
+ "extends": "_ka",
+ "label": "tbilisi.today",
+ "about": "tbilisi.today brand v1.2 (https://tbilisi.today/brand): dark canvas, white ink, one red (the dot); FiraGO only.",
+ "colors": {
+  "canvas": "#05080F",
+  "panel": "#0B0F17",
+  "ink": "#F8FAFC",
+  "muted": "#A7B0BD",
+  "accent": "#EF4444",
+  "line": "rgba(248,250,252,.12)",
+  "lineStrong": "rgba(248,250,252,.24)",
+  "grid": "rgba(248,250,252,.045)",
+  "ticker": "rgba(248,250,252,.06)",
+  "waiting": "rgba(248,250,252,.42)",
+  "markBg": "#0B0B0E"
+ },
+ "logo": {
+  "kind": "tmark"
+ },
+ "wordmark": {
+  "text": "tbilisi.today",
+  "accent": "."
+ },
+ "link": {
+  "display": "tbilisi.today/stories/{id}",
+  "qr": "https://tbilisi.today/stories/{id}?utm_source={platform}&utm_medium=video"
+ },
+ "footer": {
+  "text": "SiTech-ის პროექტი · ",
+  "strong": "sitech.ge"
+ },
+ "ctas": [
+  "გამოიწერე არხი",
+  "მოიწონე და გააზიარე",
+  "მხარი დაგვიჭირე: tbilisi.today/support"
+ ]
+}
