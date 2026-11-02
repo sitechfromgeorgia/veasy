@@ -57,6 +57,13 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   - Scene text ends at y=1380 and captions at y=1552.
   - Below y=1100, no text goes right of x=940.
   - The band below the captions carries motion only.
+- **Maps:**
+  - `assets/maps/georgia.json` is built only by `tools/build_georgia_map.py` (sources and licences in
+    `assets/maps/README.md`).
+  - Georgia has its 12 regions of Georgian law: Abkhazia and the Tskhinvali region are part of Georgia, drawn as
+    no separate entity.
+  - For the crime family the map stops at the region and marks no district (`geo.PRIVATE`,
+    `tests/test_geo.py`).
 - **No publisher photos:** tbilisi.today has no reuse grant (tbilisi.today repo: `ingest/src/story-cover-assets/README.md`).
 - **Music** is composed by `tools/compose_music.py`; the m4a files are not in git. One constant level: no build-ups,
   no ducking (the owner heard the ducked bed pump). The mix happens in ffmpeg (`props.mix_audio`), not in Remotion.

@@ -11,6 +11,8 @@ decided with the owner; this skill only explains the mechanics.
 ```bash
 python -m tt_shorts.engine options   # looks, captions, voices (with the owner-approved ones), music, formats, scenes
 ```
+(`options` also lists `areas`: the codes a `where` scene may name, `ge:<region>`. That is a story field, not a
+format choice. The map itself needs no format key; see `veasy:write-script`.)
 
 ## The choices
 

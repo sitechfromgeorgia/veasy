@@ -32,7 +32,7 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N9 news); this is the w
 | `bars` | 2-5 values of one kind, compared from zero | items [{label, value}], unit |
 | `trend` | 3-8 values over time, a line that draws itself | items [{label, value}], unit, label |
 | `timeline` | from-to times or dates the articles state | start, end, label |
-| `where` | a place | place, sub |
+| `where` | a place (in Georgia: the real map) | place, sub, area |
 | `who` | 1-3 people or bodies (initials, no photos) | items [{name, role}] |
 | `pair` | two sides: two parties, before and after, two offers | items [{title, sub}] x2, between |
 | `steps` | 2-4 steps in order (a procedure, a sequence of events) | items ["..."] |
@@ -51,6 +51,16 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N9 news); this is the w
   the canvas, at least 3 moving parts with different delays, ACCENT on at most 6 elements. The automatic writer
   draws by default; a drawing that still fails after the repairs is dropped and the video goes out without it
   (`VEASY_WRITER_DRAW=0` turns drawing off).
+- `where` in Georgia gets the real map on its own (`tt_shorts/geo.py`).
+  - What it shows: Georgia's outline draws itself, the camera zooms to the region, which fills in, and a pin drops
+    on the town. A Tbilisi district zooms into the city; two or three places get a marker each.
+  - Write `place` as the article names it, in any case: ბათუმიდან, ვაკეში and ქუთაისის are all found. The
+    `sub` line helps when a name is shared (ახალდაბა + ბორჯომი).
+  - A name it doesn't know, or a foreign place, keeps the grid scene with the pin.
+  - `area` is optional: `ge:<region>` (`options` → `areas`), `ge:<place id>` or `ge`, for when the place text
+    doesn't name the region (e.g. a village).
+  - Crime and incidents: the map stops at the region and never marks a district. This is code, not your choice.
+  - Check it without a render: `python -c "from tt_shorts import geo; print(geo.locate('ვაკეში'))"`.
 - Vary the shape: the writer is shown the scene orders the latest videos used; pick another one when the story's
   facts allow it (a number → stat, bars or change; a place → where; two sides → pair; a process → steps).
 
