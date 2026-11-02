@@ -50,7 +50,9 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N10 news); this is the 
   `check` sends back anything the whitelist removed. A drawing needs 8 narration words (about 3.5 s).
   `check` also judges the drawing itself (`art.quality`): big enough (40% of the width, 35% of the height), on
   the canvas, at least 3 moving parts with different delays, ACCENT on at most 6 elements. The automatic writer
-  draws by default; a drawing that still fails after the repairs is dropped and the video goes out without it
+  draws by default; a drawing that still fails after the repairs is swapped for a library drawing of the same
+  motif (`tt_shorts/drawings.py`: the drawings of videos that ended `done`, and the seeds in `assets/drawings/`;
+  only the labels the new story itself says are kept), else dropped, and the video goes out without it
   (`VEASY_WRITER_DRAW=0` turns drawing off).
 - `where` in Georgia gets the real map on its own (`tt_shorts/geo.py`).
   - What it shows: Georgia's outline draws itself, the camera zooms to the region, which fills in, and a pin drops

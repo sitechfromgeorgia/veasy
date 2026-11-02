@@ -15,7 +15,7 @@ import time
 import urllib.error
 import urllib.request
 
-from tt_shorts import art, icons, ka_check, kaeasy, news_check
+from tt_shorts import art, drawings, icons, ka_check, kaeasy, news_check
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STYLE = (ROOT / "tt_shorts" / "ka_style.md").read_text(encoding="utf-8")
@@ -24,7 +24,8 @@ FALLBACK = os.environ.get("SHORTS_WRITER_FALLBACK", "")
 # The writer draws ("draw" scenes): a drawing per story is what makes each video its own (owner, 2026-11-02: "1000
 # videos in one style is no good"; SiTech's channel draws with a free model). No person reviews it, so code does:
 # art.sanitize (safe, on brand) and art.quality (big enough, builds up, one focal part); a drawing that still fails
-# after the repairs is dropped and the video goes out without it. VEASY_WRITER_DRAW=0 turns drawing off.
+# after the repairs is swapped for a library drawing of the same motif (drawings.py), else dropped, and the video goes
+# out without it. VEASY_WRITER_DRAW=0 turns drawing off.
 DRAW_ENV = "VEASY_WRITER_DRAW"
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 
@@ -369,8 +370,9 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     if not _anchors_ok(story):
         problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if any(p.startswith("draw:") for p in problems):  # a drawing that still fails is dropped, not the video
+        story, swapped = drawings.mend(story)  # unless the library has one of its motif that fits this story
         story, dropped = art.drop_bad(story)
-        if dropped:
+        if swapped or dropped:
             problems = checks_of(story, articles, cluster)
             if not _anchors_ok(story):
                 problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")

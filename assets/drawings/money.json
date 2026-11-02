@@ -1,0 +1,5 @@
+{
+ "motif": "banknote",
+ "about": "a stack of banknotes and coins",
+ "svg": "<g class=\"s\" style=\"--d:0.2s\"><rect x=\"120\" y=\"300\" width=\"500\" height=\"240\" rx=\"20\" stroke=\"MUTED\" stroke-width=\"6\"/></g><g class=\"s\" style=\"--d:0.4s\"><rect x=\"160\" y=\"250\" width=\"500\" height=\"240\" rx=\"20\" stroke=\"MUTED\" stroke-width=\"6\" fill=\"CANVAS\"/></g><g class=\"s\" style=\"--d:0.6s\"><rect x=\"200\" y=\"200\" width=\"500\" height=\"240\" rx=\"20\" stroke=\"INK\" stroke-width=\"7\" fill=\"CANVAS\"/><circle cx=\"450\" cy=\"320\" r=\"64\" stroke=\"INK\" stroke-width=\"6\"/><path d=\"M240 240 L300 240 M600 400 L660 400\" stroke=\"MUTED\" stroke-width=\"5\"/></g><g class=\"r\" style=\"--d:1.0s\"><ellipse cx=\"770\" cy=\"520\" rx=\"90\" ry=\"30\" stroke=\"INK\" stroke-width=\"6\" fill=\"CANVAS\"/><ellipse cx=\"770\" cy=\"480\" rx=\"90\" ry=\"30\" stroke=\"INK\" stroke-width=\"6\" fill=\"CANVAS\"/><ellipse cx=\"770\" cy=\"440\" rx=\"90\" ry=\"30\" stroke=\"INK\" stroke-width=\"6\" fill=\"CANVAS\"/></g><g class=\"p\" style=\"--d:1.4s\"><circle cx=\"450\" cy=\"320\" r=\"22\" fill=\"ACCENT\" stroke=\"ACCENT\" stroke-width=\"4\"/></g>"
+}

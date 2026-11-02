@@ -270,6 +270,8 @@ def process(job, engine="gemini"):
                 error = f"program {program} publishes after a review: watch it, then publish (QA passed)"
         _set(jid, state=state, result=result, error=error, error_class=error_class)
         store.log(state, job=jid, file=r["file"], problems=q["problems"])
+        if state == "done":  # its drawing passed and went out: the library keeps it for a story whose drawing fails
+            _keep_drawings(story, job["brand"])
     except Exception as e:  # noqa: BLE001 - one job never stops the queue
         kind = classify(e)
         if not getattr(e, "problems", None):  # a writer's failed checks are already remembered, rule by rule
@@ -282,6 +284,17 @@ def process(job, engine="gemini"):
             _set(jid, state="failed", error_class=kind, error=f"{type(e).__name__}: {e}"[:500])
         store.log("error", job=jid, kind=kind, error=str(e)[:300], trace=traceback.format_exc()[-800:])
     return get(jid)
+
+
+def _keep_drawings(story_path, brand):
+    """drawings.keep for a done job's story; the library never fails a job."""
+    from tt_shorts import drawings
+    try:
+        saved = drawings.keep(json.loads(pathlib.Path(story_path).read_text(encoding="utf-8")), brand)
+        if saved:
+            store.log("drawing kept", story=str(story_path), ids=saved)
+    except (OSError, ValueError, sqlite3.Error) as e:
+        store.log("error", stage="drawings", error=str(e)[:300])
 
 
 @contextlib.contextmanager
