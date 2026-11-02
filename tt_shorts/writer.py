@@ -6,6 +6,7 @@ strips what the data owns (sources, date: N6) and runs the same checks the rende
   python -m tt_shorts.writer --cluster 24725 --out stories/24725.json
 """
 import argparse
+import datetime as dt
 import json
 import os
 import pathlib
@@ -190,6 +191,63 @@ def _anchors_ok(story: dict) -> bool:
     return True
 
 
+MONTHS_KA = ("იანვარს", "თებერვალს", "მარტს", "აპრილს", "მაისს", "ივნისს", "ივლისს", "აგვისტოს",
+             "სექტემბერს", "ოქტომბერს", "ნოემბერს", "დეკემბერს")
+
+
+def _fix_dates(story: dict, cluster: dict) -> None:
+    """N4: a video is watched for days, so „დღეს“ becomes the date the story ran."""
+    raw = str(cluster.get("created_at") or "")[:10]
+    try:
+        day = dt.date.fromisoformat(raw)
+    except ValueError:
+        return
+    labels = {
+        "დღეს": f"{day.day} {MONTHS_KA[day.month - 1]}",
+        "გუშინ": f"{(day - dt.timedelta(days=1)).day} {MONTHS_KA[(day - dt.timedelta(days=1)).month - 1]}",
+        "ხვალ": f"{(day + dt.timedelta(days=1)).day} {MONTHS_KA[(day + dt.timedelta(days=1)).month - 1]}",
+    }
+
+    def fix(value):
+        if isinstance(value, str):
+            for word, label in labels.items():
+                value = value.replace(f" {word} ", f" {label} ").replace(f" {word},", f" {label},")
+                if value.startswith(f"{word} "):
+                    value = label + value[len(word):]
+            return value
+        if isinstance(value, list):
+            return [fix(v) for v in value]
+        if isinstance(value, dict):
+            return {k: fix(v) for k, v in value.items()}
+        return value
+
+    story["narration"] = fix(story.get("narration", ""))
+    story["scenes"] = fix(story.get("scenes", []))
+
+
+def _drop_short_scenes(story: dict) -> None:
+    """K9: a scene that would flash by for fewer than six words is removed, not failed."""
+    narration = story.get("narration", "")
+    scenes = story.get("scenes") or []
+    if len(scenes) < 3:
+        return
+    starts, pos = [], 0
+    for scene in scenes:
+        at = (scene.get("at") or "").strip()
+        i = narration.find(at, pos)
+        if i < 0:
+            return
+        starts.append(len(narration[:i].split()))
+        pos = i + len(at)
+    keep = [0]
+    for i in range(1, len(scenes) - 1):
+        need = 4 if scenes[i].get("type") == "end" else 6
+        if starts[i + 1] - starts[i] >= need:
+            keep.append(i)
+    keep.append(len(scenes) - 1)
+    story["scenes"] = [scenes[i] for i in dict.fromkeys(keep)]
+
+
 def _wrap_hook(story: dict, limit: int = 22) -> None:
     """The hook renders at a fixed width; a line longer than ~18 characters clips."""
     for scene in story.get("scenes") or []:
@@ -240,8 +298,10 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     story.pop("sources", None)
     story.pop("date", None)
     story.setdefault("category", cluster.get("category", "general"))
+    _fix_dates(story, cluster)
     _tidy_end(story)
-    _wrap_hook(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
+    _wrap_hook(story)  # the first pass too
+    _drop_short_scenes(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
     # identity is added once, after every model pass (see below)
     problems = _checks(story, articles, cluster)
     if not _anchors_ok(story):
@@ -258,8 +318,10 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         story.pop("sources", None)
         story.pop("date", None)
         story.setdefault("category", cluster.get("category", "general"))
+        _fix_dates(story, cluster)
         _tidy_end(story)
         _wrap_hook(story)
+        _drop_short_scenes(story)
         problems = _checks(story, articles, cluster)
         if not _anchors_ok(story):
             problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
