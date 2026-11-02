@@ -157,6 +157,32 @@ class Assignment(unittest.TestCase):
         self.assertNotIn("director", story)
 
 
+class Demo(unittest.TestCase):
+    """24835 (the gas cut) hand-written under three directors: the same facts, three different films."""
+    NAMES = ("data", "map", "brief")
+
+    def stories(self):
+        return {n: json.loads((ROOT / "stories" / f"24835-{n}.json").read_text(encoding="utf-8")) for n in self.NAMES}
+
+    def test_each_passes_check_with_the_articles(self):
+        for name, s in self.stories().items():
+            self.assertEqual(s["director"], name)
+            self.assertEqual(engine.check_story(s, FIXTURES["24835"]), [], name)
+            self.assertEqual(directors.warnings(s), [], name)  # its own scene types and count
+            with mock.patch("sys.stdout"):  # the CLI takes the fixtures' {story id: articles} map too
+                self.assertEqual(engine.main(["check", str(ROOT / "stories" / f"24835-{name}.json"), "--sources",
+                                              str(ROOT / "tests" / "fixtures" / "sources.json")]), 0, name)
+
+    def test_three_different_films_of_the_same_facts(self):
+        every = self.stories()
+        orders = {n: tuple(x["type"] for x in s["scenes"]) for n, s in every.items()}
+        self.assertEqual(len(set(orders.values())), 3, orders)
+        self.assertEqual(len({s["narration"].split(".")[0] for s in every.values()}), 3)  # three different hooks
+        for name, s in every.items():
+            for fact in ("6400", "ვარკეთილ", "ვაზისუბან", "თბილისი ენერჯის", "გაზსადენზე", "2 ნოემბრის", "3 ნოემბრის"):
+                self.assertIn(fact, s["narration"], (name, fact))
+
+
 class Motion(unittest.TestCase):
     def test_the_style_carries_motion_and_a_current(self):
         for name, d in directors.load_all().items():
