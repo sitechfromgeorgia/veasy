@@ -1,4 +1,8 @@
-# video/: rules for agents
+# video/ (Veasy): rules for agents
+
+This folder is **Veasy**, SiTech's video engine; kaeasy is its sibling for Georgian. It is also a Hermes plugin
+(`plugin.yaml`, `__init__.py`, `skills/`). A new tool goes in three places, and `tests/test_plugin.py` checks they
+agree: `plugin.yaml`, `__init__.TOOLS` and a skill.
 
 Read the root [CLAUDE.md](../CLAUDE.md) and [README.md](README.md) first. This folder is Python plus a Remotion
 project. It is not a Worker: nothing here deploys through Workers Builds, and it never writes to D1.
@@ -7,8 +11,8 @@ project. It is not a Worker: nothing here deploys through Workers Builds, and it
   - Secrets live only in `video/data/.env` (chmod 600, git-ignored).
   - Timers, cron and anything installed on the server need the owner's OK.
 - **Entry point:** `python -m tt_shorts.engine` (options, check, render, still, qa, write, voices, doctor; JSON out).
-  The skills in `.claude/skills/` say how an agent uses it. Keep the engine, the skills and `options` in step: a new
-  choice in code must appear in `engine.options()`, `formats.py` validation and the `tt-shorts-formats` skill.
+  The skills in `skills/` say how an agent uses it. Keep the engine, the skills and `options` in step: a new
+  choice in code must appear in `engine.options()`, `formats.py` validation and the `veasy:formats` skill.
 - **Data flow:** story JSON → `tt_shorts/props.py` (voice, timings, data) → `remotion/` composition `NewsShort` → mp4.
   - The writer (an LLM) fills only text fields.
   - Layout, motion, date, sources, QR and colors are code.

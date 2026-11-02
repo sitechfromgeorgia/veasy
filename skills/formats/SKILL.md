@@ -1,5 +1,5 @@
 ---
-name: tt-shorts-formats
+name: formats
 description: "Use when choosing or creating a show format for tbilisi.today Shorts (which look, caption design, voice, music and length a kind of video uses), or when asked what the engine can do. Examples: \"make an evening news format\", \"which captions should sports use\", \"list the options\""
 ---
 

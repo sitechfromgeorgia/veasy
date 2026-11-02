@@ -1,4 +1,31 @@
-# video/: tbilisi.today Shorts
+# Veasy: the video engine (tbilisi.today Shorts)
+
+**Veasy** is SiTech's video engine for agents. It was named by the owner on 2026-11-02 as kaeasy's sibling: kaeasy
+handles Georgian writing, Veasy handles video.
+- What it does: turns a story into a checked, voiced, captioned vertical video, in formats an agent can choose and
+  extend.
+- Where it lives: here (`video/`) for now. It is meant to move to its own repo (`sitechfromgeorgia/veasy`) as a
+  separate product.
+- The plugin folder is this folder: `plugin.yaml` and `__init__.py`. The skills are in `skills/` (Hermes) and
+  `.claude/skills/` (symlinks for Claude Code).
+
+## Install as a Hermes plugin (next to kaeasy)
+
+```bash
+ln -s /root/sitech/tbilisi.today/video /root/.hermes/shared-plugins/veasy        # or a clone of the veasy repo
+ln -s /root/.hermes/shared-plugins/veasy /root/.hermes/profiles/<profile>/plugins/veasy
+bash /root/sitech/tbilisi.today/video/ops/install.sh --align                       # the engine's own venv, Remotion, music
+# enable it (hermes plugins enable veasy, or plugins.enabled in config.yaml), restart the gateway, check: hermes plugins list
+```
+
+What the agent gets:
+- **Tools:** `veasy_options`, `veasy_check`, `veasy_render`, `veasy_still`, `veasy_qa`, `veasy_write` and
+  `veasy_doctor`.
+  - Each runs the engine in its own venv and returns its JSON.
+  - A render takes a minute or two; the agent needs none of the render libraries.
+- **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:formats`.
+- **A one-line hint** on the first turn; turn it off with `VEASY_HINT=0`.
+
 
 Turns multi-source stories (`story_clusters` with 3+ outlets) into 30-40 second Georgian vertical videos
 (1080×1920, 30 fps) for YouTube Shorts, Instagram/Facebook Reels and TikTok. Each video has a voice, background
@@ -29,8 +56,8 @@ python -m tt_shorts.engine voices --story stories/24886.json       # Gemini tone
 - **Formats** (`tt_shorts/formats.py`, `formats/*.json`): a show is a named set of choices (look, captions, voice,
   music, platform, length window). Built-in: `news`, `news-roll`. A new show is a JSON file, no code. Which show
   uses which format is the owner's and the agent's decision.
-- **Skills** for agents (`.claude/skills/`): `tt-shorts-make-video`, `tt-shorts-write-script`, `tt-shorts-qa`,
-  `tt-shorts-formats`.
+- **Skills** for agents (`skills/`): `veasy:make-video`, `veasy:write-script`, `veasy:qa`,
+  `veasy:formats`.
 - The voice is cached per story (`work/<id>-voice-<engine>/`): another look or caption design costs no new TTS.
 - What comes next (new visual blocks, render server, more outputs, the decisions needed): [ROADMAP.md](ROADMAP.md).
 - **Georgian gate: [kaeasy](https://github.com/sitechfromgeorgia/kaeasy)** (`tt_shorts/kaeasy.py`).

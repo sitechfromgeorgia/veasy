@@ -1,5 +1,5 @@
 ---
-name: tt-shorts-qa
+name: qa
 description: "Use after rendering a tbilisi.today Short and before it is shown or published, to verify length, size, loudness, captions, voice and facts. Examples: \"check this video\", \"is 24886 ready to post\", \"the captions look wrong in this render\""
 ---
 

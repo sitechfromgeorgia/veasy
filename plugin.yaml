@@ -1,0 +1,14 @@
+name: veasy
+version: 0.1.0
+description: "Veasy: a video engine for agents. Turns a story into a checked, voiced, captioned vertical video (Remotion + Gemini TTS + composed music), in formats an agent can choose and extend. Georgian quality through kaeasy."
+provides_tools:
+  - veasy_options
+  - veasy_check
+  - veasy_render
+  - veasy_still
+  - veasy_qa
+  - veasy_write
+  - veasy_doctor
+provides_hooks:
+  - pre_llm_call
+requires_env: []

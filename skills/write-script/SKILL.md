@@ -1,5 +1,5 @@
 ---
-name: tt-shorts-write-script
+name: write-script
 description: "Use when writing, repairing or reviewing the story JSON (narration + scenes) of a tbilisi.today Short by hand or after the writer model failed a check. Examples: \"fix the script of 24886, check says N2\", \"write a story JSON for this cluster\", \"why does K9 fail\""
 ---
 
