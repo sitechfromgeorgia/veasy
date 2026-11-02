@@ -166,7 +166,18 @@ writer is told the scene orders used lately and asked for another shape when the
 of the story (`art.py`: whitelist + quality check). A drawing that fails is swapped for one from the drawing library
 of its motif (`tt_shorts/drawings.py`: every drawing of a video that ended `done`, in `veasy.db`, plus 18 hand-made
 seeds in `assets/drawings/`; only the labels the new story itself says are kept), else dropped, not the video.
-`variety.report()` measures how alike the last videos were.
+`variety.report()` measures how alike the last videos were, with the average distance of each to its nearest.
+
+**Novelty guard** (`variety.choose`). Least used per choice still lets two videos share almost everything, so a
+planned video has a fingerprint: director, scene sequence, hook, motif, enter, transition, music.
+- Similarity counts the shared fields, 1 each, with the scene orders as their difflib ratio. A plan sharing 5 of 7
+  with one of the brand's last 20 videos is too close.
+- Then its style picks are re-rolled inside the director's subsets, least overused first, at most 64 tries,
+  deterministic per story. This happens in `props.choose`, which `props.build` runs before the voice is made, so
+  render, the queue, still, probe and `engine plan` all pass it before any TTS (plan shows the fingerprint and the
+  closest recent video, and records nothing).
+- If nothing is far enough, the farthest plan is taken and the render result carries a warning: it never fails a
+  video. A re-render keeps its picks. The distance and the re-rolls are kept in `veasy.db`.
 
 **Directors** (`tt_shorts/directors.py`, `directors/*.json`, `veasy:directors`) decide what kind of film a story
 becomes.
@@ -180,7 +191,8 @@ becomes.
   also sets the current: the slide entrance and every directional cut move one way.
 - `--director` on `write`, `render`, `still` and `queue add` overrides it. A story without one renders exactly as
   before.
-- `stories/24835-brief.json` is the gas cut as a `brief` film.
+- `stories/24835-data.json`, `24835-map.json` and `24835-brief.json` are the gas cut as three films with the same
+  facts: the number first (stat), the place first (the Tbilisi map, then a sign), and a service card (points, steps).
 
 ## Icons and pictograms (`tt_shorts/icons.py`)
 

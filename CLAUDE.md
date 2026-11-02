@@ -32,9 +32,10 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   each video its own hook layout, background motif, entrance, transition and music loop (the least used lately per
   brand, remembered in `veasy.db`), and the writer sees the scene orders used lately. A new layout or motion goes in
   as one more option there (and in `remotion/src`), never as a replacement of the others; `tests/test_variety.py`
-  checks a run uses every option evenly. The writer draws (`art.py`: sanitize + quality; a failing drawing is
-  swapped for a library one of its motif, `drawings.py`, else dropped, not the video); `VEASY_WRITER_DRAW=0` turns
-  it off. A new seed drawing in `assets/drawings/` must pass both (`tests/test_drawings.py`).
+  checks a run uses every option evenly. The novelty guard (`variety.choose`) re-rolls a plan too close to one of
+  the brand's last 20 before the voice is made; it warns, never fails a video. The writer draws (`art.py`:
+  sanitize + quality; a failing drawing is swapped for a library one of its motif, `drawings.py`, else dropped,
+  not the video); `VEASY_WRITER_DRAW=0` turns it off. A new seed drawing in `assets/drawings/` must pass both (`tests/test_drawings.py`).
 - **Motion rules** (`tt_shorts/motion_rules.py`): warnings in `engine plan`; only unreadable text (0.5 s + 0.3 s a
   word) holds a render. A new rule needs a case in `tests/test_motion_rules.py`.
 - **Data flow:** source → story JSON → `tt_shorts/props.py` (voice, timings, data, the brand pack) → `remotion/`

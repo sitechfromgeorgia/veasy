@@ -265,10 +265,11 @@ Engine and agent tooling:
       - The render gets the director's subsets, its motion numbers and its current. No entrance or cut opposes
         the current.
       - The planned brushes (marker, rail, share, compare) are listed and offered once they exist.
+    - Done (2026-11-02): the novelty guard (`variety.choose`). The fingerprint is (director, scene sequence, hook,
+      motif, enter, transition, music); a plan sharing 5 of 7 with one of the brand's last 20 is re-rolled before
+      `speech.voice` (bounded, deterministic per story, never fails a video). `novelty` and `rerolls` are in
+      `variety`, the average distance in `report()`. Demo: `stories/24835-{data,map,brief}.json`.
     - Open:
-      - the novelty guard: fingerprint (director, scene sequence, hook, motif, enter, transition, music), re-roll
-        before `speech.voice` when 5 of 7 fields equal one of the last 20, the fingerprint in `variety`, the
-        average distance in `report()`;
       - the outro chip's slide (`outro.tsx`) still comes from the left whatever the current;
       - speaker detection for the witness gate is a heuristic (ergative name beside a speech verb);
       - pitch mode (`VEASY_PITCH`) and the bandit.
