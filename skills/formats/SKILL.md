@@ -36,7 +36,8 @@ voice (Charon) for every family. A format works for every brand; a pack's own vo
 ## Variety comes on its own
 
 Inside a format, every video gets its own hook layout (stack, lead, blocks, underline), background motif (grid,
-diagonal, dots, rules, plain), entrance (rise, slide, reveal, scale), transition (when `auto`) and music loop
+diagonal, dots, rules, plain, and `icons`: the story's main icon tiled faintly, only for a story that has one and
+never for crime or deaths), entrance (rise, slide, reveal, scale), transition (when `auto`) and music loop
 (four per family): the least used lately for the brand (`options` → `variety`). So a format doesn't need to vary
 these by hand; fix one in a format only when a show must always look one way (e.g. `"transition": "cut"`).
 

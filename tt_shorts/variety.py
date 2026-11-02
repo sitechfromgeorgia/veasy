@@ -3,7 +3,8 @@ no creativity, nothing new").
 
 Inside one brand and one look, each video gets its own combination of:
     hook        stack | lead | blocks | underline      how the opening lines are set
-    motif       grid | diagonal | dots | rules | plain the background's texture
+    motif       grid | diagonal | dots | rules | plain the background's texture; "icons" (the story's main icon
+                | icons                                tiled, icons.story_icon) only when the story has one
     enter       rise | slide | reveal | scale          how things come on screen
     transition  the cut between scenes, from the ones that suit the look (when the format says "auto")
     music       one of the family's loops (tools/compose_music.py writes several per family)
@@ -26,9 +27,10 @@ from tt_shorts import store
 
 OPTIONS = {
     "hook": ("stack", "lead", "blocks", "underline"),
-    "motif": ("grid", "diagonal", "dots", "rules", "plain"),
+    "motif": ("grid", "diagonal", "dots", "rules", "plain", "icons"),
     "enter": ("rise", "slide", "reveal", "scale"),
 }
+NEEDS_ICON = {"motif": ("icons",)}  # options a story without a main icon can't use
 # the cuts that suit each look when the format leaves the transition to the engine ("auto")
 TRANSITIONS = {
     "editorial": ("line", "wipe", "dot", "slide"),
@@ -70,14 +72,21 @@ def _least_used(options, used, story, key):
     return pool[zlib.crc32(f"{story}|{key}".encode()) % len(pool)]
 
 
-def pick(brand, story, look, transition="auto", loops=()):
+def options_for(key, icon=False):
+    """A choice's options for one story: without a main icon, the icon motif is not one of them."""
+    return OPTIONS[key] if icon else tuple(o for o in OPTIONS[key] if o not in NEEDS_ICON.get(key, ()))
+
+
+def pick(brand, story, look, transition="auto", loops=(), icon=False):
     """The style for one video: {hook, motif, enter, transition, music}. A story rendered before in this look gets its
     earlier picks back; otherwise each choice is the least used lately. transition stays as given unless "auto";
-    music is None when there are no loops."""
+    music is None when there are no loops. icon: the story has a main icon (icons.story_icon), so the "icons" motif
+    is one of its options."""
     past = history(brand)
     same = next((r for r in past if r["story"] == str(story) and r["look"] == look), None)
     out = {}
-    for key, options in OPTIONS.items():
+    for key in OPTIONS:
+        options = options_for(key, icon)
         out[key] = same[key] if same and same[key] in options else _least_used(options, [r[key] for r in past], story, key)
     if transition in (None, "auto"):
         options = TRANSITIONS[look]

@@ -15,7 +15,7 @@ import time
 import urllib.error
 import urllib.request
 
-from tt_shorts import art, ka_check, kaeasy, news_check
+from tt_shorts import art, icons, ka_check, kaeasy, news_check
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STYLE = (ROOT / "tt_shorts" / "ka_style.md").read_text(encoding="utf-8")
@@ -44,6 +44,7 @@ Return ONE JSON object and nothing else. Shape:
  "narration": "the spoken text, 70-95 words, sentences of 6-14 words",
  "cta": "short closing call, 4-7 words, no punctuation at the end",
  "say": {"latin-or-brand": "how to say it in Georgian"},
+ "motif": "optional: the story's main icon, an icon name or the Georgian word for the thing (გაზი, მეტრო, სკოლა)",
  "scenes": [
    {"type": "hook", "at": "first words of the narration this scene starts at", "kicker": "short label", "lines": ["line 1", "line 2", "line 3"]},
    {"type": "stat", "at": "...", "kicker": "...", "headline": "...", "value": 6400, "label": "..."},
@@ -58,6 +59,7 @@ Return ONE JSON object and nothing else. Shape:
    {"type": "bars", "at": "...", "kicker": "...", "unit": "...", "items": [{"label": "...", "value": 120}, {"label": "...", "value": 80}]},
    {"type": "trend", "at": "...", "kicker": "...", "unit": "...", "items": [{"label": "2023", "value": 1.2}, {"label": "2024", "value": 1.4}, {"label": "2025", "value": 1.5}]},
    {"type": "change", "at": "...", "kicker": "...", "unit": "...", "before": {"label": "...", "value": 1.2}, "after": {"label": "...", "value": 1.5}},
+   {"type": "sign", "at": "...", "kicker": "...", "headline": "...", "icon": "გაზი", "verb": "stops", "label": "..."},
    {"type": "end", "at": "last words of the narration"}
  ]
 }
@@ -72,6 +74,12 @@ Rules that code enforces and will send back to you:
 - do not use a "timeline" scene unless the article states exact times or dates for it;
 - charts (bars, trend, change) only with values the article states, one unit, no computed differences;
   bars: 2-5 values above zero; trend: 3-8 values in time order; pair: two sides of the story; steps: 2-4 steps in order;
+- "sign": one pictogram and what happens to it. icon: an icon name (flame, zap, droplet, bus, train-front, school,
+  hospital, scale, tag, banknote, route, bridge, snowflake...) or the Georgian word for the thing (გაზი, დენი, წყალი,
+  მეტრო, ხიდი). verb: rises|falls|stops|opens|closes|moves|splits|joins, and that scene's narration must say it
+  (გაიზარდა, შემცირდა, შეწყდება, გაიხსნება, დაიხურება, გადავა, გაიყო, შეუერთდა);
+- a "stat" may take an "icon": a whole count of 2-30 things is then drawn as that many icons;
+- never a sign, a stat icon or a motif for crime, incidents or deaths;
 - at most one "draw" scene; it is the drawing of what the story is about (see the drawing guide below);
 - the last scene must start at least 4 narration words before the end, so it does not flash by.
 """
@@ -297,7 +305,8 @@ def _tidy_end(story: dict) -> None:
 def _checks(story: dict, articles: list[str], cluster: dict):
     joined = "\n\n".join(articles)
     article = {"title": cluster.get("headline", ""), "description": "", "text": joined}
-    return news_check.problems(story, articles) + ka_check.problems(story, article) + art.story_problems(story)
+    return (news_check.problems(story, articles) + ka_check.problems(story, article) + art.story_problems(story)
+            + icons.story_problems(story))
 
 
 def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 2,

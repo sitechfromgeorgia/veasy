@@ -31,6 +31,11 @@ export type ArtNode = {
   text: string | null;
 };
 
+// tt_shorts/icons.py: one Lucide icon's shapes on its 24 px grid, [tag, geometry attributes]; no colors
+export type IconNode = [string, Record<string, string>];
+// what a sign scene shows happening to its icon (icons.VERBS)
+export type Verb = "rises" | "falls" | "stops" | "opens" | "closes" | "moves" | "splits" | "joins";
+
 // the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python
 export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot";
 
@@ -40,7 +45,7 @@ export type Outro = "card" | "overlay" | "loop";
 // tt_shorts/variety.py: this video's own combination inside the brand and the look (layout and motion, never color)
 export type Style = {
   hook: "stack" | "lead" | "blocks" | "underline";
-  motif: "grid" | "diagonal" | "dots" | "rules" | "plain";
+  motif: "grid" | "diagonal" | "dots" | "rules" | "plain" | "icons"; // icons: props.motifIcon tiled
   enter: "rise" | "slide" | "reveal" | "scale";
 };
 
@@ -81,6 +86,10 @@ export type Scene = SceneBase & {
   unit?: string; // bars, trend, change
   before?: { label: string; value: number }; // change
   after?: { label: string; value: number };
+  icon?: string; // sign, stat: the icon's library name (resolved in Python)
+  verb?: Verb; // sign
+  glyph?: IconNode[]; // sign, stat: the icon's shapes
+  isotype?: boolean; // stat: the value is drawn as that many icons (2-30 whole things)
   text?: string;
   by?: string;
   via?: string;
@@ -110,6 +119,7 @@ export type ShortProps = {
   style?: Style; // absent: the look's own (stack; grid or diagonal; rise or slide)
   outro?: Outro; // absent: the end card
   outroFrom?: number | null; // overlay and loop: the frame the chip comes in
+  motifIcon?: IconNode[] | null; // the story's main icon, when the style's motif is "icons"
   id: number;
   category: string; // Georgian label
   date: { date: string; time: string; weekday: string };

@@ -6,7 +6,7 @@ description: "Use when writing, repairing or reviewing the story JSON (narration
 # Write or repair a story script
 
 The script is `stories/<brand>/<day>/<ref>.json` under VEASY_HOME (`write` and the queue put it there). The full
-rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N9 news); this is the working summary. After every edit run
+rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N10 news); this is the working summary. After every edit run
 `python -m tt_shorts.engine check <story.json> --sources <story>.sources.json` until `problems` is empty.
 
 ## Shape
@@ -22,12 +22,13 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N9 news); this is the w
 - Scene types and fields: `python -m tt_shorts.engine options` → `scenes`. First scene `hook`, last `end`.
   `sources` needs no fields (it shows the outlets from the data). 3-7 scenes.
 
-## Which scene for what (15 types)
+## Which scene for what (16 types)
 
 | Type | Use it for | Fields |
 |---|---|---|
 | `hook` | what happened, 2-4 short lines | lines |
-| `stat` | one number | value, label |
+| `stat` | one number; with `icon`, a count of 2-30 things is drawn as that many icons | value, label, icon |
+| `sign` | one thing and what happens to it: gas stops, prices rise, a bridge opens | icon, verb, label |
 | `change` | one value then and now (the new one rolls up from the old) | before {label, value}, after {label, value}, unit |
 | `bars` | 2-5 values of one kind, compared from zero | items [{label, value}], unit |
 | `trend` | 3-8 values over time, a line that draws itself | items [{label, value}], unit, label |
@@ -61,8 +62,21 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N9 news); this is the w
     doesn't name the region (e.g. a village).
   - Crime and incidents: the map stops at the region and never marks a district. This is code, not your choice.
   - Check it without a render: `python -c "from tt_shorts import geo; print(geo.locate('ვაკეში'))"`.
+- Icons (`tt_shorts/icons.py`, 250 Lucide line icons; `options` → `icons` lists them):
+  - `icon` is an English name (`flame`, `train-front`, `school`) or the Georgian word for the thing (`გაზი`,
+    `მეტრო`, `სკოლა`); the stem map reads any case ending.
+  - `sign`: the icon draws itself, then `verb` plays. The verbs are rises, falls, stops (a bar closes across it),
+    opens, closes (doors), moves, splits and joins. The scene's own part of the narration must say that verb
+    (გაიზარდა, შემცირდა, შეწყდება, გაიხსნება, დაიხურება, გადავა, გაიყო, შეუერთდა): N10. It needs 7 narration words
+    (3.2 s). Use it for a change to one thing, not for a person or an event.
+  - `stat` with `icon`: a whole count of 2-30 from the articles shows as that many icons; the number counts with
+    them. Anything else (a percent, 6400, 2.5) keeps the bar.
+  - The story's `"motif"` (optional) is its main icon, tiled faintly in the background when variety picks the icon
+    motif; without one, the first icon the hook names (or the first sign's) is used.
+  - Never for crime, incidents or a story about deaths (N10): no sign, no stat icon, no motif.
 - Vary the shape: the writer is shown the scene orders the latest videos used; pick another one when the story's
-  facts allow it (a number → stat, bars or change; a place → where; two sides → pair; a process → steps).
+  facts allow it (a number → stat, bars or change; a place → where; two sides → pair; a process → steps; one thing
+  that stops, opens or rises → sign).
 
 ## Narration
 
@@ -106,4 +120,8 @@ instead of the news rules N5-N9, and its scene list. `program`, `source` (the do
 - `draw: ...`: the drawing used something the whitelist doesn't allow (a tag, a color that isn't a token, a style
   other than `--d:0.5s`); fix that part, the rest of the drawing is kept.
 - `N3: quote is not verbatim`: copy the exact words or turn it into reported speech without „…".
+- `N10: scene N (sign) shows „stops“ but its part of the narration doesn't say it`: say the verb between this
+  scene's `at` and the next one's, move `at`, or pick the verb the narration says. `N10: no pictograms in a story
+  about ...`: drop the sign scene (use another type), the stat's `icon` and the story's `motif`.
+- `icon: 'x' is neither an icon name nor a Georgian word the map knows`: use a name from `options` → `icons`.
 - `timing: scene anchor not in narration`: `at` must match the narration word for word (punctuation is ignored).

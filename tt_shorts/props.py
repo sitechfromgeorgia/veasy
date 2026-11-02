@@ -18,7 +18,7 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import art, brand, captions, geo, meta, speech, store, swipe, variety, voices
+from tt_shorts import art, brand, captions, geo, icons, meta, speech, store, swipe, variety, voices
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -88,7 +88,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     words = swipe.shift(words, trim)  # mix_audio cuts the same seconds from the track
     shown, marks, chip = swipe.plan(story, words, outro)
     loops = loops_for(music, meta.family(category, b))
-    st = {**variety.pick(b["name"], sid, variant, transition, loops), **(style or {})}
+    main = icons.story_icon(story)  # the story's main icon: the "icons" motif is possible only with one
+    st = {**variety.pick(b["name"], sid, variant, transition, loops, icon=bool(main)), **(style or {})}
     bed = next((f for f in loops if f.name == st["music"]), loops[0] if loops else None)
     for f in (audio, bed):
         if f:
@@ -107,7 +108,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "transition": st["transition"] if st["transition"] in TRANSITIONS else transition_for(transition, variant),
         "style": {k: st[k] for k in variety.OPTIONS},
         "outro": outro, "outroFrom": chip,  # the frame the outro chip comes in (None: the end card)
-        "scenes": [_scene(s, a, b) for s, a, b in zip(shown, marks, marks[1:])],
+        "scenes": icons.attach([_scene(s, a, b) for s, a, b in zip(shown, marks, marks[1:])], story),
+        "motifIcon": icons.nodes(main) if st["motif"] == "icons" else None,  # the icon tiled in the background
         "words": words,
         "captions": captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"]),
         "voice": audio.name if audio else None, "voiceVolume": 1.0, "voiceTrim": trim,

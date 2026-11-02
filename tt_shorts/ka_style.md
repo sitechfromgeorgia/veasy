@@ -109,7 +109,8 @@ made later by code from the text and from your "say" map (K20).
 - "შენ რას იფიქრებ, გამოგადგება?" → "შენ რას ფიქრობ, გამოგადგება?" (K1)
 
 ## N. News (tbilisi.today)
-Every video goes out without a human review, so these rules are hard. `news_check.py` checks N1-N5 [checked].
+Every video goes out without a human review, so these rules are hard. `news_check.py` checks N1-N5 and N10
+[checked].
 - N1 Report, don't judge. No "take" scene, no closing opinion, no evaluative words
   (❌ სკანდალური, შოკისმომგვრელი, ისტორიული, უპრეცედენტო). A judgement is said only as somebody's words, with the
   speaker: ✅ „ოპოზიციის თქმით, გადაწყვეტილება უკანონოა“. [checked]
@@ -127,4 +128,8 @@ Every video goes out without a human review, so these rules are hard. `news_chec
 - N8 The hook says what happened in one sentence (who + what), 6-8 words; the next sentence says the source.
   End with „დეტალები tbilisi.today-ზე.“ and one short call to action (გამოიწერე / მოიწონე / გააზიარე).
 - N9 30-40 seconds: about 55-70 words. One story per video; no background the sources don't give.
+- N10 A pictogram shows only what the voice says. A `sign` scene's verb is said in that scene's part of the narration
+  (✅ stops + „გაზის მიწოდება შეწყდება“; ❌ rises when that part never says გაიზარდა, იზრდება...). A stat's icon
+  repeats only for a count of 2-30 whole things the articles state (never „1 icon = 100“). No sign, no stat icon and
+  no motif for crime and incidents or for a story about deaths. [checked]
 

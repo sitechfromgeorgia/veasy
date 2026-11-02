@@ -38,8 +38,8 @@ import subprocess
 import sys
 
 from tt_shorts import brand as packs
-from tt_shorts import (captions, formats, geo, ka_check, kaeasy, meta, news_check, programs, props, speech, store,
-                       swipe, variety, voices)
+from tt_shorts import (captions, formats, geo, icons, ka_check, kaeasy, meta, news_check, programs, props, speech,
+                       store, swipe, variety, voices)
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -47,7 +47,8 @@ FPS = speech.FPS
 # The scene vocabulary: type -> (required fields, optional fields, what it shows). remotion/src/scenes draws them.
 SCENES = {
     "hook": (["lines"], ["kicker"], "the opening: 2-4 short lines that say what happened"),
-    "stat": (["value", "label"], ["kicker", "headline", "prefix", "suffix"], "one number from the articles, counted up"),
+    "stat": (["value", "label"], ["kicker", "headline", "prefix", "suffix", "icon"],
+             "one number from the articles, counted up; with an icon, a count of 2-30 things is drawn as that many"),
     "timeline": (["start", "end"], ["kicker", "headline", "big", "label"], "from-to times or dates stated in the articles"),
     "where": (["place"], ["kicker", "headline", "sub", "area"],
               "a place: a place in Georgia gets the real map (its region, a pin on the town; tt_shorts/geo.py), "
@@ -67,6 +68,9 @@ SCENES = {
               "3-8 values over time from the articles, a line that draws itself: items [{label, value}]"),
     "change": (["before", "after"], ["kicker", "headline", "unit", "label"],
                "one value then and now from the articles: before {label, value}, after {label, value}"),
+    "sign": (["icon", "verb", "label"], ["kicker", "headline"],
+             "a pictogram that draws itself, then shows what happens to it: icon (a name or a Georgian word), verb "
+             "rises|falls|stops|opens|closes|moves|splits|joins, said in the scene's narration (N10)"),
     "end": ([], [], "the end card: logo, QR to the story page, the call to action"),
 }
 # Shapes the new scenes must have (counts and numbers); the older ones are checked by their required fields.
@@ -128,6 +132,7 @@ def options(brand_name=None):
                         "selftest": "engine selftest [--update]: golden stills of the fixture stories in every look; "
                                     "run before merging a visual change",
                         "learn": "engine learn [--brand]: the rules failing most lately; the writer reads them"},
+        "icons": icons.options(),
         "categories": {c: {"label": meta.category_label(c, b), "family": meta.family(c, b),
                            "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
                        for c in b["categories"]},
@@ -165,7 +170,7 @@ def structure_problems(story):
         p += [f"scene {i} ({t}): {x}" for x in shape_problems(s)]
     if "program" in story:  # a story without one is news, exactly as before programs
         p += programs.story_problems(story)
-    return p
+    return p + icons.motif_problems(story)
 
 
 def _number(v):
@@ -203,6 +208,8 @@ def shape_problems(s):
         out += art.scene_problems(s["svg"])
     if t == "where" and s.get("area") is not None:
         out += geo.area_problems(s["area"])
+    if t in ("sign", "stat"):
+        out += icons.scene_problems(s)
     return out
 
 
@@ -218,6 +225,8 @@ def check_story(story, sources=None):
         p += programs.length_problems(story)  # and its format's length window
     elif texts:
         p += news_check.problems(story, texts)
+    else:  # N10 needs no articles
+        p += news_check.pictograms(story)
     ka = ka_check.problems(story, {"title": "", "description": "", "text": " ".join(texts)})
     if not texts:  # without the articles a quote can't be compared: that check needs --sources (the news rules say so)
         ka = [x for x in ka if "is quoted but not in the article" not in x]
