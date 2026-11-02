@@ -41,6 +41,22 @@ export type Style = {
   enter: "rise" | "slide" | "reveal" | "scale";
 };
 
+// tt_shorts/geo.py: what a where scene draws of Georgia's map, in the map's viewBox units (projected in Python).
+// start and focus are the camera's first and last view [x0, y0, x1, y1]; level says how close it goes (a district
+// only outside the crime family).
+export type GeoMap = {
+  viewBox: number[];
+  land: string; // the outline (SVG path)
+  borders: string; // the lines between the regions
+  rivers: string; // Mtkvari, Rioni, Alazani...: drawn inside the outline only
+  regions: string[]; // the highlighted region(s)
+  start: number[];
+  focus: number[];
+  pins: number[][];
+  level: "country" | "region" | "district";
+  credit: string; // the boundary data's licence credit, shown small
+};
+
 export type SceneBase = { type: string; from: number; duration: number; kicker?: string; headline?: string };
 
 export type Scene = SceneBase & {
@@ -54,6 +70,8 @@ export type Scene = SceneBase & {
   end?: string;
   place?: string;
   sub?: string;
+  area?: string; // where: ge, ge:<region> or ge:<place>, when the place text alone doesn't say it
+  map?: GeoMap; // where: set by tt_shorts/geo.py when the place is in Georgia
   items?: Item[];
   art?: ArtNode[]; // draw: the drawing, sanitized by tt_shorts/art.py
   between?: string; // pair: the word on the divider

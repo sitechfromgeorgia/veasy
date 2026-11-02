@@ -2,6 +2,7 @@ import React from "react";
 import { interpolate, useCurrentFrame } from "remotion";
 import { CANVAS, fill, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import type { Scene } from "../types";
+import { MapWhere } from "./map";
 import { Bars, Change, Draw, Pair, Steps, Trend } from "./more";
 import { Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, useIn, useStyle, useTheme } from "../ui";
 
@@ -138,7 +139,10 @@ export const Timeline: React.FC<P> = ({ s, inner = INNER }) => {
   );
 };
 
-export const Where: React.FC<P> = ({ s, inner = INNER }) => {
+/** A place in Georgia (props carry s.map, tt_shorts/geo.py) is shown on the real map; any other on the grid. */
+export const Where: React.FC<P> = (p) => (p.s.map ? <MapWhere {...p} /> : <GridWhere {...p} />);
+
+const GridWhere: React.FC<P> = ({ s, inner = INNER }) => {
   const frame = useCurrentFrame();
   const pin = useIn(2, 12, 180);
   // A long place name (ველის სასაფლაო, ლილოს ტერიტორია) overflowed the frame at the 72px floor;
