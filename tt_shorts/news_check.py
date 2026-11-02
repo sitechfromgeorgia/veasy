@@ -13,11 +13,18 @@ to the writer, like ka_check's K rules. `sources` is the list of member article 
   N10 pictograms (icons.py) show only what the voice says: a sign's verb is said in its part of the narration, and
       a story of the crime family (crime, incidents) or about deaths has no sign, no stat icon and no icon motif.
       pictograms() needs no articles, so engine.check_story runs it even without --sources.
+  N11 marks and links show only what the voice says (marks.py): an "em" phrase is word for word in its scene's
+      markable on-screen text and said in its part of the narration; a link's edge (its verb) is said there too.
+      spoken() needs no articles either.
+  N2 also reads the brushes' facts: a share's percent is stated with "%" in an article, and every date on a rail
+      is in an article (stated()).
 """
 import re
 
+# The news rules' own allowlist of scene types (N1: no opinion or take scene), kept by hand on purpose: a new brush
+# (brushes/<type>.json) is allowed in news only once it is named here too.
 SCENE_TYPES = {"hook", "stat", "timeline", "where", "who", "points", "quote", "sources", "draw", "pair", "steps", "bars",
-               "trend", "change", "sign", "end"}
+               "trend", "change", "sign", "end", "share", "rail", "compare", "link"}
 RELATIVE_DAYS = ("დღეს", "გუშინ", "ხვალ", "ზეგ", "გუშინწინ")
 # Words that judge instead of report (stems: Georgian adds case endings). Extend from the edits log.
 EVALUATIVE = ("სკანდალურ", "შოკისმომგვრელ", "სამარცხვინო", "საოცარ", "გასაოცარ", "უპრეცედენტო", "საშინელ",
@@ -27,7 +34,8 @@ SENSITIVE = ("გაუპატიურ", "სექსუალურ ძა�
 # N10: a story that tells of deaths gets no pictograms (an icon next to a death reads as making light of it)
 DEATHS = ("გარდაიცვალ", "გარდაცვალ", "გარდაცვლ", "დაიღუპ", "დაღუპ", "იღუპებ", "სიკვდილ", "ცხედ", "მკვლელობ",
           "მოკლეს", "მოკლულ", "მოიკლ", "დაიხრჩო", "მსხვერპლ")
-NOT_SCREEN = ("type", "at", "icon", "verb")  # an icon's name and a sign's verb are drawn, not read
+# an icon's name and a sign's verb are drawn, not read; em points at a text already on screen; style is a stat's motion
+NOT_SCREEN = ("type", "at", "icon", "verb", "em", "style")
 NUM = re.compile(r"\d+")
 
 
@@ -170,4 +178,107 @@ def problems(story, sources):
     hits = sensitive(sources + [narration])
     if hits:
         out.append(f"N5: sensitive story ({', '.join(hits)}): skip it")
-    return out + pictograms(story)
+    return out + stated(story, sources) + pictograms(story) + spoken(story)
+
+
+# ---------------------------------------------------------------- the brushes' own facts (N2) and marks (N11)
+
+MONTHS = ("იანვ", "თებერვ", "მარტ", "აპრილ", "მაის", "ივნის", "ივლის", "აგვისტ", "სექტემბ", "ოქტომბ", "ნოემბ", "დეკემბ")
+_YEAR = re.compile(r"(?<!\d)(1[89]\d\d|20\d\d)(?!\d)")
+_DAY_MONTH = re.compile(r"(?<!\d)(\d{1,2})\s+(" + "|".join(MONTHS) + r")[ა-ჰ]*")
+_MONTH = re.compile(r"(?<![ა-ჰ])(" + "|".join(MONTHS) + r")[ა-ჰ]*")
+_TIME = re.compile(r"(?<!\d)([01]?\d|2[0-3]):([0-5]\d)(?!\d)")
+
+
+def date_key(text):
+    """A rail's when -> (year, month, day, minutes), None where the text doesn't say it; None when it is no date.
+    „2 ნოემბერი, 22:00“ -> (None, 11, 2, 1320); „2025“ -> (2025, None, None, None); „მარტში“ -> (None, 3, ...)."""
+    text = text or ""
+    y, dm, t = _YEAR.search(text), _DAY_MONTH.search(text), _TIME.search(text)
+    m = dm or _MONTH.search(text)
+    month = MONTHS.index(m.group(2 if dm else 1)) + 1 if m else None
+    day = int(dm.group(1)) if dm and 1 <= int(dm.group(1)) <= 31 else None
+    key = (int(y.group(1)) if y else None, month, day, int(t.group(1)) * 60 + int(t.group(2)) if t else None)
+    return key if any(k is not None for k in key) else None
+
+
+def date_before(a, b):
+    """True when date key a is earlier than b, judged on the first part both name (year, month, day, time)."""
+    for x, y in zip(a, b):
+        if x is not None and y is not None and x != y:
+            return x < y
+    return False
+
+
+def _date_parts(when):
+    """The pieces of a rail date as an article would write them: „2 ნოემბ“, „2025“, „22:00“."""
+    out = []
+    dm, y, t = _DAY_MONTH.search(when), _YEAR.search(when), _TIME.search(when)
+    if dm:
+        out.append((dm.group(0), re.compile(rf"(?<!\d)0?{int(dm.group(1))}\s+{dm.group(2)}")))
+    elif _MONTH.search(when):
+        m = _MONTH.search(when)
+        out.append((m.group(0), re.compile(m.group(1))))
+    if y:
+        out.append((y.group(1), re.compile(rf"(?<!\d){y.group(1)}(?!\d)")))
+    if t:
+        out.append((t.group(0), re.compile(rf"(?<!\d)0?{int(t.group(1))}:{t.group(2)}(?!\d)")))
+    return out
+
+
+def _percent(v):
+    """A share's value as an article states it: 34 -> 34%, 34 %; 34.5 -> 34.5% or 34,5%."""
+    whole, _, dec = f"{v:g}".partition(".")
+    num = whole + (rf"[.,]{dec}" if dec else r"(?:[.,]0+)?")
+    return re.compile(rf"(?<![\d.,]){num}\s*%")
+
+
+def stated(story, sources):
+    """N2 for the brushes' facts: a share's percent is in an article with "%"; every rail date is in an article."""
+    corpus = flat(" ".join(sources))
+    out = []
+    for i, s in enumerate(story.get("scenes") or []):
+        if s.get("type") == "share" and isinstance(s.get("value"), (int, float)) and not isinstance(s["value"], bool):
+            if not _percent(s["value"]).search(corpus):
+                out.append(f"N2: scene {i} (share) shows {s['value']:g}% but no source article states „{s['value']:g}%“ "
+                           "with the % sign: a share shows only a percent the articles give")
+        if s.get("type") == "rail":
+            for k, it in enumerate(s.get("items") or []):
+                when = it.get("when") if isinstance(it, dict) else None
+                if not isinstance(when, str):
+                    continue
+                missing = [shown for shown, pat in _date_parts(when) if not pat.search(corpus)]
+                if missing:
+                    out.append(f"N2: scene {i} (rail) items[{k}]: the date „{', '.join(missing)}“ is not in any source "
+                               "article")
+    return out
+
+
+def spoken(story):
+    """N11 problems: an em phrase is on screen in its scene and said in its part of the narration; a link's edge is
+    said there (no relationship the voice didn't state). Needs no articles."""
+    from tt_shorts import catalog, marks
+    out = []
+    for i, s in enumerate(story.get("scenes") or []):
+        t = s.get("type")
+        em = s.get("em")
+        if em is not None:
+            b = catalog.load_all().get(t)
+            where = (b or {}).get("em", {}).get("fields") or []
+            if not isinstance(em, str) or not em.strip():
+                out.append(f"N11: scene {i} ({t}): em is one phrase, a text (at most one mark per scene)")
+            elif not where:
+                out.append(f"N11: scene {i} ({t}): a {t} scene takes no em: drop it")
+            elif len(em.split()) > marks.MAX_WORDS or len(em) > marks.MAX_CHARS:
+                out.append(f"N11: scene {i} ({t}): em „{em}“ is too long: mark 1-{marks.MAX_WORDS} words")
+            elif not marks.locate(s):
+                out.append(f"N11: scene {i} ({t}) marks „{em}“ but its {', '.join(where)} don't show it word for word: "
+                           "copy the words exactly from its on-screen text")
+            elif not marks.said(em, scene_part(story, i)):
+                out.append(f"N11: scene {i} ({t}) marks „{em}“ but its part of the narration doesn't say it: mark "
+                           "words the voice says in this scene")
+        if t == "link" and isinstance(s.get("edge"), str) and s["edge"].strip():
+            if not marks.said(s["edge"], scene_part(story, i)):
+                out.append(f"N11: scene {i} (link) joins them with „{s['edge']}“ but its part of the narration doesn't "
+                           "say it: the edge is the verb the voice says (შეხვდა, მოაწერა ხელი...)")
+    return out

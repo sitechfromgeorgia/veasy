@@ -39,12 +39,15 @@ def transition_for(name, variant):
     return DEFAULT_TRANSITION[variant] if name in (None, "auto") else name
 
 
-def _scene(s, a, b):
-    """One scene's props: its frames, and a drawing as a safe tree instead of the writer's SVG."""
+def _scene(s, a, b, mark=None):
+    """One scene's props: its frames, a drawing as a safe tree instead of the writer's SVG, and its voice-synced mark
+    (speech.mark_frames: where, when and how the "em" phrase is drawn over; marks.py)."""
     out = {**s, "from": a, "duration": b - a}
     if s.get("type") == "draw":
         out["art"] = art.sanitize(s.get("svg", ""))[0]
         out.pop("svg", None)
+    if mark:
+        out["mark"] = mark
     return out
 
 
@@ -134,7 +137,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "style": {**{k: st[k] for k in variety.OPTIONS}, **(directors.style(chosen) if chosen else {})},
         "novelty": novelty,  # the guard's report (variety.choose): the nearest recent video, re-rolls, a warning
         "outro": outro, "outroFrom": chip,  # the frame the outro chip comes in (None: the end card)
-        "scenes": icons.attach([_scene(s, a, b) for s, a, b in zip(shown, marks, marks[1:])], story),
+        "scenes": icons.attach([_scene(s, a, z, m) for s, a, z, m in zip(
+            shown, marks, marks[1:], speech.mark_frames(shown, words, marks, sid, meta.family(category, b)))], story),
         "motifIcon": icons.nodes(main) if st["motif"] == "icons" else None,  # the icon tiled in the background
         "words": words,
         "captions": captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"]),
