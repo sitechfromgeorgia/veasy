@@ -5,7 +5,7 @@ import type { Scene } from "../types";
 import { MapWhere } from "./map";
 import { Bars, Change, Draw, Pair, Steps, Trend } from "./more";
 import { isoSpan, Isotype, railWidth, Sign } from "./sign";
-import { Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, useIn, useOpening, useStyle, useTheme } from "../ui";
+import { Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, measure, useIn, useOpening, useStyle, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
 // text that reaches the lower part stays left of the like/share rail (a card's content starts further right)
@@ -234,10 +234,31 @@ export const Who: React.FC<P> = ({ s, inner = INNER }) => {
   );
 };
 
+/** The size at which every point fits the scene: each point's lines are counted by measuring its words (greedy, as
+ *  the browser wraps), and the size steps down until the three rows fit the room left under the head. */
+const pointsSize = (items: string[], text: number, room: number) => {
+  for (const size of [64, 58, 52, 48, 44]) {
+    const space = (measure(" ", 700) * size) / 100;
+    const rows = items.map((t) => {
+      let lines = 1, used = 0;
+      for (const w of t.split(/\s+/)) {
+        const wd = (measure(w, 700) * size) / 100;
+        if (used && used + space + wd > text) { lines += 1; used = wd; } else used += (used ? space : 0) + wd;
+      }
+      return Math.max(120, lines * size * 1.2) + 64; // the number column is 120 high; 32 px padding top and bottom
+    });
+    if (rows.reduce((a, b) => a + b, 0) <= room) return size;
+  }
+  return 44;
+};
+
 export const Points: React.FC<P> = ({ s, inner = INNER }) => {
   const items = (s.items ?? []).slice(0, 3) as string[];
   const frame = useCurrentFrame();
   const active = items.reduce((a, _, i) => (frame >= 6 + i * 10 ? i : a), 0);
+  // the room under the head: the scene band (1132) or a card's body (964), less the kicker and the headline
+  const room = (inner < INNER - 40 ? 964 : 1132) - (s.kicker ? 80 : 0) - (s.headline ? 100 : 0) - 40;
+  const size = pointsSize(items, low(inner) - 120 - 40 - 24 - 40, room);
   return (
     <Frame s={s}>
       {items.map((t, i) => (
@@ -246,7 +267,7 @@ export const Points: React.FC<P> = ({ s, inner = INNER }) => {
             width: low(inner) }}>
             <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 120, lineHeight: 1, width: 120, flex: "none",
               color: i === active ? INK : MUTED }}>{i + 1}</div>
-            <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 64, lineHeight: 1.2, color: INK, flex: 1 }}>{t}</div>
+            <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.2, color: INK, flex: 1 }}>{t}</div>
             <span style={{ opacity: i === active ? 1 : 0 }}><Dot size={24} pulse /></span>
           </div>
         </In>
