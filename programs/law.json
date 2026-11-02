@@ -1,0 +1,12 @@
+{
+ "label": "კანონი",
+ "about": "One provision of Georgian law (an article of the Constitution or a code, from matsne.gov.ge through Ordo) explained neutrally: what it says and whom it concerns. Law rules: claims, plus the article number on screen, the act named, quotes verbatim from the article and no advice. A person watches it before it goes out; the end card links to the article on matsne.gov.ge.",
+ "sources": ["ordo", "text", "pdf", "url"],
+ "brief": "law.md",
+ "scenes": ["hook", "quote", "points", "steps", "pair", "who", "timeline", "stat", "draw", "end"],
+ "rules": "law",
+ "format": "explainer",
+ "publish": "review",
+ "category": "law",
+ "link": "source"
+}

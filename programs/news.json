@@ -1,0 +1,11 @@
+{
+ "label": "ამბავი",
+ "about": "The default: one news story told by several outlets (a tbilisi.today cluster, or a text file of articles), written with the news-cluster prompt and checked by the news rules N1-N5. Published without a review.",
+ "sources": ["tbilisi-today", "text"],
+ "brief": null,
+ "scenes": "all",
+ "rules": "news",
+ "format": "news",
+ "publish": "auto",
+ "link": "brand"
+}

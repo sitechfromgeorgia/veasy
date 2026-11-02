@@ -26,7 +26,8 @@ format choice. The map itself needs no format key; see `veasy:write-script`.)
 | `platform` | the QR link's utm_source: `shorts`, `youtube`, `instagram`, `tiktok`, ... | `shorts` |
 | `min_seconds`, `max_seconds` | the length window a render must land in | 18, 45 |
 
-Built-in: `news` (all defaults) and `news-roll` (roll captions). `auto` and `family` follow the story's brand pack
+Built-in: `news` (all defaults) and `news-roll` (roll captions); `formats/explainer.json` (25-45 s) is the
+default of the explainer and law programs (a program names its format: `veasy:programs`). `auto` and `family` follow the story's brand pack
 (`options --brand <name>` shows its table). tbilisi.today: hard news `editorial` + `anchor`, light news `kinetic`,
 service news `cards`; people's news `warm`, numbers and tech `clear`, sports `plain`. SiTech: its own `sitech`
 voice (Charon) for every family. A format works for every brand; a pack's own voice only for that pack.

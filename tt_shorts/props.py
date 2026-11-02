@@ -91,6 +91,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         if f:
             shutil.copy(f, public / f.name)
     d = meta.ka_date(story["date"], b)
+    shown, opens = meta.links(story, platform, b)  # the pack's story page, or the source's own (a law's article)
     props = {
         "brand": brand.for_remotion(b),
         "variant": variant, "id": sid, "category": meta.category_label(category, b),
@@ -98,7 +99,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "when": meta.when(d, b),
         "sources": story.get("sources", []), "sourcesLine": meta.sources_line(story.get("sources", []), b=b),
         "cta": story.get("cta") or meta.cta_for(sid, b),
-        "url": meta.display_url(sid, b), "qrSvg": meta.qr_svg(meta.story_url(sid, platform, b), b["colors"]["canvas"]),
+        "url": shown, "qrSvg": meta.qr_svg(opens, b["colors"]["canvas"]),
         "durationInFrames": marks[-1],
         "transition": st["transition"] if st["transition"] in TRANSITIONS else transition_for(transition, variant),
         "style": {k: st[k] for k in variety.OPTIONS},

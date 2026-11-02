@@ -291,10 +291,13 @@ def _checks(story: dict, articles: list[str], cluster: dict):
 
 
 def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 2,
-          avoid: list[str] | None = None) -> dict:
-    """avoid: the scene orders the latest videos used (variety.recent_sequences), so this one can differ."""
+          avoid: list[str] | None = None, make_prompt=None, run_checks=None) -> dict:
+    """avoid: the scene orders the latest videos used (variety.recent_sequences), so this one can differ.
+    make_prompt(cluster, articles, avoid) / run_checks(story, articles, cluster): a program's own prompt and rule
+    tier (programs.write); by default the news cluster's (_prompt, _checks)."""
     model = model or MODEL
-    story = _object(_call(_prompt(cluster, articles, avoid), model))
+    prompt_of, checks_of = make_prompt or _prompt, run_checks or _checks
+    story = _object(_call(prompt_of(cluster, articles, avoid), model))
     story.pop("sources", None)
     story.pop("date", None)
     story.setdefault("category", cluster.get("category", "general"))
@@ -303,13 +306,13 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _wrap_hook(story)  # the first pass too
     _drop_short_scenes(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
     # identity is added once, after every model pass (see below)
-    problems = _checks(story, articles, cluster)
+    problems = checks_of(story, articles, cluster)
     if not _anchors_ok(story):
         problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     for _ in range(repairs):
         if not problems:
             break
-        fix = (f"{_prompt(cluster, articles, avoid)}\n\nწინა პასუხი უარყოფილია ამ შეცდომებით:\n- "
+        fix = (f"{prompt_of(cluster, articles, avoid)}\n\nწინა პასუხი უარყოფილია ამ შეცდომებით:\n- "
                + "\n- ".join(problems[:12])
                + "\n\nგანსაკუთრებით: არ დატოვო არც ერთი რიცხვი, რომელიც სტატიაში არ არის; "
                + "თუ timeline სცენას სტატიაში ზუსტი დრო არ აქვს, წაშალე ის და მისი ტექსტი narration-იდანაც მოხსენი.\n"
@@ -322,7 +325,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _tidy_end(story)
         _wrap_hook(story)
         _drop_short_scenes(story)
-        problems = _checks(story, articles, cluster)
+        problems = checks_of(story, articles, cluster)
         if not _anchors_ok(story):
             problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if not _anchors_ok(story):
@@ -330,7 +333,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     if any(p.startswith("draw:") for p in problems):  # a drawing that still fails is dropped, not the video
         story, dropped = art.drop_bad(story)
         if dropped:
-            problems = _checks(story, articles, cluster)
+            problems = checks_of(story, articles, cluster)
             if not _anchors_ok(story):
                 problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if problems:
@@ -339,7 +342,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     # grammar and calques while the facts, numbers and anchors stay frozen; if the edit breaks
     # a check, the pre-edit script is kept.
     edited = _edit(story, articles, cluster, model)
-    if edited and _anchors_ok(edited) and not _checks(edited, articles, cluster):
+    if edited and _anchors_ok(edited) and not checks_of(edited, articles, cluster):
         kaeasy.learn_edit(story.get("narration", ""), edited.get("narration", ""))  # every agent learns the fix
         story = edited
     # N6: identity, date and outlets come from the data, never from the writer.

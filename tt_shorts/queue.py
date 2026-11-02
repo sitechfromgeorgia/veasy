@@ -1,7 +1,9 @@
 """The job queue: what to make, in what state it is, and what happened. SQLite in $VEASY_HOME/veasy.db.
 
-A job is one video: (brand, source, ref, format, overrides). Its id is a hash of exactly that, so adding the same
-request twice returns the same job (idempotent): an agent can't make the same video twice by accident.
+A job is one video: (brand, program, source, ref, format, overrides). Its id is a hash of exactly that, so adding the
+same request twice returns the same job (idempotent): an agent can't make the same video twice by accident. The
+program (programs.py) is in the id only when it isn't news, so a news job keeps the id it had before programs; a
+program that says `publish: review` ends `held` (error_class review) even when QA passed: a person watches it first.
 
     queued ──> writing ──> rendering ──> done            (qa passed, real voice: ready to publish)
                   │            │    └──> held            (rendered, but qa found problems or a preview voice)
@@ -32,7 +34,7 @@ import traceback
 import urllib.error
 
 from tt_shorts import brand as brand_pack
-from tt_shorts import formats, store
+from tt_shorts import formats, programs, store
 
 STATES = ("queued", "writing", "rendering", "done", "held", "failed", "cancelled")
 MAX_TRANSIENT = 3
@@ -42,9 +44,11 @@ SCHEMA = """
 create table if not exists jobs(
   id text primary key, name text, brand text, source text, ref text, format text, overrides text,
   story text, state text, priority int default 0, attempts int default 0, error_class text, error text,
-  result text, created text, updated text, not_before real default 0);
+  result text, created text, updated text, not_before real default 0, program text default 'news');
 create index if not exists jobs_state on jobs(state, priority, created);
 """
+# Columns added after the first release: an older veasy.db gets them on open (ALTER TABLE, with their default).
+MIGRATIONS = {"program": "alter table jobs add column program text default 'news'"}
 
 
 def now():
@@ -55,6 +59,15 @@ def db():
     con = sqlite3.connect(store.home() / "veasy.db", timeout=30)
     con.row_factory = sqlite3.Row
     con.executescript(SCHEMA)
+    have = {r["name"] for r in con.execute("pragma table_info(jobs)")}
+    for col, sql in MIGRATIONS.items():
+        if col not in have:
+            try:
+                con.execute(sql)
+                con.commit()
+            except sqlite3.OperationalError as e:  # another worker added it a moment ago
+                if "duplicate column" not in str(e):
+                    raise
     return con
 
 
@@ -69,9 +82,11 @@ def _conn():
         con.close()
 
 
-def job_id(brand, source, ref, fmt, overrides):
-    key = json.dumps({"brand": brand, "source": source, "ref": str(ref), "format": fmt, "overrides": overrides or {}},
-                     sort_keys=True, ensure_ascii=False)
+def job_id(brand, source, ref, fmt, overrides, program=programs.DEFAULT):
+    spec = {"brand": brand, "source": source, "ref": str(ref), "format": fmt, "overrides": overrides or {}}
+    if program and program != programs.DEFAULT:  # news jobs keep the ids they had before programs
+        spec["program"] = program
+    key = json.dumps(spec, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:12]
 
 
@@ -84,18 +99,31 @@ def _row(r):
     return d
 
 
-def add(brand=None, source=None, ref=None, fmt="news", overrides=None, story=None, priority=0):
+def add(brand=None, source=None, ref=None, fmt=None, overrides=None, story=None, priority=0, program=None):
     """-> (job, created). A job needs either a story file or a source + ref. Same request -> same job.
     brand: the pack (default tbilisi-today); a story file's own "brand" is used when none is given, and a different
-    one is refused (the story decides how it looks)."""
-    if not story and not (source and ref is not None):
-        raise ValueError("a job needs --story, or --source and --ref")
-    formats.get(fmt, **(overrides or {}))  # refuse a format the engine can't do before it is queued
-    label = ref
+    one is refused (the story decides how it looks). program: news by default (a story file's own "program");
+    the source defaults to the program's first, the format to the program's."""
+    data = None
     if story:
         story = pathlib.Path(story).resolve()  # the worker may run from another folder
-        source, ref = "story", str(story)
         data = json.loads(story.read_text(encoding="utf-8"))  # unreadable or not JSON: refused now, not at run time
+        own = data.get("program")
+        if program and own and program != own:
+            raise ValueError(f"the story says program {own!r}, the job {program!r}: change the story's \"program\"")
+        program = program or own
+    prog = programs.get(program)  # an unknown program is refused before it is queued
+    program = prog["name"]
+    if not story:
+        source = source or (prog["sources"][0] if ref is not None else None)
+        if not (source and ref is not None):
+            raise ValueError("a job needs --story, or --source and --ref")
+        programs.check_source(prog, source)
+    fmt = fmt or prog["format"]
+    formats.get(fmt, **(overrides or {}))  # refuse a format the engine can't do before it is queued
+    label = ref if program == programs.DEFAULT else f"{program}-{ref}"
+    if story:
+        source, ref = "story", str(story)
         label = data.get("id") or story.stem  # name the job after the story's own id
         own = data.get("brand")
         if brand and own and brand != own:
@@ -103,16 +131,17 @@ def add(brand=None, source=None, ref=None, fmt="news", overrides=None, story=Non
         brand = brand or own
     brand = brand or brand_pack.DEFAULT
     brand_pack.load(brand)  # and a brand pack that doesn't exist
-    jid = job_id(brand, source, ref, fmt, overrides)
+    jid = job_id(brand, source, ref, fmt, overrides, program)
     with _conn() as con:
         old = con.execute("select * from jobs where id=?", (jid,)).fetchone()
         if old:
             return _row(old), False
-        con.execute("insert into jobs(id,name,brand,source,ref,format,overrides,story,state,priority,created,updated) "
-                    "values(?,?,?,?,?,?,?,?,?,?,?,?)",
+        con.execute("insert into jobs(id,name,brand,source,ref,format,overrides,story,state,priority,created,updated,"
+                    "program) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (jid, store.job_name(brand, label, fmt), brand, source, str(ref), fmt,
-                     json.dumps(overrides or {}), str(story) if story else None, "queued", priority, now(), now()))
-        store.log("queued", job=jid, brand=brand, source=source, ref=str(ref), format=fmt)
+                     json.dumps(overrides or {}), str(story) if story else None, "queued", priority, now(), now(),
+                     program))
+        store.log("queued", job=jid, brand=brand, program=program, source=source, ref=str(ref), format=fmt)
         return _row(con.execute("select * from jobs where id=?", (jid,)).fetchone()), True
 
 
@@ -187,8 +216,9 @@ def process(job, engine="gemini"):
     jid = job["id"]
     try:
         story = job["story"]
+        program = job.get("program") or programs.DEFAULT
         if not story:
-            w = eng.write_story(job["source"], job["ref"], job["brand"])
+            w = eng.write_story(job["source"], job["ref"], job["brand"], program=program)
             story = w["story"]
             _set(jid, story=story, state="rendering")
             if w["problems"]:
@@ -210,8 +240,13 @@ def process(job, engine="gemini"):
                                                    "retry with the gemini voice"]}
         result = {**r, "qa": q}
         state = "done" if not q["problems"] else "held"
-        _set(jid, state=state, result=result, error="; ".join(q["problems"]) or None,
-             error_class=None if state == "done" else "qa")
+        error_class, error = (None if state == "done" else "qa"), "; ".join(q["problems"]) or None
+        if program != programs.DEFAULT:
+            result["program"] = program
+            if state == "done" and programs.get(program)["publish"] == "review":
+                state, error_class = "held", "review"  # QA passed; the program wants a person to watch it first
+                error = f"program {program} publishes after a review: watch it, then publish (QA passed)"
+        _set(jid, state=state, result=result, error=error, error_class=error_class)
         store.log(state, job=jid, file=r["file"], problems=q["problems"])
     except Exception as e:  # noqa: BLE001 - one job never stops the queue
         kind = classify(e)
