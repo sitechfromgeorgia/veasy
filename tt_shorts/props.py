@@ -31,23 +31,27 @@ CAPTIONS = os.environ.get("SHORTS_CAPTIONS", "page")  # page | roll (captions.py
 
 
 def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts",
-          caption_design=None):
+          caption_design=None, music="family"):
+    """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off"."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     sid = story["id"]
     if variant == "auto":  # the look follows the kind of story (meta.VARIANT_BY_FAMILY)
         variant = meta.variant_for(story.get("category", "society"))
-    work = ROOT / "work" / f"{sid}-{variant}-{engine}"
+    design = caption_design or CAPTIONS
+    work = ROOT / "work" / f"{sid}-{variant}-{design}-{engine}"
+    voice_dir = ROOT / "work" / f"{sid}-voice-{engine}"  # one voice per story: a new look or caption costs no new TTS
+    voice_dir.mkdir(parents=True, exist_ok=True)
     public = work / "public"
     shutil.rmtree(public, ignore_errors=True)
     (public / "fonts").mkdir(parents=True)
     for f in (ROOT / "assets" / "fonts").glob("firago-*.woff2"):  # one family (brand v1.2); stable names for staticFile()
         shutil.copy(f, public / "fonts" / f"firago-{f.name.split('-')[1].split('.')[0]}.woff2")
 
-    audio, words = speech.voice(story, work, engine, tone, edge_voice)
+    audio, words = speech.voice(story, voice_dir, engine, tone, edge_voice)
     marks = speech.scene_frames(story, words)
     category = story.get("category", "society")
-    music = speech.music_for(sid, category)
-    for f in (audio, music):
+    bed = None if music == "off" else speech.music_for(sid, category if music in (None, "family") else music)
+    for f in (audio, bed):
         if f:
             shutil.copy(f, public / f.name)
     d = meta.ka_date(story["date"])
@@ -61,10 +65,12 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "durationInFrames": marks[-1],
         "scenes": [{**s, "from": a, "duration": b - a} for s, a, b in zip(story["scenes"], marks, marks[1:])],
         "words": words,
-        "captions": captions.layout(words, caption_design or CAPTIONS, end=marks[-1] / FPS),
+        "captions": captions.layout(words, design, end=marks[-1] / FPS),
         "voice": audio.name if audio else None, "voiceVolume": 1.0,
-        "music": music.name if music else None, "musicVolume": 0.5 if engine == "silent" else 0.22,
+        "music": bed.name if bed else None, "musicVolume": 0.5 if engine == "silent" else 0.22,
         "previewNote": NOTES.get(engine),
+        # words the aligner barely heard: the voice may have skipped or changed them (speech.voice_qa; Gemini only)
+        "voiceQa": story.get("qa", {}).get("voice", []),
     }
     (work / "props.json").write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
     return work, props

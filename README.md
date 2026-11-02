@@ -11,6 +11,28 @@ Frames are rendered with [Remotion](https://github.com/remotion-dev/remotion) (R
 This is not a Worker: Workers Builds ignores this folder (watch paths are `<worker>/*`). It runs on the tbilisi.today
 agent server (84.46.250.149).
 
+## The engine (start here)
+
+One entry point for people and agents; every command prints JSON (`tt_shorts/engine.py`):
+
+```bash
+python -m tt_shorts.engine doctor                                  # is this machine ready?
+python -m tt_shorts.engine options                                 # every choice: looks, captions, voices, music, formats, scenes
+python -m tt_shorts.engine write  --cluster 24886                  # D1 cluster -> stories/24886.json (+ .sources.json)
+python -m tt_shorts.engine check  stories/24886.json --sources stories/24886.sources.json
+python -m tt_shorts.engine render stories/24886.json --format news [--look kinetic] [--captions roll] [--voice warm]
+python -m tt_shorts.engine still  stories/24886.json               # one PNG per scene, no video
+python -m tt_shorts.engine qa     out/24886-news-cards-page.mp4    # size, length, loudness + a contact sheet
+python -m tt_shorts.engine voices --story stories/24886.json       # Gemini tone samples, by ear
+```
+
+- **Formats** (`tt_shorts/formats.py`, `formats/*.json`): a show is a named set of choices (look, captions, voice,
+  music, platform, length window). Built-in: `news`, `news-roll`. A new show is a JSON file, no code. Which show
+  uses which format is the owner's and the agent's decision.
+- **Skills** for agents (`.claude/skills/`): `tt-shorts-make-video`, `tt-shorts-write-script`, `tt-shorts-qa`,
+  `tt-shorts-formats`.
+- The voice is cached per story (`work/<id>-voice-<engine>/`): another look or caption design costs no new TTS.
+
 ## Brand (v1.2, https://tbilisi.today/brand)
 
 - Canvas `#05080F`, panel `#0B0F17`, ink `#F8FAFC`, secondary `#A7B0BD`, one red `#EF4444`, line `rgba(248,250,252,.12)`.

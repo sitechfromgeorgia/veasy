@@ -6,6 +6,9 @@ project. It is not a Worker: nothing here deploys through Workers Builds, and it
 - **Where it runs:** the tbilisi.today agent server, 84.46.250.149. Setup is `ops/install.sh`.
   - Secrets live only in `video/data/.env` (chmod 600, git-ignored).
   - Timers, cron and anything installed on the server need the owner's OK.
+- **Entry point:** `python -m tt_shorts.engine` (options, check, render, still, qa, write, voices, doctor; JSON out).
+  The skills in `.claude/skills/` say how an agent uses it. Keep the engine, the skills and `options` in step: a new
+  choice in code must appear in `engine.options()`, `formats.py` validation and the `tt-shorts-formats` skill.
 - **Data flow:** story JSON → `tt_shorts/props.py` (voice, timings, data) → `remotion/` composition `NewsShort` → mp4.
   - The writer (an LLM) fills only text fields.
   - Layout, motion, date, sources, QR and colors are code.
