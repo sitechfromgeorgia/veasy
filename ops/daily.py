@@ -21,6 +21,21 @@ from tt_shorts.sources import tbilisi_today  # noqa: E402
 SIG = pathlib.Path("/root/sitech/scratch/story-significance/significance-map.json")  # optional ranking hint
 
 
+LOOKS = {
+    "hard": ("editorial", "cards"),
+    "light": ("kinetic", "editorial"),
+    "service": ("cards", "editorial"),
+}
+FAMILY = {"politics": "hard", "world": "hard", "crime": "hard", "sports": "light", "culture": "light",
+          "economy": "service", "tech": "service", "society": "service", "education": "service"}
+
+
+def look_for(category: str, index: int) -> str:
+    """Rotate among the looks that fit the story, so consecutive videos do not look identical."""
+    options = LOOKS[FAMILY.get(category, "service")]
+    return options[index % len(options)]
+
+
 def scores():
     try:
         return json.loads(SIG.read_text(encoding="utf-8")).get("scores", {})
@@ -42,7 +57,9 @@ def main():
     out = {"picks": [{"id": c["id"], "category": c["category"], "sources": c["source_count"],
                       "headline": c["headline"][:80]} for c in picks]}
     if not a.dry_run:
-        out["queued"] = [queue.add(a.brand, "tbilisi-today", c["id"], a.format, priority=len(picks) - i)[0]["id"]
+        out["queued"] = [queue.add(a.brand, "tbilisi-today", c["id"], a.format,
+                                   overrides={"look": look_for(c["category"], i)},
+                                   priority=len(picks) - i)[0]["id"]
                          for i, c in enumerate(picks)]
         out["run"] = queue.run(a.run) if a.run else None
     print(json.dumps(out, ensure_ascii=False, indent=1))

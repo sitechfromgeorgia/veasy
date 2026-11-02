@@ -227,7 +227,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     story.pop("sources", None)
     story.pop("date", None)
     story.setdefault("category", cluster.get("category", "general"))
-    _tidy_end(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
+    _tidy_end(story)
+    _wrap_hook(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
     # identity is added once, after every model pass (see below)
     problems = _checks(story, articles, cluster)
     if not _anchors_ok(story):
@@ -245,6 +246,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         story.pop("date", None)
         story.setdefault("category", cluster.get("category", "general"))
         _tidy_end(story)
+        _wrap_hook(story)
         problems = _checks(story, articles, cluster)
         if not _anchors_ok(story):
             problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")

@@ -14,7 +14,7 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
   const { v, props } = useTheme();
   const lines = s.lines ?? [];
   const kinetic = v === "kinetic";
-  const size = fitSize(lines, inner - (kinetic ? 48 : 8), kinetic ? 176 : 160, 62);
+  const size = fitSize(lines, (inner - (kinetic ? 48 : 8)) * 0.92, kinetic ? 176 : 160, 44);
   const bar = useIn(8 + lines.length * 5, 22, 120);
   return (
     <Frame s={s} head={false}>
