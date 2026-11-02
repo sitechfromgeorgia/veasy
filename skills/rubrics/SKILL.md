@@ -11,7 +11,7 @@ a part. A rubric's video draws a chip in the hook, „დღის ციფრ�
 
 | id | chip | what | shape | slot |
 |---|---|---|---|---|
-| `digest` | დილის N ამბავი · #e | 2-3 checked stories in one 45-60 s video; no writer | hook, chapter + its scenes per story, end | 08:00 |
+| `digest` | დილის N ამბავი · #e | 2-3 checked stories in one 45-60 s video; no writer | the first story's hook + its scenes, chapter + its scenes per later story, end | 08:00 |
 | `changes` | რა იცვლება · #e | service news with a date and a price, a rule or a place | hook, 2-4 scenes (one dated: timeline, rail or steps), end | 10:00 |
 | `number` | დღის ციფრი · #e | one stated number of 100+ (or a percent), 20-25 s | hook, stat/change/share/compare, 1-2 scenes, end | 13:00 |
 | `agree` | ადასტურებს N გამოცემა · #e | the facts literally in 3+ member articles; „მინიმუმ N“ | hook, agree, 0-2 scenes, end | 16:00 |
@@ -49,9 +49,11 @@ Tools: `veasy_rubrics` (list, facts, stamp); `veasy_write` and `veasy_queue` tak
   in at least 3: the same number with the same word, day and month, time, place or quote. The agree scene shows up to
   3 of them, `n` is the smallest count („მინიმუმ 4“, never „all“), the narration says „მინიმუმ“ and N in words, and no
   outlet is named or called by a side anywhere in the video.
-- **Digest:** source `stories`, program `digest`, no model. Code re-checks each story, opens each with a chapter
-  card (its number of the total, its category, its own hook lines), takes its first sentences up to its outlets line
-  and its scenes that start there (at most 2), adds the intro („დილის ორი ამბავი ერთ ვიდეოში: ...“) and the outro, and
+- **Digest:** source `stories`, program `digest`, no model. Code re-checks each story. The video opens on the first
+  story's own hook (frame 0 is a real headline; the chip says „დილის N ამბავი“), and every later story opens with a
+  chapter card (its number of the total, its category, its own hook lines). Code takes each story's first sentences
+  up to its outlets line and its scenes that start there (at most 2), adds the intro („დილის ორი ამბავი ერთ
+  ვიდეოში.“) and the outro, and
   grows the sentences until the estimate is 47-57 s. The label says the real count: 2 stories make „დილის 2 ამბავი“.
   Mixed brands and a story twice are refused. The whole digest is checked again (news rules, Georgian, timing).
 

@@ -116,9 +116,10 @@ class Shape(unittest.TestCase):
         self.assertFalse(rubrics._match(["hook", "stat", "end"], n))  # 1-2 scenes after the number
         self.assertFalse(rubrics._match(["hook", "where", "stat", "end"], n))  # the number first
         d = rubrics.get("digest")["shape"]
-        self.assertTrue(rubrics._match(["hook", "chapter", "stat", "chapter", "quote", "end"], d))
-        self.assertTrue(rubrics._match(["hook", "chapter", "chapter", "chapter", "end"], d))
-        self.assertFalse(rubrics._match(["hook", "chapter", "end"], d))  # at least two stories
+        self.assertTrue(rubrics._match(["hook", "stat", "chapter", "quote", "end"], d))  # story 1 opens on the hook
+        self.assertTrue(rubrics._match(["hook", "chapter", "stat", "chapter", "quote", "end"], d))  # three stories
+        self.assertFalse(rubrics._match(["hook", "chapter", "chapter", "chapter", "end"], d))  # at most three
+        self.assertFalse(rubrics._match(["hook", "stat", "end"], d))  # at least two stories
 
     def test_the_demos_pass(self):
         self.assertEqual(rubrics.story_problems(NUMBER), [])
@@ -283,9 +284,11 @@ class Digest(Home):
     def test_two_stories_in_the_window(self):
         items = self.items(("stories/24835.json", FIXTURES["24835"]), ("stories/24725.json", FIXTURES["24725"]))
         s = digest.build(self.data(items), rubrics.get("digest"), "tbilisi-today")
-        self.assertTrue(s["narration"].startswith("დილის ორი ამბავი ერთ ვიდეოში: საზოგადოება და მსოფლიო."))
-        self.assertEqual([x["type"] for x in s["scenes"]][:2], ["hook", "chapter"])
-        self.assertEqual([x.get("n") for x in s["scenes"] if x["type"] == "chapter"], [1, 2])
+        self.assertTrue(s["narration"].startswith("დილის ორი ამბავი ერთ ვიდეოში. ვარკეთილსა და ვაზისუბანში"))
+        hook = s["scenes"][0]  # frame 0 is the first story's own headline, not a list of categories
+        self.assertEqual((hook["type"], hook["kicker"], hook["lines"]),
+                         ("hook", "საზოგადოება", load("stories/24835.json")["scenes"][0]["lines"]))
+        self.assertEqual([(x["n"], x["of"]) for x in s["scenes"] if x["type"] == "chapter"], [(2, 2)])
         secs = digest._seconds(s)
         self.assertTrue(47 <= secs <= 57, secs)
         s.update(program="digest", rubric="digest", episode=1)
@@ -298,7 +301,7 @@ class Digest(Home):
         s = digest.build(self.data(items), rubrics.get("digest"), "tbilisi-today")
         s.update(program="digest", rubric="digest", episode=1)
         self.assertIn("დილის სამი ამბავი", s["narration"])
-        self.assertEqual([x["of"] for x in s["scenes"] if x["type"] == "chapter"], [3, 3, 3])
+        self.assertEqual([(x["n"], x["of"]) for x in s["scenes"] if x["type"] == "chapter"], [(2, 3), (3, 3)])
         self.assertTrue(45 <= digest._seconds(s) <= 60)
         self.assertEqual(engine.check_story(s, self.data(items)["articles"]), [])
         self.assertEqual(rubrics.chip(s), "დილის 3 ამბავი · #1")

@@ -2,12 +2,13 @@
 
 Code joins what already passed the checks; nothing new is written about the news:
   - each story is checked again with its own articles (engine.check_story); one with problems is refused;
-  - the narration is a short intro (the rubric's words: „დილის ორი ამბავი ერთ ვიდეოში: საზოგადოება და
-    მსოფლიო.“), then each story's first sentences, then the outro („დეტალები იხილე <site>-ზე.“) and the
-    brand's call to action; a story's sentences are taken only from its narration before its outlets line
-    (the sources scene) or its end card;
-  - each story opens with a chapter card (its number of the total, its category, its own hook lines) at its first
-    words, and keeps its own content scenes whose first words fall in the sentences taken (at most 2 per story;
+  - the narration is a short intro (the rubric's words: „დილის ორი ამბავი ერთ ვიდეოში.“), then each story's
+    first sentences, then the outro („დეტალები იხილე <site>-ზე.“) and the brand's call to action; a story's
+    sentences are taken only from its narration before its outlets line (the sources scene) or its end card;
+  - the opening is the first story's own hook (its category and its checked lines), so frame 0 shows a real
+    headline, not a list of categories; the rubric's chip above it says „დილის N ამბავი“. Every later story opens
+    with a chapter card (its number of the total, its category, its own hook lines) at its first words;
+  - each story keeps its own content scenes whose first words fall in the sentences taken (at most 2 per story;
     one whose part became too short for its brush, or whose mark the part no longer says, loses it);
   - length control: every story starts with its first sentence; while the estimated length (speech.estimate_words,
     the timing the checks use) is under the format's minimum + 2 s, the story that has said the least gets its
@@ -88,13 +89,6 @@ def _seconds(story):
         return None
 
 
-def _topics(labels, words):
-    seen = list(dict.fromkeys(labels))
-    if len(seen) == 1:
-        return seen[0]
-    return ", ".join(seen[:-1]) + f" {words.get('and', 'და')} {seen[-1]}"
-
-
 def compose(items, counts, rubric, brand, cluster):
     """One digest story from the checked stories (items: [{"story", "articles"}]) taking counts[i] sentences of
     story i. Pure apart from the brand pack."""
@@ -103,22 +97,23 @@ def compose(items, counts, rubric, brand, cluster):
     words = rubric.get("words") or {}
     n = len(items)
     labels = [meta.category_label(it["story"].get("category", ""), b) for it in items]
-    intro = words["intro"].format(count=(words.get("count") or {}).get(str(n), str(n)),
-                                  topics=_topics(labels, words))
+    intro = words["intro"].format(count=(words.get("count") or {}).get(str(n), str(n)))
     outro = words["outro"].format(site=b["wordmark"]["text"])
     sid = f"digest-{cluster['id']}"
     cta = meta.cta_for(sid, b)
-    scenes = [{"type": "hook", "at": _first_words(intro, 2), "kicker": words.get("kicker") or labels[0],
-               "lines": list(dict.fromkeys(labels))[:3]}]
-    parts, say = [intro], {}
+    scenes, parts, say = [], [intro], {}
     for k, (it, take) in enumerate(zip(items, counts)):
         st = it["story"]
         said = body(st)[:take]
         text = " ".join(said)
         say.update(st.get("say") or {})
         hook = next((s for s in st.get("scenes") or [] if s.get("type") == "hook"), {})
-        scenes.append({"type": "chapter", "at": _first_words(said[0]), "kicker": labels[k], "n": k + 1, "of": n,
-                       "lines": list(hook.get("lines") or [said[0]])})
+        lines = list(hook.get("lines") or [said[0]])
+        if k == 0:  # the opening is the first story's own headline, from the intro on
+            scenes.append({"type": "hook", "at": _first_words(intro, 2), "kicker": labels[0], "lines": lines})
+        else:
+            scenes.append({"type": "chapter", "at": _first_words(said[0]), "kicker": labels[k], "n": k + 1, "of": n,
+                           "lines": lines})
         rest = " ".join(said[1:])
         own = 0
         for s in st.get("scenes") or []:

@@ -1,7 +1,7 @@
 {
  "id": "digest",
  "label": "დილის {n} ამბავი",
- "about": "The Morning Digest: 2-3 stories that already passed their checks, in one 45-60 s video; code joins their first sentences into one narration (no writer) with a chapter card per story, and the result is checked again.",
+ "about": "The Morning Digest: 2-3 stories that already passed their checks, in one 45-60 s video; code joins their first sentences into one narration (no writer), opening on the first story's own headline with a chapter card for each later story; and the result is checked again.",
  "numbering": "episode",
  "count": "stories",
  "program": "digest",
@@ -11,7 +11,6 @@
  "never": [],
  "shape": [
   {"types": ["hook"]},
-  {"types": ["chapter"]},
   {"types": "any", "min": 0, "max": 2},
   {"types": ["chapter"]},
   {"types": "any", "min": 0, "max": 2},
@@ -24,10 +23,8 @@
   "Each story keeps its own checked scenes whose first words fall in the sentences taken."
  ],
  "words": {
-  "kicker": "მოკლე მიმოხილვა",
   "count": {"2": "ორი", "3": "სამი"},
-  "intro": "დილის {count} ამბავი ერთ ვიდეოში: {topics}.",
-  "and": "და",
+  "intro": "დილის {count} ამბავი ერთ ვიდეოში.",
   "outro": "დეტალები იხილე {site}-ზე."
  }
 }

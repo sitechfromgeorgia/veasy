@@ -114,8 +114,9 @@ scenes `agree` and `chapter`, rule N12, tool `veasy_rubrics`, skill `veasy:rubri
   compared with the latest stored part.
 - Agree counts per outlet; a fact is the same number + word stem, day and month, time, gazetteer place or verbatim
   quote; N is the smallest count shown. Agree and chapter are filled by code (no writer schema line).
-- The digest takes 2-3 stories (owner's lead, 2026-11-03: never claim three when there are two); its label is
-  „დილის N ამბავი“. Demos: `stories/rubric-24835-number.json`, `stories/digest-2026-11-01.json` (24835 + 24725).
+- The digest takes 2-3 stories (2026-11-03: never claim three when there are two); its label is
+  „დილის N ამბავი“. It opens on the first story's own hook, so frame 0 is a headline (a first version opened on
+  the category names, which said nothing), and a chapter card opens every later story. Demos: `stories/rubric-24835-number.json`, `stories/digest-2026-11-01.json` (24835 + 24725).
   A real three-story demo needs a third cluster's articles, which only the server's D1 has.
 
 The spec it was built to:

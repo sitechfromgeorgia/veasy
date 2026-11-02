@@ -204,7 +204,8 @@ time slot and an episode number, drawn as a chip in the hook („დღის �
 - The writer gets the rubric's brief and shape; code stamps `rubric`, `episode` (reserved per brand and rubric,
   idempotent per story, released when the job fails) and `part`, never the writer.
 - The **digest** (program `digest`, source `stories`) has no writer: code joins 2-3 checked stories' first sentences
-  with a `chapter` card each, grows them to 47-57 s and checks the whole again; the label states the real count.
+  (it opens on the first story's own hook, every later story on a `chapter` card), grows them to 47-57 s and checks
+  the whole again; the label states the real count.
 - `write --rubric`, `queue add --rubric`, `engine rubrics list|facts|stamp`, `ops/daily.py --rubrics`.
   `stories/rubric-24835-number.json` and `stories/digest-2026-11-01.json` (24835 + 24725) are the demos.
 
