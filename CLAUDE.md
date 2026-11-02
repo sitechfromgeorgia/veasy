@@ -21,8 +21,8 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
 - **Where it runs:** the tbilisi.today agent server, 84.46.250.149. Setup is `ops/install.sh`.
   - Secrets live only in `data/.env` (chmod 600, git-ignored).
   - Timers, cron and anything installed on the server need the owner's OK.
-- **Entry point:** `python -m tt_shorts.engine` (options, check, render, still, qa, write, queue, gc, voices, doctor;
-  JSON out).
+- **Entry point:** `python -m tt_shorts.engine` (options, check, plan, render, still, qa, probe, write, queue, gc,
+  voices, doctor; JSON out). `plan` is the free storyboard to run before paying for a voice.
   The skills in `skills/` say how an agent uses it. Keep the engine, the skills and `options` in step: a new
   choice in code must appear in `engine.options()`, `formats.py` validation and the `veasy:formats` skill.
 - **A new scene type** goes in all of these (`tests/test_scenes.py` and `test_engine.py` check the first three agree):
@@ -33,7 +33,10 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   brand, remembered in `veasy.db`), and the writer sees the scene orders used lately. A new layout or motion goes in
   as one more option there (and in `remotion/src`), never as a replacement of the others; `tests/test_variety.py`
   checks a run uses every option evenly. The writer draws (`art.py`: sanitize + quality; a failing drawing is
-  dropped, not the video); `VEASY_WRITER_DRAW=0` turns it off.
+  swapped for a library one of its motif, `drawings.py`, else dropped, not the video); `VEASY_WRITER_DRAW=0` turns
+  it off. A new seed drawing in `assets/drawings/` must pass both (`tests/test_drawings.py`).
+- **Motion rules** (`tt_shorts/motion_rules.py`): warnings in `engine plan`; only unreadable text (0.5 s + 0.3 s a
+  word) holds a render. A new rule needs a case in `tests/test_motion_rules.py`.
 - **Data flow:** source → story JSON → `tt_shorts/props.py` (voice, timings, data, the brand pack) → `remotion/`
   composition `NewsShort` → mp4.
   - The writer (an LLM) fills only text fields.

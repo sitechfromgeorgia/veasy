@@ -112,6 +112,9 @@ the safe zone or the news rules.
 
 ## 3. Storyboard before paying, motion rules as checks, a drawing library
 
+Done on 2026-11-02: `engine plan` (`tt_shorts/plan.py`, tool `veasy_plan`), `tt_shorts/motion_rules.py`,
+`tt_shorts/drawings.py` with 18 seeds in `assets/drawings/`. The spec it was built to:
+
 - **`engine plan <story>` (B2).** A free storyboard that runs before any voice is paid for:
   - per-scene times, words and reading load (each text on screen ≥ 0.5 s + 0.3 s per word);
   - the variety picks;
