@@ -159,7 +159,8 @@ def chrome():
 
 
 def _remotion(args, work):
-    cmd = ["npx", "remotion", *args, f"--props={work / 'props.json'}", f"--public-dir={work / 'public'}", "--log=error"]
+    npx = shutil.which("npx") or "npx"  # npx.cmd on Windows, which a bare "npx" can't start
+    cmd = [npx, "remotion", *args, f"--props={work / 'props.json'}", f"--public-dir={work / 'public'}", "--log=error"]
     if chrome():
         cmd.append(f"--browser-executable={chrome()}")
     subprocess.run(cmd, cwd=REMOTION, check=True)
