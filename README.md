@@ -25,11 +25,12 @@ bash /root/.hermes/shared-plugins/veasy/ops/install.sh --align    # the engine's
 ```
 
 What the agent gets:
-- **Tools:** `veasy_options`, `veasy_check`, `veasy_render`, `veasy_still`, `veasy_qa`, `veasy_write`,
-  `veasy_queue` and `veasy_doctor`.
+- **Tools:** `veasy_options`, `veasy_check`, `veasy_render`, `veasy_still`, `veasy_qa`, `veasy_package`,
+  `veasy_write`, `veasy_queue` and `veasy_doctor`.
   - Each runs the engine in its own venv and returns its JSON.
   - A render takes a minute or two; the agent needs none of the render libraries.
-- **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:formats`, `veasy:queue`, `veasy:brands`.
+- **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:package`, `veasy:formats`, `veasy:queue`,
+  `veasy:brands`.
 - **A one-line hint** on the first turn; turn it off with `VEASY_HINT=0`.
 
 Frames are rendered with [Remotion](https://github.com/remotion-dev/remotion) (React; `remotion/`). Python
@@ -50,6 +51,7 @@ python -m tt_shorts.engine check  <story.json> --sources <story>.sources.json
 python -m tt_shorts.engine render <story.json> --format news [--look kinetic] [--captions roll] [--voice warm]
 python -m tt_shorts.engine still  <story.json>                     # one PNG per scene, no video
 python -m tt_shorts.engine qa     <file.mp4>                       # size, length, loudness + a contact sheet
+python -m tt_shorts.engine package <file>.json [--only srt,texts]  # one render -> every surface (below), no new voice
 python -m tt_shorts.engine queue  add --ref 24886 | list | run | show <id> | retry <id> | cancel <id>
 python -m tt_shorts.engine gc     [--dry-run]                      # retention (below)
 python -m tt_shorts.engine voices --story <story.json>             # Gemini tone samples, by ear
@@ -61,6 +63,13 @@ python -m tt_shorts.engine voices --story <story.json>             # Gemini tone
 - **Sources** (`tt_shorts/sources/`): where a story's facts come from. `tbilisi-today` (ref = a D1 cluster id) and
   `text` (ref = a JSON file `{"cluster": {...}, "articles": [...]}`, for any client). A new source is one module
   with `fetch(ref)`.
+- **One story, every surface** (`tt_shorts/package.py`, `veasy:package`): from a finished render, with no TTS and
+  no model call, `<render>-package/` gets `captions.srt`/`.vtt` (the video's caption pages), `cover.png` (the hook
+  at its most complete frame), a 4:5 carousel `carousel-01..0N.png` (5-7 slides, Remotion composition `Slide`:
+  each scene's own component at its final frame, checked pixel by pixel for anything outside its box),
+  `teaser.mp4` (6-10 s: the hook and the end card, cut by ffmpeg), `texts.json` (YouTube title and description,
+  Instagram, Facebook and TikTok captions, by code, through `ka_check`'s screen rules) and `telegram.md`. The
+  pack's `package` key holds the words and hashtags.
 - What comes next (new visual blocks, render server, more outputs, the decisions needed): [ROADMAP.md](ROADMAP.md).
 - **Georgian gate: [kaeasy](https://github.com/sitechfromgeorgia/kaeasy)** (`tt_shorts/kaeasy.py`).
   - It is loaded from the plugin folder every agent shares (`KAEASY_DIR`), so a new rule there reaches the videos.
@@ -80,6 +89,7 @@ One home, `$VEASY_HOME` (default `<veasy>/data`; `SHORTS_DATA` is still read), w
 veasy.db                                     the job queue and the cost ledger (SQLite)
 stories/<brand>/<day>/<ref>.json             a story; <ref>.sources.json beside it (the articles)
 renders/<brand>/<day>/<ref>-<format>-<look>-<captions>.mp4   + .json (what was rendered) + .sheet.jpg (QA)
+                                             + .props.json (what Remotion drew) + -package/ (engine package)
 cache/voices/<sha16>/                        one voice per (engine, voice, style, spoken text): re-renders are free
 cache/work/<job>/                            render scratch, deleted after a good render
 logs/<day>.jsonl                             one JSON line per event (queued, written, rendered, failed, gc)
@@ -163,6 +173,7 @@ Below y=1100, no text goes right of x=940 (the like/share rail).
 | Music: a news bed per category family, written from scratch (clock tick, e-piano, pad), with an even level (≤1 dB bar to bar) | done (`tools/compose_music.py`) |
 | Brand packs (`brands/`: tbilisi-today, sitech), storage layout, job queue, sources (tbilisi-today, text) | done (2026-11-02) |
 | Writer, daily run | done; the server timer waits for the owner's OK |
+| `engine package`: SRT/VTT, cover, 4:5 carousel, teaser, platform texts, Telegram post | done (2026-11-02) |
 | Auto-publishing to YouTube / Meta / TikTok, Telegram kill switch | phase 2 |
 
 ## The writer (phase 1): free first, DeepSeek v4.1 Flash only when needed

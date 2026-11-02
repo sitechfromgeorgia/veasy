@@ -5,6 +5,10 @@
       veasy.db                       the job queue and the cost ledger (SQLite)
       stories/<brand>/<day>/<ref>.json            a story script; <ref>.sources.json beside it (the articles)
       renders/<brand>/<day>/<ref>-<format>-<look>-<captions>.mp4   + .sheet.jpg (QA) + .json (what was rendered)
+                                     + .props.json (what Remotion drew: timings, captions, the pack)
+      renders/<brand>/<day>/<ref>-<format>-<look>-<captions>-package/   `engine package`: one render's publishing
+                                     kit (captions.srt/.vtt, cover.png, carousel-NN.png, teaser.mp4, texts.json,
+                                     telegram.md); kept and deleted with its render
       cache/voices/<sha16>/          one voice + its word timings per (engine, voice, style, spoken text)
       cache/work/<job>/              render scratch, deleted after a good render
       logs/<day>.jsonl               one JSON line per event (queued, rendered, failed, gc...)
@@ -67,6 +71,18 @@ def render_path(brand, ref, fmt, look, captions, day=None):
     return p
 
 
+def props_path(render):
+    """The Remotion props of a render, beside its mp4: <render>.props.json."""
+    return pathlib.Path(render).with_suffix(".props.json")
+
+
+def package_dir(render):
+    """The publishing kit of a render (its .mp4 or .json): <render>-package/ beside it."""
+    r = pathlib.Path(render)
+    stem = next((r.name[:-len(s)] for s in (".props.json", ".json", ".mp4") if r.name.endswith(s)), r.stem)
+    return r.with_name(f"{stem}-package")
+
+
 def voice_dir(key):
     """The cache folder of one voice track: the key names engine, voice, style and the exact spoken text."""
     p = home() / "cache" / "voices" / hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
@@ -104,7 +120,7 @@ def gc(dry_run=False, now=None):
     targets = {
         "work": [p for p in (h / "cache" / "work").glob("*") if p.is_dir()],
         "voices": [p for p in (h / "cache" / "voices").glob("*") if p.is_dir()],
-        "renders": [p for p in (h / "renders").glob("*/*/*") if p.is_file()],
+        "renders": [p for p in (h / "renders").glob("*/*/*") if p.is_file() or p.name.endswith("-package")],
         "logs": [p for p in (h / "logs").glob("*.jsonl")],
     }
     removed = {}

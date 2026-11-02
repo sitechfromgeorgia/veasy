@@ -85,6 +85,16 @@
   "card_meta": "{n} წყარო · {time}",
   "category_default": "ამბები"
  },
+ "package": {
+  "about": "engine package (tt_shorts/package.py): the words of the publishing kit's texts and the pack's hashtags (3+; the category's own tag comes first)",
+  "more": "დეტალები: {url}",
+  "link_in_bio": "დეტალები: ბმული პროფილშია",
+  "hashtags": [
+   "#ამბები",
+   "#საქართველო",
+   "#სიახლეები"
+  ]
+ },
  "months": [
   "იანვარი",
   "თებერვალი",

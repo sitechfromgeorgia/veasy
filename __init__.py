@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SKILLS_DIR = ROOT / "skills"
-TIMEOUTS = {"render": 1500, "write": 900, "still": 600, "queue": 3600}
+TIMEOUTS = {"render": 1500, "write": 900, "still": 600, "queue": 3600, "package": 900}
 
 HINT = (
     "[veasy] If this turn involves making, checking or fixing a video (a Short, a reel, a story video), first load "
@@ -108,6 +108,17 @@ TOOLS = {
                  "Check a rendered video (size, length, loudness) and write a contact sheet of frames. "
                  "Never publish with problems.",
                  lambda a: _engine("qa", [a["video"]] + _flags(a, ("format",)))),
+    "veasy_package": ({"type": "object", "properties": {
+                          "render": {"type": "string", "description": "The render's .json manifest (beside its mp4), "
+                                     "or the mp4 itself."},
+                          "only": {"type": "string", "description": "Comma-separated subset of srt, vtt, cover, "
+                                   "carousel, teaser, texts, telegram (default all)."}},
+                       "required": ["render"]},
+                      "One finished render -> everything a publisher needs, with no new voice and no model call: "
+                      "SRT/VTT captions, a cover PNG, a 4:5 carousel (5-7 PNGs), a 6-10 s teaser, texts.json "
+                      "(YouTube title + description, Instagram, Facebook, TikTok) and a Telegram post, in "
+                      "<render>-package/. Seconds; problems must be empty.",
+                      lambda a: _engine("package", [a["render"]] + _flags(a, ("only",)))),
     "veasy_write": ({"type": "object", "properties": {
                         "source": {"type": "string", "enum": ["tbilisi-today", "text"],
                                    "description": "tbilisi-today (ref = a cluster id) or text (ref = a JSON file with "

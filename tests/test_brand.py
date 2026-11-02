@@ -42,6 +42,14 @@ class Packs(unittest.TestCase):
         self.assertEqual(st["_logo"]["header"].rsplit("/", 1)[-1], "logo-horizontal.svg")
         self.assertIsNone(tt["_logo"])  # the t-mark is drawn in code
 
+    def test_package_words_come_from_the_base_and_the_pack(self):
+        tt, st = brand.load("tbilisi-today"), brand.load("sitech")
+        self.assertIn("{url}", tt["package"]["more"])  # from _ka
+        self.assertEqual(tt["package"]["link_in_bio"], st["package"]["link_in_bio"])
+        self.assertIn("#tbilisitoday", tt["package"]["hashtags"])
+        self.assertIn("#SiTech", st["package"]["hashtags"])
+        self.assertNotIn("#tbilisitoday", st["package"]["hashtags"])  # a pack's tags stay its own
+
     def test_base_months_reach_both_packs(self):
         for n in brand.names():
             self.assertEqual(meta.ka_date("2026-11-01T18:38:46Z", n)["date"], "1 ნოემბერი 2026")
@@ -71,6 +79,10 @@ class Packs(unittest.TestCase):
             "badvoice": {**good, "voice_by_family": {f: "Charon" for f in brand.FAMILIES}},
             "nologo": {**good, "logo": {"kind": "svg", "header": "missing.svg"}},
             "noid": {**good, "link": {"display": "x", "qr": "https://x.ge/"}},
+            # engine package's words: a link line needs {url}; hashtags start with # and are 3+ different ones
+            "nourl": {**good, "package": {"more": "დეტალები საიტზე"}},
+            "badtags": {**good, "package": {"hashtags": ["#ამბები", "საქართველო", "#ა ბ"]}},
+            "fewtags": {**good, "package": {"hashtags": ["#ამბები", "#ამბები", "#x"]}},
         }
         with tempfile.TemporaryDirectory() as d:
             d = pathlib.Path(d)

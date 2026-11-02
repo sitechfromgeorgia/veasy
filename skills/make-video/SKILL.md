@@ -55,6 +55,12 @@ python -m tt_shorts.engine render <story.json> --format news
 
 `python -m tt_shorts.engine qa <file.mp4> --format news`, then follow `veasy:qa`.
 
+## 5. Every other surface (free, seconds)
+
+`python -m tt_shorts.engine package <file>.json` (the render's manifest): subtitles, a cover, a 4:5 carousel, a
+teaser, the platforms' titles and captions and a Telegram post, from the same render with no new voice. See
+`veasy:package`.
+
 ## Hard rules (the engine enforces most; don't work around them)
 
 - The brand pack draws the colors, logo, link and words: one accent color for the dot, the active state and the

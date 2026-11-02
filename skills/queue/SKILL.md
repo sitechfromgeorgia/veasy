@@ -37,6 +37,7 @@ veasy.db                                   the queue and the cost ledger (SQLite
 stories/<brand>/<day>/<ref>.json           the story; <ref>.sources.json beside it (the articles)
 renders/<brand>/<day>/<ref>-<format>-<look>-<captions>.mp4
                                            + .json (what was rendered, with which voice and kaeasy) + .sheet.jpg
+                                           + .props.json (what Remotion drew) + -package/ (veasy:package)
 cache/voices/<sha16>/                      one voice track per (engine, voice, style, spoken text): re-renders free
 cache/work/<job>/                          scratch, deleted after a good render
 logs/<day>.jsonl                           one JSON line per event (queued, written, rendered, failed, gc)
