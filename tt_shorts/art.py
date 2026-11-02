@@ -10,8 +10,10 @@ frame-accurate in a render). The problems it finds go back to the writer like an
     tree: [{"tag": "path", "attrs": {"d": "...", "stroke": "INK"}, "motion": "s", "delay": 0.4,
             "children": [...], "text": None}, ...]
 
-Tokens (the brand pack picks the colors): ACCENT (the ONE focal part), INK, MUTED, LINE, CANVAS, none.
-sitech-shorts' PAPER and COAL are read as INK and CANVAS.
+Tokens (the brand pack picks the colors): ACCENT (the dot on the ONE focal part), INK, MUTED, LINE, CANVAS, none.
+sitech-shorts' PAPER and COAL are read as INK and CANVAS. The brand's accent is only ever a dot (owner, 2026-11-03),
+so ACCENT stays only on a small circle (r <= DOT_MAX); anywhere else sanitize paints it INK, without sending the
+drawing back.
 """
 import re
 import xml.etree.ElementTree as ET
@@ -28,6 +30,8 @@ MAX_CHARS = 6000
 MAX_DELAY = 3.0
 MIN_ELEMENTS, MAX_ELEMENTS = 6, 60
 MAX_LABEL = 22
+DOT_MAX = 28  # px: the biggest circle the accent may fill (the frame's own dot is 28)
+MAX_DOTS = 3  # accent dots in one drawing: a focal point, or two lights of one thing
 _N = r"-?\d+(?:\.\d+)?"
 TRANSFORM = re.compile(rf"(\s*(translate|rotate|scale)\(\s*{_N}(\s*[ ,]\s*{_N}){{0,2}}\s*\)\s*)+")
 
@@ -38,7 +42,8 @@ GUIDE = """"draw" scene: draw what THIS story is about, as an SVG fragment in "s
 - Style: clean line art like a technical schematic. Mostly strokes (fill "none"), stroke-width 4-8, round caps
   and joins. Rounded rects (rx 10-24) for devices and buildings. 8-35 elements.
 - Colors: ONLY these tokens in fill and stroke: INK (main lines), MUTED (secondary details), LINE (faint
-  structure), CANVAS (solid fills that hide what is behind), ACCENT (the ONE focal part, small), none.
+  structure), CANVAS (solid fills that hide what is behind), ACCENT (only a small dot, a <circle> with r 8-28,
+  on the ONE focal part; never a fill, line or label), none.
 - Canvas: 0 0 952 640. Use most of it.
 - Labels: up to 4 <text>, font-size 26-40, font-weight 600-700, up to 18 characters, fill INK or MUTED, Georgian.
   A number in a label must be in the articles.
@@ -52,6 +57,18 @@ GUIDE = """"draw" scene: draw what THIS story is about, as an SVG fragment in "s
 def _token(v):
     v = ALIASES.get(v, v)
     return v if v in TOKENS else None
+
+
+def _dot(tag, attrs):
+    """A circle (or a round ellipse) small enough to be the brand's dot."""
+    try:
+        if tag == "circle":
+            return float(attrs.get("r", 0)) <= DOT_MAX
+        if tag == "ellipse":
+            return max(float(attrs.get("rx", 0)), float(attrs.get("ry", 0))) <= DOT_MAX
+    except ValueError:
+        pass
+    return False
 
 
 def _num(v, lo, hi):
@@ -133,6 +150,10 @@ def sanitize(fragment):
             children = []
         else:
             children = [c for c in (node(ch) for ch in el) if c]
+        if not _dot(tag, attrs):  # the accent is a dot or nothing: a red fill, line or label is ink
+            for k in ("fill", "stroke"):
+                if attrs.get(k) == "ACCENT":
+                    attrs[k] = "INK"
         return {"tag": tag, "attrs": attrs, "motion": motion, "delay": delay, "children": children, "text": text}
 
     tree = [c for c in (node(ch) for ch in root) if c]
@@ -237,7 +258,7 @@ def _walk(tree):
 
 def quality(tree):
     """What code can judge of a drawing nobody reviews: it is big enough to read on a phone, stays on its canvas,
-    builds up (motion with different delays) and keeps the accent for one focal part."""
+    builds up (motion with different delays) and keeps the accent for one focal part (at most MAX_DOTS dots)."""
     out = []
     pts = _box(tree)
     if not pts:
@@ -254,8 +275,8 @@ def quality(tree):
     if len(moving) < 3 or len({n["delay"] for n in moving}) < 2:
         out.append("draw: give at least 3 parts a motion class (r, p, s) with different --d delays, so it builds up")
     accent = [n for n in nodes if "ACCENT" in (n["attrs"].get("fill"), n["attrs"].get("stroke"))]
-    if len(accent) > 6:
-        out.append(f"draw: ACCENT is on {len(accent)} elements: keep it for the one focal part")
+    if len(accent) > MAX_DOTS:
+        out.append(f"draw: ACCENT is on {len(accent)} dots: keep one dot on the one focal part")
     return out
 
 

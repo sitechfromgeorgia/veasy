@@ -35,6 +35,23 @@ class Draw(unittest.TestCase):
         self.assertEqual(tree[4]["text"], "გაზის მილი 2026")
         self.assertEqual(tree[4]["attrs"]["fill"], "INK")  # a label without a fill is ink
 
+    def test_the_accent_is_only_ever_a_dot(self):  # owner, 2026-11-03: red fills in drawings are ink
+        tree, problems = art.sanitize(
+            '<circle cx="40" cy="40" r="14" fill="ACCENT" stroke="ACCENT"/>'  # a dot keeps its accent
+            '<ellipse cx="80" cy="40" rx="10" ry="12" fill="ACCENT"/>'
+            '<circle cx="40" cy="40" r="60" fill="ACCENT"/>'  # a big red disc is not the dot
+            '<path d="M0 0 L10 10" fill="ACCENT" stroke="ACCENT"/><rect x="1" y="1" width="9" height="9" fill="ACCENT"/>'
+            '<g stroke="ACCENT"><line x1="0" y1="0" x2="5" y2="5" stroke="INK"/></g>'
+            '<text x="1" y="1" fill="ACCENT">წითელი</text>')
+        self.assertEqual(problems, [])  # repainted, not sent back
+        paint = [(n["tag"], n["attrs"].get("fill"), n["attrs"].get("stroke")) for n in art._walk(tree)]
+        self.assertEqual(paint, [("circle", "ACCENT", "ACCENT"), ("ellipse", "ACCENT", None), ("circle", "INK", None),
+                                 ("path", "INK", "INK"), ("rect", "INK", None), ("g", None, "INK"),
+                                 ("line", None, "INK"), ("text", "INK", None)])
+        four = "".join(f'<circle class="p" style="--d:{i}s" cx="{100 + i * 10}" cy="100" r="6" fill="ACCENT"/>'
+                       for i in range(art.MAX_DOTS + 1))
+        self.assertTrue(any("ACCENT is on 4 dots" in p for p in art.quality(art.sanitize(four)[0])))
+
     def test_unsafe_or_off_brand_parts_are_removed_and_reported(self):
         bad = GOOD + ('<image href="x.png"/><script>alert(1)</script><rect onload="x()" x="1" y="1" width="2" height="2" '
                       'fill="#ff0000" class="spin" style="color:red" transform="matrix(1 0 0 1 0 0)"/>'
