@@ -14,6 +14,8 @@ prompt, the news rules N1-N5. Every other program is a JSON file in programs/<na
   category      optional: every video of the program has this category (law -> "law")
   link          brand | source: the end card's link and QR open the brand's story page, or the source document
                 (a law on matsne.gov.ge) when the source gives a URL
+  writer        model (default: the writer model, from the brief) | digest: code builds the story from stories that
+                already passed their checks (tt_shorts/digest.py), no model call
 
 A new program is a JSON file and a brief, no code; `python -m tt_shorts.engine options` lists them and fails loudly
 on a program the engine can't do. A story carries its program as "program" (set by the pipeline, like "brand").
@@ -32,7 +34,8 @@ DEFAULT = "news"
 TIERS = claims_check.TIERS
 PUBLISH = ("auto", "review")
 LINKS = ("brand", "source")
-KEYS = ("label", "about", "sources", "brief", "scenes", "rules", "format", "publish", "category", "link")
+KEYS = ("label", "about", "sources", "brief", "scenes", "rules", "format", "publish", "category", "link", "writer")
+WRITERS = ("model", "digest")
 REQUIRED = ("label", "sources", "rules", "format", "publish")
 MAX_SOURCE = 7000  # characters of the source the writer reads (a news cluster: 3 x 2 600)
 
@@ -84,11 +87,14 @@ def validate(name, p):
         bad(f"brief {brief!r} is not a file in programs/briefs/")
     if brief is None and name != DEFAULT and p["rules"] != "news":
         bad("only a news-tier program can use the news-cluster prompt (brief: null)")
+    writer = p.get("writer", "model")
+    if writer not in WRITERS:
+        bad(f"writer={writer!r} is not one of {', '.join(WRITERS)}")
     cat = p.get("category")
     if cat is not None and not re.fullmatch(r"[a-z][a-z-]*", str(cat)):
         bad(f"category {cat!r} must be a lowercase key")
     return {**p, "name": name, "scenes": scenes, "link": link, "brief": brief, "category": cat,
-            "about": p.get("about", "")}
+            "about": p.get("about", ""), "writer": writer}
 
 
 def load_all():
@@ -123,7 +129,8 @@ def of(story):
 
 def summary(p):
     """What `engine options` shows of a program."""
-    return {k: p[k] for k in ("label", "about", "sources", "rules", "scenes", "format", "publish", "category", "link")}
+    return {k: p[k] for k in ("label", "about", "sources", "rules", "scenes", "format", "publish", "category", "link",
+                              "writer")}
 
 
 def check_source(p, source):
@@ -256,7 +263,7 @@ def scene_schema(p, brand=None, director=None):
     return "\n".join(lines)
 
 
-def prompt(p, cluster, articles, avoid=None, brand=None, director=None, found=None):
+def prompt(p, cluster, articles, avoid=None, brand=None, director=None, found=None, extra=""):
     """The writer's prompt for a program that isn't news: the Georgian rulebook (K1-K22, not the news section),
     kaeasy's rules, the program's scenes and brief, the director's brief (directors.py), then the source."""
     from tt_shorts import directors, kaeasy, writer
@@ -271,7 +278,7 @@ def prompt(p, cluster, articles, avoid=None, brand=None, director=None, found=No
     direction = directors.brief_block(director, found, p["scenes"]) if director else ""
     return (f"{rules}\n\n{georgian + chr(10) * 2 if georgian else ''}{scene_schema(p, brand, director)}\n\n"
             f"The program's brief (where it differs from the shape above, the brief wins):\n{brief(p)}\n\n"
-            f"{direction}{writer._variety_line(avoid)}"
+            f"{direction}{extra}{writer._variety_line(avoid)}"
             f"დაწერე ამ წყაროს ვიდეოს სცენარი (პროგრამა: {p['label']}).\n" + "\n".join(facts) +
             f"\nნებადართული რიცხვები (მხოლოდ ეს): {', '.join(allowed_numbers[:60]) or 'არცერთი'}\n\n"
             f"--- წყარო ---\n{body}")
@@ -292,10 +299,17 @@ def writer_checks(p, story, articles, cluster, brand=None):
     return out
 
 
-def write(p, data, brand=None, avoid=None, on_problems=None, director=None, facts=None):
+def write(p, data, brand=None, avoid=None, on_problems=None, director=None, facts=None, rubric=None, extra="",
+          more_checks=None):
     """A source's data -> a story written under the program's brief, scenes and rules (writer.write does the rest:
-    the model call, one or two repairs, the editor pass, identity from the data). on_problems: as writer.write's."""
+    the model call, one or two repairs, the editor pass, identity from the data). on_problems: as writer.write's.
+    A program whose writer is code (digest) builds the story without a model. rubric: its brief (extra) goes in the
+    prompt and more_checks(story) in the repair loop (engine.write_story, rubrics.py)."""
     from tt_shorts import writer
+    if p.get("writer") == "digest":
+        from tt_shorts import digest, rubrics
+        return digest.build(data, rubric or rubrics.get("digest"), brand)
+    checks = (lambda s, a, c: writer_checks(p, s, a, c, brand) + (more_checks(s) if more_checks else []))
     return writer.write(data["cluster"], data["articles"], avoid=avoid,
-                        make_prompt=lambda c, a, av: prompt(p, c, a, av, brand, director, facts),
-                        run_checks=lambda s, a, c: writer_checks(p, s, a, c, brand), on_problems=on_problems)
+                        make_prompt=lambda c, a, av: prompt(p, c, a, av, brand, director, facts, extra),
+                        run_checks=checks, on_problems=on_problems)

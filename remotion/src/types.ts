@@ -22,6 +22,7 @@ export type CaptionLayout = {
 // points and steps: plain strings
 export type Item = string | {
   name?: string; role?: string; title?: string; sub?: string; label?: string; value?: number; when?: string;
+  text?: string; count?: number; // agree: a fact and how many member articles state it (code counts them)
 };
 
 // tt_shorts/marks.py: a scene's voice-synced mark (its "em"), resolved in Python. field: the slot it sits in
@@ -121,6 +122,9 @@ export type Scene = SceneBase & {
   edge?: string; // link: the verb on the edge, said in the scene's narration (N11)
   em?: string; // the writer's phrase; what is drawn is `mark`
   mark?: MarkProps; // set by tt_shorts/props.py (speech.mark_frames)
+  n?: number; // agree: at least this many outlets state each fact · chapter: this story's number
+  of?: number; // chapter: how many stories the digest has
+  total?: number; // agree: the member articles code counted across
 };
 
 // tt_shorts/brand.py for_remotion(): the brand pack, without file paths
@@ -137,6 +141,7 @@ export type BrandProps = {
   strings: {
     outlets: string; source_one: string; source_many: string; covered_by: string[]; today: string;
     preview_edge: string; preview_silent: string; card_meta: string; category_default: string;
+    at_least: string; // "მინიმუმ {n}": the agree scene's count
   };
 };
 
@@ -167,5 +172,6 @@ export type ShortProps = {
   musicVolume: number;
   sourcesLine: string; // "წყარო: პირველი არხი, იმედი ნიუსი +5"
   previewNote: string | null; // e.g. the temporary preview voice, shown small above the ticker
+  rubric?: string | null; // tt_shorts/rubrics.py chip(): „დღის ციფრი · #12“, drawn in the hook (code's text)
   probe?: boolean; // tt_shorts/probe.py: report where every text block is (remotion/src/Probe.tsx)
 };

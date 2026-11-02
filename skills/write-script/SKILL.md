@@ -6,7 +6,7 @@ description: "Use when writing, repairing or reviewing the story JSON (narration
 # Write or repair a story script
 
 The script is `stories/<brand>/<day>/<ref>.json` under VEASY_HOME (`write` and the queue put it there). The full
-rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N10 news); this is the working summary. After every edit run
+rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N12 news); this is the working summary. After every edit run
 `python -m tt_shorts.engine check <story.json> --sources <story>.sources.json` until `problems` is empty.
 
 ## Shape
@@ -21,11 +21,11 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N10 news); this is the 
 - `at` is the exact first words of the narration where that scene starts, in order.
 - Scene types and fields: `python -m tt_shorts.engine options` → `scenes` (each type's brush, `brushes/<type>.json`:
   when to use it, its slots with their length limits, an example). First scene `hook`, last `end`.
-  `sources` needs no fields (it shows the outlets from the data). 3-7 scenes.
+  3-7 scenes.
 - On-screen texts have length limits (a kicker 24 characters, a headline 40, a hook line 24; the rest per slot):
   `check` names a text that is too long.
 
-## Which scene for what (20 types)
+## Which scene for what (22 types)
 
 | Type | Use it for | Fields |
 |---|---|---|
@@ -47,6 +47,7 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N10 news); this is the 
 | `points` | 2-3 separate points | items ["..."] |
 | `quote` | a verbatim quote with its speaker | text, by, via |
 | `draw` | a drawing of what the story is about: what makes each video look different | svg, label |
+| `agree`, `chapter` | rubrics only (`veasy:rubrics`) | code |
 | `sources` | the outlets (from the data) | nothing |
 | `end` | logo, QR, call to action | nothing |
 

@@ -3,6 +3,7 @@ import { interpolate, useCurrentFrame } from "remotion";
 import { CANVAS, fill, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import type { Scene } from "../types";
 import { MapWhere } from "./map";
+import { Agree, Chapter } from "./rubrics";
 import { Mark, marked } from "../marker";
 import { Compare, flapSize, Link, Rail, Share, StatNumber } from "./brushes";
 import { Bars, Change, Draw, Pair, Steps, Trend } from "./more";
@@ -35,6 +36,10 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
   const bar = opening ? 0.5 + 0.5 * grow : grow;
   return (
     <Frame s={s} head={false}>
+      {props.rubric && (
+        // the rubric's chip (tt_shorts/rubrics.py chip(): code's text), there from frame 0 like the kicker
+        <In><div style={{ marginBottom: 28 }}><Chip size={40}>{props.rubric}</Chip></div></In>
+      )}
       <In><Kicker text={s.kicker ?? props.category} /></In>
       <div style={{ marginTop: 48 }}>
         {lines.map((l, i) => {
@@ -353,5 +358,5 @@ export const End: React.FC<P> = () => {
 export const SCENES: Record<string, React.FC<P>> = {
   hook: Hook, stat: Stat, timeline: Timeline, where: Where, who: Who, points: Points, quote: Quote, sources: Sources, draw: Draw,
   pair: Pair, steps: Steps, bars: Bars, trend: Trend, change: Change, sign: Sign, share: Share, rail: Rail, compare: Compare,
-  link: Link, end: End,
+  link: Link, agree: Agree, chapter: Chapter, end: End,
 };

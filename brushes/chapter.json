@@ -1,0 +1,21 @@
+{
+ "type": "chapter",
+ "order": 15,
+ "what": "a digest's chapter card: the story's number of the total (1 / 3), its category and its checked hook lines",
+ "use_when": "only in the morning digest (program digest): code opens each story with one, never the writer",
+ "avoid_when": "any single-story video",
+ "pairs_with": ["stat", "where", "who", "quote", "timeline"],
+ "slots": {
+  "lines": {"kind": "list", "count": [1, 4], "of": {"kind": "text", "max": 24}, "required": true},
+  "n": {"kind": "num", "min": 1, "max": 3, "required": true},
+  "of": {"kind": "num", "min": 2, "max": 3, "required": true},
+  "kicker": {"kind": "text", "max": 24}
+ },
+ "families_deny": [],
+ "min_seconds": 2.5,
+ "min_words": 6,
+ "em": {"fields": [], "kinds": []},
+ "schema": null,
+ "rules": [],
+ "example": {"type": "chapter", "at": "ვარკეთილსა და", "kicker": "საზოგადოება", "n": 1, "of": 2, "lines": ["ვარკეთილსა და", "ვაზისუბანში", "გაზი შეწყდება"]}
+}

@@ -22,8 +22,13 @@ Every command prints JSON on stdout (human notes go to stderr), so an agent can 
                                                              # a source's story -> a checked story JSON
   python -m tt_shorts.engine write  --program law --source ordo --ref constitution:17   # a program (programs.py):
                                                              # explainer, law, blog... from url, pdf, ordo, sitech
-  python -m tt_shorts.engine queue  add --ref 24725 [--brand sitech] [--format news] | list | run [--max 5]
-                                    | show <id> | retry <id> | cancel <id>          # the job queue (queue.py)
+  python -m tt_shorts.engine write  --rubric number --ref 24835     # a rubric (rubrics.py): „დღის ციფრი · #12“...
+  python -m tt_shorts.engine write  --program digest --source stories --ref a.json,b.json   # the morning digest
+  python -m tt_shorts.engine queue  add --ref 24725 [--brand sitech] [--format news] [--rubric number] | list | run
+                                    [--max 5] | show <id> | retry <id> | cancel <id>   # the job queue (queue.py)
+  python -m tt_shorts.engine rubrics list [--brand] | facts --source --ref | stamp <story> --rubric <id> [--sources]
+                                                             # the rubrics: counters, which a cluster may be, a
+                                                             # hand-written story's episode (rubrics.py)
   python -m tt_shorts.engine voices [--story stories/24835.json] [--only warm,clear]   # tone samples by ear
   python -m tt_shorts.engine gc     [--dry-run]               # delete scratch, old renders, voices, logs (store.py)
   python -m tt_shorts.engine doctor                          # is this machine ready to render?
@@ -42,7 +47,7 @@ import sys
 
 from tt_shorts import brand as packs
 from tt_shorts import (captions, catalog, directors, formats, geo, icons, ka_check, kaeasy, meta, motion_rules,
-                       news_check, programs, props, speech, store, swipe, variety, voices)
+                       news_check, programs, props, rubrics, speech, store, swipe, variety, voices)
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -104,6 +109,7 @@ def options(brand_name=None):
                     "edge": "free preview stand-in (robotic; timing only)", "silent": "music and captions only"},
         "formats": every,
         "directors": directors.options(),
+        "rubrics": rubrics.options(),
         "programs": {n: programs.summary(p) for n, p in programs.load_all().items()},
         "sources": _sources_about(),
         "scenes": catalog.options(),  # every brush's card (brushes/<type>.json): slots, limits, when, an example
@@ -162,7 +168,7 @@ def structure_problems(story):
         p += [f"scene {i} ({t}): {x}" for x in shape_problems(s) + catalog.family_problems(s, family)]
     if "program" in story:  # a story without one is news, exactly as before programs
         p += programs.story_problems(story)
-    return p + icons.motif_problems(story) + directors.structure_problems(story)
+    return p + icons.motif_problems(story) + directors.structure_problems(story) + rubrics.story_problems(story)
 
 
 def _family(story):
@@ -261,6 +267,8 @@ def check_story(story, sources=None):
         p += programs.length_problems(story)  # and its format's length window
     elif texts:
         p += news_check.problems(story, texts)  # N1-N5, with N10 and N11
+    if news:
+        p += rubrics.length_problems(story)  # a news rubric's own window (number: 20-25 s)
     if texts and story.get("director"):  # the director's own gates (witness: both sides when both are quoted)
         p += directors.story_problems(story, directors.facts(texts, story.get("category", ""), packs.of(story)))
     if not (news and texts):  # N10 and N11 need no articles
@@ -380,8 +388,13 @@ def _format(a):
 
 
 def program_format(story_path):
-    """The format a story renders in when none is given: its program's (news: "news")."""
+    """The format a story renders in when none is given: its rubric's, else its program's (news: "news")."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
+    if story.get("rubric"):
+        try:
+            return rubrics.get(story["rubric"])["format"]
+        except rubrics.RubricError:
+            pass
     return programs.of(story)["format"] if "program" in story else "news"
 
 
@@ -491,14 +504,22 @@ def package_cmd(a):
 # ---------------------------------------------------------------- write / voices / doctor
 
 
-def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, director=None):
+def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, director=None, rubric=None):
     """A source reference -> a written, checked story file (+ its sources beside it). Used by `write` and the queue.
     program: news (default: the news-cluster writer, as before programs) or another program (programs.py), which
     writes from its brief, under its scenes and rule tier. Every failed writer pass is remembered (failures.py).
     director: force one (directors.py); by default variety.direct picks the least used eligible one from the facts
-    code finds in the articles, before the writer runs, and the story keeps it (a code-owned field, like date)."""
+    code finds in the articles, before the writer runs, and the story keeps it (a code-owned field, like date).
+    rubric: a rubric (rubrics.py): its eligibility must hold on the cluster's facts, the writer gets its brief and
+    shape, and code stamps the story's rubric and episode (and part) after writing; an agree scene's facts are
+    filled by code from all the member articles."""
     from tt_shorts import failures, sources as src, writer
     packs.load(brand)  # an unknown pack fails before any model call
+    r = rubrics.get(rubric) if rubric else None
+    if r:
+        if program and program != r["program"]:
+            raise ValueError(f"rubric {r['id']} is a {r['program']} rubric, not {program}")
+        program = r["program"]
     prog = programs.get(program)
     source = source or prog["sources"][0]
     programs.check_source(prog, source)  # and a source the program doesn't take
@@ -506,17 +527,42 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
     remember = lambda found: failures.record(brand, "write", found)  # noqa: E731
     category = prog.get("category") or data["cluster"].get("category", "")
     found = directors.facts(data["articles"], category, packs.load(brand), data["cluster"])
-    did = variety.direct(brand, data["cluster"].get("id") or ref, found, prog["scenes"], forced=director)
+    code_writer = prog.get("writer") == "digest"  # built by code from checked stories: no director, no model
+    did = None if code_writer else variety.direct(brand, data["cluster"].get("id") or ref, found, prog["scenes"],
+                                                  forced=director)
     chosen = directors.get(did) if did else None
+    if r and r["count"] == "agree" and not data.get("members") and hasattr(src.get(source), "members"):
+        data["members"] = src.get(source).members(ref)  # agree counts across every member, not the writer's three
+    grown = rubrics.growth(brand, data) if r and r["numbering"] == "part" else None
+    members = rubrics.members_of(data)
+    extra, extra_types, more = "", (), (lambda s: [])
+    if r:
+        rf = rubrics.facts(data, brand, grown)
+        if not rubrics.holds(r, rf):
+            raise ValueError(f"rubric {r['id']} does not fit this story's facts (eligible: {r['eligible']}, never: "
+                             f"{r['never']}); facts: " + ", ".join(f"{k} {v}" for k, v in rf.items()
+                                                                     if k not in ("found", "family")))
+        made = rubrics.agree_scene(members) if r["count"] == "agree" else None
+        extra = rubrics.brief_block(r, {**rf, "agreed_n": (made or {}).get("n")}, grown)
+        extra_types = tuple(rubrics.types(r))
+        part = (grown or {}).get("part")
+
+        def more(s):  # what the rubric adds to the writer's repair loop
+            fill = rubrics.fill_agree(s, members) if r["count"] == "agree" else []
+            draft = {**s, "rubric": r["id"], "episode": 1, **({"part": part} if part else {}),
+                     **({"program": prog["name"]} if prog["name"] != programs.DEFAULT else {})}
+            return fill + [x for x in rubrics.story_problems(draft) if not x.startswith("story:")] + \
+                rubrics.length_problems(draft) + rubrics.gate_problems(draft, grown)
     try:  # failure memory: the writer reads the brand's recent mistakes; every failed pass is remembered
         if prog["name"] == programs.DEFAULT:
             story = writer.write(data["cluster"], data["articles"], avoid=variety.recent_sequences(brand),
                                  mistakes=failures.prompt_block(brand), on_problems=remember, director=chosen,
-                                 facts=found, run_checks=(lambda s, a, c: writer._checks(s, a, c) +
-                                                          directors.story_problems({**s, "director": did}, found)))
+                                 facts=found, extra=extra, extra_types=extra_types,
+                                 run_checks=(lambda s, a, c: writer._checks(s, a, c) + more(s) +
+                                             directors.story_problems({**s, "director": did}, found)))
         else:
             story = programs.write(prog, data, brand, avoid=variety.recent_sequences(brand), on_problems=remember,
-                                   director=chosen, facts=found)
+                                   director=chosen, facts=found, rubric=r, extra=extra, more_checks=more)
     except writer.ChecksFailed as e:
         failures.record(brand, "write", e.problems)
         raise
@@ -526,12 +572,19 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
         story["director"] = did  # code-owned: chosen before writing, kept on every re-render
     programs.stamp(story, prog, data["cluster"])  # program, category, the document's facts and link: data
     name = programs.story_ref(prog, data["cluster"], ref)
+    if r:  # the rubric and its episode: code's, reserved before the voice (idempotent per story)
+        if r["numbering"] == "part":
+            name = f"{name}-part{grown['part']}"
+        elif prog["name"] == programs.DEFAULT:
+            name = f"{name}-{r['id']}"
+        rubrics.stamp(story, r["id"], brand, store.safe(name), part=(grown or {}).get("part"))
     target = pathlib.Path(out_path) if out_path else store.story_path(brand, name)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(story, ensure_ascii=False, indent=1), encoding="utf-8")
     side = store.sources_path(target)  # the articles, so `check --sources` can re-run the news rules later
-    side.write_text(json.dumps(data["articles"], ensure_ascii=False), encoding="utf-8")
-    problems = check_story(story, data["articles"])
+    texts = [m["text"] for m in members] if r and r["count"] == "agree" else data["articles"]  # agree: every member
+    side.write_text(json.dumps(texts, ensure_ascii=False), encoding="utf-8")
+    problems = check_story(story, texts)
     failures.record(brand, "check", problems)
     store.log("written", story=str(target), problems=problems)
     result = {"story": str(target.resolve()), "sources": str(side.resolve()), "director": did,
@@ -539,6 +592,8 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
               "warnings": directors.warnings(story, prog["scenes"])}
     if prog["name"] != programs.DEFAULT:
         result.update(program=prog["name"], rules=prog["rules"], publish=prog["publish"], format=prog["format"])
+    if r:
+        result.update(rubric=r["id"], episode=story["episode"], chip=rubrics.chip(story), format=r["format"])
     return result
 
 
@@ -546,8 +601,47 @@ def write(a):
     ref = a.ref if a.ref is not None else a.cluster
     if ref is None:
         return out({"problems": ["give --ref (or --cluster for tbilisi-today)"]}, 2)
-    result = write_story(a.source, ref, a.brand, a.out, a.program, a.director)
+    result = write_story(a.source, ref, a.brand, a.out, a.program, a.director, a.rubric)
     return out(result, 1 if result["problems"] else 0)
+
+
+def rubrics_cmd(a):
+    """engine rubrics list | facts | stamp (rubrics.py)."""
+    if a.action == "list":
+        return out({**rubrics.options(), "episodes": rubrics.episodes(a.brand or packs.DEFAULT)})
+    if a.action == "facts":
+        from tt_shorts import sources as src
+        if not a.ref:
+            return out({"problems": ["rubrics facts needs --ref (and --source)"]}, 2)
+        data = src.fetch(a.source or "tbilisi-today", a.ref)
+        brand = a.brand or packs.DEFAULT
+        grown = rubrics.growth(brand, data)
+        f = rubrics.facts(data, brand, grown)
+        prog = "digest" if data.get("stories") else "news"
+        return out({"facts": {k: v for k, v in f.items() if k != "found"}, "found": f["found"], "growth": grown,
+                    "eligible": rubrics.eligible(f, prog),
+                    "agree": rubrics.agree_scene(rubrics.members_of(data))})
+    if a.action == "stamp":
+        if not (a.story and a.rubric):
+            return out({"problems": ["rubrics stamp <story> --rubric <id> [--sources articles.json] [--part N]"]}, 2)
+        path = pathlib.Path(a.story)
+        story = json.loads(path.read_text(encoding="utf-8"))
+        r = rubrics.get(a.rubric)
+        problems = []
+        if r["count"] == "agree":
+            if not a.sources:
+                return out({"problems": ["an agree story is filled from its member articles: give --sources"]}, 2)
+            texts = json.loads(pathlib.Path(a.sources).read_text(encoding="utf-8"))
+            if isinstance(texts, dict):
+                texts = texts.get(str(story.get("id"))) or []
+            problems += rubrics.fill_agree(story, texts)
+        brand = brand_of(story)
+        rubrics.stamp(story, r["id"], brand, store.safe(path.stem), part=a.part)
+        path.write_text(json.dumps(story, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        problems += rubrics.story_problems(story)
+        return out({"story": str(path), "rubric": r["id"], "episode": story["episode"], "chip": rubrics.chip(story),
+                    "problems": problems}, 1 if problems else 0)
+    return out({"problems": [f"unknown rubrics action {a.action}"]}, 2)
 
 
 def voice_samples(a):
@@ -561,7 +655,7 @@ def queue_cmd(a):
     from tt_shorts import queue
     if a.action == "add":
         overrides = {k: getattr(a, k) for k in ("look", "captions", "transition", "outro", "voice", "music", "platform",
-                                                 "director") if getattr(a, k)}
+                                                 "director", "rubric", "part") if getattr(a, k)}
         job, created = queue.add(a.brand, a.source if not a.story else None, a.ref, a.format, overrides, a.story,
                                  a.priority, program=a.program)
         return out({"job": job, "created": created})
@@ -688,7 +782,17 @@ def main(argv=None):
     w.add_argument("--cluster", help="same as --ref, for tbilisi-today")
     w.add_argument("--brand", default=packs.DEFAULT, help="the brand pack the story will be rendered with")
     w.add_argument("--director", help="force a director (default: the least used eligible one, variety.direct)")
+    w.add_argument("--rubric", help="a rubric (see options: rubrics): number, changes, continues, agree, digest")
     w.add_argument("--out")
+    ru = sub.add_parser("rubrics")
+    ru.add_argument("action", choices=["list", "facts", "stamp"])
+    ru.add_argument("story", nargs="?", help="stamp: the hand-written story file to stamp (in place)")
+    ru.add_argument("--rubric")
+    ru.add_argument("--brand")
+    ru.add_argument("--source", help="facts: the source (default tbilisi-today)")
+    ru.add_argument("--ref", help="facts: the cluster or file")
+    ru.add_argument("--sources", help="stamp: the member articles (an agree story's facts are counted from them)")
+    ru.add_argument("--part", type=int, help="stamp: a part rubric's part (default 2)")
     v = sub.add_parser("voices")
     v.add_argument("--story")
     v.add_argument("--only")
@@ -733,8 +837,9 @@ def main(argv=None):
     qp.add_argument("--ref")
     qp.add_argument("--story", help="an already written story file (skips writing)")
     qp.add_argument("--format", help="default: the program's format (news: news)")
-    for k in ("look", "captions", "transition", "outro", "voice", "music", "platform", "director"):
+    for k in ("look", "captions", "transition", "outro", "voice", "music", "platform", "director", "rubric"):
         qp.add_argument(f"--{k}")
+    qp.add_argument("--part", type=int, help="add: a continues job's part (ops/daily.py sets it from the stored state)")
     qp.add_argument("--priority", type=int, default=0)
     qp.add_argument("--state", choices=queue_states())
     qp.add_argument("--limit", type=int, default=50)
@@ -761,7 +866,7 @@ def main(argv=None):
             return out(result, 1 if problems else 0)
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
-                "plan": plan_cmd, "selftest": selftest_cmd, "learn": learn_cmd}[a.cmd](a)
+                "plan": plan_cmd, "selftest": selftest_cmd, "learn": learn_cmd, "rubrics": rubrics_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
 

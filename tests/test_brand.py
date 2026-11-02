@@ -29,6 +29,11 @@ class Packs(unittest.TestCase):
             self.assertEqual(set(b["_fonts"]), set(brand.FONT_WEIGHTS))
             self.assertTrue(all(pathlib.Path(f).is_file() for f in b["_fonts"].values()))
 
+    def test_the_agree_count_string_reaches_both_packs(self):  # rubrics: „მინიმუმ N“ (remotion scenes/rubrics.tsx)
+        for n in brand.names():
+            self.assertEqual(brand.load(n)["strings"]["at_least"], "მინიმუმ {n}")
+        self.assertEqual(brand.for_remotion(brand.load())["strings"]["at_least"], "მინიმუმ {n}")
+
     def test_a_base_is_not_a_brand(self):
         with self.assertRaises(brand.BrandError):
             brand.load("_ka")

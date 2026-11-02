@@ -20,6 +20,7 @@ python -m tt_shorts.engine options          # "programs" and "sources": what eac
 | `explainer` | any one document: a page, a report, a PDF | url, pdf, text, ordo, sitech | claims | explainer | review |
 | `law` | one article of Georgian law | ordo, text, pdf, url | law | explainer | review |
 | `blog` | a SiTech blog post (brand `sitech`) | sitech, url, text | claims | news | auto |
+| `digest` | the morning digest: 2-3 checked stories, built by code (`veasy:rubrics`) | stories | news | digest | auto |
 
 - **claims**: every number, name and quote is in the document (N2, C1, N3); no opinion (N1, though a word the
   document itself uses is fine); no relative days (N4).
@@ -39,6 +40,7 @@ python -m tt_shorts.engine options          # "programs" and "sources": what eac
 | `ordo` | `<law>:<article>[:<part>]` | `constitution:17`, `30346:17` (matsne id), `სამოქალაქო კოდექსი:361:2`, `31702:1507^1`. Needs Ordo (`ORDO_DIR`, see doctor). Only acts in force |
 | `sitech` | a sitech.ge post slug or URL | the Georgian post (`/ka/blog/<slug>/`), its RSS time and its source outlet |
 | `text` | a JSON file `{id, headline, category, date, sources, articles}` | anything else, written by the agent |
+| `stories` | `a.json,b.json`, a request JSON `{stories, sources}`, or `done:<brand>[:<day>]` | the digest's: checked stories and their articles; one brand, each story once |
 
 ## Make one
 

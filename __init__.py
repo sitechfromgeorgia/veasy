@@ -66,10 +66,14 @@ STORY = {"type": "string", "description": "Path to the story JSON (absolute, or 
 BRAND = {"type": "string", "description": "A brand pack in brands/ (tbilisi-today, sitech, ...; see veasy_options)."}
 PROGRAM = {"type": "string", "description": "What kind of video (skill veasy:programs): news (default), explainer "
            "(any document), law (one article of Georgian law), blog (a SiTech post), or another in veasy_options."}
-SOURCE = {"type": "string", "enum": ["tbilisi-today", "text", "url", "pdf", "ordo", "sitech"],
+SOURCE = {"type": "string", "enum": ["tbilisi-today", "text", "url", "pdf", "ordo", "sitech", "stories"],
           "description": "Where the facts come from: tbilisi-today (ref = cluster id), text (ref = JSON file), url "
                          "(a web page), pdf (a file or URL), ordo (Georgian law, ref = constitution:17), sitech (a "
-                         "sitech.ge post slug). Default: the program's first source."}
+                         "sitech.ge post slug), stories (the digest: 2-3 checked story files a.json,b.json or "
+                         "done:<brand>[:<day>]). Default: the program's first source."}
+RUBRIC = {"type": "string", "description": "A rubric (skill veasy:rubrics): number („დღის ციფრი“), changes („რა "
+          "იცვლება“), continues („ამბავი გრძელდება“), agree („ადასტურებს N გამოცემა“), digest („დილის N ამბავი“). "
+          "Code checks it fits the facts, stamps the episode and draws the chip in the hook."}
 CHOICE_PROPS = {
     "format": {"type": "string", "description": "A show format (see veasy_options), default news."},
     "look": {"type": "string", "enum": ["auto", "editorial", "kinetic", "cards"]},
@@ -169,11 +173,26 @@ TOOLS = {
                         "ref": {"type": "string", "description": "The story's reference in its source: a cluster id, "
                                 "a JSON file, a URL, a PDF, <law>:<article> (constitution:17), a sitech.ge slug."},
                         "cluster": {"type": "integer", "description": "Shorthand: a tbilisi.today cluster id."},
-                        "brand": BRAND}},
+                        "brand": BRAND, "rubric": RUBRIC}},
                     "Write a checked story JSON from a source (free model first; needs the writer key and, for "
                     "tbilisi-today, the D1 keys). Stored as stories/<brand>/<day>/<ref>.json under VEASY_HOME. "
                     "Returns the story path and any remaining problems.",
-                    lambda a: _engine("write", _flags(a, ("program", "source", "ref", "cluster", "brand")))),
+                    lambda a: _engine("write", _flags(a, ("program", "source", "ref", "cluster", "brand", "rubric")))),
+    "veasy_rubrics": ({"type": "object", "properties": {
+                          "action": {"type": "string", "enum": ["list", "facts", "stamp"]},
+                          "story": {"type": "string", "description": "stamp: a hand-written story file (stamped in place)."},
+                          "rubric": RUBRIC, "brand": BRAND, "source": SOURCE,
+                          "ref": {"type": "string", "description": "facts: the cluster or file to judge."},
+                          "sources": {"type": "string", "description": "stamp: the member articles (JSON list or "
+                                      "{id: [texts]}); an agree story's facts are counted from them."},
+                          "part": {"type": "integer", "description": "stamp: a continues story's part (default 2)."}},
+                       "required": ["action"]},
+                      "The rubrics (named recurring shows with a chip „დღის ციფრი · #12“, a scene shape and a time "
+                      "slot): list them with the brand's episode counters; facts: which rubrics a cluster may be "
+                      "(the facts code finds, what it gained since its last video, the facts its outlets state "
+                      "alike); stamp: give a hand-written story its rubric and episode (code's, never the writer's).",
+                      lambda a: _engine("rubrics", [a["action"]] + ([a["story"]] if a.get("story") else []) + _flags(
+                          a, ("rubric", "brand", "source", "ref", "sources", "part")))),
     "veasy_queue": ({"type": "object", "properties": {
                         "action": {"type": "string", "enum": ["add", "list", "run", "show", "retry", "cancel"]},
                         "id": {"type": "string", "description": "A job id (show, retry, cancel)."},
@@ -181,9 +200,10 @@ TOOLS = {
                         "source": SOURCE,
                         "ref": {"type": "string", "description": "add: the story's reference in its source."},
                         "story": {"type": "string", "description": "add: an already written story file (skips writing)."},
-                        "brand": BRAND, **{k: CHOICE_PROPS[k] for k in ("format", "look", "captions", "transition", "outro",
-                                                                        "voice", "music", "platform", "engine",
-                                                                        "director")},
+                        "brand": BRAND, "rubric": RUBRIC,
+                        "part": {"type": "integer", "description": "add: a continues job's part (ops/daily.py sets it)."},
+                        **{k: CHOICE_PROPS[k] for k in ("format", "look", "captions", "transition", "outro",
+                                                        "voice", "music", "platform", "engine", "director")},
                         "priority": {"type": "integer", "description": "add: higher runs first (default 0)."},
                         "state": {"type": "string", "enum": ["queued", "writing", "rendering", "done", "held",
                                                              "failed", "cancelled"], "description": "list: filter."},
@@ -194,7 +214,8 @@ TOOLS = {
                     "job passed QA; held means rendered but QA found problems; failed has error_class and error.",
                     lambda a: _engine("queue", [a["action"]] + ([str(a["id"])] if a.get("id") else []) + _flags(
                         a, ("program", "source", "ref", "story", "brand", "format", "look", "captions", "transition", "outro",
-                            "voice", "music", "platform", "engine", "director", "priority", "state", "max")))),
+                            "voice", "music", "platform", "engine", "director", "rubric", "part", "priority", "state",
+                            "max")))),
     "veasy_doctor": ({"type": "object", "properties": {}},
                      "Is this machine ready to render? ffmpeg, Remotion, fonts, music, keys, kaeasy.",
                      lambda a: _engine("doctor", [])),

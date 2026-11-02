@@ -16,6 +16,14 @@ renders are serialised, as Remotion advises. A job that already has a story skip
 
     python -m tt_shorts.engine queue add --source tbilisi-today --ref 24725 [--format news] [--brand tbilisi-today]
     python -m tt_shorts.engine queue add --story path/to/story.json --format news-roll
+    python -m tt_shorts.engine queue add --ref 24835 --rubric number      # a rubric (rubrics.py): its program and
+                                                                          # format by default
+    python -m tt_shorts.engine queue add --rubric digest --ref done:tbilisi-today   # the morning digest
+
+A rubric is an override (in the job id, like a director): the write step stamps the story's rubric and episode; a
+story job's file must already carry it (engine rubrics stamp). The episode is the rubric's (rubrics.py): marked done
+when the job ends done, released when it fails or is cancelled. Every news job that ends done stores what its
+cluster had (rubrics.remember), so a later "continues" part can be compared with it.
     python -m tt_shorts.engine queue list [--state queued]
     python -m tt_shorts.engine queue run [--max 5]
     python -m tt_shorts.engine queue show <id> | retry <id> | cancel <id>
@@ -110,6 +118,11 @@ def add(brand=None, source=None, ref=None, fmt=None, overrides=None, story=None,
     one is refused (the story decides how it looks). program: news by default (a story file's own "program");
     the source defaults to the program's first, the format to the program's."""
     data = None
+    rub = rubric_of(overrides)  # an unknown rubric is refused before it is queued
+    if rub:
+        if program and program != rub["program"]:
+            raise ValueError(f"rubric {rub['id']} is a {rub['program']} rubric, not {program}")
+        program = rub["program"]
     if story:
         story = pathlib.Path(story).resolve()  # the worker may run from another folder
         data = json.loads(story.read_text(encoding="utf-8"))  # unreadable or not JSON: refused now, not at run time
@@ -124,7 +137,7 @@ def add(brand=None, source=None, ref=None, fmt=None, overrides=None, story=None,
         if not (source and ref is not None):
             raise ValueError("a job needs --story, or --source and --ref")
         programs.check_source(prog, source)
-    fmt = fmt or prog["format"]
+    fmt = fmt or (rubric_of(overrides) or {}).get("format") or prog["format"]
     formats.get(fmt, **_format_overrides(overrides))  # refuse a format the engine can't do before it is queued
     if (overrides or {}).get("director"):
         from tt_shorts import directors
@@ -153,9 +166,18 @@ def add(brand=None, source=None, ref=None, fmt=None, overrides=None, story=None,
         return _row(con.execute("select * from jobs where id=?", (jid,)).fetchone()), True
 
 
+NOT_FORMAT = ("director", "rubric", "part")  # overrides that are not format keys (directors.py, rubrics.py)
+
+
 def _format_overrides(overrides):
-    """A job's overrides without the director (directors.py), which is not a format key."""
-    return {k: v for k, v in (overrides or {}).items() if k != "director"}
+    """A job's overrides without the director, the rubric and its part, which are not format keys."""
+    return {k: v for k, v in (overrides or {}).items() if k not in NOT_FORMAT}
+
+
+def rubric_of(overrides):
+    from tt_shorts import rubrics
+    name = (overrides or {}).get("rubric")
+    return rubrics.get(name) if name else None
 
 
 def get(jid):
@@ -191,7 +213,10 @@ def retry(jid):
 
 def cancel(jid):
     _set(jid, state="cancelled")
-    return get(jid)
+    j = get(jid)
+    if j and j.get("story"):
+        _episode(j["story"], j["brand"], "cancelled")
+    return j
 
 
 def _claim():
@@ -231,24 +256,31 @@ def process(job, engine="gemini"):
     try:
         story = job["story"]
         program = job.get("program") or programs.DEFAULT
+        rub = (job["overrides"] or {}).get("rubric")
         if not story:
             w = eng.write_story(job["source"], job["ref"], job["brand"], program=program,
-                                director=(job["overrides"] or {}).get("director"))
+                                director=(job["overrides"] or {}).get("director"), rubric=rub)
             story = w["story"]
             _set(jid, story=story, state="rendering")
             if w["problems"]:
                 _set(jid, state="failed", error_class="content", error="; ".join(w["problems"][:5]), result=w)
                 store.log("failed", job=jid, stage="write", problems=w["problems"][:5])
+                _episode(story, job["brand"], "failed")
                 return get(jid)
         stage = "check"
         fmt = formats.get(job["format"], **_format_overrides(job["overrides"]))
         side = store.sources_path(story)
         sources = json.loads(side.read_text(encoding="utf-8")) if side.exists() else None
-        problems = eng.check_story(json.loads(pathlib.Path(story).read_text(encoding="utf-8")), sources) + eng._kaeasy_required()
+        written = json.loads(pathlib.Path(story).read_text(encoding="utf-8"))
+        problems = eng.check_story(written, sources) + eng._kaeasy_required()
+        if rub and written.get("rubric") != rub:
+            problems.append(f"the job is rubric {rub}, the story {written.get('rubric')!r}: stamp it first "
+                            f"(engine rubrics stamp <story> --rubric {rub})")
         if problems:
             failures.record(job["brand"], "check", problems)
             _set(jid, state="failed", error_class="content", error="; ".join(problems[:5]))
             store.log("failed", job=jid, stage="check", problems=problems[:5])
+            _episode(story, job["brand"], "failed")
             return get(jid)
         stage = "render"
         r = eng.render_story(story, fmt, engine, director=(job["overrides"] or {}).get("director"))
@@ -272,6 +304,7 @@ def process(job, engine="gemini"):
         store.log(state, job=jid, file=r["file"], problems=q["problems"])
         if state == "done":  # its drawing passed and went out: the library keeps it for a story whose drawing fails
             _keep_drawings(story, job["brand"])
+        _episode(story, job["brand"], state)
     except Exception as e:  # noqa: BLE001 - one job never stops the queue
         kind = classify(e)
         if not getattr(e, "problems", None):  # a writer's failed checks are already remembered, rule by rule
@@ -283,7 +316,29 @@ def process(job, engine="gemini"):
         else:
             _set(jid, state="failed", error_class=kind, error=f"{type(e).__name__}: {e}"[:500])
         store.log("error", job=jid, kind=kind, error=str(e)[:300], trace=traceback.format_exc()[-800:])
+        j = get(jid) or {}
+        if j.get("state") == "failed" and j.get("story"):
+            _episode(j["story"], job["brand"], "failed")
     return get(jid)
+
+
+def _episode(story_path, brand, state):
+    """The rubric's episode of a finished job: used when done, released when failed (rubrics.py); a done news video
+    stores what its cluster had (for a later continues part). Never fails a job."""
+    from tt_shorts import rubrics
+    try:
+        story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
+        name = pathlib.Path(story_path).stem
+        if story.get("rubric") and state == "done":
+            rubrics.finish(brand, story["rubric"], store.safe(name))
+        elif story.get("rubric") and state in ("failed", "cancelled"):
+            rubrics.release(brand, story["rubric"], store.safe(name))
+        if state == "done" and programs.name_of(story) == programs.DEFAULT:
+            side = store.sources_path(story_path)
+            arts = json.loads(side.read_text(encoding="utf-8")) if side.exists() else []
+            rubrics.remember(brand, story, arts, story_path)
+    except (OSError, ValueError, KeyError, sqlite3.Error) as e:
+        store.log("error", stage="rubrics", error=str(e)[:300])
 
 
 def _keep_drawings(story_path, brand):

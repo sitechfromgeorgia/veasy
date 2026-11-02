@@ -1,0 +1,22 @@
+{
+ "id": "continues",
+ "label": "ამბავი გრძელდება",
+ "about": "The Story Continues: a cluster that already had a video and has since gained 2+ outlets and a number or quote the earlier video's articles didn't have. Part N, compared by code against the stored state.",
+ "numbering": "part",
+ "program": "news",
+ "format": "news",
+ "slot": "18:00",
+ "eligible": [{"had_video": true, "new_outlets": 2, "new_facts": 1}],
+ "never": [],
+ "shape": [
+  {"types": ["hook"]},
+  {"types": "any", "min": 2, "max": 4},
+  {"types": ["end"]}
+ ],
+ "brief": [
+  "This is the rubric „The Story Continues“: the viewer may have seen the earlier part; tell what is new since then.",
+  "The hook says the new development; the first scene after it shows a new number or quote (code lists them below).",
+  "One sentence may recall what was already known; everything else is new, and all of it is in the articles.",
+  "Never say „as we reported“ or judge how the story developed."
+ ]
+}

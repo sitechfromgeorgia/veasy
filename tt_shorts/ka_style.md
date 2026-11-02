@@ -109,7 +109,7 @@ made later by code from the text and from your "say" map (K20).
 - "შენ რას იფიქრებ, გამოგადგება?" → "შენ რას ფიქრობ, გამოგადგება?" (K1)
 
 ## N. News (tbilisi.today)
-Every video goes out without a human review, so these rules are hard. `news_check.py` checks N1-N5, N10 and N11
+Every video goes out without a human review, so these rules are hard. `news_check.py` checks N1-N5 and N10-N12
 [checked].
 - N1 Report, don't judge. No "take" scene, no closing opinion, no evaluative words
   (❌ სკანდალური, შოკისმომგვრელი, ისტორიული, უპრეცედენტო). A judgement is said only as somebody's words, with the
@@ -136,3 +136,7 @@ Every video goes out without a human review, so these rules are hard. `news_chec
   word and said in its part of the narration; a `link` scene's `edge` is the verb that part says (✅ "შეხვდა" with
   „პრემიერი ელჩს შეხვდა“). A `share` shows only a percent an article writes with %, a `rail` only dates the articles
   give, in time order. [checked]
+- N12 What several outlets state alike is counted, never weighed. An `agree` scene (the rubric „ადასტურებს N
+  გამოცემა“) shows only facts that are literally in at least N member articles; code finds them and counts them, and
+  its part of the narration says „მინიმუმ“ (✅ „მინიმუმ ოთხი გამოცემა წერს“, ❌ „ყველა მედია წერს“). It never names
+  the outlets, and no video calls an outlet by a side (❌ პროსამთავრობო, ოპოზიციური მედია). [checked]

@@ -11,6 +11,7 @@ prints JSON. Tool: `veasy_queue` (same arguments as the CLI).
 
 ```bash
 python -m tt_shorts.engine queue add --source tbilisi-today --ref 24725 [--brand tbilisi-today] [--format news]
+python -m tt_shorts.engine queue add --ref 24835 --rubric number   # a rubric (veasy:rubrics): its format by default
 python -m tt_shorts.engine queue add --program law --ref constitution:17     # a program (veasy:programs): its first
                                                                              # source and its format by default
 python -m tt_shorts.engine queue add --story /path/story.json --brand sitech --format news-roll   # already written

@@ -18,7 +18,7 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import art, brand, captions, directors, geo, icons, meta, speech, store, swipe, variety, voices
+from tt_shorts import art, brand, captions, directors, geo, icons, meta, rubrics, speech, store, swipe, variety, voices
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -145,6 +145,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "voice": audio.name if audio else None, "voiceVolume": 1.0, "voiceTrim": trim,
         "music": bed.name if bed else None, "musicVolume": 0.5 if engine == "silent" else 0.22,
         "previewNote": b["strings"][NOTES[engine]] if engine in NOTES else None,
+        "rubric": rubrics.chip(story),  # the hook's chip „დღის ციფრი · #12“ (rubrics.py), code's text
         # words the aligner barely heard: the voice may have skipped or changed them (speech.voice_qa; Gemini only)
         "voiceQa": story.get("qa", {}).get("voice", []),
     }

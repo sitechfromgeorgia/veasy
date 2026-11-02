@@ -18,13 +18,17 @@ to the writer, like ka_check's K rules. `sources` is the list of member article 
       spoken() needs no articles either.
   N2 also reads the brushes' facts: a share's percent is stated with "%" in an article, and every date on a rail
       is in an article (stated()).
+  N12 what several outlets state alike (agreed(), the agree scene of the rubric „ადასტურებს N გამოცემა“): each of
+      its facts is literally in at least n of the member articles (rubrics.claims: the same number and word, date,
+      time, place or quote), its part of the narration says „მინიმუმ“, and no outlet is named in it or called by
+      a side anywhere in the video (SIDES). A digest's chapter cards show only the stories' own checked lines.
 """
 import re
 
 # The news rules' own allowlist of scene types (N1: no opinion or take scene), kept by hand on purpose: a new brush
 # (brushes/<type>.json) is allowed in news only once it is named here too.
 SCENE_TYPES = {"hook", "stat", "timeline", "where", "who", "points", "quote", "sources", "draw", "pair", "steps", "bars",
-               "trend", "change", "sign", "end", "share", "rail", "compare", "link"}
+               "trend", "change", "sign", "end", "share", "rail", "compare", "link", "agree", "chapter"}
 RELATIVE_DAYS = ("დღეს", "გუშინ", "ხვალ", "ზეგ", "გუშინწინ")
 # Words that judge instead of report (stems: Georgian adds case endings). Extend from the edits log.
 EVALUATIVE = ("სკანდალურ", "შოკისმომგვრელ", "სამარცხვინო", "საოცარ", "გასაოცარ", "უპრეცედენტო", "საშინელ",
@@ -35,7 +39,11 @@ SENSITIVE = ("გაუპატიურ", "სექსუალურ ძა�
 DEATHS = ("გარდაიცვალ", "გარდაცვალ", "გარდაცვლ", "დაიღუპ", "დაღუპ", "იღუპებ", "სიკვდილ", "ცხედ", "მკვლელობ",
           "მოკლეს", "მოკლულ", "მოიკლ", "დაიხრჩო", "მსხვერპლ")
 # an icon's name and a sign's verb are drawn, not read; em points at a text already on screen; style is a stat's motion
-NOT_SCREEN = ("type", "at", "icon", "verb", "em", "style")
+NOT_SCREEN = ("type", "at", "icon", "verb", "em", "style", "n", "of", "total")  # counts code makes (agree,
+# chapter) are not claims of the articles
+# N12: words that label an outlet by its side; a video never sorts outlets (stems: Georgian adds case endings)
+SIDES = ("პროსამთავრობო", "სამთავრობო მედი", "ოპოზიციურ", "პროსახელისუფლებო", "სახელისუფლებო მედი", "პრორუსულ",
+         "პროდასავლურ")
 NUM = re.compile(r"\d+")
 
 
@@ -77,6 +85,9 @@ def screen_text(story):
                 continue
             if k == "svg":
                 out += art.labels(v) if isinstance(v, str) else []
+                continue
+            if k == "items" and s.get("type") == "agree" and isinstance(v, list):  # an item's count is code's
+                out += [it["text"] for it in v if isinstance(it, dict) and isinstance(it.get("text"), str)]
                 continue
             out += list(_walk(v))
     return " ".join(out)
@@ -178,7 +189,7 @@ def problems(story, sources):
     hits = sensitive(sources + [narration])
     if hits:
         out.append(f"N5: sensitive story ({', '.join(hits)}): skip it")
-    return out + stated(story, sources) + pictograms(story) + spoken(story)
+    return out + stated(story, sources) + agreed(story, sources) + pictograms(story) + spoken(story)
 
 
 # ---------------------------------------------------------------- the brushes' own facts (N2) and marks (N11)
@@ -281,4 +292,49 @@ def spoken(story):
             if not marks.said(s["edge"], scene_part(story, i)):
                 out.append(f"N11: scene {i} (link) joins them with „{s['edge']}“ but its part of the narration doesn't "
                            "say it: the edge is the verb the voice says (შეხვდა, მოაწერა ხელი...)")
+    return out
+
+
+# ---------------------------------------------------------------- N12: what several outlets state alike
+
+
+def sides(story):
+    """N12: an outlet called by its side, anywhere in the narration or on screen."""
+    low = f"{story.get('narration', '')} {screen_text(story)}".lower()
+    return [f"N12: „{w}…“ labels an outlet by its side: say what is stated, never who stands where"
+            for w in SIDES if w in low]
+
+
+def agreed(story, sources):
+    """N12 problems of the agree scenes (none in a story without one): every fact in at least n member articles,
+    „მინიმუმ“ said in the scene's part, no outlet named there; and no side label anywhere."""
+    from tt_shorts import rubrics
+    scenes = story.get("scenes") or []
+    idx = [i for i, s in enumerate(scenes) if s.get("type") == "agree"]
+    if not idx:
+        return []
+    have = [set(rubrics.claims(t)) for t in sources]
+    out = sides(story)
+    for i in idx:
+        s = scenes[i]
+        n = s.get("n")
+        for k, it in enumerate(s.get("items") or []):
+            text = it.get("text") if isinstance(it, dict) else None
+            keys = set(rubrics.claims(text or ""))
+            if not keys:
+                out.append(f"N12: scene {i} (agree) items[{k}]: „{text}“ is no fact code can count (a number with "
+                           "its word, a date, a time, a place, a quote)")
+                continue
+            count = sum(1 for h in have if keys <= h)
+            if not isinstance(n, int) or count < n:
+                out.append(f"N12: scene {i} (agree) items[{k}]: „{text}“ is in {count} member article(s), the scene "
+                           f"says at least {n}")
+        part = scene_part(story, i)
+        if "მინიმუმ" not in part:
+            out.append(f"N12: scene {i} (agree): its part of the narration says „მინიმუმ“ and the count (at least N "
+                       "outlets), never all of them")
+        shown = f"{part} {screen_text({'scenes': [s]})}".lower()
+        named = [o for o in story.get("sources") or [] if o and re.search(rf"(?<![\w]){re.escape(o.lower())}(?![\w])", shown)]
+        if named:
+            out.append(f"N12: scene {i} (agree) names {', '.join(named)}: it counts outlets, it never names them")
     return out

@@ -1,0 +1,27 @@
+{
+ "id": "changes",
+ "label": "რა იცვლება",
+ "about": "What Changes: service news with a date and a price, a rule or a place; what changes, from when, for whom.",
+ "numbering": "episode",
+ "program": "news",
+ "format": "news",
+ "slot": "10:00",
+ "eligible": [
+  {"families": ["society", "economy", "tech"], "dates": 1, "prices": 1},
+  {"families": ["society", "economy", "tech"], "dates": 1, "rules": 1},
+  {"families": ["society", "economy", "tech"], "dates": 1, "places": 1}
+ ],
+ "never": [{"deaths": true}],
+ "shape": [
+  {"types": ["hook"]},
+  {"types": "any", "min": 2, "max": 4},
+  {"types": ["end"]}
+ ],
+ "needs": [["timeline", "rail", "steps"]],
+ "brief": [
+  "This is the rubric „What Changes“: a service story; the viewer learns what changes, from when, and for whom.",
+  "The hook says what changes; one scene shows when (timeline or rail with the dates the articles state, or steps).",
+  "Show the price, the rule or the place the articles give (stat, where, points); never advise the viewer what to do.",
+  "End on where the full details are (the link), then the end card."
+ ]
+}

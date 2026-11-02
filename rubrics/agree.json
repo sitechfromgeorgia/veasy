@@ -1,0 +1,49 @@
+{
+ "id": "agree",
+ "label": "ადასტურებს {n} გამოცემა",
+ "about": "Confirmed by N Outlets: an agree scene shows the facts literally in at least N member articles (code counts across all members, N is the smallest count shown, „მინიმუმ N“); outlets are never named by side.",
+ "numbering": "episode",
+ "count": "agree",
+ "program": "news",
+ "format": "news",
+ "slot": "16:00",
+ "eligible": [
+  {
+   "members": 4,
+   "agreed": 2
+  }
+ ],
+ "never": [
+  {
+   "deaths": true
+  }
+ ],
+ "shape": [
+  {
+   "types": [
+    "hook"
+   ]
+  },
+  {
+   "types": [
+    "agree"
+   ]
+  },
+  {
+   "types": "any",
+   "min": 0,
+   "max": 2
+  },
+  {
+   "types": [
+    "end"
+   ]
+  }
+ ],
+ "brief": [
+  "This is the rubric „Confirmed by N Outlets“: what several outlets state alike, and nothing else.",
+  "The hook says what happened; the agree scene comes next, written as {\"type\": \"agree\", \"at\": \"...\", \"kicker\": \"...\", \"headline\": \"...\"}: code fills its facts and its count.",
+  "Its part of the narration says the facts and that at least N outlets state them (in words: მინიმუმ ოთხი გამოცემა).",
+  "Never name which outlets, never call an outlet by a side (pro-government, opposition...), never weigh one outlet against another."
+ ]
+}

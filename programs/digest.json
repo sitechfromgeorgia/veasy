@@ -1,0 +1,12 @@
+{
+ "label": "დილის ამბები",
+ "about": "The morning digest: 2-3 news stories that already passed their checks, in one 45-60 s video. No writer: code joins their first sentences (tt_shorts/digest.py) with a chapter card per story, and the result is checked again by the news rules against all their articles. The end card opens the brand's front page.",
+ "sources": ["stories"],
+ "brief": null,
+ "scenes": "all",
+ "rules": "news",
+ "format": "digest",
+ "publish": "auto",
+ "link": "source",
+ "writer": "digest"
+}

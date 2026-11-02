@@ -105,6 +105,21 @@ link's edge is underlined) and the strokes (clean, rough only for sports and cul
 
 ## 2. Rubrics and the morning digest (D6 + B7)
 
+Done on 2026-11-03 (`rubrics/`, `tt_shorts/rubrics.py`, `tt_shorts/digest.py`, source `stories`, program `digest`,
+scenes `agree` and `chapter`, rule N12, tool `veasy_rubrics`, skill `veasy:rubrics`). Decisions made on the way:
+- Episodes are reserved when code stamps the story (the chip is drawn before the voice), idempotent per (brand,
+  rubric, story); done when the job ends done; a failed or cancelled job gives its number back only when it is
+  the last (else a gap, never a number twice).
+- "Continues": every news job that ends done stores its cluster's outlets, stated quantities and quotes; growth is
+  compared with the latest stored part.
+- Agree counts per outlet; a fact is the same number + word stem, day and month, time, gazetteer place or verbatim
+  quote; N is the smallest count shown. Agree and chapter are filled by code (no writer schema line).
+- The digest takes 2-3 stories (owner's lead, 2026-11-03: never claim three when there are two); its label is
+  „დილის N ამბავი“. Demos: `stories/rubric-24835-number.json`, `stories/digest-2026-11-01.json` (24835 + 24725).
+  A real three-story demo needs a third cluster's articles, which only the server's D1 has.
+
+The spec it was built to:
+
 - **Data.** `rubrics/<id>.json` holds:
   - a Georgian label, drawn as „დღის ციფრი · #12";
   - its format;

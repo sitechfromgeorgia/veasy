@@ -27,11 +27,11 @@ bash /root/.hermes/shared-plugins/veasy/ops/install.sh --align    # the engine's
 
 What the agent gets:
 - **Tools:** `veasy_options`, `veasy_check`, `veasy_render`, `veasy_still`, `veasy_qa`, `veasy_probe`, `veasy_plan`,
-  `veasy_package`, `veasy_write`, `veasy_queue` and `veasy_doctor`.
+  `veasy_package`, `veasy_write`, `veasy_rubrics`, `veasy_queue` and `veasy_doctor`.
   - Each runs the engine in its own venv and returns its JSON.
   - A render takes a minute or two; the agent needs none of the render libraries.
 - **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:package`, `veasy:formats`, `veasy:queue`,
-  `veasy:brands`, `veasy:programs`, `veasy:directors`.
+  `veasy:brands`, `veasy:programs`, `veasy:directors`, `veasy:rubrics`.
 - **A one-line hint** on the first turn; turn it off with `VEASY_HINT=0`.
 
 Frames are rendered with [Remotion](https://github.com/remotion-dev/remotion) (React; `remotion/`). Python
@@ -194,6 +194,20 @@ becomes.
 - `stories/24835-data.json`, `24835-map.json` and `24835-brief.json` are the gas cut as three films with the same
   facts: the number first (stat), the place first (the Tbilisi map, then a sign), and a service card (points, steps).
 
+**Rubrics** (`tt_shorts/rubrics.py`, `rubrics/*.json`, `veasy:rubrics`) are named recurring shows with a shape, a
+time slot and an episode number, drawn as a chip in the hook („დღის ციფრი · #12“):
+- „დილის N ამბავი“ (08:00, the digest), „რა იცვლება“ (10:00), „დღის ციფრი“ (13:00, 20-25 s), „ადასტურებს N
+  გამოცემა“ (16:00, an `agree` scene) and „ამბავი გრძელდება · ნაწ. N“ (18:00).
+- Eligibility is data (`{fact: min}` alternatives and `never`), evaluated by code on the facts it finds: big numbers,
+  prices, rule words, dates, places, members, the facts 3+ members state alike, and what a cluster gained since its
+  last video (every done news job stores what its cluster had). A rubric that doesn't fit is refused before writing.
+- The writer gets the rubric's brief and shape; code stamps `rubric`, `episode` (reserved per brand and rubric,
+  idempotent per story, released when the job fails) and `part`, never the writer.
+- The **digest** (program `digest`, source `stories`) has no writer: code joins 2-3 checked stories' first sentences
+  with a `chapter` card each, grows them to 47-57 s and checks the whole again; the label states the real count.
+- `write --rubric`, `queue add --rubric`, `engine rubrics list|facts|stamp`, `ops/daily.py --rubrics`.
+  `stories/rubric-24835-number.json` and `stories/digest-2026-11-01.json` (24835 + 24725) are the demos.
+
 ## Icons and pictograms (`tt_shorts/icons.py`)
 
 A visual vocabulary without photos: 250 Lucide line icons (`assets/icons/lucide.json`, ISC; rebuilt by
@@ -270,10 +284,10 @@ Below y=1100, no text goes right of x=940 (the like/share rail).
 
 | Part | State |
 |---|---|
-| Remotion composition `NewsShort`, 20 scene types (`brushes/`), 3 looks, voice-synced marks | done (`remotion/src`) |
+| Remotion composition `NewsShort`, 22 scene types (`brushes/`), 3 looks, voice-synced marks | done (`remotion/src`) |
 | Voice: Gemini presets (`voices.py`); edge-tts ka-GE as a timing stand-in only (it sounds robotic) | Gemini samples need `GEMINI_API_KEY` |
 | Audio mix (ffmpeg): voice levelled on its own, music at one constant level, with no ducking | done |
-| News rules N1-N10 (`ka_style.md` § N, `news_check.py`) | done |
+| News rules N1-N12 (`ka_style.md` § N, `news_check.py`) | done |
 | Icons: `sign` scene, isotype counts on `stat`, the icon motif (`icons.py`, 250 Lucide icons) | done (2026-11-02) |
 | Music: a news bed per category family, written from scratch (clock tick, e-piano, pad), with an even level (≤1 dB bar to bar) | done (`tools/compose_music.py`) |
 | Brand packs (`brands/`: tbilisi-today, sitech), storage layout, job queue, sources (tbilisi-today, text) | done (2026-11-02) |
@@ -281,6 +295,7 @@ Below y=1100, no text goes right of x=940 (the like/share rail).
 | Writer, daily run | done; the server timer waits for the owner's OK |
 | `engine package`: SRT/VTT, cover, 4:5 carousel, teaser, platform texts, Telegram post | done (2026-11-02) |
 | Programs (news, explainer, law, blog), rule tiers claims and law, sources url, pdf, ordo, sitech | done (2026-11-02); `ordo` needs Ordo on the server (`ORDO_DIR`) |
+| Rubrics (number, changes, continues, agree, digest), episode counters, the morning digest (program digest, source stories) | done (2026-11-03); a real 3-story digest needs a third cluster's articles (D1) |
 | Auto-publishing to YouTube / Meta / TikTok, Telegram kill switch | phase 2 |
 
 ## The writer (phase 1): free first, DeepSeek v4.1 Flash only when needed
@@ -333,6 +348,7 @@ stories skipped, no repeats) and renders up to ten of them with the Gemini voice
 python -m tt_shorts.writer --cluster 24886 --out stories/24886.json   # needs SHORTS_CLUSTER_JSON
 python -m ops.daily --limit 10 --dry-run                               # selection only
 python -m ops.daily --limit 10                                         # write and render
+python -m ops.daily --limit 10 --rubrics                               # + the day's rubrics and the digest
 ```
 
 The writer falls back from OpenRouter's free daily cap to the NVIDIA lane. Its known weak spot is scene

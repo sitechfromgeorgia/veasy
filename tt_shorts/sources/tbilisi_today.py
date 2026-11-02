@@ -51,6 +51,21 @@ def payload(cluster):
     return {"cluster": {**cluster, "sources": outlets}, "articles": [f"{a['title']}\n{a['body']}" for a in arts]}
 
 
+def members(cluster_id, limit=30):
+    """Every member article of a cluster that has a text: [{"outlet", "text"}] (the agree rubric counts across all of
+    them, not only the three the writer reads)."""
+    rows = d1("""SELECT a.title, COALESCE(a.content_text, '') AS body, COALESCE(s.name_ka, a.source_slug) AS outlet
+                   FROM articles a LEFT JOIN sources s ON s.slug = a.source_slug
+                  WHERE a.cluster_id = ?1 AND length(COALESCE(a.content_text, '')) > 200
+                  ORDER BY a.id LIMIT ?2""", [int(cluster_id), int(limit)])
+    return [{"outlet": r["outlet"], "text": f"{r['title']}\n{r['body']}"} for r in rows]
+
+
+def recent(hours=30):
+    """The clusters of the last hours with 3+ outlets, unfiltered (ops/daily.py --rubrics looks for ones that grew)."""
+    return d1(CLUSTER_SQL + " WHERE sc.created_at >= datetime('now', ?1) AND sc.source_count >= 3", [f"-{hours} hours"])
+
+
 def fetch(ref):
     rows = d1(CLUSTER_SQL + " WHERE sc.id = ?1", [int(ref)])
     if not rows:

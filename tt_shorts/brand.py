@@ -37,7 +37,7 @@ REQUIRED = ("name", "label", "lang", "utc_offset_hours", "colors", "fonts", "log
 COLORS = ("canvas", "panel", "ink", "muted", "accent", "line", "lineStrong", "grid", "ticker", "waiting", "markBg")
 COLOR_DEFAULTS = {"onAccent": "#FFFFFF"}  # text on the accent (the end card's button)
 STRINGS = ("outlets", "source_one", "source_many", "covered_by", "today", "preview_edge", "preview_silent",
-           "card_meta", "category_default")
+           "card_meta", "category_default", "at_least")
 FONT_WEIGHTS = ("400", "500", "600", "700")
 LOOKS = ("editorial", "kinetic", "cards")
 HASHTAG = re.compile(r"^#[^\s#!.,:;?]+$")
