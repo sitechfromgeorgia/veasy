@@ -187,6 +187,63 @@ Next for other clients:
     - Up to 3 layouts (top-bottom, split, grid) with fixed slots inside the safe zone.
     - The validator rejects combinations that don't fit.
 
+## D. Fifteen ideas from three research passes (2026-11-02)
+
+The owner asked for 3 agents with 5 ideas each: visuals and motion, audience and formats, engine and agent tooling.
+Kept here so they outlive the session. Two facts from the research change priorities:
+- YouTube's July 2025 "inauthentic content" rule makes channels of videos "made from a single template with
+  minimal differences" ineligible for monetization
+  ([TechCrunch](https://techcrunch.com/2025/07/09/youtube-prepares-crackdown-on-mass-produced-and-repetitive-videos-as-concern-over-ai-slop-grows)).
+  Variety is a requirement, not a taste.
+- Instagram allows 50 API posts per rolling 24 h, exactly today's daily volume
+  ([Meta](https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/content_publishing_limit)).
+
+Visuals and motion:
+1. **Drawings, checked by picture:** a CLIP (open_clip ViT-B/32, MIT, CPU) yes/no on a late still ("a line drawing
+   of a {motif}" against decoys), plus a library of drawings that passed, reused per motif when a new one fails.
+2. **Art direction from the story's content** (beyond variety.py): compositions (a number running off the edge,
+   asymmetric stacks), word-by-word type on the voice timings, noise textures (`@remotion/noise`, MIT), a slow
+   camera drift; a perceptual hash of contact sheets re-rolls a video too close to a recent one.
+3. **Pictogram grammar (Isotype):** ~250 Lucide/Tabler icons with a Georgian stem map; the writer picks a motif and
+   one of 8 verbs (rises, falls, stops, opens, closes, moves, splits, joins); code draws the tiled motif, a `sign`
+   scene and counts as repeated icons timed to the spoken number (counts only from the articles).
+4. **Real geography:** a Wikidata gazetteer (CC0), Georgia → region → place zooms, OSM street maps of a ~1 km window
+   for Tbilisi, Batumi, Kutaisi districts (credit in the corner); the Natural Earth Ukraine point-of-view file for
+   the world map (decision 3: check Abkhazia and Tskhinvali stay in Georgia).
+5. **One-take camera:** scenes laid on a 2D path; the camera moves only during the cuts (anchors intact), the red
+   dot travels the thread (`@remotion/paths`), parallax layers; zoom capped at 1.15 for hard news.
+
+Audience and formats:
+6. **Rubrics:** named recurring shows with a shape, a slot and an episode number: „რა იცვლება", „დღის ციფრი",
+   „ამბავი გრძელდება · ნაწ. 2" (a cluster that grew since its first video), „ადასტურებს N გამოცემა" (an `agree`
+   scene: facts literally in at least N members), „დილის 3 ამბავი" (the B7 digest at 08:00).
+7. **Built for the swipe and the loop:** the hook fully on screen at frame 0 (today the last hook line is readable
+   at ~0.7 s), no dead tail, `outro: card|overlay|loop` as an A/B arm (Shorts count every replay as a view since
+   2025-03-31).
+8. **Measure, then choose:** a metrics table per job (YouTube engaged views and average view %, Instagram sends and
+   saves), Thompson sampling over form only (rubric, outro, hook type, captions, length), drop-off mapped onto scene
+   types, politics routed to YouTube, Facebook and Telegram (Meta doesn't recommend political content to
+   non-followers), a volume test per platform.
+9. **One story, every surface, Facebook first** (88% of Georgians who get news on social media use Facebook,
+   IREX/CRRC 2024): `engine package` writes titles and descriptions by code, a 4:5 carousel, a Telegram post and SRT.
+10. **„თქვენ იკითხეთ":** viewers' factual questions answered from the articles (anonymized, checked by news_check);
+    a weekly Telegram quiz from checked facts.
+
+Engine and agent tooling:
+11. **Recipe director with a novelty guard** (merges with 2): fingerprints of recent videos, re-roll before the
+    voice is paid for, a bandit over recipe dimensions fed by retention with an exploration floor.
+12. **Programs: any source in, many outputs out:** url (trafilatura), pdf, github-release, csv/sql sources; rule
+    tiers news / claims / data; deliverables: carousel, audiogram, EN/RU versions with identical facts, a two-voice
+    dialogue (Gemini multi-speaker TTS); `publish: auto|review` per program.
+13. **Self-checking renders:** a layout probe from the render tabs (`onBrowserLog`: overflow, tofu, shrunken text),
+    a vision rubric that can only hold (Workers AI vision, two calls must agree), golden stills, a failures table
+    that feeds the writer and retires variants that fail often.
+14. **Publishing with a canary window and a watchdog:** states scheduled → published → unlisted; a Telegram ⛔/✅
+    window before auto-publishing; re-check the source at +1 h, +6 h, +24 h and unlist when the cluster is gone or
+    the facts no longer hold; start the TikTok audit now.
+15. **Scene kit:** scenes as JSON (typed slots, layout grid, motion presets) drawn by one component, registries
+    generated from them (solves A3), a fuzz gate in every look × brand, `trial` until the owner approves an album.
+
 ## One combined first week
 
 | Day | Work |
