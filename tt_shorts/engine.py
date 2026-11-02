@@ -255,8 +255,9 @@ def brand_of(story):
     return packs.of(story)["name"]
 
 
-def render_story(story_path, fmt, engine="gemini", out_path=None):
-    """Render one story in one resolved format -> result dict (with "problems"). Used by `render` and the queue."""
+def render_story(story_path, fmt, engine="gemini", out_path=None, director=None):
+    """Render one story in one resolved format -> result dict (with "problems"). Used by `render` and the queue.
+    director: overrides the story's own (directors.py)."""
     missing = _kaeasy_required()
     if missing:
         return {"problems": missing}
@@ -264,7 +265,7 @@ def render_story(story_path, fmt, engine="gemini", out_path=None):
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     work, p = props.build(str(story_path), fmt["look"], engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
                           caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
-                          outro=fmt["outro"])
+                          outro=fmt["outro"], director=director)
     checked = _probe_render(work, p)  # the layout probe: seconds, before the minutes of the render
     secs = p["durationInFrames"] / FPS
     target = pathlib.Path(out_path) if out_path else store.render_path(
@@ -345,7 +346,7 @@ def _kaeasy_required():
 
 
 def render(a):
-    result = render_story(a.story, _format(a), a.engine, a.out)
+    result = render_story(a.story, _format(a), a.engine, a.out, a.director)
     return out(result, 1 if result["problems"] else 0)
 
 
@@ -355,7 +356,7 @@ def still(a):
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     work, p = props.build(a.story, fmt["look"], a.engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
                           caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
-                          outro=fmt["outro"])
+                          outro=fmt["outro"], director=a.director)
     frames = [int(x) for x in a.frames.split(",")] if a.frames else \
         [s["from"] + s["duration"] // 2 for s in p["scenes"]]  # default: the middle of every scene
     target = pathlib.Path(a.out) if a.out else store.home() / "renders" / store.safe(brand_of(story)) / store.today() / "stills"
@@ -498,7 +499,7 @@ def write(a):
     ref = a.ref if a.ref is not None else a.cluster
     if ref is None:
         return out({"problems": ["give --ref (or --cluster for tbilisi-today)"]}, 2)
-    result = write_story(a.source, ref, a.brand, a.out, a.program)
+    result = write_story(a.source, ref, a.brand, a.out, a.program, a.director)
     return out(result, 1 if result["problems"] else 0)
 
 
@@ -512,8 +513,8 @@ def voice_samples(a):
 def queue_cmd(a):
     from tt_shorts import queue
     if a.action == "add":
-        overrides = {k: getattr(a, k) for k in ("look", "captions", "transition", "outro", "voice", "music", "platform")
-                     if getattr(a, k)}
+        overrides = {k: getattr(a, k) for k in ("look", "captions", "transition", "outro", "voice", "music", "platform",
+                                                 "director") if getattr(a, k)}
         job, created = queue.add(a.brand, a.source if not a.story else None, a.ref, a.format, overrides, a.story,
                                  a.priority, program=a.program)
         return out({"job": job, "created": created})
@@ -622,6 +623,7 @@ def main(argv=None):
         r.add_argument("--music", help="family, off or a family name")
         r.add_argument("--platform", help="utm_source of the QR link")
         r.add_argument("--engine", default="gemini", choices=["gemini", "edge", "silent"])
+        r.add_argument("--director", help="a director (see options: directors) instead of the story's own")
         r.add_argument("--out")
         if name == "still":
             r.add_argument("--frames", help="comma-separated frames (default: the middle of every scene)")
@@ -638,6 +640,7 @@ def main(argv=None):
     w.add_argument("--ref", help="the story's reference in its source")
     w.add_argument("--cluster", help="same as --ref, for tbilisi-today")
     w.add_argument("--brand", default=packs.DEFAULT, help="the brand pack the story will be rendered with")
+    w.add_argument("--director", help="force a director (default: the least used eligible one, variety.direct)")
     w.add_argument("--out")
     v = sub.add_parser("voices")
     v.add_argument("--story")
@@ -671,7 +674,7 @@ def main(argv=None):
     qp.add_argument("--ref")
     qp.add_argument("--story", help="an already written story file (skips writing)")
     qp.add_argument("--format", help="default: the program's format (news: news)")
-    for k in ("look", "captions", "transition", "outro", "voice", "music", "platform"):
+    for k in ("look", "captions", "transition", "outro", "voice", "music", "platform", "director"):
         qp.add_argument(f"--{k}")
     qp.add_argument("--priority", type=int, default=0)
     qp.add_argument("--state", choices=queue_states())
@@ -696,7 +699,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "selftest": selftest_cmd, "learn": learn_cmd}[a.cmd](a)
-    except (formats.FormatError, ValueError) as e:
+    except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
 
 

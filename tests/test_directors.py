@@ -164,6 +164,19 @@ class Motion(unittest.TestCase):
             self.assertEqual(st["flow"], list(directors.CURRENTS[d["current"]]))
             self.assertEqual(set(st["motion"]), set(directors.MOTION))
 
+    def test_props_carry_the_director_and_pick_inside_it(self):
+        from tt_shorts import props
+        with tempfile.TemporaryDirectory() as home, mock.patch.dict(os.environ, {"VEASY_HOME": home}):
+            _, p = props.build(str(ROOT / "stories" / "24835.json"), "cards", "silent", music="off", director="map")
+            d = directors.get("map")
+            self.assertEqual((p["style"]["director"], p["style"]["current"], p["style"]["flow"]), ("map", "left", [-1, 0]))
+            self.assertEqual(p["style"]["motion"], d["motion"])
+            self.assertIn(p["style"]["hook"], d["hooks"])
+            self.assertIn(p["style"]["enter"], d["enters"])
+            self.assertIn(p["transition"], d["transitions"])
+            _, plain = props.build(str(ROOT / "stories" / "24835.json"), "cards", "silent", music="off")
+            self.assertNotIn("director", plain["style"])  # no director: today's motion, unchanged
+
     def test_entrances_and_cuts_never_oppose_the_current(self):
         """ui.tsx / NewsShort.tsx move a slide entrance and every directional cut along style.flow (rise and reveal
         always go up, scale and dot have no direction); no director's choice moves against its current."""
