@@ -22,6 +22,8 @@ Directors are data, `directors/<id>.json`, validated here:
   never       [{...}, ...]             any condition that fully holds rules the director out
   gates       story checks after writing (news integrity): "two_sides" (when the articles quote 2+ speakers,
               the story's quotes show 2 of them)
+  holds       scene types the director means to hold on (optional): motion_rules lets them stay still up to
+              HOLD_MAX s instead of STILL_MAX (the data director's number: the owner's call, 2026-11-03)
 
 Facts (facts()) are what code extracts from the articles before writing: numbers (news_check.numbers), quantities
 (numbers that are not part of a date or time), percents, dates, times, places (the gazetteer, geo.locate), quotes
@@ -49,7 +51,8 @@ FACTS = ("numbers", "quantities", "percents", "dates", "times", "places", "regio
 FLAGS = ("deaths",)
 GATES = ("two_sides",)
 KEYS = ("id", "label", "about", "device", "form", "brief", "scenes", "count", "pacing", "hooks", "motifs", "enters",
-        "transitions", "current", "motion", "eligible", "never", "gates")
+        "transitions", "current", "motion", "eligible", "never", "gates", "holds")
+OPTIONAL = ("gates", "holds")
 MOTION = {"damping": (8, 30), "stiffness": (80, 300), "enter_frames": (6, 16), "stagger_frames": (3, 6)}
 DEFAULT_MOTION = {"damping": 20, "stiffness": 170, "enter_frames": 10, "stagger_frames": 5}  # ui.tsx today
 
@@ -96,7 +99,7 @@ def validate(name, d):
         if not cond:
             raise DirectorError(f"director {name!r}: {msg}")
     need(isinstance(d, dict), "not an object")
-    missing = [k for k in KEYS if k not in d and k != "gates"]
+    missing = [k for k in KEYS if k not in d and k not in OPTIONAL]
     need(not missing, f"missing {missing}")
     unknown = sorted(set(d) - set(KEYS))
     need(not unknown, f"unknown keys {unknown}")
@@ -130,7 +133,10 @@ def validate(name, d):
     for c in d["never"]:
         _condition(name, "never", c)
     need(set(d.get("gates", [])) <= set(GATES), f"gates are some of {', '.join(GATES)}")
-    return {**d, "gates": list(d.get("gates", []))}
+    holds = d.get("holds", [])
+    need(isinstance(holds, list) and set(holds) <= set(scenes) - set(DEVICES) - set(ALWAYS),
+         "holds is a list of the director's own scene types")
+    return {**d, "gates": list(d.get("gates", [])), "holds": list(holds)}
 
 
 @functools.lru_cache(maxsize=4)

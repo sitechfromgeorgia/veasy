@@ -93,6 +93,17 @@ class Still(unittest.TestCase):
     def test_the_end_card_may_hold_still(self):
         self.assertEqual(rules(video([HOOK, ("end", 9.0, {})]), "still"), [])
 
+    def test_the_data_director_holds_on_its_number(self):  # owner, 2026-11-03: the long hold wins for data
+        def directed(secs, director="data", typ="stat"):
+            p = video([HOOK, (typ, secs, {"value": 6400, "label": "აბონენტი"}), END])
+            p["style"]["director"] = director
+            return [f["scene"] for f in rules(p, "still")]
+        self.assertEqual(directed(7.5), [])  # the number may hold
+        self.assertEqual(directed(7.5, director=None), [1])  # without the director it is a warning as before
+        self.assertEqual(directed(7.5, director="brief"), [1])  # and for a director that doesn't hold on it
+        self.assertEqual(directed(7.5, typ="change"), [1])  # only the types the director names
+        self.assertEqual(directed(m.HOLD_MAX + 3.0), [1])  # a hold has a limit too
+
 
 class Cuts(unittest.TestCase):
     def scenes(self, kinds):

@@ -12,7 +12,7 @@
  "scenes": {"stat": 4, "change": 2, "bars": 2, "trend": 2, "timeline": 2, "sources": 1, "share": 2, "compare": 1, "marker": 1},
  "count": [4, 5], "pacing": "few scenes, long holds on the numbers; the number scene is the longest.",
  "hooks": ["stack", "underline"], "motifs": ["grid", "rules", "plain", "icons"], "enters": ["rise", "scale"],
- "transitions": ["line", "dot", "cut"], "current": "up",
+ "transitions": ["line", "dot", "cut"], "current": "up", "holds": ["stat"],
  "motion": {"damping": 20, "stiffness": 170, "enter_frames": 10, "stagger_frames": 5},
  "eligible": [{"quantities": 2}, {"quantities": 1, "percents": 1}, {"quantities": 1, "times": 2}],
  "never": [{"families": ["crime"], "deaths": true}]}

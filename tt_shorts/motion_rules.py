@@ -28,7 +28,7 @@ Captions are not counted here: captions.py has its own rules (pages of at least 
 import math
 import re
 
-from tt_shorts import art, ka_check, probe, speech
+from tt_shorts import art, directors, ka_check, probe, speech
 
 FPS = speech.FPS
 EXIT = probe.EXIT  # frames a scene takes to leave (remotion/src/NewsShort.tsx)
@@ -39,6 +39,7 @@ REVEAL_CAP = 0.4  # a scene's texts are all in by this share of the scene
 SETTLE = 0.5  # s: an entrance's spring takes about this long to come to rest
 BUILD = 1.0  # s: what a scene draws after its last text (a count-up, bars growing, a map zooming) takes about this
 STILL_MAX = 3.0
+HOLD_MAX = 8.0  # s: a scene type the video's director holds on (directors.py "holds": the data director's number)
 STILL_EXEMPT = ("end",)  # the end card holds still: the QR is scanned there
 MAX_KINDS = 3
 # The direction each cut moves in when the video has no director's current (remotion/src/NewsShort.tsx: wipe and the
@@ -46,7 +47,8 @@ MAX_KINDS = 3
 DIRECTION = {"line": (1, 0), "panel": (1, 0), "wipe": (1, 0), "slide": (-1, 0), "push": (-1, 0)}
 RULES = {
     "read": f"a text on screen too briefly: each needs {READ_BASE} s + {READ_PER_WORD} s per word (holds a render)",
-    "still": f"more than {STILL_MAX:g} s with nothing changing in the scene band (the end card is exempt)",
+    "still": f"more than {STILL_MAX:g} s with nothing changing in the scene band (the end card is exempt; a scene "
+             f"type the director holds on may stay {HOLD_MAX:g} s)",
     "kinds": f"more than {MAX_KINDS} transition kinds in one video",
     "pingpong": "ping-pong cuts: kinds A-B-A in three cuts in a row, or two cuts in a row moving in opposite directions",
     "repeat": "two scenes of the same type in a row",
@@ -181,17 +183,27 @@ def read(rows):
     return out
 
 
-def still(rows):
+def still(rows, holds=()):
+    """holds: scene types the video's director holds on (directors.py), which may stay still up to HOLD_MAX."""
     out = []
     for r in rows:
         if r["type"] in STILL_EXEMPT:
             continue
         quiet = (r["leaves"] - r["from"]) / FPS - r["settled"]
-        if quiet > STILL_MAX + 1e-6:
+        most = HOLD_MAX if r["type"] in holds else STILL_MAX
+        if quiet > most + 1e-6:
             out.append(_finding("still", f"scene {r['scene']} ({r['type']}): nothing changes for {quiet:.1f} s after "
-                                         f"it settles (at most {STILL_MAX:g} s): split it, or give it less narration",
+                                         f"it settles (at most {most:g} s): split it, or give it less narration",
                                 r["scene"]))
     return out
+
+
+def _holds(p):
+    """The scene types the video's director holds on (none without a director)."""
+    did = (p.get("style") or {}).get("director")
+    if not did:
+        return ()
+    return tuple(directors.get(did).get("holds", ()))
 
 
 def kinds(cut_list):
@@ -249,7 +261,7 @@ def check(p):
     holds are the findings that hold a render (HOLDS), warnings all the rest."""
     p = _laid_out(p)
     rows, cut_list = timeline(p), cuts(p)
-    found = read(rows) + still(rows) + kinds(cut_list) + pingpong(cut_list) + repeat(rows)
+    found = read(rows) + still(rows, _holds(p)) + kinds(cut_list) + pingpong(cut_list) + repeat(rows)
     text = lambda f: f"motion {f['rule']}: {f['detail']}"  # noqa: E731
     return {"timeline": rows, "cuts": cut_list, "findings": found,
             "holds": [text(f) for f in found if f["hold"]], "warnings": [text(f) for f in found if not f["hold"]]}

@@ -90,7 +90,10 @@ probe and `engine plan` all pass it; plan shows `novelty` with the fingerprint a
 - `motion {damping 8-30, stiffness 80-300, enter_frames 6-16, stagger_frames 3-6}`;
 - `eligible`: alternatives of minimum fact counts, with `families` to narrow; `{"max": n}` for at most;
 - `never`: conditions that rule it out;
-- `gates`.
+- `gates`;
+- `holds` (optional): its own scene types it means to hold on. The motion rule lets them stay still for up to 8 s
+  instead of 3 s (`motion_rules.HOLD_MAX`). Only `data` has one, `["stat"]`: the owner's call (2026-11-03) is that
+  the long hold on the number wins over the 3-second rule.
 
 `tests/test_directors.py` checks that every family keeps at least 2 eligible directors, and that no entrance or
 cut opposes the director's current. Run `python -m unittest tests.test_directors` and `engine options`.
