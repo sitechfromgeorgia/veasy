@@ -1,17 +1,25 @@
 import React, { createContext, useContext } from "react";
 import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, FONT, INK, LINE_STRONG, MARK_BG, RED, T_PATH } from "./brand";
-import type { Scene, ShortProps, Style, Variant } from "./types";
+import type { Motion, Scene, ShortProps, Style, Variant } from "./types";
 
 type Ctx = { v: Variant; props: ShortProps };
 export const Theme = createContext<Ctx>(null as unknown as Ctx);
 export const useTheme = () => useContext(Theme);
 
-/** 0..1 spring that starts `delay` frames into the current Sequence. */
-export const useIn = (delay = 0, damping = 20, stiffness = 170) => {
+/** The director's motion numbers (tt_shorts/directors.py), or null: today's motion. */
+export const useMotion = (): Motion | null => useContext(Theme)?.props?.style?.motion ?? null;
+
+/** The direction slide entrances and directional cuts move in: the director's current, else the given legacy one. */
+export const flowOf = (style: Style | undefined, legacy: [number, number]): [number, number] => style?.flow ?? legacy;
+
+/** 0..1 spring that starts `delay` frames into the current Sequence; without explicit numbers, the director's spring. */
+export const useIn = (delay = 0, damping?: number, stiffness?: number) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  return spring({ frame: frame - delay, fps, config: { damping, stiffness, mass: 0.8 } });
+  const m = useMotion();
+  return spring({ frame: frame - delay, fps,
+    config: { damping: damping ?? m?.damping ?? 20, stiffness: stiffness ?? m?.stiffness ?? 170, mass: 0.8 } });
 };
 
 /** This video's style (tt_shorts/variety.py), or the look's own when the props carry none. */
@@ -26,8 +34,8 @@ export const Opening = createContext(false);
 export const useOpening = () => useContext(Opening);
 
 /** The opening's entrance: fully visible at frame 0, it only settles the last few px in this video's motion. */
-const settle = (enter: Style["enter"], t: number): React.CSSProperties => {
-  if (enter === "slide") return { transform: `translateX(${(1 - t) * -16}px)` };
+const settle = (enter: Style["enter"], t: number, [fx, fy]: [number, number]): React.CSSProperties => {
+  if (enter === "slide") return { transform: `translate(${(1 - t) * -16 * fx}px, ${(1 - t) * -16 * fy}px)` };
   if (enter === "scale") return { transform: `scale(${0.985 + 0.015 * Math.min(1.02, t)})`, transformOrigin: "left center" };
   return { transform: `translateY(${(1 - t) * (enter === "reveal" ? 6 : 10)}px)` }; // rise, reveal (nothing masked)
 };
@@ -36,12 +44,17 @@ const settle = (enter: Style["enter"], t: number): React.CSSProperties => {
  *  Kinetic keeps its harder spring whichever motion the video has. In the opening they only settle (`Opening`). */
 export const In: React.FC<{ delay?: number; style?: React.CSSProperties; children: React.ReactNode }> = ({ delay = 0, style, children }) => {
   const { v } = useTheme();
-  const { enter } = useStyle();
+  const st = useStyle();
+  const { enter } = st;
   const opening = useOpening();
-  const t = useIn(opening ? Math.round(delay / 2) : delay, v === "kinetic" ? 16 : 20, v === "kinetic" ? 220 : 170);
-  if (opening) return <div style={{ ...settle(enter, t), ...style }}>{children}</div>;
+  const m = useMotion(); // a director's spring and stagger replace the look's own (kinetic: 16/220)
+  const d = m ? Math.round((delay * m.stagger_frames) / 5) : delay;
+  const t = useIn(opening ? Math.round(d / 2) : d, m ? m.damping : v === "kinetic" ? 16 : 20,
+    m ? m.stiffness : v === "kinetic" ? 220 : 170);
+  const [fx, fy] = flowOf(st, [1, 0]); // a slide moves along the current (today: from the left)
+  if (opening) return <div style={{ ...settle(enter, t, [fx, fy]), ...style }}>{children}</div>;
   const css: React.CSSProperties = { opacity: Math.min(1, t * 1.6) };
-  if (enter === "slide") css.transform = `translateX(${(1 - t) * -140}px)`;
+  if (enter === "slide") css.transform = `translate(${(1 - t) * -140 * fx}px, ${(1 - t) * -140 * fy}px)`;
   if (enter === "rise") css.transform = `translateY(${(1 - t) * 56}px)`;
   if (enter === "scale") {
     css.transform = `scale(${0.9 + 0.1 * Math.min(1.02, t)})`;

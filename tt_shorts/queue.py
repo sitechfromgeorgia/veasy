@@ -120,7 +120,10 @@ def add(brand=None, source=None, ref=None, fmt=None, overrides=None, story=None,
             raise ValueError("a job needs --story, or --source and --ref")
         programs.check_source(prog, source)
     fmt = fmt or prog["format"]
-    formats.get(fmt, **(overrides or {}))  # refuse a format the engine can't do before it is queued
+    formats.get(fmt, **_format_overrides(overrides))  # refuse a format the engine can't do before it is queued
+    if (overrides or {}).get("director"):
+        from tt_shorts import directors
+        directors.get(overrides["director"])  # and a director that doesn't exist
     label = ref if program == programs.DEFAULT else f"{program}-{ref}"
     if story:
         source, ref = "story", str(story)
@@ -143,6 +146,11 @@ def add(brand=None, source=None, ref=None, fmt=None, overrides=None, story=None,
                      program))
         store.log("queued", job=jid, brand=brand, program=program, source=source, ref=str(ref), format=fmt)
         return _row(con.execute("select * from jobs where id=?", (jid,)).fetchone()), True
+
+
+def _format_overrides(overrides):
+    """A job's overrides without the director (directors.py), which is not a format key."""
+    return {k: v for k, v in (overrides or {}).items() if k != "director"}
 
 
 def get(jid):
@@ -219,7 +227,8 @@ def process(job, engine="gemini"):
         story = job["story"]
         program = job.get("program") or programs.DEFAULT
         if not story:
-            w = eng.write_story(job["source"], job["ref"], job["brand"], program=program)
+            w = eng.write_story(job["source"], job["ref"], job["brand"], program=program,
+                                director=(job["overrides"] or {}).get("director"))
             story = w["story"]
             _set(jid, story=story, state="rendering")
             if w["problems"]:
@@ -227,7 +236,7 @@ def process(job, engine="gemini"):
                 store.log("failed", job=jid, stage="write", problems=w["problems"][:5])
                 return get(jid)
         stage = "check"
-        fmt = formats.get(job["format"], **(job["overrides"] or {}))
+        fmt = formats.get(job["format"], **_format_overrides(job["overrides"]))
         side = store.sources_path(story)
         sources = json.loads(side.read_text(encoding="utf-8")) if side.exists() else None
         problems = eng.check_story(json.loads(pathlib.Path(story).read_text(encoding="utf-8")), sources) + eng._kaeasy_required()
@@ -237,7 +246,7 @@ def process(job, engine="gemini"):
             store.log("failed", job=jid, stage="check", problems=problems[:5])
             return get(jid)
         stage = "render"
-        r = eng.render_story(story, fmt, engine)
+        r = eng.render_story(story, fmt, engine, director=(job["overrides"] or {}).get("director"))
         failures.record(job["brand"], "render", r["problems"])  # length, the layout probe
         stage = "qa"
         q = eng.qa_file(r["file"], fmt) if not r["problems"] else {"problems": r["problems"]}

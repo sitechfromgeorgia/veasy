@@ -1,0 +1,17 @@
+{"id": "chronicle", "label": "ქრონიკა",
+ "about": "The Chronicler: life before and after, told in one continuous move through time.",
+ "device": "life before and after", "form": "one continuous take",
+ "brief": [
+  "The film moves through time: each scene is one dated beat, in order.",
+  "First 2 s: the hook says what changes and when.",
+  "Then the beats in time order: when it starts, what happens, when it ends or what follows.",
+  "Use exact dates and times from the articles; never a relative day.",
+  "Before and after values (change, trend) only when the articles state them.",
+  "The viewer leaves knowing the order of events and the dates that matter."],
+ "scenes": {"timeline": 3, "change": 2, "steps": 2, "trend": 1, "stat": 1, "sources": 1, "rail": 3},
+ "count": [5, 6], "pacing": "one scene per dated beat, even in length.",
+ "hooks": ["lead", "underline"], "motifs": ["rules", "plain"], "enters": ["slide", "reveal"],
+ "transitions": ["slide", "push", "dot"], "current": "left",
+ "motion": {"damping": 19.6, "stiffness": 120, "enter_frames": 14, "stagger_frames": 6},
+ "eligible": [{"dates": 2}, {"dates": 1, "times": 2}],
+ "never": []}

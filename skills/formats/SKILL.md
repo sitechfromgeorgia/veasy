@@ -40,6 +40,8 @@ diagonal, dots, rules, plain, and `icons`: the story's main icon tiled faintly, 
 never for crime or deaths), entrance (rise, slide, reveal, scale), transition (when `auto`) and music loop
 (four per family): the least used lately for the brand (`options` → `variety`). So a format doesn't need to vary
 these by hand; fix one in a format only when a show must always look one way (e.g. `"transition": "cut"`).
+Each story's **director** (`veasy:directors`) narrows these choices and sets the motion and its direction. A
+director is not a format key: it comes with the story, or from `--director`.
 
 ## Built for the swipe and the loop (`tt_shorts/swipe.py`)
 

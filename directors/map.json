@@ -1,0 +1,18 @@
+{"id": "map", "label": "რუკა",
+ "about": "The Cartographer: the place is the explanation; the camera flies through one map.",
+ "device": "the object is the explanation", "form": "a flight through one world",
+ "brief": [
+  "The film is about where it happens: the real map of Georgia carries the story.",
+  "First 2 s: the hook names the place and what happens there.",
+  "Then the map: one where scene per place the articles name (a second where scene flies to the next place).",
+  "After the map, one scene says what happens there (a sign, steps or a time span).",
+  "Name places exactly as the articles do; never a place they don't name.",
+  "Crime stories stop at the region: no district, no street.",
+  "The viewer leaves knowing where, and whether it touches them."],
+ "scenes": {"where": 4, "sign": 2, "timeline": 2, "steps": 1, "stat": 1, "sources": 1, "rail": 1, "marker": 1},
+ "count": [4, 6], "pacing": "the map scenes get the most time; the camera carries the cuts.",
+ "hooks": ["lead", "stack"], "motifs": ["plain", "grid", "dots"], "enters": ["slide", "rise", "reveal"],
+ "transitions": ["slide", "push", "dot"], "current": "left",
+ "motion": {"damping": 20, "stiffness": 170, "enter_frames": 12, "stagger_frames": 5},
+ "eligible": [{"places": 1}, {"regions": 1}],
+ "never": []}

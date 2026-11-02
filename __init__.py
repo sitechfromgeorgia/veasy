@@ -61,7 +61,7 @@ def _flags(args: dict, names: tuple[str, ...]) -> list[str]:
     return out
 
 
-CHOICES = ("format", "look", "captions", "transition", "outro", "voice", "music", "platform", "engine", "out")
+CHOICES = ("format", "look", "captions", "transition", "outro", "voice", "music", "platform", "engine", "director", "out")
 STORY = {"type": "string", "description": "Path to the story JSON (absolute, or relative to the Veasy folder)."}
 BRAND = {"type": "string", "description": "A brand pack in brands/ (tbilisi-today, sitech, ...; see veasy_options)."}
 PROGRAM = {"type": "string", "description": "What kind of video (skill veasy:programs): news (default), explainer "
@@ -84,6 +84,8 @@ CHOICE_PROPS = {
     "platform": {"type": "string", "description": "utm_source of the QR link: shorts, youtube, instagram, tiktok."},
     "engine": {"type": "string", "enum": ["gemini", "edge", "silent"],
                "description": "gemini is the real voice; edge and silent are free previews, never to publish."},
+    "director": {"type": "string", "description": "A director (skill veasy:directors): data, map, type, draw, "
+                 "chronicle, witness, brief, single. Default: the story's own (code assigns it before writing)."},
     "out": {"type": "string", "description": "Output path (optional)."},
 }
 
@@ -165,7 +167,8 @@ TOOLS = {
                         "ref": {"type": "string", "description": "add: the story's reference in its source."},
                         "story": {"type": "string", "description": "add: an already written story file (skips writing)."},
                         "brand": BRAND, **{k: CHOICE_PROPS[k] for k in ("format", "look", "captions", "transition", "outro",
-                                                                        "voice", "music", "platform", "engine")},
+                                                                        "voice", "music", "platform", "engine",
+                                                                        "director")},
                         "priority": {"type": "integer", "description": "add: higher runs first (default 0)."},
                         "state": {"type": "string", "enum": ["queued", "writing", "rendering", "done", "held",
                                                              "failed", "cancelled"], "description": "list: filter."},
@@ -176,7 +179,7 @@ TOOLS = {
                     "job passed QA; held means rendered but QA found problems; failed has error_class and error.",
                     lambda a: _engine("queue", [a["action"]] + ([str(a["id"])] if a.get("id") else []) + _flags(
                         a, ("program", "source", "ref", "story", "brand", "format", "look", "captions", "transition", "outro",
-                            "voice", "music", "platform", "engine", "priority", "state", "max")))),
+                            "voice", "music", "platform", "engine", "director", "priority", "state", "max")))),
     "veasy_doctor": ({"type": "object", "properties": {}},
                      "Is this machine ready to render? ffmpeg, Remotion, fonts, music, keys, kaeasy.",
                      lambda a: _engine("doctor", [])),

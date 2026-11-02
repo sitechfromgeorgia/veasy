@@ -1,0 +1,17 @@
+{"id": "single", "label": "ერთი კადრი",
+ "about": "The One-Take Minimalist: one fact, few beats, the frame rearranges instead of cutting.",
+ "device": "one fact", "form": "one frame that rebuilds",
+ "brief": [
+  "The film is one fact said clearly, in few beats.",
+  "First 2 s: the hook is the fact itself.",
+  "Then one hero scene that shows it (a number, a place, a picture or a quote) and at most one more.",
+  "No lists, no second story: if the articles have more, keep only the main fact.",
+  "Short narration; calm, still frames.",
+  "The viewer leaves with one clear fact."],
+ "scenes": {"stat": 2, "where": 2, "quote": 1, "sign": 1, "draw": 1, "change": 1, "marker": 1},
+ "count": [3, 4], "pacing": "3-4 beats; the hero scene holds longest.",
+ "hooks": ["stack", "lead", "underline"], "motifs": ["plain", "grid"], "enters": ["rise", "reveal", "scale"],
+ "transitions": ["cut", "dot"], "current": "up",
+ "motion": {"damping": 19.6, "stiffness": 120, "enter_frames": 14, "stagger_frames": 6},
+ "eligible": [{"facts": {"max": 4}}],
+ "never": []}

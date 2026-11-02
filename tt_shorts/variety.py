@@ -45,6 +45,7 @@ create table if not exists variety(
   scenes text);
 create index if not exists variety_brand on variety(brand, ts);
 """
+MIGRATIONS = {"director": "alter table variety add column director text"}  # directors.py, before writing
 
 
 @contextlib.contextmanager
@@ -53,6 +54,10 @@ def _db():
     con.row_factory = sqlite3.Row
     try:
         con.executescript(SCHEMA)
+        have = {r[1] for r in con.execute("pragma table_info(variety)")}
+        for col, sql in MIGRATIONS.items():
+            if col not in have:
+                con.execute(sql)
         with con:
             yield con
     finally:
@@ -77,19 +82,44 @@ def options_for(key, icon=False):
     return OPTIONS[key] if icon else tuple(o for o in OPTIONS[key] if o not in NEEDS_ICON.get(key, ()))
 
 
-def pick(brand, story, look, transition="auto", loops=(), icon=False):
+def _within(options, subset):
+    """A director's subset of a choice's options (all of them when it names none that fit)."""
+    inside = tuple(o for o in options if o in (subset or ()))
+    return inside or tuple(options)
+
+
+def direct(brand, story, facts, program_scenes="all", forced=None):
+    """The director of one story, before it is written (directors.py): forced, else the one this story had, else the
+    least used eligible one among the brand's last RECENT videos (ties by the story id). None when none is eligible."""
+    from tt_shorts import directors
+    if forced:
+        return directors.get(forced)["id"]  # an unknown one is refused
+    pool = directors.eligible(facts, program_scenes)
+    if not pool:
+        return None
+    past = history(brand)
+    same = next((r["director"] for r in past if r["story"] == str(story) and r["director"] in pool), None)
+    return same or _least_used(pool, [r["director"] for r in past], story, "director")
+
+
+def pick(brand, story, look, transition="auto", loops=(), icon=False, director=None):
     """The style for one video: {hook, motif, enter, transition, music}. A story rendered before in this look gets its
     earlier picks back; otherwise each choice is the least used lately. transition stays as given unless "auto";
     music is None when there are no loops. icon: the story has a main icon (icons.story_icon), so the "icons" motif
-    is one of its options."""
+    is one of its options. director: a directors.py director (dict): each choice stays inside its subsets."""
     past = history(brand)
-    same = next((r for r in past if r["story"] == str(story) and r["look"] == look), None)
+    did = director["id"] if director else None
+    same = next((r for r in past if r["story"] == str(story) and r["look"] == look and r["director"] == did), None)
+    sub = {"hook": "hooks", "motif": "motifs", "enter": "enters"}
     out = {}
     for key in OPTIONS:
         options = options_for(key, icon)
+        if director:
+            options = _within(options, director[sub[key]])
         out[key] = same[key] if same and same[key] in options else _least_used(options, [r[key] for r in past], story, key)
     if transition in (None, "auto"):
-        options = TRANSITIONS[look]
+        options = TRANSITIONS[look] if not director else \
+            tuple(t for t in TRANSITIONS[look] if t in director["transitions"]) or tuple(director["transitions"])
         out["transition"] = same["transition"] if same and same["transition"] in options else \
             _least_used(options, [r["transition"] for r in past], story, "transition")
     else:
@@ -106,10 +136,11 @@ def pick(brand, story, look, transition="auto", loops=(), icon=False):
 def record(brand, story, look, style, scenes):
     """Remember what a finished render used (engine.render_story calls this)."""
     with _db() as con:
-        con.execute("insert into variety values(?,?,?,?,?,?,?,?,?,?)",
+        con.execute("insert into variety(ts, brand, story, look, hook, motif, enter, transition, music, scenes, director) "
+                    "values(?,?,?,?,?,?,?,?,?,?,?)",
                     (dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), brand, str(story), look,
                      style.get("hook"), style.get("motif"), style.get("enter"), style.get("transition"),
-                     style.get("music"), json.dumps(list(scenes))))
+                     style.get("music"), json.dumps(list(scenes)), style.get("director")))
 
 
 def recent_sequences(brand, n=12):
@@ -130,8 +161,10 @@ def report(brand, n=50):
     if not past:
         return {}
     out = {}
-    for key in ("hook", "motif", "enter", "transition", "music", "scenes"):
+    for key in ("hook", "motif", "enter", "transition", "music", "scenes", "director"):
         vals = [r[key] for r in past]
         top = max(set(vals), key=vals.count)
         out[key] = {"distinct": len(set(vals)), "most_used_share": round(vals.count(top) / len(vals), 2)}
+    names = [r["director"] for r in past]
+    out["director"]["share"] = {str(n): round(names.count(n) / len(names), 2) for n in sorted(set(names), key=str)}
     return out

@@ -18,7 +18,7 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import art, brand, captions, geo, icons, meta, speech, store, swipe, variety, voices
+from tt_shorts import art, brand, captions, directors, geo, icons, meta, speech, store, swipe, variety, voices
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -57,11 +57,13 @@ def loops_for(music, family):
 
 
 def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts",
-          caption_design=None, music="family", transition="auto", style=None, outro=swipe.DEFAULT_OUTRO):
+          caption_design=None, music="family", transition="auto", style=None, outro=swipe.DEFAULT_OUTRO, director=None):
     """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off".
     transition: "auto" (variety picks one that suits the look) or one of TRANSITIONS.
     style: {hook, motif, enter, transition, music} to force; by default variety.pick() chooses the least used.
-    outro: card | overlay | loop (swipe.py: the end card, a chip over the last scene, or a seamless loop)."""
+    outro: card | overlay | loop (swipe.py: the end card, a chip over the last scene, or a seamless loop).
+    director: a directors.py id to use instead of the story's own "director" (render --director); with one, the
+    variety picks stay inside its subsets and props.style carries its motion numbers and current."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     story = brand.with_say(story)  # the pack's own names (SiTech -> საი-თეჩი) are spoken right
     sid = story["id"]
@@ -89,7 +91,9 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     shown, marks, chip = swipe.plan(story, words, outro)
     loops = loops_for(music, meta.family(category, b))
     main = icons.story_icon(story)  # the story's main icon: the "icons" motif is possible only with one
-    st = {**variety.pick(b["name"], sid, variant, transition, loops, icon=bool(main)), **(style or {})}
+    did = director or story.get("director")
+    chosen = directors.get(did) if did else None  # an unknown director fails before anything renders
+    st = {**variety.pick(b["name"], sid, variant, transition, loops, icon=bool(main), director=chosen), **(style or {})}
     bed = next((f for f in loops if f.name == st["music"]), loops[0] if loops else None)
     for f in (audio, bed):
         if f:
@@ -106,7 +110,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "url": link_shown, "qrSvg": meta.qr_svg(opens, b["colors"]["canvas"]),
         "durationInFrames": marks[-1],
         "transition": st["transition"] if st["transition"] in TRANSITIONS else transition_for(transition, variant),
-        "style": {k: st[k] for k in variety.OPTIONS},
+        "style": {**{k: st[k] for k in variety.OPTIONS}, **(directors.style(chosen) if chosen else {})},
         "outro": outro, "outroFrom": chip,  # the frame the outro chip comes in (None: the end card)
         "scenes": icons.attach([_scene(s, a, b) for s, a, b in zip(shown, marks, marks[1:])], story),
         "motifIcon": icons.nodes(main) if st["motif"] == "icons" else None,  # the icon tiled in the background

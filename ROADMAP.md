@@ -259,6 +259,19 @@ Audience and formats:
 Engine and agent tooling:
 11. **Recipe director with a novelty guard** (merges with 2): fingerprints of recent videos, re-roll before the
     voice is paid for, a bandit over recipe dimensions fed by retention with an exploration floor.
+    - Done (2026-11-02): directors (`tt_shorts/directors.py`, `directors/*.json`, `veasy:directors`).
+      - There are eight, as data. Code assigns one before writing (`variety.direct`), from facts code extracts.
+      - The writer gets the brief, the director's scene types and the facts.
+      - The render gets the director's subsets, its motion numbers and its current. No entrance or cut opposes
+        the current.
+      - The planned brushes (marker, rail, share, compare) are listed and offered once they exist.
+    - Open:
+      - the novelty guard: fingerprint (director, scene sequence, hook, motif, enter, transition, music), re-roll
+        before `speech.voice` when 5 of 7 fields equal one of the last 20, the fingerprint in `variety`, the
+        average distance in `report()`;
+      - the outro chip's slide (`outro.tsx`) still comes from the left whatever the current;
+      - speaker detection for the witness gate is a heuristic (ergative name beside a speech verb);
+      - pitch mode (`VEASY_PITCH`) and the bandit.
 12. **Programs: any source in, many outputs out:** url (trafilatura), pdf, github-release, csv/sql sources; rule
     tiers news / claims / data; deliverables: carousel, audiogram, EN/RU versions with identical facts, a two-voice
     dialogue (Gemini multi-speaker TTS); `publish: auto|review` per program.

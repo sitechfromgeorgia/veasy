@@ -236,11 +236,12 @@ def rule_problems(story, sources, doc=None):
 # ---------------------------------------------------------------- the writer for a program
 
 
-def scene_schema(p, brand=None):
-    """The writer's JSON shape, with only the program's scene types and the right categories."""
-    from tt_shorts import brand as packs, writer
+def scene_schema(p, brand=None, director=None):
+    """The writer's JSON shape, with only the program's scene types (and the director's) and the right categories."""
+    from tt_shorts import brand as packs, directors, writer
+    mine = directors.scene_types(director, p["scenes"]) if director else None
     lines = []
-    for line in writer.schema().splitlines():
+    for line in writer.schema(mine).splitlines():
         m = re.search(r'\{"type": "(\w+)"', line)
         if m and not allowed(p, m.group(1)):
             continue
@@ -255,10 +256,10 @@ def scene_schema(p, brand=None):
     return "\n".join(lines)
 
 
-def prompt(p, cluster, articles, avoid=None, brand=None):
+def prompt(p, cluster, articles, avoid=None, brand=None, director=None, found=None):
     """The writer's prompt for a program that isn't news: the Georgian rulebook (K1-K22, not the news section),
-    kaeasy's rules, the program's scenes and brief, then the source."""
-    from tt_shorts import kaeasy, writer
+    kaeasy's rules, the program's scenes and brief, the director's brief (directors.py), then the source."""
+    from tt_shorts import directors, kaeasy, writer
     rules = writer.STYLE.split("\n## N.")[0].strip()
     body = "\n\n".join(articles)[:MAX_SOURCE]
     allowed_numbers = sorted(news_check.numbers(" ".join(articles)), key=lambda x: (len(x), x))
@@ -267,9 +268,10 @@ def prompt(p, cluster, articles, avoid=None, brand=None):
              f"წყარო: {', '.join(cluster.get('sources') or []) or '-'}"]
     if cluster.get("article"):
         facts.append(f"მუხლი: {cluster['article']}")
-    return (f"{rules}\n\n{georgian + chr(10) * 2 if georgian else ''}{scene_schema(p, brand)}\n\n"
+    direction = directors.brief_block(director, found, p["scenes"]) if director else ""
+    return (f"{rules}\n\n{georgian + chr(10) * 2 if georgian else ''}{scene_schema(p, brand, director)}\n\n"
             f"The program's brief (where it differs from the shape above, the brief wins):\n{brief(p)}\n\n"
-            f"{writer._variety_line(avoid)}"
+            f"{direction}{writer._variety_line(avoid)}"
             f"დაწერე ამ წყაროს ვიდეოს სცენარი (პროგრამა: {p['label']}).\n" + "\n".join(facts) +
             f"\nნებადართული რიცხვები (მხოლოდ ეს): {', '.join(allowed_numbers[:60]) or 'არცერთი'}\n\n"
             f"--- წყარო ---\n{body}")
@@ -290,10 +292,10 @@ def writer_checks(p, story, articles, cluster, brand=None):
     return out
 
 
-def write(p, data, brand=None, avoid=None, on_problems=None):
+def write(p, data, brand=None, avoid=None, on_problems=None, director=None, facts=None):
     """A source's data -> a story written under the program's brief, scenes and rules (writer.write does the rest:
     the model call, one or two repairs, the editor pass, identity from the data). on_problems: as writer.write's."""
     from tt_shorts import writer
     return writer.write(data["cluster"], data["articles"], avoid=avoid,
-                        make_prompt=lambda c, a, av: prompt(p, c, a, av, brand),
+                        make_prompt=lambda c, a, av: prompt(p, c, a, av, brand, director, facts),
                         run_checks=lambda s, a, c: writer_checks(p, s, a, c, brand), on_problems=on_problems)
