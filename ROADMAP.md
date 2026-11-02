@@ -172,11 +172,15 @@ Next for other clients:
    - About 80 Lucide (ISC) or Tabler (MIT) icons, with a Georgian keyword map (გაზი→flame, დენი→zap, მეტრო→train-front…).
    - They draw on with `evolvePath`.
    - Off for the crime family and for deaths.
-8. **C8. Georgia region map (M).**
-   - geoBoundaries ADM1 (12 units, CC BY 3.0: needs a small credit), projected once to ~30 KB of SVG paths.
-   - Georgian names from Wikidata (CC0).
-   - `"area": "ge:imereti"` on `where`.
-   - Tbilisi districts: a hand-made schematic (ours, no licence) rather than OSM (ODbL credit).
+8. ~~**C8. Georgia region map (M).**~~ Done (`tt_shorts/geo.py`, `assets/maps/`, `tools/build_georgia_map.py`).
+   - Geostat's regions via OCHA COD-AB (CC BY-IGO, the credit is shown small under the map) instead of
+     geoBoundaries ADM1: that one has a 2015 Tbilisi of 248 km² without Gldani or Dighomi.
+   - The 12 regions of Georgian law, with no separate entity for the Tskhinvali region: Geostat's provisional unit
+     is split along the public-domain Akhalgori line. The rivers come from Natural Earth.
+   - About 75 KB in total; one where scene's props are about 20 KB.
+   - Georgian names from Wikidata (CC0); `"area": "ge:imereti"` on `where`.
+   - Tbilisi districts are points (36 of them): the camera zooms into the city around the district. There are no
+     district polygons; a hand-made schematic is still open.
 9. **C9. World map and `route` (M-L), after decision 3.**
    - Gazetteer keys from Natural Earth populated places (public domain).
    - An arc draws on and the red dot rides it.
@@ -207,9 +211,15 @@ Visuals and motion:
 3. **Pictogram grammar (Isotype):** ~250 Lucide/Tabler icons with a Georgian stem map; the writer picks a motif and
    one of 8 verbs (rises, falls, stops, opens, closes, moves, splits, joins); code draws the tiled motif, a `sign`
    scene and counts as repeated icons timed to the spoken number (counts only from the articles).
-4. **Real geography:** a Wikidata gazetteer (CC0), Georgia → region → place zooms, OSM street maps of a ~1 km window
-   for Tbilisi, Batumi, Kutaisi districts (credit in the corner); the Natural Earth Ukraine point-of-view file for
-   the world map (decision 3: check Abkhazia and Tskhinvali stay in Georgia).
+4. **Real geography:**
+   - Done (2026-11-02, with C8):
+     - a Wikidata gazetteer (CC0, 149 places with case-ending matching);
+     - Georgia → region → place zooms, where a Tbilisi district zooms into the city;
+     - the crime family stops at the region and marks no district.
+   - Open:
+     - OSM street maps of a ~1 km window for Tbilisi, Batumi and Kutaisi districts (credit in the corner);
+     - the Natural Earth Ukraine point-of-view file for the world map (decision 3: check that Abkhazia and
+       Tskhinvali stay in Georgia).
 5. **One-take camera:** scenes laid on a 2D path; the camera moves only during the cuts (anchors intact), the red
    dot travels the thread (`@remotion/paths`), parallax layers; zoom capped at 1.15 for hard news.
 

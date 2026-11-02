@@ -172,6 +172,7 @@ Below y=1100, no text goes right of x=940 (the like/share rail).
 | News rules N1-N9 (`ka_style.md` § N, `news_check.py`) | done |
 | Music: a news bed per category family, written from scratch (clock tick, e-piano, pad), with an even level (≤1 dB bar to bar) | done (`tools/compose_music.py`) |
 | Brand packs (`brands/`: tbilisi-today, sitech), storage layout, job queue, sources (tbilisi-today, text) | done (2026-11-02) |
+| A real map of Georgia for `where` (12 regions by Georgian law, rivers, 149 places, Tbilisi districts; crime stops at the region) | done (`tt_shorts/geo.py`, `assets/maps/`) |
 | Writer, daily run | done; the server timer waits for the owner's OK |
 | `engine package`: SRT/VTT, cover, 4:5 carousel, teaser, platform texts, Telegram post | done (2026-11-02) |
 | Auto-publishing to YouTube / Meta / TikTok, Telegram kill switch | phase 2 |
@@ -243,12 +244,30 @@ pacing (K9): a scene that starts too late in the narration is rejected rather th
 `id`, `category`, `date` and `sources` come from the source's data, never from the writer. `brand` picks the pack
 (default tbilisi-today); `stories/sitech-cybercartel.json` is a SiTech sample. `at` holds the first words of the scene
 in the narration. Scene types and their fields are in `remotion/src/types.ts` and `remotion/src/scenes/index.tsx`:
-hook (lines), stat (value, label), timeline (start, end, label), where (place, sub), who (items: name, role),
+hook (lines), stat (value, label), timeline (start, end, label), where (place, sub, area: a place in Georgia gets the
+real map, see below), who (items: name, role),
 points (items), quote (text, by, via), sources, end, and since 2026-11-02: draw (svg: the writer's drawing, made safe
 by `tt_shorts/art.py`), pair (items: title, sub; between), steps (items), bars (items: label, value; unit), trend
 (items: label, value; unit), change (before, after: label, value; unit). Formats also choose the cut between scenes
 (`transition`: auto, cut, line, panel, wipe, slide, push, dot). `stories/veasy-demo.json` and
 `stories/veasy-scenes.json` use every scene type.
+
+### The map of Georgia (`where`)
+
+- **What it finds.** `tt_shorts/geo.py` reads the place, in any Georgian case (ბათუმიდან, ვაკეში, ისნის), from
+  `assets/maps/georgia.json`.
+- **What the scene shows.** Georgia's outline draws itself, the camera zooms to the region, which fills in a quiet
+  ink tint (rivers and region lines for context), and the pin with the red dot drops on the town.
+  - A Tbilisi district zooms into the city.
+  - Several places get a marker each.
+  - An unknown or foreign place keeps the grid scene.
+- **The privacy rule.** For the crime family (crime, incidents) the camera stops at the region and no district is
+  marked.
+- **How the data reaches Remotion.** `props.py` resolves the place in Python. Each where scene's props carry only
+  what it draws (about 20 KB).
+- **The data.** The map has the 12 regions of Georgian law: Abkhazia and the Tskhinvali region are part of
+  Georgia, drawn as no separate entity. It is rebuilt with `tools/build_georgia_map.py`; sources and licences
+  are in `assets/maps/README.md`. `stories/veasy-map.json` is the demo.
 
 ## Licences
 
@@ -256,3 +275,6 @@ by `tt_shorts/art.py`), pair (items: title, sub; between), steps (items), bars (
   2026-11-02); a larger team would need a company licence (remotion.pro).
 - The music is composed in code and is ours.
 - The fonts are FiraGO (OFL).
+- The map (`assets/maps/README.md`):
+  - The region lines are Geostat's, via OCHA, CC BY-IGO 3.0. The scene shows the credit small under the map.
+  - The rest is public domain (geoBoundaries ADM2, Natural Earth) or CC0 (Wikidata).

@@ -33,7 +33,7 @@ import subprocess
 import sys
 
 from tt_shorts import brand as packs
-from tt_shorts import captions, formats, ka_check, kaeasy, meta, news_check, props, speech, store, variety, voices
+from tt_shorts import captions, formats, geo, ka_check, kaeasy, meta, news_check, props, speech, store, variety, voices
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -43,7 +43,9 @@ SCENES = {
     "hook": (["lines"], ["kicker"], "the opening: 2-4 short lines that say what happened"),
     "stat": (["value", "label"], ["kicker", "headline", "prefix", "suffix"], "one number from the articles, counted up"),
     "timeline": (["start", "end"], ["kicker", "headline", "big", "label"], "from-to times or dates stated in the articles"),
-    "where": (["place"], ["kicker", "headline", "sub"], "a place, with a pin"),
+    "where": (["place"], ["kicker", "headline", "sub", "area"],
+              "a place: a place in Georgia gets the real map (its region, a pin on the town; tt_shorts/geo.py), "
+              "any other a pin on a grid; area: ge:<region> when the place text doesn't name it (see areas)"),
     "who": (["items"], ["kicker", "headline"], "1-3 people or bodies: items [{name, role}]"),
     "points": (["items"], ["kicker", "headline"], "2-3 short points: items [\"...\"]"),
     "quote": (["text", "by"], ["kicker", "headline", "via"], "a verbatim quote with its speaker"),
@@ -111,6 +113,7 @@ def options(brand_name=None):
         "formats": every,
         "scenes": {t: {"required": r, "optional": o, "shows": d} for t, (r, o, d) in SCENES.items()},
         "package": {"about": "engine package <render>.json --only <parts>: one render -> every surface", **package.PARTS},
+        "areas": geo.areas(),  # a where scene's optional area (tt_shorts/geo.py)
         "categories": {c: {"label": meta.category_label(c, b), "family": meta.family(c, b),
                            "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
                        for c in b["categories"]},
@@ -177,6 +180,8 @@ def shape_problems(s):
     if t == "draw" and s.get("svg"):
         from tt_shorts import art
         out += art.scene_problems(s["svg"])
+    if t == "where" and s.get("area") is not None:
+        out += geo.area_problems(s["area"])
     return out
 
 
