@@ -238,13 +238,13 @@ def rule_problems(story, sources, doc=None):
 
 def scene_schema(p, brand=None, director=None):
     """The writer's JSON shape, with only the program's scene types (and the director's) and the right categories."""
-    from tt_shorts import brand as packs, directors, writer
-    mine = directors.scene_types(director, p["scenes"]) if director else None
+    from tt_shorts import brand as packs, catalog, directors, writer
+    if director:
+        mine = directors.scene_types(director, p["scenes"])
+    else:
+        mine = None if p["scenes"] == "all" else [t for t in catalog.types() if allowed(p, t)]
     lines = []
-    for line in writer.schema(mine).splitlines():
-        m = re.search(r'\{"type": "(\w+)"', line)
-        if m and not allowed(p, m.group(1)):
-            continue
+    for line in writer.schema(mine).splitlines():  # the catalog shows only the menu's lines and rules
         if line.lstrip().startswith('"category":'):
             if p.get("category"):
                 continue  # the program sets it

@@ -1,0 +1,19 @@
+{
+ "type": "sources",
+ "order": 80,
+ "what": "the outlets that covered it (from the data, never written)",
+ "use_when": "several outlets covered it (shown from the data)",
+ "avoid_when": "one outlet only",
+ "pairs_with": ["end"],
+ "slots": {
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 2.8,
+ "min_words": 6,
+ "em": {"fields": [], "kinds": []},
+ "schema": null,
+ "rules": [],
+ "example": {"type": "sources", "at": "ამ ამბავს", "kicker": "წყაროები", "headline": "ერთი ამბავი, ოთხი მედია"}
+}

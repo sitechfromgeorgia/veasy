@@ -1,0 +1,28 @@
+{
+ "type": "stat",
+ "order": 20,
+ "what": "one number from the articles, counted up; with an icon, a count of 2-30 things is drawn as that many",
+ "use_when": "one number carries the story: a count, a sum, a price the articles state",
+ "avoid_when": "the number is a percent of a whole (share), a before and after (change) or one of several (bars)",
+ "pairs_with": ["sign", "where", "change"],
+ "slots": {
+  "value": {"kind": "num", "required": true},
+  "label": {"kind": "text", "max": 56, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40},
+  "prefix": {"kind": "text", "max": 4},
+  "suffix": {"kind": "text", "max": 4},
+  "icon": {"kind": "icon"},
+  "style": {"kind": "enum", "values": ["count", "wheel", "flap"], "deny": {"flap": ["politics", "crime"]}}
+ },
+ "families_deny": [],
+ "min_seconds": 2.5,
+ "min_words": 6,
+ "em": {"fields": ["value", "label", "headline"], "kinds": ["circle", "box", "underline"]},
+ "schema": {"type": "stat", "at": "...", "kicker": "...", "headline": "...", "value": 6400, "label": "..."},
+ "rules": [
+  "a \"stat\" may take an \"icon\": a whole count of 2-30 things is then drawn as that many icons;",
+  "a \"stat\" may take a \"style\": count (it counts up, the default), wheel (an odometer rolls to it) or flap (a split-flap board; never for politics or crime);"
+ ],
+ "example": {"type": "stat", "at": "თბილისი ენერჯის ცნობით", "kicker": "რამდენს ეხება", "value": 6400, "label": "აბონენტს დროებით შეუწყდება გაზის მიწოდება", "em": "6400"}
+}

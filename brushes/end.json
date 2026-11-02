@@ -1,0 +1,16 @@
+{
+ "type": "end",
+ "order": 1000,
+ "what": "the end card: logo, QR to the story page, the call to action",
+ "use_when": "the last scene: logo, QR to the story page, the call to action",
+ "avoid_when": "never before the last scene",
+ "pairs_with": [],
+ "slots": {},
+ "families_deny": [],
+ "min_seconds": 3.5,
+ "min_words": 4,
+ "em": {"fields": [], "kinds": []},
+ "schema": {"type": "end", "at": "last words of the narration"},
+ "rules": [],
+ "example": {"type": "end", "at": "დეტალები იხილე"}
+}

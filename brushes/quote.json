@@ -1,0 +1,22 @@
+{
+ "type": "quote",
+ "order": 70,
+ "what": "a verbatim quote with its speaker",
+ "use_when": "a speaker's exact words carry the story",
+ "avoid_when": "the words are not verbatim in an article",
+ "pairs_with": ["who", "pair"],
+ "slots": {
+  "text": {"kind": "text", "max": 200, "required": true},
+  "by": {"kind": "text", "max": 32, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40},
+  "via": {"kind": "text", "max": 32}
+ },
+ "families_deny": [],
+ "min_seconds": 2.5,
+ "min_words": 6,
+ "em": {"fields": ["text"], "kinds": ["highlight", "underline"]},
+ "schema": {"type": "quote", "at": "...", "kicker": "...", "text": "verbatim quote", "by": "speaker", "via": "outlet"},
+ "rules": [],
+ "example": {"type": "quote", "at": "მერმა განაცხადა", "kicker": "ციტატა", "text": "სამუშაოები ორ კვირაში დასრულდება", "by": "თბილისის მერი", "via": "ინტერპრესნიუსი", "em": "ორ კვირაში"}
+}

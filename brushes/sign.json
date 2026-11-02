@@ -1,0 +1,27 @@
+{
+ "type": "sign",
+ "order": 150,
+ "what": "a pictogram that draws itself, then shows what happens to it: icon (a name or a Georgian word), verb rises|falls|stops|opens|closes|moves|splits|joins, said in the scene's narration (N10)",
+ "use_when": "one thing and what happens to it: gas stops, prices rise, a bridge opens",
+ "avoid_when": "a person or an event; crime, incidents or deaths (N10)",
+ "pairs_with": ["stat", "where", "timeline"],
+ "slots": {
+  "icon": {"kind": "icon", "required": true},
+  "verb": {"kind": "verb", "required": true},
+  "label": {"kind": "text", "max": 40, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 3.2,
+ "min_words": 7,
+ "em": {"fields": ["label", "headline"], "kinds": ["underline"]},
+ "schema": {"type": "sign", "at": "...", "kicker": "...", "headline": "...", "icon": "გაზი", "verb": "stops", "label": "..."},
+ "rules": [
+  "\"sign\": one pictogram and what happens to it. icon: an icon name (flame, zap, droplet, bus, train-front, school,",
+  "  hospital, scale, tag, banknote, route, bridge, snowflake...) or the Georgian word for the thing (გაზი, დენი, წყალი,",
+  "  მეტრო, ხიდი). verb: rises|falls|stops|opens|closes|moves|splits|joins, and that scene's narration must say it",
+  "  (გაიზარდა, შემცირდა, შეწყდება, გაიხსნება, დაიხურება, გადავა, გაიყო, შეუერთდა);"
+ ],
+ "example": {"type": "sign", "at": "გაზი შეწყდება", "kicker": "გაზი", "icon": "გაზი", "verb": "stops", "label": "მიწოდება შეწყდება 12 საათით", "em": "12 საათით"}
+}

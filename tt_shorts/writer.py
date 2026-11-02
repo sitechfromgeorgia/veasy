@@ -15,7 +15,7 @@ import time
 import urllib.error
 import urllib.request
 
-from tt_shorts import art, drawings, icons, ka_check, kaeasy, news_check
+from tt_shorts import art, catalog, drawings, icons, ka_check, kaeasy, meta, news_check
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STYLE = (ROOT / "tt_shorts" / "ka_style.md").read_text(encoding="utf-8")
@@ -38,52 +38,9 @@ class ChecksFailed(ValueError):
         self.problems = list(problems)
 
 
-SCHEMA = """
-Return ONE JSON object and nothing else. Shape:
-{
- "category": "politics|world|economy|society|crime|culture|sports|tech|education|region|general",
- "narration": "the spoken text, 70-95 words, sentences of 6-14 words",
- "cta": "short closing call, 4-7 words, no punctuation at the end",
- "say": {"latin-or-brand": "how to say it in Georgian"},
- "motif": "optional: the story's main icon, an icon name or the Georgian word for the thing (გაზი, მეტრო, სკოლა)",
- "scenes": [
-   {"type": "hook", "at": "first words of the narration this scene starts at", "kicker": "short label", "lines": ["line 1", "line 2", "line 3"]},
-   {"type": "stat", "at": "...", "kicker": "...", "headline": "...", "value": 6400, "label": "..."},
-   {"type": "timeline", "at": "...", "kicker": "...", "headline": "...", "big": "22:00 -> 10:00", "start": "...", "end": "..."},
-   {"type": "where", "at": "...", "kicker": "...", "place": "...", "sub": "..."},
-   {"type": "who", "at": "...", "kicker": "...", "items": [{"name": "...", "role": "..."}]},
-   {"type": "points", "at": "...", "kicker": "...", "items": ["...", "..."]},
-   {"type": "quote", "at": "...", "kicker": "...", "text": "verbatim quote", "by": "speaker", "via": "outlet"},
-   {"type": "draw", "at": "...", "kicker": "...", "headline": "...", "svg": "<g class=\"s\" style=\"--d:0.3s\">...</g>", "label": "..."},
-   {"type": "pair", "at": "...", "kicker": "...", "items": [{"title": "...", "sub": "..."}, {"title": "...", "sub": "..."}], "between": "..."},
-   {"type": "steps", "at": "...", "kicker": "...", "items": ["...", "...", "..."]},
-   {"type": "bars", "at": "...", "kicker": "...", "unit": "...", "items": [{"label": "...", "value": 120}, {"label": "...", "value": 80}]},
-   {"type": "trend", "at": "...", "kicker": "...", "unit": "...", "items": [{"label": "2023", "value": 1.2}, {"label": "2024", "value": 1.4}, {"label": "2025", "value": 1.5}]},
-   {"type": "change", "at": "...", "kicker": "...", "unit": "...", "before": {"label": "...", "value": 1.2}, "after": {"label": "...", "value": 1.5}},
-   {"type": "sign", "at": "...", "kicker": "...", "headline": "...", "icon": "გაზი", "verb": "stops", "label": "..."},
-   {"type": "end", "at": "last words of the narration"}
- ]
-}
-Rules that code enforces and will send back to you:
-- every number on screen and in the narration must appear in the articles;
-- a quote must be verbatim from an article, inside „…“;
-- no relative days (დღეს, გუშინ, ხვალ, ზეგ);
-- no evaluative words, no „თქვენ“, no em dash or en dash, no „!“, „?“, „…“;
-- 3 to 6 scenes; the first is hook; use the scene types that fit the story, do not invent others;
-- "at" must be the exact first words of that part of the narration;
-- never invent a number, time or date: if the article does not contain it, do not write it;
-- do not use a "timeline" scene unless the article states exact times or dates for it;
-- charts (bars, trend, change) only with values the article states, one unit, no computed differences;
-  bars: 2-5 values above zero; trend: 3-8 values in time order; pair: two sides of the story; steps: 2-4 steps in order;
-- "sign": one pictogram and what happens to it. icon: an icon name (flame, zap, droplet, bus, train-front, school,
-  hospital, scale, tag, banknote, route, bridge, snowflake...) or the Georgian word for the thing (გაზი, დენი, წყალი,
-  მეტრო, ხიდი). verb: rises|falls|stops|opens|closes|moves|splits|joins, and that scene's narration must say it
-  (გაიზარდა, შემცირდა, შეწყდება, გაიხსნება, დაიხურება, გადავა, გაიყო, შეუერთდა);
-- a "stat" may take an "icon": a whole count of 2-30 things is then drawn as that many icons;
-- never a sign, a stat icon or a motif for crime, incidents or deaths;
-- at most one "draw" scene; it is the drawing of what the story is about (see the drawing guide below);
-- the last scene must start at least 4 narration words before the end, so it does not flash by.
-"""
+# The JSON shape and the rules the writer gets: generated from the brush catalog (brushes/<type>.json, catalog.py);
+# schema(types) narrows it to a director's or a program's menu.
+SCHEMA = catalog.schema()
 
 
 def _call(prompt: str, model: str, max_tokens: int = 1800, tries: int = 3) -> str:
@@ -165,13 +122,9 @@ def drawing() -> bool:
 
 
 def schema(types=None) -> str:
-    """SCHEMA, with the draw scene and its style guide only when drawing is on. types: only these scene types'
-    example lines (a director's, directors.scene_types); the rules stay."""
-    text = SCHEMA
-    if types is not None:
-        keep = lambda line: not re.search(r'\{"type": "(\w+)"', line) or \
-            re.search(r'\{"type": "(\w+)"', line).group(1) in types  # noqa: E731
-        text = "\n".join(line for line in text.splitlines() if keep(line))
+    """The catalog's shape and rules (catalog.schema), with the draw scene and its style guide only when drawing is
+    on. types: only these scene types' lines and rules (a director's, directors.scene_types; a program's)."""
+    text = catalog.schema(types)
     if drawing() and (types is None or "draw" in types):
         return f"{text}\n{art.GUIDE}"
     return "\n".join(line for line in text.splitlines() if '"draw"' not in line) + \
@@ -318,7 +271,7 @@ def _checks(story: dict, articles: list[str], cluster: dict):
     joined = "\n\n".join(articles)
     article = {"title": cluster.get("headline", ""), "description": "", "text": joined}
     return (news_check.problems(story, articles) + ka_check.problems(story, article) + art.story_problems(story)
-            + icons.story_problems(story))
+            + icons.story_problems(story) + catalog.story_problems(story, meta.family(story.get("category", ""))))
 
 
 def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 2,

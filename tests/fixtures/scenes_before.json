@@ -1,0 +1,317 @@
+{
+ "_about": "the scene tables as they were written by hand before the brush catalog (2026-11-02); tests/test_catalog.py checks catalog.py generates the same for these types",
+ "scenes": {
+  "hook": [
+   [
+    "lines"
+   ],
+   [
+    "kicker"
+   ],
+   "the opening: 2-4 short lines that say what happened"
+  ],
+  "stat": [
+   [
+    "value",
+    "label"
+   ],
+   [
+    "kicker",
+    "headline",
+    "prefix",
+    "suffix",
+    "icon"
+   ],
+   "one number from the articles, counted up; with an icon, a count of 2-30 things is drawn as that many"
+  ],
+  "timeline": [
+   [
+    "start",
+    "end"
+   ],
+   [
+    "kicker",
+    "headline",
+    "big",
+    "label"
+   ],
+   "from-to times or dates stated in the articles"
+  ],
+  "where": [
+   [
+    "place"
+   ],
+   [
+    "kicker",
+    "headline",
+    "sub",
+    "area"
+   ],
+   "a place: a place in Georgia gets the real map (its region, a pin on the town; tt_shorts/geo.py), any other a pin on a grid; area: ge:<region> when the place text doesn't name it (see areas)"
+  ],
+  "who": [
+   [
+    "items"
+   ],
+   [
+    "kicker",
+    "headline"
+   ],
+   "1-3 people or bodies: items [{name, role}]"
+  ],
+  "points": [
+   [
+    "items"
+   ],
+   [
+    "kicker",
+    "headline"
+   ],
+   "2-3 short points: items [\"...\"]"
+  ],
+  "quote": [
+   [
+    "text",
+    "by"
+   ],
+   [
+    "kicker",
+    "headline",
+    "via"
+   ],
+   "a verbatim quote with its speaker"
+  ],
+  "sources": [
+   [],
+   [
+    "kicker",
+    "headline"
+   ],
+   "the outlets that covered it (from the data, never written)"
+  ],
+  "draw": [
+   [
+    "svg"
+   ],
+   [
+    "kicker",
+    "headline",
+    "label"
+   ],
+   "a line drawing of what the story is about, drawn by the writer (art.GUIDE); it builds up stroke by stroke"
+  ],
+  "pair": [
+   [
+    "items"
+   ],
+   [
+    "kicker",
+    "headline",
+    "between"
+   ],
+   "two sides side by side: items [{title, sub}] x2; between: a short word on the divider"
+  ],
+  "steps": [
+   [
+    "items"
+   ],
+   [
+    "kicker",
+    "headline"
+   ],
+   "2-4 steps in order, joined by drawn arrows: items [\"...\"]"
+  ],
+  "bars": [
+   [
+    "items"
+   ],
+   [
+    "kicker",
+    "headline",
+    "unit"
+   ],
+   "2-5 values from the articles as growing bars: items [{label, value}], one unit"
+  ],
+  "trend": [
+   [
+    "items"
+   ],
+   [
+    "kicker",
+    "headline",
+    "unit",
+    "label"
+   ],
+   "3-8 values over time from the articles, a line that draws itself: items [{label, value}]"
+  ],
+  "change": [
+   [
+    "before",
+    "after"
+   ],
+   [
+    "kicker",
+    "headline",
+    "unit",
+    "label"
+   ],
+   "one value then and now from the articles: before {label, value}, after {label, value}"
+  ],
+  "sign": [
+   [
+    "icon",
+    "verb",
+    "label"
+   ],
+   [
+    "kicker",
+    "headline"
+   ],
+   "a pictogram that draws itself, then shows what happens to it: icon (a name or a Georgian word), verb rises|falls|stops|opens|closes|moves|splits|joins, said in the scene's narration (N10)"
+  ],
+  "end": [
+   [],
+   [],
+   "the end card: logo, QR to the story page, the call to action"
+  ]
+ },
+ "counts": {
+  "pair": [
+   2,
+   2
+  ],
+  "steps": [
+   2,
+   4
+  ],
+  "bars": [
+   2,
+   5
+  ],
+  "trend": [
+   3,
+   8
+  ],
+  "who": [
+   1,
+   3
+  ],
+  "points": [
+   2,
+   3
+  ]
+ },
+ "min_scene": {
+  "hook": 2.5,
+  "stat": 2.5,
+  "timeline": 2.5,
+  "where": 2.8,
+  "who": 2.5,
+  "points": 2.5,
+  "quote": 2.5,
+  "sources": 2.8,
+  "draw": 3.5,
+  "pair": 2.8,
+  "steps": 3.0,
+  "bars": 3.2,
+  "trend": 3.2,
+  "change": 3.0,
+  "sign": 3.2,
+  "end": 3.5
+ },
+ "min_words": {
+  "hook": 6,
+  "stat": 6,
+  "timeline": 6,
+  "where": 6,
+  "who": 6,
+  "points": 6,
+  "quote": 6,
+  "sources": 6,
+  "draw": 8,
+  "pair": 6,
+  "steps": 6,
+  "bars": 7,
+  "trend": 7,
+  "change": 6,
+  "sign": 7,
+  "end": 4
+ },
+ "ka_fields": [
+  "kicker",
+  "headline",
+  "label",
+  "text",
+  "big",
+  "from",
+  "refused",
+  "ok",
+  "place",
+  "sub",
+  "by",
+  "via",
+  "start",
+  "end",
+  "cta",
+  "unit",
+  "between"
+ ],
+ "ka_item_fields": [
+  "text",
+  "title",
+  "status",
+  "name",
+  "role",
+  "label",
+  "what",
+  "when",
+  "sub"
+ ],
+ "schema": [
+  "",
+  "Return ONE JSON object and nothing else. Shape:",
+  "{",
+  " \"category\": \"politics|world|economy|society|crime|culture|sports|tech|education|region|general\",",
+  " \"narration\": \"the spoken text, 70-95 words, sentences of 6-14 words\",",
+  " \"cta\": \"short closing call, 4-7 words, no punctuation at the end\",",
+  " \"say\": {\"latin-or-brand\": \"how to say it in Georgian\"},",
+  " \"motif\": \"optional: the story's main icon, an icon name or the Georgian word for the thing (გაზი, მეტრო, სკოლა)\",",
+  " \"scenes\": [",
+  "   {\"type\": \"hook\", \"at\": \"first words of the narration this scene starts at\", \"kicker\": \"short label\", \"lines\": [\"line 1\", \"line 2\", \"line 3\"]},",
+  "   {\"type\": \"stat\", \"at\": \"...\", \"kicker\": \"...\", \"headline\": \"...\", \"value\": 6400, \"label\": \"...\"},",
+  "   {\"type\": \"timeline\", \"at\": \"...\", \"kicker\": \"...\", \"headline\": \"...\", \"big\": \"22:00 -> 10:00\", \"start\": \"...\", \"end\": \"...\"},",
+  "   {\"type\": \"where\", \"at\": \"...\", \"kicker\": \"...\", \"place\": \"...\", \"sub\": \"...\"},",
+  "   {\"type\": \"who\", \"at\": \"...\", \"kicker\": \"...\", \"items\": [{\"name\": \"...\", \"role\": \"...\"}]},",
+  "   {\"type\": \"points\", \"at\": \"...\", \"kicker\": \"...\", \"items\": [\"...\", \"...\"]},",
+  "   {\"type\": \"quote\", \"at\": \"...\", \"kicker\": \"...\", \"text\": \"verbatim quote\", \"by\": \"speaker\", \"via\": \"outlet\"},",
+  "   {\"type\": \"draw\", \"at\": \"...\", \"kicker\": \"...\", \"headline\": \"...\", \"svg\": \"<g class=\"s\" style=\"--d:0.3s\">...</g>\", \"label\": \"...\"},",
+  "   {\"type\": \"pair\", \"at\": \"...\", \"kicker\": \"...\", \"items\": [{\"title\": \"...\", \"sub\": \"...\"}, {\"title\": \"...\", \"sub\": \"...\"}], \"between\": \"...\"},",
+  "   {\"type\": \"steps\", \"at\": \"...\", \"kicker\": \"...\", \"items\": [\"...\", \"...\", \"...\"]},",
+  "   {\"type\": \"bars\", \"at\": \"...\", \"kicker\": \"...\", \"unit\": \"...\", \"items\": [{\"label\": \"...\", \"value\": 120}, {\"label\": \"...\", \"value\": 80}]},",
+  "   {\"type\": \"trend\", \"at\": \"...\", \"kicker\": \"...\", \"unit\": \"...\", \"items\": [{\"label\": \"2023\", \"value\": 1.2}, {\"label\": \"2024\", \"value\": 1.4}, {\"label\": \"2025\", \"value\": 1.5}]},",
+  "   {\"type\": \"change\", \"at\": \"...\", \"kicker\": \"...\", \"unit\": \"...\", \"before\": {\"label\": \"...\", \"value\": 1.2}, \"after\": {\"label\": \"...\", \"value\": 1.5}},",
+  "   {\"type\": \"sign\", \"at\": \"...\", \"kicker\": \"...\", \"headline\": \"...\", \"icon\": \"გაზი\", \"verb\": \"stops\", \"label\": \"...\"},",
+  "   {\"type\": \"end\", \"at\": \"last words of the narration\"}",
+  " ]",
+  "}",
+  "Rules that code enforces and will send back to you:",
+  "- every number on screen and in the narration must appear in the articles;",
+  "- a quote must be verbatim from an article, inside „…“;",
+  "- no relative days (დღეს, გუშინ, ხვალ, ზეგ);",
+  "- no evaluative words, no „თქვენ“, no em dash or en dash, no „!“, „?“, „…“;",
+  "- 3 to 6 scenes; the first is hook; use the scene types that fit the story, do not invent others;",
+  "- \"at\" must be the exact first words of that part of the narration;",
+  "- never invent a number, time or date: if the article does not contain it, do not write it;",
+  "- do not use a \"timeline\" scene unless the article states exact times or dates for it;",
+  "- charts (bars, trend, change) only with values the article states, one unit, no computed differences;",
+  "  bars: 2-5 values above zero; trend: 3-8 values in time order; pair: two sides of the story; steps: 2-4 steps in order;",
+  "- \"sign\": one pictogram and what happens to it. icon: an icon name (flame, zap, droplet, bus, train-front, school,",
+  "  hospital, scale, tag, banknote, route, bridge, snowflake...) or the Georgian word for the thing (გაზი, დენი, წყალი,",
+  "  მეტრო, ხიდი). verb: rises|falls|stops|opens|closes|moves|splits|joins, and that scene's narration must say it",
+  "  (გაიზარდა, შემცირდა, შეწყდება, გაიხსნება, დაიხურება, გადავა, გაიყო, შეუერთდა);",
+  "- a \"stat\" may take an \"icon\": a whole count of 2-30 things is then drawn as that many icons;",
+  "- never a sign, a stat icon or a motif for crime, incidents or deaths;",
+  "- at most one \"draw\" scene; it is the drawing of what the story is about (see the drawing guide below);",
+  "- the last scene must start at least 4 narration words before the end, so it does not flash by."
+ ]
+}

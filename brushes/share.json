@@ -1,0 +1,23 @@
+{
+ "type": "share",
+ "order": 25,
+ "what": "a percent of a whole as a 10x10 grid: its cells fill one by one, the number counts up beside it",
+ "use_when": "an article states a percent with the % sign: 34% of the subscribers, 62% of the votes",
+ "avoid_when": "the article gives a count, not a percent (stat), or the percent is computed rather than stated",
+ "pairs_with": ["stat", "compare", "bars"],
+ "slots": {
+  "value": {"kind": "num", "min": 0, "max": 100, "required": true},
+  "label": {"kind": "text", "max": 48, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 3.2,
+ "min_words": 7,
+ "em": {"fields": ["value", "label", "headline"], "kinds": ["circle", "underline"]},
+ "schema": {"type": "share", "at": "...", "kicker": "...", "headline": "...", "value": 34, "label": "..."},
+ "rules": [
+  "\"share\": one percent of a whole that an article states with the % sign (value 34 means 34%), never computed;"
+ ],
+ "example": {"type": "share", "at": "ამომრჩეველთა 62 პროცენტმა", "kicker": "აქტივობა", "value": 62, "label": "ამომრჩეველთა მივიდა არჩევნებზე", "em": "62"}
+}

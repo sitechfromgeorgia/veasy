@@ -41,43 +41,16 @@ import subprocess
 import sys
 
 from tt_shorts import brand as packs
-from tt_shorts import (captions, directors, formats, geo, icons, ka_check, kaeasy, meta, motion_rules, news_check,
-                       programs, props, speech, store, swipe, variety, voices)
+from tt_shorts import (captions, catalog, directors, formats, geo, icons, ka_check, kaeasy, meta, motion_rules,
+                       news_check, programs, props, speech, store, swipe, variety, voices)
 
 ROOT = speech.ROOT
 FPS = speech.FPS
 
-# The scene vocabulary: type -> (required fields, optional fields, what it shows). remotion/src/scenes draws them.
-SCENES = {
-    "hook": (["lines"], ["kicker"], "the opening: 2-4 short lines that say what happened"),
-    "stat": (["value", "label"], ["kicker", "headline", "prefix", "suffix", "icon"],
-             "one number from the articles, counted up; with an icon, a count of 2-30 things is drawn as that many"),
-    "timeline": (["start", "end"], ["kicker", "headline", "big", "label"], "from-to times or dates stated in the articles"),
-    "where": (["place"], ["kicker", "headline", "sub", "area"],
-              "a place: a place in Georgia gets the real map (its region, a pin on the town; tt_shorts/geo.py), "
-              "any other a pin on a grid; area: ge:<region> when the place text doesn't name it (see areas)"),
-    "who": (["items"], ["kicker", "headline"], "1-3 people or bodies: items [{name, role}]"),
-    "points": (["items"], ["kicker", "headline"], "2-3 short points: items [\"...\"]"),
-    "quote": (["text", "by"], ["kicker", "headline", "via"], "a verbatim quote with its speaker"),
-    "sources": ([], ["kicker", "headline"], "the outlets that covered it (from the data, never written)"),
-    "draw": (["svg"], ["kicker", "headline", "label"],
-             "a line drawing of what the story is about, drawn by the writer (art.GUIDE); it builds up stroke by stroke"),
-    "pair": (["items"], ["kicker", "headline", "between"],
-             "two sides side by side: items [{title, sub}] x2; between: a short word on the divider"),
-    "steps": (["items"], ["kicker", "headline"], "2-4 steps in order, joined by drawn arrows: items [\"...\"]"),
-    "bars": (["items"], ["kicker", "headline", "unit"],
-             "2-5 values from the articles as growing bars: items [{label, value}], one unit"),
-    "trend": (["items"], ["kicker", "headline", "unit", "label"],
-              "3-8 values over time from the articles, a line that draws itself: items [{label, value}]"),
-    "change": (["before", "after"], ["kicker", "headline", "unit", "label"],
-               "one value then and now from the articles: before {label, value}, after {label, value}"),
-    "sign": (["icon", "verb", "label"], ["kicker", "headline"],
-             "a pictogram that draws itself, then shows what happens to it: icon (a name or a Georgian word), verb "
-             "rises|falls|stops|opens|closes|moves|splits|joins, said in the scene's narration (N10)"),
-    "end": ([], [], "the end card: logo, QR to the story page, the call to action"),
-}
-# Shapes the new scenes must have (counts and numbers); the older ones are checked by their required fields.
-COUNTS = {"pair": (2, 2), "steps": (2, 4), "bars": (2, 5), "trend": (3, 8), "who": (1, 3), "points": (2, 3)}
+# The scene vocabulary: type -> (required fields, optional fields, what it shows), generated from the brush catalog
+# (brushes/<type>.json, catalog.py); remotion/src/scenes draws them. COUNTS: how many items a type holds.
+SCENES = catalog.scenes()
+COUNTS = catalog.counts()
 STORY_KEYS = ("id", "category", "date", "narration", "scenes")
 
 
@@ -133,7 +106,11 @@ def options(brand_name=None):
         "directors": directors.options(),
         "programs": {n: programs.summary(p) for n, p in programs.load_all().items()},
         "sources": _sources_about(),
-        "scenes": {t: {"required": r, "optional": o, "shows": d} for t, (r, o, d) in SCENES.items()},
+        "scenes": catalog.options(),  # every brush's card (brushes/<type>.json): slots, limits, when, an example
+        "em": {"about": "a scene whose brush has em fields may carry \"em\": a phrase of its on-screen text that its "
+                        "part of the narration says; it is marked on screen as the voice says it (marks.py)",
+               "kinds": list(catalog.MARKS), "picked_by": "code: the scene type's kinds, varied per story; never the writer",
+               "strokes": "clean for hard and service news, a little rough for light news (by the story's family)"},
         "package": {"about": "engine package <render>.json --only <parts>: one render -> every surface", **package.PARTS},
         "areas": geo.areas(),  # a where scene's optional area (tt_shorts/geo.py)
         "self_checks": {"plan": "engine plan <story> [--look]: a free storyboard before the voice is paid for: scene "
@@ -171,6 +148,7 @@ def structure_problems(story):
     scenes = story.get("scenes") or []
     if not scenes or scenes[0].get("type") != "hook":
         p.append("story: the first scene must be a hook")
+    family = _family(story)
     for i, s in enumerate(scenes):
         t = s.get("type")
         if t not in SCENES:
@@ -181,24 +159,34 @@ def structure_problems(story):
         for field in SCENES[t][0]:
             if s.get(field) in (None, "", []):
                 p.append(f"scene {i} ({t}): missing {field!r}")
-        p += [f"scene {i} ({t}): {x}" for x in shape_problems(s)]
+        p += [f"scene {i} ({t}): {x}" for x in shape_problems(s) + catalog.family_problems(s, family)]
     if "program" in story:  # a story without one is news, exactly as before programs
         p += programs.story_problems(story)
     return p + icons.motif_problems(story) + directors.structure_problems(story)
+
+
+def _family(story):
+    """The story's family in its pack (an unknown brand is named above; the default pack judges meanwhile)."""
+    try:
+        pack = packs.of(story)
+    except packs.BrandError:
+        pack = packs.load()
+    return meta.family(story.get("category", ""), pack)
 
 
 def _number(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
+COMPARE_RATIO = 40  # compare: above this ratio the small square is a speck; bars show it better
+
+
 def shape_problems(s):
-    """Counts, item shapes and numbers of one scene; a draw scene's SVG through art.sanitize."""
-    t, out = s.get("type"), []
+    """Counts, item shapes and numbers of one scene (the brush's slots: catalog.slot_problems, then each type's
+    own); a draw scene's SVG through art.sanitize; a rail's dates in order."""
+    t = s.get("type")
+    out = catalog.slot_problems(s)
     items = s.get("items")
-    if t in COUNTS and isinstance(items, list):
-        lo, hi = COUNTS[t]
-        if not lo <= len(items) <= hi:
-            out.append(f"items: {len(items)}, needs {lo}-{hi}" if lo != hi else f"items: {len(items)}, needs {lo}")
     if t == "pair":
         for k, it in enumerate(items or []):
             if not isinstance(it, dict) or not isinstance(it.get("title"), str) or not it["title"].strip():
@@ -206,12 +194,27 @@ def shape_problems(s):
     if t == "steps":
         if any(not isinstance(it, str) or not it.strip() for it in items or []):
             out.append("items: each step is a short text")
-    if t in ("bars", "trend"):
+    if t in ("bars", "trend", "compare"):
         for k, it in enumerate(items or []):
             if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not _number(it.get("value")):
                 out.append(f"items[{k}]: needs {{label, value}} with a number value")
-            elif t == "bars" and it["value"] <= 0:
-                out.append(f"items[{k}]: a bar's value is above zero (the axis starts at zero)")
+            elif t in ("bars", "compare") and it["value"] <= 0:
+                out.append(f"items[{k}]: a {'bar' if t == 'bars' else 'square'}'s value is above zero "
+                           f"({'the axis starts at zero' if t == 'bars' else 'its area is the value'})")
+    if t == "compare" and isinstance(items, list) and len(items) == 2 and \
+            all(isinstance(it, dict) and _number(it.get("value")) and it["value"] > 0 for it in items):
+        lo, hi = sorted(it["value"] for it in items)
+        if hi / lo > COMPARE_RATIO:
+            out.append(f"the ratio is {hi / lo:.0f}, more than {COMPARE_RATIO}: the small square would be a speck, "
+                       "show the two values as bars")
+    if t in ("who", "link"):
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("name"), str) or not it["name"].strip():
+                out.append(f"items[{k}]: needs {{name, role}}")
+    if t == "rail":
+        out += rail_problems(items)
+    if t == "share" and _number(s.get("value")) and not 0 < s["value"] <= 100:
+        out.append(f"value: {s['value']:g} is not a percent of a whole (above 0, at most 100)")
     if t == "change":
         for k in ("before", "after"):
             v = s.get(k)
@@ -227,6 +230,24 @@ def shape_problems(s):
     return out
 
 
+def rail_problems(items):
+    """A rail's events: each with a date code can read (a day and month, a year, a time) and in time order."""
+    out, keys = [], []
+    for k, it in enumerate(items or []):
+        if not isinstance(it, dict) or not isinstance(it.get("when"), str) or not isinstance(it.get("label"), str):
+            out.append(f"items[{k}]: needs {{when, label}}")
+            continue
+        key = news_check.date_key(it["when"])
+        if key is None:
+            out.append(f"items[{k}]: when „{it['when']}“ is not a date (a day and a month, a year, or a time 22:00)")
+        keys.append((k, key))
+    dated = [(k, key) for k, key in keys if key]
+    for (a, ka), (b, kb) in zip(dated, dated[1:]):
+        if news_check.date_before(kb, ka):
+            out.append(f"items[{b}]: „{items[b]['when']}“ comes before „{items[a]['when']}“: a rail runs in time order")
+    return out
+
+
 def check_story(story, sources=None):
     """Every check a story passes before it is rendered: structure, news rules, Georgian rules, timing, captions."""
     p = structure_problems(story)
@@ -234,15 +255,16 @@ def check_story(story, sources=None):
         return p  # the rest needs a well-formed story
     story = packs.with_say(story)  # the pack's own names (SiTech) have spoken forms too
     texts = sources or []
-    if programs.name_of(story) != programs.DEFAULT:
+    news = programs.name_of(story) == programs.DEFAULT
+    if not news:
         p += programs.rule_problems(story, texts)  # the program's tier: claims or law (some rules need no sources)
         p += programs.length_problems(story)  # and its format's length window
     elif texts:
-        p += news_check.problems(story, texts)
+        p += news_check.problems(story, texts)  # N1-N5, with N10 and N11
     if texts and story.get("director"):  # the director's own gates (witness: both sides when both are quoted)
         p += directors.story_problems(story, directors.facts(texts, story.get("category", ""), packs.of(story)))
-    else:  # N10 needs no articles
-        p += news_check.pictograms(story)
+    if not (news and texts):  # N10 and N11 need no articles
+        p += news_check.pictograms(story) + news_check.spoken(story)
     ka = ka_check.problems(story, {"title": "", "description": "", "text": " ".join(texts)})
     if not texts:  # without the articles a quote can't be compared: that check needs --sources (the news rules say so)
         ka = [x for x in ka if "is quoted but not in the article" not in x]
