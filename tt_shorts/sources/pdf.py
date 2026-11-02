@@ -42,7 +42,9 @@ def _pdftotext(path):
         raise SourceError(f"pdf {path}: pdftotext failed: {r.stderr.strip()[:200]}")
     meta = {}
     if shutil.which("pdfinfo"):
-        info = subprocess.run(["pdfinfo", str(path)], capture_output=True, text=True, timeout=60).stdout
+        # -rawdates: the PDF's own "D:20261030142000+04'00'" (pdf_date reads it exactly); the default
+        # "Fri Oct 30 14:20:00 2026 +04" lost the zone's hours
+        info = subprocess.run(["pdfinfo", "-rawdates", str(path)], capture_output=True, text=True, timeout=60).stdout
         for line in info.splitlines():
             k, _, v = line.partition(":")
             if v.strip():
