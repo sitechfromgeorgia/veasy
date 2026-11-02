@@ -90,6 +90,23 @@ Server setup: `bash video/ops/install.sh [--align]` (venv, `npm ci`, chrome-head
 
 Behind a TLS-inspecting proxy, the preview voice needs `SSL_CERT_FILE` pointing at the proxy's CA bundle.
 
+
+## Writer and daily run (2026-11-02)
+
+`tt_shorts/writer.py` turns a cluster into a story JSON: the free model writes, `news_check` and `ka_check`
+judge it, one repair call and one editor pass fix what the checks named, and identity (id, date, outlets)
+comes from D1. `ops/daily.py` selects the day's stories (4+ outlets, 18 hours, category caps, sensitive
+stories skipped, no repeats) and renders up to ten of them with the Gemini voice.
+
+```bash
+python -m tt_shorts.writer --cluster 24886 --out stories/24886.json   # needs SHORTS_CLUSTER_JSON
+python -m ops.daily --limit 10 --dry-run                               # selection only
+python -m ops.daily --limit 10                                         # write and render
+```
+
+The writer falls back from OpenRouter's free daily cap to the NVIDIA lane. Its known weak spot is scene
+pacing (K9): a scene that starts too late in the narration is rejected rather than flashed by.
+
 ## Story JSON
 
 ```json

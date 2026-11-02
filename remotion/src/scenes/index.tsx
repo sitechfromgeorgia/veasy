@@ -26,7 +26,7 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
   const { v, props } = useTheme();
   const lines = s.lines ?? [];
   const kinetic = v === "kinetic";
-  const size = fitSize(lines, inner - (kinetic ? 48 : 8), kinetic ? 176 : 160, 88);
+  const size = fitSize(lines, inner - (kinetic ? 48 : 8), kinetic ? 176 : 160, 62);
   const bar = useIn(8 + lines.length * 5, 22, 120);
   return (
     <Frame s={s} head={false}>
@@ -135,7 +135,12 @@ export const Timeline: React.FC<P> = ({ s, inner = INNER }) => {
 export const Where: React.FC<P> = ({ s, inner = INNER }) => {
   const frame = useCurrentFrame();
   const pin = useIn(2, 12, 180);
-  const size = fitSize([s.place ?? ""], inner, 148, 72);
+  // A long place name (ველის სასაფლაო, ლილოს ტერიტორია) overflowed the frame at the 72px floor;
+  // split it into two balanced lines and let fitSize pick a size that actually fits.
+  const words = String(s.place ?? "").split(" ").filter(Boolean);
+  const half = Math.ceil(words.length / 2);
+  const placeLines = words.length > 2 ? [words.slice(0, half).join(" "), words.slice(half).join(" ")] : [String(s.place ?? "")];
+  const size = fitSize(placeLines, inner, 148, 54);
   return (
     <Frame s={s}>
       <div style={{ position: "relative", height: 460 }}>
@@ -160,7 +165,7 @@ export const Where: React.FC<P> = ({ s, inner = INNER }) => {
       </div>
       <In delay={10}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.12, color: INK, textAlign: "center",
-          whiteSpace: "nowrap", marginTop: 32 }}>{s.place}</div>
+          marginTop: 32 }}>{placeLines.map((l, i) => <div key={i}>{l}</div>)}</div>
       </In>
       <In delay={16}>
         <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 44, lineHeight: 1.3, color: MUTED, textAlign: "center", marginTop: 16 }}>

@@ -6,7 +6,7 @@ import {
 } from "./brand";
 import { SCENES } from "./scenes";
 import type { ShortProps, Word } from "./types";
-import { Chip, Dot, Mark, measure, Theme, useTheme, Wordmark } from "./ui";
+import { Chip, Dot, fitSize, Mark, measure, Theme, useTheme, Wordmark } from "./ui";
 
 const EXIT = 7; // frames a scene takes to leave
 const CARD_PAD = 48;
@@ -107,16 +107,24 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
   );
 };
 
-/** Up to 3 words per caption, never across a pause, never wider than the safe band. The spoken word is ink with a red
- *  underline that grows under it (an active state); the others wait in the secondary color. Red is never the text. */
-const CAP = 56;
+/** Three-line rolling captions (owner, 2026-11-02): the line just spoken stays above in small type, the
+ *  active line is large in the middle, the next line waits below in small type, and the stack rises as the
+ *  voice moves on. A line is at most three words and always fits the 800px safe band, so nothing is clipped. */
+const CAP_MAX = 66;
+const CAP_MIN = 40;
+const CAP_SMALL = 32;
+const CAP_BAND = 2 * RAIL_X - W - 32;
+const CAP_INNER = CAP_BAND - 52; // the box padding, so a line that fits here never wraps inside
+const CAP_ROW = 92;
+
 const chunk = (words: Word[]) => {
   const out: Word[][] = [];
-  const room = RAIL_X - (W - RAIL_X) - 2 * 28;
   for (const w of words) {
     const cur = out[out.length - 1];
-    const wide = cur && (measure([...cur, w].map((x) => x.text).join(" "), 600) * CAP) / 100 > room;
-    if (!cur || cur.length === 3 || w.start - cur[cur.length - 1].end > 0.25 || wide) out.push([w]);
+    const cand = cur ? [...cur, w] : [w];
+    const wide = (measure(cand.map((x) => x.text).join(" "), 700) * CAP_MAX) / 100 > CAP_INNER;
+    const pause = !!cur && !!cur.length && w.start - cur[cur.length - 1].end > 0.25;
+    if (!cur || cur.length === 3 || pause || wide) out.push([w]);
     else cur.push(w);
   }
   return out;
@@ -128,29 +136,48 @@ const Captions: React.FC = () => {
   const { fps } = useVideoConfig();
   const t = frame / fps;
   const chunks = useMemo(() => chunk(props.words), [props.words]);
-  const idx = chunks.findIndex((c, k) => t >= c[0].start - 0.05 && t < Math.min(chunks[k + 1]?.[0].start ?? 1e9, c[c.length - 1].end + 0.4));
+  const idx = chunks.findIndex((c, k) => t >= c[0].start - 0.05 && t < (chunks[k + 1]?.[0].start ?? 1e9));
   if (idx < 0) return null;
   const c = chunks[idx];
-  const enter = interpolate(t - (c[0].start - 0.05), [0, 0.14], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const prev = chunks[idx - 1];
+  const next = chunks[idx + 1];
+  // The active line stays pinned; only its own entrance is animated. Moving the whole stack made the
+  // block jump down at every chunk boundary (owner: "ტიტრები დახტის, თითქოს გაჭედა").
+  const enter = Math.min(1, Math.max(0, (t - (c[0].start - 0.02)) / 0.18));
+  const size = fitSize([c.map((w) => w.text).join(" ")], CAP_INNER, CAP_MAX, 38);
+  const line = (words: Word[], fs: number, dim: number) => (
+    <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: fs, lineHeight: 1.18, color: INK, opacity: dim,
+      textAlign: "center", maxWidth: CAP_BAND, margin: "0 auto", overflowWrap: "break-word" }}>
+      {words.map((w) => w.text).join(" ")}
+    </div>
+  );
   return (
-    <div style={{ position: "absolute", left: W - RAIL_X, right: W - RAIL_X, bottom: H - CAPTION_BOTTOM, display: "flex", justifyContent: "center" }}>
-      <div style={{ background: "rgba(5,8,15,.78)", border: `2px solid ${LINE}`, borderRadius: RADIUS, fontFamily: FONT, fontWeight: 600,
-        fontSize: CAP, lineHeight: 1.25, padding: "12px 28px 20px", whiteSpace: "nowrap", opacity: enter,
-        transform: `translateY(${(1 - enter) * 10}px)` }}>
-        {c.map((w, k) => {
-          const end = c[k + 1]?.start ?? w.end + 0.4;
-          const on = t >= w.start && t < end;
-          const said = t >= end;
-          const grow = interpolate(t - w.start, [0, 0.12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-          return (
-            <span key={k} style={{ position: "relative", display: "inline-block", marginRight: k < c.length - 1 ? "0.28em" : 0,
-              color: on || said ? INK : MUTED }}>
-              {w.text}
-              <span style={{ position: "absolute", left: 0, right: 0, bottom: -6, height: 5, borderRadius: 3, background: RED,
-                transform: `scaleX(${on ? grow : 0})`, transformOrigin: "left" }} />
-            </span>
-          );
-        })}
+    <div style={{ position: "absolute", left: W - RAIL_X, width: CAP_BAND, bottom: H - CAPTION_BOTTOM, height: CAP_ROW * 3,
+      overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div>
+        {prev ? line(prev, CAP_SMALL, 0.45) : <div style={{ height: CAP_SMALL * 1.18 }} />}
+        <div style={{ background: "rgba(5,8,15,.78)", border: `2px solid ${LINE}`, borderRadius: RADIUS, padding: "8px 24px 14px",
+          minHeight: CAP_MAX * 1.16 + 26, display: "flex", alignItems: "center", justifyContent: "center",
+          opacity: 0.55 + 0.45 * enter, transform: `translateY(${(1 - enter) * 8}px)` }}>
+          <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.16, color: INK, textAlign: "center",
+            whiteSpace: "nowrap" }}>
+            {c.map((w, k) => {
+              const end = c[k + 1]?.start ?? w.end + 0.4;
+              const on = t >= w.start && t < end;
+              const said = t >= end;
+              const grow = interpolate(t - w.start, [0, 0.12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+              return (
+                <span key={k} style={{ position: "relative", display: "inline-block", marginRight: k < c.length - 1 ? "0.26em" : 0,
+                  color: on || said ? INK : MUTED }}>
+                  {w.text}
+                  <span style={{ position: "absolute", left: 0, right: 0, bottom: -5, height: 4, borderRadius: 2, background: RED,
+                    transform: `scaleX(${on ? grow : 0})`, transformOrigin: "left" }} />
+                </span>
+              );
+            })}
+          </div>
+        </div>
+        {next ? line(next, CAP_SMALL, 0.45) : <div style={{ height: CAP_SMALL * 1.18 }} />}
       </div>
     </div>
   );
