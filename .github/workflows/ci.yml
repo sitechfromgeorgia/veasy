@@ -10,6 +10,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: ffmpeg (the engine mixes, cuts and checks with it; the package and swipe tests use it)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - name: Python dependencies
         run: pip install -r requirements.txt
       - name: Python tests (checks, captions, formats, plugin, kaeasy adapter)
