@@ -9,6 +9,54 @@ Rules for every brief:
   `python -m tt_shorts.engine probe <story> --look all`, then look at the stills.
 - After a visual change, run `engine selftest`; use `--update` only for intended changes.
 
+## 0. Directors (first: the owner's "separate agents each choose a different direction")
+
+Language models drift toward the same choices when asked to "be creative", so code assigns a creative director
+before the writer runs. A director changes what kind of film a story becomes; it never touches facts, the palette,
+the safe zone or the news rules.
+
+- **Data.**
+  - `directors/<id>.json`, validated by `tt_shorts/directors.py` and listed by `engine options`.
+  - The eight directors:
+
+    | id | Georgian label |
+    |---|---|
+    | data | ციფრი |
+    | map | რუკა |
+    | type | სიტყვა-დარტყმა |
+    | draw | ესკიზი |
+    | chronicle | ქრონიკა |
+    | witness | ციტატა |
+    | brief | მოკლედ |
+    | single | ერთი კადრი |
+
+  - Each director has:
+    - a Georgian label;
+    - an English brief (6-10 lines for the writer);
+    - eligibility from facts that code extracts before writing (numbers, dates, `geo.locate` places, quote
+      candidates, `icons.find` matches, the family);
+    - its allowed scene types with weights;
+    - hook, motif and transition subsets;
+    - a motion personality (spring numbers, enter and stagger frames, a "current" direction);
+    - its pacing and "never" gates. The Typographer never does politics, crime or deaths; the Witness shows two
+      speakers when the cluster quotes two sides.
+  - A test checks that every family has at least 2 eligible directors.
+- **Assignment.**
+  - `variety.direct()` picks the least used eligible director among the brand's last 20 (the `variety` table gets
+    a `director` column).
+  - `engine.write_story` stores it as a code-owned `story["director"]`.
+  - The writer prompt gets that director's brief, only that director's scene types and the extracted facts.
+  - `render --director` and `queue add --director` override it.
+- **Render.**
+  - `variety.pick()` chooses within the director's subsets.
+  - `props.style` gets `director`, `motion` and `current`.
+  - `ui.tsx` `useIn`/`In` read the motion numbers (defaults unchanged).
+  - Entrances and cuts follow the current.
+- **Novelty guard.** A fingerprint of a planned video (director, scene sequence, hook, motif, enter, transition,
+  music). If it is too close to one of the last 20, re-roll the variety picks before paying for the voice.
+- **Demo.** One story (24835: gas cut, 6400 subscribers) hand-written under three directors (data, map, brief), each
+  passing `engine check` with `tests/fixtures/sources.json`, with stills.
+
 ## 1. The brush kit (new brushes + one catalog that generates the writer's menu)
 
 - **Marker, emphasis synced to the voice (C2).**
