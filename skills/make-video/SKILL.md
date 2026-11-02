@@ -39,7 +39,24 @@ python -m tt_shorts.engine check <story.json> --sources <story>.sources.json
 no sensitive stories), K* and KE are Georgian rules (KE = kaeasy, SiTech's Georgian plugin), `timing:` and
 `captions:` are layout. Fix the story, never the rule. `warnings` don't block; read them anyway.
 
-## 3. Render
+## 3. Plan before you render (free, ~5 s)
+
+```bash
+python -m tt_shorts.engine plan <story.json> [--format news] [--look kinetic] [--director map]
+```
+Tool `veasy_plan`. A storyboard with no voice and no model call, and it uses up nothing (the variety picks are
+shown, not recorded):
+- per scene: start, end, narration words, caption pages, and every text on screen with the seconds it `need`s
+  (0.5 s + 0.3 s a word) and the seconds it is `shown`; `load` above 1 means more text than time;
+- `variety`: the hook layout, motif, entrance, transition and music the render will get (inside the director's);
+- the motion rules as `warnings` (a still stretch over 3 s, more than 3 transition kinds, ping-pong cuts, two
+  scenes of one type in a row): fix them when the facts allow;
+- the layout probe and `sheet`, a contact sheet of every scene's settled frame at half size: look at it.
+
+`problems` must be empty before you render: a text on screen too briefly to read holds the render too (the job
+ends `held`), so shorten the text or give its scene more narration. Then render.
+
+## 4. Render
 
 ```bash
 python -m tt_shorts.engine render <story.json> --format news
@@ -59,11 +76,11 @@ python -m tt_shorts.engine render <story.json> --format news
   render's `problems` and hold the video. Free on its own, before paying for a voice:
   `python -m tt_shorts.engine probe <story.json> --look all` (see `veasy:qa`).
 
-## 4. QA before anyone sees it
+## 5. QA before anyone sees it
 
 `python -m tt_shorts.engine qa <file.mp4> --format news`, then follow `veasy:qa`.
 
-## 5. Every other surface (free, seconds)
+## 6. Every other surface (free, seconds)
 
 `python -m tt_shorts.engine package <file>.json` (the render's manifest): subtitles, a cover, a 4:5 carousel, a
 teaser, the platforms' titles and captions and a Telegram post, from the same render with no new voice. See

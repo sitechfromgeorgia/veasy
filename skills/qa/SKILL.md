@@ -39,10 +39,14 @@ it points, and never publish a video with problems.
 5. Captions: they are laid out once by `tt_shorts/captions.py` and must not jump. `page` pages stay ≥ 1 s and the
    box never moves; `roll` scrolls smoothly. If something looks unstable, re-run `python -m unittest
    tests.test_captions` and report the frame numbers instead of hand-tuning the render.
-6. Listen once, start to end: names said right (add a `say` entry or a `lexicon_ka.json` entry), no skipped words
+6. Motion (`tt_shorts/motion_rules.py`, in the render's JSON as `motion` and in `veasy_plan`): `motion read` is a
+   text on screen too briefly to read (0.5 s + 0.3 s a word) and holds the video like a probe problem; give its
+   scene more narration or shorten the text. The others are warnings: `still` (over 3 s with nothing new),
+   `kinds` (over 3 transition kinds), `pingpong` (cuts A-B-A, or back and forth), `repeat` (one type twice).
+7. Listen once, start to end: names said right (add a `say` entry or a `lexicon_ka.json` entry), no skipped words
    (the render's JSON lists `voice_qa`: words the aligner barely heard, the likely ones), music steady under the
    voice, no clipping.
-7. Facts: the hook matches the articles; numbers, names and quotes match; nothing is the writer's opinion.
+8. Facts: the hook matches the articles; numbers, names and quotes match; nothing is the writer's opinion.
 
 If any step fails, fix the story or the inputs and render again (the voice is cached unless the narration changed).
 Never publish a render made with `--engine edge` or `silent`.

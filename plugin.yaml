@@ -9,6 +9,7 @@ provides_tools:
   - veasy_qa
   - veasy_package
   - veasy_probe
+  - veasy_plan
   - veasy_write
   - veasy_queue
   - veasy_doctor

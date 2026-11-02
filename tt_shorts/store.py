@@ -6,6 +6,7 @@
       stories/<brand>/<day>/<ref>.json            a story script; <ref>.sources.json beside it (the articles)
       renders/<brand>/<day>/<ref>-<format>-<look>-<captions>.mp4   + .sheet.jpg (QA) + .json (what was rendered)
                                      + .props.json (what Remotion drew: timings, captions, the pack)
+      renders/<brand>/<day>/<ref>-<format>-<look>-<captions>.plan.jpg   `engine plan`'s contact sheet (before the voice)
       renders/<brand>/<day>/<ref>-<format>-<look>-<captions>-package/   `engine package`: one render's publishing
                                      kit (captions.srt/.vtt, cover.png, carousel-NN.png, teaser.mp4, texts.json,
                                      telegram.md); kept and deleted with its render
@@ -75,6 +76,11 @@ def render_path(brand, ref, fmt, look, captions, day=None):
 def props_path(render):
     """The Remotion props of a render, beside its mp4: <render>.props.json."""
     return pathlib.Path(render).with_suffix(".props.json")
+
+
+def plan_sheet_path(render):
+    """`engine plan`'s contact sheet of a render to come, beside where its mp4 will be: <render>.plan.jpg."""
+    return pathlib.Path(render).with_suffix(".plan.jpg")
 
 
 def package_dir(render):
