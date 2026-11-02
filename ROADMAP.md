@@ -5,11 +5,8 @@ built yet. It is the shared plan for the owner, the tbilisi.today agent and whoe
 
 ## Decisions only the owner can make (blocking some items)
 
-1. **Remotion licence.**
-   - Free only for a company of up to 3 people, counting the whole organisation and its contractors.
-   - Otherwise the "Automators" plan: $0.01 per render with a $100/month minimum. A render is any video, still or
-     GIF; previews in Studio or the Player don't count.
-   - Check remotion.pro before budgeting.
+1. ~~**Remotion licence.**~~ Owner's decision (2026-11-02): no licence is bought. Remotion's terms make it free for
+   companies of up to 3 people (contractors count); if the team grows past that, revisit.
 2. **Narration length:** one number for all of these: rule N9 says 55-70 words, `writer.SCHEMA` 70-95, the
    make-video skill 55-75.
 3. **World map point of view** (needed only for item C9):
