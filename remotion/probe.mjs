@@ -66,12 +66,12 @@ const serveDir = (bundleDir, pub) => {
   fs.mkdirSync(dir);
   for (const e of fs.readdirSync(bundleDir, { withFileTypes: true })) {
     const from = path.join(bundleDir, e.name), to = path.join(dir, e.name);
-    if (e.isDirectory()) fs.symlinkSync(from, to, "dir");
+    if (e.isDirectory()) fs.symlinkSync(path.resolve(from), to, "junction"); // "junction": Windows without admin; ignored elsewhere
     else {
       try { fs.linkSync(from, to); } catch { fs.copyFileSync(from, to); }
     }
   }
-  fs.symlinkSync(path.resolve(pub), path.join(dir, "public"), "dir");
+  fs.symlinkSync(path.resolve(pub), path.join(dir, "public"), "junction");
   return dir;
 };
 

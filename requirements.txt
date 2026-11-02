@@ -5,5 +5,7 @@ fonttools==4.68.0
 brotli==1.2.1
 numpy==2.5.3
 scipy==1.18.1
+# golden stills (engine selftest, tests/test_golden.py) hash frames with Pillow
+pillow==13.0.0
 # preview voice only (Microsoft's free ka-GE voices); production is Gemini TTS over plain HTTPS
 edge-tts==7.3.1

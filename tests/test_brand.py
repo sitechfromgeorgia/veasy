@@ -39,7 +39,7 @@ class Packs(unittest.TestCase):
         self.assertEqual(meta.story_url("x", "tiktok", st), "https://sitech.ge/ka/blog/x/?utm_source=tiktok&utm_medium=video")
         self.assertEqual(tt["colors"]["accent"], "#EF4444")  # tbilisi.today v1.2: one red
         self.assertEqual(st["colors"]["accent"], "#FF792E")  # SiTech orange
-        self.assertEqual(st["_logo"]["header"].rsplit("/", 1)[-1], "logo-horizontal.svg")
+        self.assertEqual(pathlib.Path(st["_logo"]["header"]).name, "logo-horizontal.svg")
         self.assertIsNone(tt["_logo"])  # the t-mark is drawn in code
 
     def test_package_words_come_from_the_base_and_the_pack(self):
