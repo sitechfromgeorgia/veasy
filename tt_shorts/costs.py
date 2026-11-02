@@ -22,7 +22,8 @@ WARN_AT = 0.8
 
 
 def data_dir():
-    return pathlib.Path(os.environ.get("SHORTS_DATA", ROOT / "data"))
+    from tt_shorts import store  # one home for everything (VEASY_HOME, else SHORTS_DATA, else <veasy>/data)
+    return store.home()
 
 
 def env_float(name, default=None):
@@ -35,7 +36,7 @@ def env_float(name, default=None):
 def db():
     d = data_dir()
     d.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(d / "state.db", timeout=30)
+    con = sqlite3.connect(d / "veasy.db", timeout=30)  # the queue lives in the same file (queue.py)
     con.row_factory = sqlite3.Row
     con.executescript("""
     create table if not exists costs(time text, day text, slug text, kind text, model text,

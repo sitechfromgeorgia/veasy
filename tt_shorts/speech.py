@@ -228,6 +228,18 @@ def to_display(spoken_words, narration, say):
     return out
 
 
+def voice_key(story, engine, tone, edge_voice):
+    """What makes a voice track unique (engine, voice, style, the exact spoken text), or None for silent.
+    store.voice_dir(key) caches one track per key, so trying another tone never overwrites the first."""
+    if engine == "silent":
+        return None
+    spoken = normalize_ka.speech(story["narration"], story.get("say"))
+    if engine == "edge":
+        return f"edge|{edge_voice}|{spoken}"
+    preset = voices.preset(tone or story.get("voice"), story.get("category"))
+    return f"gemini|{preset['voice']}|{preset['style']}|{spoken}"
+
+
 def voice(story, work, engine, tone, edge_voice):
     """-> (audio file or None, display words)."""
     narration, say = story["narration"], story.get("say")

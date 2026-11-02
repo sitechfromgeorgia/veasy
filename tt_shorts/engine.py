@@ -24,7 +24,7 @@ import shutil
 import subprocess
 import sys
 
-from tt_shorts import captions, formats, ka_check, kaeasy, meta, news_check, props, speech, voices
+from tt_shorts import captions, formats, ka_check, kaeasy, meta, news_check, props, speech, store, voices
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -132,11 +132,35 @@ def check_story(story, sources=None):
 # ---------------------------------------------------------------- render / still
 
 
-def _build(a, fmt):
-    look = fmt["look"]
+def brand_of(story):
+    return story.get("brand") or "tbilisi-today"
+
+
+def render_story(story_path, fmt, engine="gemini", out_path=None):
+    """Render one story in one resolved format -> result dict (with "problems"). Used by `render` and the queue."""
+    missing = _kaeasy_required()
+    if missing:
+        return {"problems": missing}
+    story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     tone = None if fmt["voice"] == "family" else fmt["voice"]
-    return props.build(a.story, look, a.engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
-                       caption_design=fmt["captions"], music=fmt["music"])
+    work, p = props.build(str(story_path), fmt["look"], engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
+                          caption_design=fmt["captions"], music=fmt["music"])
+    secs = p["durationInFrames"] / FPS
+    target = pathlib.Path(out_path) if out_path else store.render_path(
+        brand_of(story), story["id"], fmt["name"], p["variant"], fmt["captions"])
+    props.render_video(work, p, target)
+    result = {"file": str(target.resolve()), "seconds": round(secs, 1), "format": fmt["name"], "look": p["variant"],
+              "captions": fmt["captions"], "voice": fmt["voice"], "engine": engine, "music": p["music"],
+              "brand": brand_of(story), "story": str(pathlib.Path(story_path).resolve()),
+              "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version()}
+    problems = []
+    if not fmt["min_seconds"] <= secs <= fmt["max_seconds"]:
+        problems.append(f"length {secs:.1f}s is outside the format's {fmt['min_seconds']}-{fmt['max_seconds']}s")
+    result["problems"] = problems
+    target.with_suffix(".json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
+    shutil.rmtree(work, ignore_errors=True)  # the scratch; the voice stays cached in cache/voices
+    store.log("rendered", file=result["file"], seconds=result["seconds"], problems=problems)
+    return result
 
 
 def _format(a):
@@ -151,34 +175,21 @@ def _kaeasy_required():
 
 
 def render(a):
-    missing = _kaeasy_required()
-    if missing:
-        return out({"problems": missing}, 1)
-    fmt = _format(a)
-    work, p = _build(a, fmt)
-    secs = p["durationInFrames"] / FPS
-    target = pathlib.Path(a.out) if a.out else ROOT / "out" / f"{p['id']}-{a.format}-{p['variant']}-{fmt['captions']}.mp4"
-    props.render_video(work, p, target)
-    result = {"file": str(target.resolve()), "seconds": round(secs, 1), "format": a.format, "look": p["variant"],
-              "captions": fmt["captions"], "voice": fmt["voice"], "engine": a.engine, "music": p["music"],
-              "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version()}
-    problems = []
-    if not fmt["min_seconds"] <= secs <= fmt["max_seconds"]:
-        problems.append(f"length {secs:.1f}s is outside the format's {fmt['min_seconds']}-{fmt['max_seconds']}s")
-    result["problems"] = problems
-    return out(result, 1 if problems else 0)
+    result = render_story(a.story, _format(a), a.engine, a.out)
+    return out(result, 1 if result["problems"] else 0)
 
 
 def still(a):
     fmt = _format(a)
-    work, p = _build(a, fmt)
+    story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
+    tone = None if fmt["voice"] == "family" else fmt["voice"]
+    work, p = props.build(a.story, fmt["look"], a.engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
+                          caption_design=fmt["captions"], music=fmt["music"])
     frames = [int(x) for x in a.frames.split(",")] if a.frames else \
         [s["from"] + s["duration"] // 2 for s in p["scenes"]]  # default: the middle of every scene
-    files = props.render_stills(work, frames, pathlib.Path(a.out or ROOT / "out" / "stills"))
+    target = pathlib.Path(a.out) if a.out else store.home() / "renders" / store.safe(brand_of(story)) / store.today() / "stills"
+    files = props.render_stills(work, frames, target)
     return out({"files": [str(f) for f in files], "frames": frames})
-
-
-# ---------------------------------------------------------------- qa
 
 
 def _probe(path):
@@ -202,11 +213,11 @@ def _loudness(path):
     return vals
 
 
-def qa(a):
-    path = pathlib.Path(a.video)
+def qa_file(path, fmt):
+    """Size, length window, loudness and a contact sheet -> dict with "problems". Used by `qa` and the queue."""
+    path = pathlib.Path(path)
     if not path.exists():
-        return out({"problems": [f"no such file: {path}"]}, 1)
-    fmt = formats.get(a.format)
+        return {"problems": [f"no such file: {path}"]}
     info = _probe(path)
     secs = float(info["format"]["duration"])
     v = next((s for s in info["streams"] if s["codec_type"] == "video"), {})
@@ -226,41 +237,71 @@ def qa(a):
     subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(path), "-vf",
                     f"fps={n / max(secs, 1):.4f},scale=270:480,tile={n}x1", "-frames:v", "1", "-q:v", "4", str(sheet)],
                    check=False)
-    return out({"file": str(path.resolve()), "seconds": round(secs, 1), "size": [v.get("width"), v.get("height")],
-                "loudness": loud, "sheet": str(sheet.resolve()) if sheet.exists() else None, "problems": problems},
-               1 if problems else 0)
+    return {"file": str(path.resolve()), "seconds": round(secs, 1), "size": [v.get("width"), v.get("height")],
+            "loudness": loud, "sheet": str(sheet.resolve()) if sheet.exists() else None, "problems": problems}
+
+
+def qa(a):
+    result = qa_file(a.video, formats.get(a.format))
+    return out(result, 1 if result["problems"] else 0)
 
 
 # ---------------------------------------------------------------- write / voices / doctor
 
 
-def write(a):
-    sys.path.insert(0, str(ROOT))
-    from ops import daily  # D1 access lives with the daily run (CLOUDFLARE_* + TT_D1_DATABASE_ID)
-    from tt_shorts import writer
-    rows = daily.d1("""SELECT sc.id, sc.headline, sc.source_count, sc.article_count, sc.created_at,
-                              COALESCE((SELECT a.category FROM articles a WHERE a.cluster_id = sc.id AND a.category IS NOT NULL
-                                        GROUP BY a.category ORDER BY count(*) DESC LIMIT 1), 'general') AS category
-                         FROM story_clusters sc WHERE sc.id = ?1""", [a.cluster])
-    if not rows:
-        return out({"problems": [f"no cluster {a.cluster}"]}, 1)
-    data = daily.payload(rows[0])
-    if not data["articles"]:
-        return out({"problems": ["the cluster has no readable articles"]}, 1)
+def write_story(source, ref, brand="tbilisi-today", out_path=None):
+    """A source reference -> a written, checked story file (+ its sources beside it). Used by `write` and the queue."""
+    from tt_shorts import sources as src, writer
+    data = src.fetch(source, ref)
     story = writer.write(data["cluster"], data["articles"])
-    target = pathlib.Path(a.out or ROOT / "stories" / f"{a.cluster}.json")
+    story["brand"] = brand
+    story["source"] = {"name": source, "ref": str(ref)}
+    target = pathlib.Path(out_path) if out_path else store.story_path(brand, ref)
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(story, ensure_ascii=False, indent=1), encoding="utf-8")
-    src = target.with_suffix(".sources.json")  # the articles, so `check --sources` can re-run the news rules later
-    src.write_text(json.dumps(data["articles"], ensure_ascii=False), encoding="utf-8")
-    return out({"story": str(target.resolve()), "sources": str(src.resolve()), "scenes": [s["type"] for s in story["scenes"]],
-                "problems": check_story(story, data["articles"])})
+    side = store.sources_path(target)  # the articles, so `check --sources` can re-run the news rules later
+    side.write_text(json.dumps(data["articles"], ensure_ascii=False), encoding="utf-8")
+    problems = check_story(story, data["articles"])
+    store.log("written", story=str(target), problems=problems)
+    return {"story": str(target.resolve()), "sources": str(side.resolve()),
+            "scenes": [s["type"] for s in story["scenes"]], "problems": problems}
+
+
+def write(a):
+    ref = a.ref if a.ref is not None else a.cluster
+    if ref is None:
+        return out({"problems": ["give --ref (or --cluster for tbilisi-today)"]}, 2)
+    result = write_story(a.source, ref, a.brand, a.out)
+    return out(result, 1 if result["problems"] else 0)
 
 
 def voice_samples(a):
     argv = ["voices"] + (["--story", a.story] if a.story else []) + (["--only", a.only] if a.only else [])
     sys.argv = argv
     voices.main()
-    return out({"dir": str((ROOT / "out" / "voices").resolve())})
+    return out({"dir": str((ROOT / "out" / "voices").resolve())})  # samples to listen to, not part of a job
+
+
+def queue_cmd(a):
+    from tt_shorts import queue
+    if a.action == "add":
+        overrides = {k: getattr(a, k) for k in ("look", "captions", "voice", "music", "platform") if getattr(a, k)}
+        job, created = queue.add(a.brand, a.source if not a.story else None, a.ref, a.format, overrides, a.story,
+                                 a.priority)
+        return out({"job": job, "created": created})
+    if a.action == "list":
+        return out({"counts": queue.counts(), "jobs": queue.listing(a.state, a.limit)})
+    if a.action == "run":
+        return out(queue.run(a.max, a.engine))
+    if not a.id:
+        return out({"problems": [f"queue {a.action} needs a job id"]}, 2)
+    job = {"show": queue.get, "retry": queue.retry, "cancel": queue.cancel}[a.action](a.id)
+    return out({"job": job} if job else {"problems": [f"no job {a.id}"]}, 0 if job else 1)
+
+
+def gc_cmd(a):
+    removed = store.gc(dry_run=a.dry_run)
+    return out({"dry_run": a.dry_run, "removed": {k: len(v) for k, v in removed.items()}, "home": str(store.home())})
 
 
 def doctor(_a):
@@ -277,6 +318,7 @@ def doctor(_a):
         "alignment python": os.environ.get("ALIGN_PYTHON") or "unset (uses this python; needs torch + transformers)",
         "writer key (OPENROUTER_API_KEY)": bool(os.environ.get("OPENROUTER_API_KEY")),
         "D1 access (CLOUDFLARE_API_TOKEN)": bool(os.environ.get("CLOUDFLARE_API_TOKEN")),
+        "home (VEASY_HOME)": str(store.home()),
         "kaeasy (Georgian gate)": kaeasy.version() or f"missing in {kaeasy.directory()} (KAEASY_DIR)",
     }
     try:
@@ -292,6 +334,11 @@ def doctor(_a):
 
 
 # ---------------------------------------------------------------- cli
+
+
+def queue_states():
+    from tt_shorts import queue
+    return queue.STATES
 
 
 def main(argv=None):
@@ -318,12 +365,32 @@ def main(argv=None):
     q.add_argument("video")
     q.add_argument("--format", default="news")
     w = sub.add_parser("write")
-    w.add_argument("--cluster", type=int, required=True)
+    w.add_argument("--source", default="tbilisi-today", help="tbilisi-today (ref = cluster id) or text (ref = JSON file)")
+    w.add_argument("--ref", help="the story's reference in its source")
+    w.add_argument("--cluster", help="same as --ref, for tbilisi-today")
+    w.add_argument("--brand", default="tbilisi-today", help="the brand pack the story will be rendered with")
     w.add_argument("--out")
     v = sub.add_parser("voices")
     v.add_argument("--story")
     v.add_argument("--only")
     sub.add_parser("doctor")
+    qp = sub.add_parser("queue")
+    qp.add_argument("action", choices=["add", "list", "run", "show", "retry", "cancel"])
+    qp.add_argument("id", nargs="?")
+    qp.add_argument("--brand", default="tbilisi-today")
+    qp.add_argument("--source", default="tbilisi-today")
+    qp.add_argument("--ref")
+    qp.add_argument("--story", help="an already written story file (skips writing)")
+    qp.add_argument("--format", default="news")
+    for k in ("look", "captions", "voice", "music", "platform"):
+        qp.add_argument(f"--{k}")
+    qp.add_argument("--priority", type=int, default=0)
+    qp.add_argument("--state", choices=queue_states())
+    qp.add_argument("--limit", type=int, default=50)
+    qp.add_argument("--max", type=int, default=5, help="run: jobs to process this time")
+    qp.add_argument("--engine", default="gemini", choices=["gemini", "edge", "silent"])
+    g = sub.add_parser("gc")
+    g.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
     try:
         if a.cmd == "options":
@@ -335,8 +402,8 @@ def main(argv=None):
             return out({"story": a.story, "news_rules": bool(sources), "kaeasy": kaeasy.version(),
                         "problems": problems, "warnings": ka_check.warnings(story)}, 1 if problems else 0)
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
-                "doctor": doctor}[a.cmd](a)
-    except formats.FormatError as e:
+                "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd}[a.cmd](a)
+    except (formats.FormatError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
 
 

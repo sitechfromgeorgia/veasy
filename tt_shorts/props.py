@@ -18,7 +18,7 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import captions, meta, speech, voices
+from tt_shorts import captions, meta, speech, store, voices
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -38,9 +38,9 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     if variant == "auto":  # the look follows the kind of story (meta.VARIANT_BY_FAMILY)
         variant = meta.variant_for(story.get("category", "society"))
     design = caption_design or CAPTIONS
-    work = ROOT / "work" / f"{sid}-{variant}-{design}-{engine}"
-    voice_dir = ROOT / "work" / f"{sid}-voice-{engine}"  # one voice per story: a new look or caption costs no new TTS
-    voice_dir.mkdir(parents=True, exist_ok=True)
+    work = store.work_dir(f"{sid}-{variant}-{design}-{engine}")
+    key = speech.voice_key(story, engine, tone, edge_voice)
+    voice_dir = store.voice_dir(key) if key else work  # one cached track per voice + text: other looks cost no TTS
     public = work / "public"
     shutil.rmtree(public, ignore_errors=True)
     (public / "fonts").mkdir(parents=True)
