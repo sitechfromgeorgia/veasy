@@ -37,7 +37,11 @@ def _load(name):
         return _mods[name]
     path = directory() / f"{name}.py"
     mod = None
-    if path.exists():
+    try:
+        present = path.is_file()
+    except OSError:  # e.g. /root not readable for this user (CI runners): the same as not installed
+        present = False
+    if present:
         try:
             spec = importlib.util.spec_from_file_location(f"kaeasy_{name}", path)
             mod = importlib.util.module_from_spec(spec)

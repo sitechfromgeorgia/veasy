@@ -129,6 +129,13 @@ class Missing(unittest.TestCase):
             ka_check.problems(story(), {"title": "", "description": "", "text": ""})
         kaeasy.reset()
 
+    def test_an_unreadable_plugin_folder_counts_as_missing(self):  # GitHub runners can't stat /root/...
+        with mock.patch.object(pathlib.Path, "is_file", side_effect=PermissionError(13, "Permission denied")):
+            kaeasy.reset()
+            self.assertFalse(kaeasy.available())
+            ka_check.problems(story(), {"title": "", "description": "", "text": ""})
+        kaeasy.reset()
+
     def test_long_rewrites_are_not_lessons(self):
         a = "ერთი ორი სამი ოთხი ხუთი ექვსი შვიდი"
         b = "რვა ცხრა ათი თერთმეტი თორმეტი ცამეტი თოთხმეტი"
