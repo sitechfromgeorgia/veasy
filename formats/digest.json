@@ -1,0 +1,6 @@
+{
+ "label": "დილის ამბები",
+ "about": "The morning digest (program digest, rubric digest): 2-3 checked stories in one 45-60 s video, their first sentences joined by code.",
+ "min_seconds": 45,
+ "max_seconds": 60
+}

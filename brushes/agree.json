@@ -1,0 +1,22 @@
+{
+ "type": "agree",
+ "order": 135,
+ "what": "the facts several outlets state alike: each fact with how many member articles state it, and „მინიმუმ N“; no outlet named",
+ "use_when": "the rubric „ადასტურებს N გამოცემა“: code found 2+ facts literally in at least 3 member articles",
+ "avoid_when": "fewer than 4 member articles, or the outlets agree only on the headline; never to set one outlet against another",
+ "pairs_with": ["hook", "sources", "where", "quote"],
+ "slots": {
+  "items": {"kind": "list", "count": [2, 3], "of": {"text": {"kind": "text", "max": 40, "required": true}, "count": {"kind": "num", "min": 2}}, "required": true},
+  "n": {"kind": "num", "min": 2, "required": true},
+  "total": {"kind": "num", "min": 2},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 3.5,
+ "min_words": 8,
+ "em": {"fields": [], "kinds": []},
+ "schema": null,
+ "rules": [],
+ "example": {"type": "agree", "at": "მინიმუმ ოთხი გამოცემა", "kicker": "რას წერენ ერთნაირად", "headline": "ერთი და იგივე ფაქტები", "n": 4, "total": 5, "items": [{"text": "6400 აბონენტს", "count": 4}, {"text": "22:00", "count": 4}]}
+}

@@ -1,0 +1,24 @@
+{
+ "id": "number",
+ "label": "დღის ციფრი",
+ "about": "The Number of the Day: one striking number the articles state, what it counts and what it means, in 20-25 s.",
+ "numbering": "episode",
+ "program": "news",
+ "format": "number",
+ "slot": "13:00",
+ "eligible": [{"big_numbers": 1, "quantities": 1}],
+ "never": [{"deaths": true}, {"families": ["crime"]}],
+ "shape": [
+  {"types": ["hook"]},
+  {"types": ["stat", "change", "share", "compare"]},
+  {"types": "any", "min": 1, "max": 2},
+  {"types": ["end"]}
+ ],
+ "brief": [
+  "This is the rubric „The Number of the Day“: the video is about one number the articles state.",
+  "The hook says the number and what it counts in 2-3 short lines; the next scene shows it (stat, change, share or compare).",
+  "Then 1-2 scenes that say when, where or why, with facts from the articles; then the end card.",
+  "20-25 seconds: about 26-32 narration words, sentences of 6-12 words.",
+  "Never round, compute or compare a number the articles don't state; never add an opinion about it."
+ ]
+}

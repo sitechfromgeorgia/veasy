@@ -1,0 +1,6 @@
+{
+ "label": "დღის ციფრი",
+ "about": "The rubric „დღის ციფრი“ (rubrics/number.json): one stated number in 20-25 s; look and voice by category.",
+ "min_seconds": 20,
+ "max_seconds": 25
+}

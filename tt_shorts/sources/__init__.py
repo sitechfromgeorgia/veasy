@@ -14,12 +14,13 @@ A document source may add "url" (the end card's link when the program says "link
   ordo            ref = <law>:<article>[:<part>] (constitution:17, 31702:361): Georgian law from matsne.gov.ge
                   through Ordo's matsne_api.py (ORDO_DIR)
   sitech          ref = a sitech.ge blog post's slug (or its URL): the Georgian post, its date and its source
+  stories         ref = 2-3 checked story files (or done:<brand>[:<day>]): the morning digest's (program digest)
 """
 import importlib
 
 KNOWN = {"tbilisi-today": "tt_shorts.sources.tbilisi_today", "text": "tt_shorts.sources.text",
          "url": "tt_shorts.sources.url", "pdf": "tt_shorts.sources.pdf", "ordo": "tt_shorts.sources.ordo",
-         "sitech": "tt_shorts.sources.sitech"}
+         "sitech": "tt_shorts.sources.sitech", "stories": "tt_shorts.sources.stories"}
 ABOUT = {
     "tbilisi-today": "ref = a tbilisi.today story cluster id (D1, read only)",
     "text": "ref = a JSON file {id, headline, category, date, sources, articles: [text, ...]}",
@@ -27,6 +28,8 @@ ABOUT = {
     "pdf": "ref = a PDF file or URL: its text, title and date",
     "ordo": "ref = <law>:<article>[:<part>], e.g. constitution:17 or 31702:361 (matsne.gov.ge via Ordo, ORDO_DIR)",
     "sitech": "ref = a sitech.ge blog post slug or URL (the Georgian post)",
+    "stories": "ref = 2-3 checked story files a.json,b.json (articles beside each), a request JSON {stories, sources}, "
+               "or done:<brand>[:<day>]: the digest's",
 }
 
 

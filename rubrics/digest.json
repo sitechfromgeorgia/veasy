@@ -1,0 +1,33 @@
+{
+ "id": "digest",
+ "label": "დილის {n} ამბავი",
+ "about": "The Morning Digest: 2-3 stories that already passed their checks, in one 45-60 s video; code joins their first sentences into one narration (no writer) with a chapter card per story, and the result is checked again.",
+ "numbering": "episode",
+ "count": "stories",
+ "program": "digest",
+ "format": "digest",
+ "slot": "08:00",
+ "eligible": [{"stories": 2}],
+ "never": [],
+ "shape": [
+  {"types": ["hook"]},
+  {"types": ["chapter"]},
+  {"types": "any", "min": 0, "max": 2},
+  {"types": ["chapter"]},
+  {"types": "any", "min": 0, "max": 2},
+  {"types": ["chapter"], "min": 0, "max": 1},
+  {"types": "any", "min": 0, "max": 2},
+  {"types": ["end"]}
+ ],
+ "brief": [
+  "No writer: tt_shorts/digest.py builds it from the stories' narrations (their first sentences, up to the outlets line).",
+  "Each story keeps its own checked scenes whose first words fall in the sentences taken."
+ ],
+ "words": {
+  "kicker": "მოკლე მიმოხილვა",
+  "count": {"2": "ორი", "3": "სამი"},
+  "intro": "დილის {count} ამბავი ერთ ვიდეოში: {topics}.",
+  "and": "და",
+  "outro": "დეტალები იხილე {site}-ზე."
+ }
+}
