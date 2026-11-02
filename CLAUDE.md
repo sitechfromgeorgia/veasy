@@ -1,14 +1,17 @@
-# video/ (Veasy): rules for agents
+# Veasy: rules for agents
 
-This folder is **Veasy**, SiTech's video engine; kaeasy is its sibling for Georgian. It is also a Hermes plugin
+**Veasy** is SiTech's video engine; kaeasy is its sibling for Georgian. It is also a Hermes plugin
 (`plugin.yaml`, `__init__.py`, `skills/`). A new tool goes in three places, and `tests/test_plugin.py` checks they
 agree: `plugin.yaml`, `__init__.TOOLS` and a skill.
 
-Read the root [CLAUDE.md](../CLAUDE.md) and [README.md](README.md) first. This folder is Python plus a Remotion
-project. It is not a Worker: nothing here deploys through Workers Builds, and it never writes to D1.
+Read [README.md](README.md) first. Veasy is Python plus a Remotion project.
+
+Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://github.com/sitechfromgeorgia/tbilisi.today)):
+- Veasy only reads that project's D1, never writes to it.
+- That repo's rules apply to anything Veasy does there.
 
 - **Where it runs:** the tbilisi.today agent server, 84.46.250.149. Setup is `ops/install.sh`.
-  - Secrets live only in `video/data/.env` (chmod 600, git-ignored).
+  - Secrets live only in `data/.env` (chmod 600, git-ignored).
   - Timers, cron and anything installed on the server need the owner's OK.
 - **Entry point:** `python -m tt_shorts.engine` (options, check, render, still, qa, write, voices, doctor; JSON out).
   The skills in `skills/` say how an agent uses it. Keep the engine, the skills and `options` in step: a new
@@ -34,7 +37,7 @@ project. It is not a Worker: nothing here deploys through Workers Builds, and it
   - Scene text ends at y=1380 and captions at y=1552.
   - Below y=1100, no text goes right of x=940.
   - The band below the captions carries motion only.
-- **No publisher photos:** there is no reuse grant (`ingest/src/story-cover-assets/README.md`).
+- **No publisher photos:** tbilisi.today has no reuse grant (tbilisi.today repo: `ingest/src/story-cover-assets/README.md`).
 - **Music** is composed by `tools/compose_music.py`; the m4a files are not in git. One constant level: no build-ups,
   no ducking (the owner heard the ducked bed pump). The mix happens in ffmpeg (`props.mix_audio`), not in Remotion.
 - **Voices:** presets in `voices.py`. SiTech's `Charon` stays SiTech's. edge-tts is a preview stand-in only.

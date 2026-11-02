@@ -6,7 +6,7 @@ description: "Use when asked to make, render or re-render a tbilisi.today Short 
 # Make a video with Veasy (tbilisi.today Shorts)
 
 Everything goes through one entry point; every command prints JSON on stdout and exits 0 (ok), 1 (problems) or 2
-(usage). Run from `video/` with the server env loaded: `set -a; . data/.env; set +a`.
+(usage). Run from the Veasy folder (the repo root) with the server env loaded: `set -a; . data/.env; set +a`.
 
 ```bash
 python -m tt_shorts.engine doctor        # first, on a new machine or after an install: everything true?
@@ -54,4 +54,4 @@ python -m tt_shorts.engine render stories/24886.json --format news
 - Brand v1.2: dark canvas, white ink, one red for the dot, the active state and the CTA button; FiraGO only.
 - The date, the outlets and the story link come from D1, never from a writer.
 - No publisher photos. No opinion. Sensitive stories are skipped, not softened.
-- Secrets live only in `video/data/.env` on the server; never print, commit or paste them.
+- Secrets live only in `data/.env` on the server; never print, commit or paste them.

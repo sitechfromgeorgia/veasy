@@ -10,7 +10,7 @@ A format chooses only among what the engine can do:
   platform  the utm_source of the QR link           (shorts, youtube, instagram, tiktok, ...)
   min_seconds / max_seconds   the length window a render must land in
 
-Built-in formats live here; more can be added without code as JSON files in video/formats/<name>.json with the same
+Built-in formats live here; more can be added without code as JSON files in formats/<name>.json with the same
 keys (a file overrides a built-in of the same name). `python -m tt_shorts.engine options` lists them all.
 """
 import json
@@ -59,7 +59,7 @@ def validate(name, f):
 
 
 def load_all():
-    """Every format, built-in and from video/formats/*.json, resolved with the defaults and validated."""
+    """Every format, built-in and from formats/*.json, resolved with the defaults and validated."""
     raw = {k: dict(v) for k, v in BUILTIN.items()}
     if DIR.is_dir():
         for path in sorted(DIR.glob("*.json")):

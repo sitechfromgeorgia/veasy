@@ -1,4 +1,4 @@
-"""Story JSON -> Remotion render props -> mp4 (video/remotion, composition NewsShort).
+"""Story JSON -> Remotion render props -> mp4 (remotion/, composition NewsShort).
 
 The writer's story JSON gives the text; this adds what comes from data and code: the voice and its word timings
 (speech.py), scene start frames, the date in Tbilisi time, the sources, the QR code, the music loop and the call to

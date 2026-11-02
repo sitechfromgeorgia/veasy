@@ -1,20 +1,23 @@
-# Veasy: the video engine (tbilisi.today Shorts)
+# Veasy
 
-**Veasy** is SiTech's video engine for agents. It was named by the owner on 2026-11-02 as kaeasy's sibling: kaeasy
-handles Georgian writing, Veasy handles video.
-- What it does: turns a story into a checked, voiced, captioned vertical video, in formats an agent can choose and
-  extend.
-- Where it lives: here (`video/`) for now. It is meant to move to its own repo (`sitechfromgeorgia/veasy`) as a
-  separate product.
-- The plugin folder is this folder: `plugin.yaml` and `__init__.py`. The skills are in `skills/` (Hermes) and
-  `.claude/skills/` (symlinks for Claude Code).
+**Veasy** is SiTech's video engine for agents, the sibling of [kaeasy](https://github.com/sitechfromgeorgia/kaeasy):
+kaeasy handles Georgian writing, Veasy handles video.
+- **What it does:** turns a story into a checked, voiced, captioned vertical video (1080×1920). It uses Remotion
+  frames, a Gemini TTS voice with word-level alignment, composed music and an ffmpeg mix.
+- **Who drives it:** an agent, through formats it can choose and extend.
+- **Built-in quality gates:** news integrity rules, Georgian quality through kaeasy, and caption stability.
+- **First client:** [tbilisi.today](https://tbilisi.today), daily Georgian news Shorts from multi-source stories.
+  Its brand (v1.2), categories and D1 story clusters are wired in. Making these a swappable "brand pack" for other
+  clients is on the [roadmap](ROADMAP.md).
+- **Layout:** the repo root is a Hermes plugin (`plugin.yaml`, `__init__.py`, `skills/`), like kaeasy. Claude Code
+  sees the same skills through `.claude/skills/` (symlinks).
 
 ## Install as a Hermes plugin (next to kaeasy)
 
 ```bash
-ln -s /root/sitech/tbilisi.today/video /root/.hermes/shared-plugins/veasy        # or a clone of the veasy repo
+git clone https://github.com/sitechfromgeorgia/veasy /root/.hermes/shared-plugins/veasy
 ln -s /root/.hermes/shared-plugins/veasy /root/.hermes/profiles/<profile>/plugins/veasy
-bash /root/sitech/tbilisi.today/video/ops/install.sh --align                       # the engine's own venv, Remotion, music
+bash /root/.hermes/shared-plugins/veasy/ops/install.sh --align    # the engine's own venv, Remotion, music, data/.env
 # enable it (hermes plugins enable veasy, or plugins.enabled in config.yaml), restart the gateway, check: hermes plugins list
 ```
 
@@ -143,7 +146,7 @@ python -m tt_shorts.voices                                             # 5 Gemin
 python tools/compose_music.py                                          # music loops (once per install)
 ```
 
-Server setup: `bash video/ops/install.sh [--align]` (venv, `npm ci`, chrome-headless-shell, music,
+Server setup: `bash ops/install.sh [--align]` (venv, `npm ci`, chrome-headless-shell, music,
 `data/.env` from `ops/env.example`, tests).
 
 Behind a TLS-inspecting proxy, the preview voice needs `SSL_CERT_FILE` pointing at the proxy's CA bundle.

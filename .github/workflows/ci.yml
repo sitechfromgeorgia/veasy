@@ -1,0 +1,25 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Python dependencies
+        run: pip install -r requirements.txt
+      - name: Python tests (checks, captions, formats, plugin, kaeasy adapter)
+        run: python -m unittest discover -s tests
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Remotion dependencies
+        working-directory: remotion
+        run: npm ci --no-audit --no-fund
+      - name: Type-check the compositions
+        working-directory: remotion
+        run: npx tsc --noEmit

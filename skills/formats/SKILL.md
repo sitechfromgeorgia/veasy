@@ -29,7 +29,7 @@ numbers and tech `clear`, sports `plain`.
 
 ## Add a show (no code change)
 
-Create `video/formats/<name>.json` with only the keys that differ, then check it is accepted:
+Create `formats/<name>.json` with only the keys that differ, then check it is accepted:
 ```json
 {"label": "საღამოს ამბები", "about": "Evening wrap: calm, anchor voice, roll captions.",
  "look": "editorial", "captions": "roll", "voice": "anchor", "max_seconds": 40}

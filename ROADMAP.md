@@ -1,4 +1,4 @@
-# video/ roadmap: from one news Short to a general generator
+# Veasy roadmap: from one news Short to a general generator
 
 Written 2026-11-02 from two research passes (visual building blocks; engine and product layer). Nothing here is
 built yet. It is the shared plan for the owner, the tbilisi.today agent and whoever codes it. Ranked: quick wins first.
@@ -77,7 +77,7 @@ built yet. It is the shared plan for the owner, the tbilisi.today agent and whoe
 - **B6. One versioned spec (M).**
   - Grow the story JSON into `{spec_version, program, data_ref, narration, say, segments:[{component, at, props}]}`.
   - Write a zod schema per component in `remotion/src/spec/` (zod 4 is already present; add it explicitly).
-  - Export `video/schema/spec.vN.json` with `z.toJSONSchema`; the Python checks, the writer prompt and
+  - Export `schema/spec.vN.json` with `z.toJSONSchema`; the Python checks, the writer prompt and
     `engine options` all read it. Attach it to `<Composition schema>` so the controls show in Studio.
   - Data-owned fields (id, date, sources) stay out of the writer's schema, so N6 holds by construction.
   - Add an upgrader for v1 stories.

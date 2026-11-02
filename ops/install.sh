@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tbilisi.today Shorts: set up the render environment on the agent server (84.46.250.149).
-# Run by the owner from the monorepo checkout:  bash video/ops/install.sh [--align]
+# Run by the owner from the Veasy checkout:  bash ops/install.sh [--align]
 # Idempotent. It installs no secrets and enables no timers: data/.env and the systemd timer (phase 1) are
 # separate, owner-approved steps.
 set -euo pipefail
