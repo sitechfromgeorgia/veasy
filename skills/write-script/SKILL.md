@@ -19,15 +19,22 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N10 news); this is the 
 - `id`, `date`, `sources` come from the source's data (the writer and you never invent them). `brand` picks the
   pack (`veasy:brands`); its categories are in `options --brand <name>`.
 - `at` is the exact first words of the narration where that scene starts, in order.
-- Scene types and fields: `python -m tt_shorts.engine options` → `scenes`. First scene `hook`, last `end`.
+- Scene types and fields: `python -m tt_shorts.engine options` → `scenes` (each type's brush, `brushes/<type>.json`:
+  when to use it, its slots with their length limits, an example). First scene `hook`, last `end`.
   `sources` needs no fields (it shows the outlets from the data). 3-7 scenes.
+- On-screen texts have length limits (a kicker 24 characters, a headline 40, a hook line 24; the rest per slot):
+  `check` names a text that is too long.
 
-## Which scene for what (16 types)
+## Which scene for what (20 types)
 
 | Type | Use it for | Fields |
 |---|---|---|
 | `hook` | what happened, 2-4 short lines | lines |
-| `stat` | one number; with `icon`, a count of 2-30 things is drawn as that many icons | value, label, icon |
+| `stat` | one number; with `icon`, a count of 2-30 things is drawn as that many icons | value, label, icon, style |
+| `share` | a percent an article states with "%": a 10x10 grid fills to it | value (0-100), label |
+| `rail` | 2-4 dated events in time order; a dot travels from one to the next | items [{when, label}] |
+| `compare` | two values of one unit as squares of true proportion | items [{label, value}] x2, unit |
+| `link` | who meets whom: 2-3 people or bodies joined by the verb | items [{name, role}], edge |
 | `sign` | one thing and what happens to it: gas stops, prices rise, a bridge opens | icon, verb, label |
 | `change` | one value then and now (the new one rolls up from the old) | before {label, value}, after {label, value}, unit |
 | `bars` | 2-5 values of one kind, compared from zero | items [{label, value}], unit |
@@ -45,6 +52,22 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N10 news); this is the 
 
 - Charts (`bars`, `trend`, `change`) only with values the articles state, in one unit; never a computed difference.
   `bars` values are above zero. Numbers can be decimals (1.5 shows as 1,5).
+- The brush kit:
+  - `share`: only a percent an article writes with the % sign (`N2: ... (share) shows 34% but no source article
+    states „34%“`); `value` 34 means 34%. Not for a count (use `stat`).
+  - `rail`: each `when` is a date the articles give: „2 ნოემბერი“, „2025“, „22:00“ or „3 ნოემბერი, 10:00“, in time
+    order (`check` reads them and sends back an event out of order or a date no article has). It needs 8 words.
+  - `compare`: both values in one `unit`; if the larger is more than 40 times the smaller, use `bars`.
+  - `link`: the first item met the others; `edge` is the verb exactly as that scene's narration says it
+    (შეხვდა, მოაწერა ხელი): `N11` sends back an edge the voice doesn't say. Never imply a meeting the articles
+    don't state.
+  - `stat` `style`: `count` (default), `wheel` (an odometer) or `flap` (a split-flap board). Never `flap` for
+    politics or crime: `check` refuses it.
+- `"em"`: the marker. On 1-3 scenes, name the 1-4 words that matter most; they are drawn over (underline, box,
+  circle, highlight or bracket: code picks, you don't) exactly when the voice says them.
+  - Copy them word for word from that scene's on-screen text (a stat's or a share's value counts: `"em": "6400"`;
+    the kicker never does) and say them in that scene's part of the narration (case endings may differ).
+  - One per scene, not on `end` or `sources`. `N11: scene N marks „…“ but ...` names what is missing.
 - `draw`: at most one per video. The style guide is `tt_shorts/art.py` GUIDE (line art, tokens INK, MUTED, LINE,
   CANVAS and ACCENT for the one focal part, motion classes r/p/s with `--d` delays, up to 4 Georgian labels).
   `check` sends back anything the whitelist removed. A drawing needs 8 narration words (about 3.5 s).

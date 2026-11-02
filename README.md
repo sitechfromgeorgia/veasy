@@ -270,7 +270,7 @@ Below y=1100, no text goes right of x=940 (the like/share rail).
 
 | Part | State |
 |---|---|
-| Remotion composition `NewsShort`, 9 scene types, 3 looks | done (`remotion/src`) |
+| Remotion composition `NewsShort`, 20 scene types (`brushes/`), 3 looks, voice-synced marks | done (`remotion/src`) |
 | Voice: Gemini presets (`voices.py`); edge-tts ka-GE as a timing stand-in only (it sounds robotic) | Gemini samples need `GEMINI_API_KEY` |
 | Audio mix (ffmpeg): voice levelled on its own, music at one constant level, with no ducking | done |
 | News rules N1-N10 (`ka_style.md` § N, `news_check.py`) | done |
@@ -357,8 +357,28 @@ by `tt_shorts/art.py`), pair (items: title, sub; between), steps (items), bars (
 (items: label, value; unit), change (before, after: label, value; unit), sign (icon, verb, label; `icons.py`), and
 an optional `icon` on stat. Formats also choose the cut between scenes (`transition`: auto, cut, line, panel, wipe,
 slide, push, dot) and the ending (`outro`: card, overlay, loop; the `end` scene is always written, the outro
-decides whether it is shown). `stories/veasy-demo.json`, `stories/veasy-scenes.json` and
-`stories/veasy-icons.json` use every scene type.
+decides whether it is shown). `stories/veasy-demo.json`, `stories/veasy-scenes.json`,
+`stories/veasy-icons.json` and `stories/veasy-brushes.json` use every scene type.
+
+### The brush kit (`brushes/`, `tt_shorts/catalog.py`, `tt_shorts/marks.py`)
+
+- **One catalog.** Every scene type is a brush, `brushes/<type>.json`: what it shows, when to use it and when not,
+  what it pairs with, typed slots with Georgian length limits, the families it is never used for, its minimum
+  seconds and narration words, where a mark may land, the writer's line and rules, and a real example.
+  `catalog.py` generates the tables the engine reads (`engine.SCENES`, `speech.MIN_SCENE`, `ka_check.MIN_WORDS`, the
+  writer's schema, `options` → `scenes`); `catalog.schema(types)` shows the writer only a director's or a program's
+  menu. A new type is one brush file plus its component (CLAUDE.md).
+- **Marks synced to the voice** (`"em"`, ROADMAP C2): a scene may name 1-4 words of its on-screen text that its part
+  of the narration says. `speech.mark_frames` finds the frame from the word timings and `@remotion/rough-notation`
+  draws the mark then. Code picks the kind (underline, box, circle, highlight, bracket) from the brush and the
+  strokes (clean for hard and service news, a little rough for sports and culture); the mark is ink, one per
+  scene, and N11 checks the words are on screen and said.
+- **The new brushes** (2026-11-02):
+  - `share`: a 10x10 grid for a percent an article states with "%";
+  - `rail`: 2-4 dated events in time order, every date in the articles, a dot that travels them;
+  - `compare`: two values of one unit as squares of true proportion, the ratio at most 40;
+  - `link`: who meets whom, initials joined by an edge whose verb the voice says;
+  - `stat.style`: count, wheel (an odometer) or flap (a split-flap board, never for politics or crime).
 
 ### The map of Georgia (`where`)
 
