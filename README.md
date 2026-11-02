@@ -49,7 +49,7 @@ python -m tt_shorts.engine write  --source tbilisi-today --ref 24886 [--brand tb
                                                                    # a story from a source -> stories/<brand>/<day>/<ref>.json
 python -m tt_shorts.engine write  --program law --source ordo --ref constitution:17   # any source in: explainer, law, blog
 python -m tt_shorts.engine check  <story.json> --sources <story>.sources.json
-python -m tt_shorts.engine render <story.json> --format news [--look kinetic] [--captions roll] [--voice warm]
+python -m tt_shorts.engine render <story.json> --format news [--look kinetic] [--captions roll] [--voice warm] [--outro loop]
 python -m tt_shorts.engine still  <story.json>                     # one PNG per scene, no video
 python -m tt_shorts.engine qa     <file.mp4>                       # size, length, loudness + a contact sheet
 python -m tt_shorts.engine package <file>.json [--only srt,texts]  # one render -> every surface (below), no new voice
@@ -58,9 +58,10 @@ python -m tt_shorts.engine gc     [--dry-run]                      # retention (
 python -m tt_shorts.engine voices --story <story.json>             # Gemini tone samples, by ear
 ```
 
-- **Formats** (`tt_shorts/formats.py`, `formats/*.json`): a show is a named set of choices (look, captions, voice,
-  music, platform, length window). Built-in: `news`, `news-roll`. A new show is a JSON file, no code. Which show
-  uses which format is the owner's and the agent's decision. A format works for every brand.
+- **Formats** (`tt_shorts/formats.py`, `formats/*.json`): a show is a named set of choices (look, captions,
+  transition, outro, voice, music, platform, length window). Built-in: `news`, `news-roll`. A new show is a JSON
+  file, no code. Which show uses which format is the owner's and the agent's decision. A format works for every
+  brand.
 - **Sources** (`tt_shorts/sources/`): where a story's facts come from. `tbilisi-today` (ref = a D1 cluster id),
   `text` (ref = a JSON file `{"cluster": {...}, "articles": [...]}`, for any client), `url` (a web page: trafilatura
   or a stdlib extractor), `pdf` (pypdf or pdftotext), `ordo` (Georgian law from matsne.gov.ge through
@@ -127,6 +128,22 @@ family, `tools/compose_music.py`). Each choice is the least used one among the b
 in `veasy.db`; one story keeps its picks on a re-render. The writer is told the scene orders used lately and asked
 for another shape when the facts allow, and it draws a picture of the story (`art.py`: whitelist + quality check;
 a drawing that fails is dropped, not the video). `variety.report()` measures how alike the last videos were.
+
+## Built for the swipe and the loop (`tt_shorts/swipe.py`)
+
+On Shorts, Reels and TikTok the first frame decides the swipe, and Shorts count every replay as a view.
+- **The hook is readable at frame 0** in every hook layout, entrance and look: scene 0 is the opening
+  (`remotion/src/ui.tsx` `Opening`), where things only settle by a few px instead of coming in from nothing.
+  `engine qa` fails a render whose frame 0 has no ink in the hook band (y 250-1100).
+- **The voice starts at once:** leading silence on the voice track (measured with ffmpeg, and never past the first
+  word's timing) is cut to 0.12 s in `props.mix_audio`; the word timings move by the same amount, so the captions
+  and the scene cuts stay in sync.
+- **`outro`, a format key:** `card` (the end card, the default), `overlay` (no end card; a chip with the QR, the
+  link and the CTA slides in over the last scene for its final seconds, left of the rail and above the captions,
+  while the scene shrinks to make room) or `loop` (the same, then the last 0.5 s cross-fade into the hook's first
+  frame, the ticker comes back to where it began and the music keeps one level to the end).
+- Nothing in `remotion/` is measured before the brand font is in (`remotion/src/fonts.ts`): the first frame a
+  render tab drew could set the hook with the fallback font's widths.
 
 ## Brand packs (`brands/`, `tt_shorts/brand.py`)
 
@@ -260,7 +277,8 @@ real map, see below), who (items: name, role),
 points (items), quote (text, by, via), sources, end, and since 2026-11-02: draw (svg: the writer's drawing, made safe
 by `tt_shorts/art.py`), pair (items: title, sub; between), steps (items), bars (items: label, value; unit), trend
 (items: label, value; unit), change (before, after: label, value; unit). Formats also choose the cut between scenes
-(`transition`: auto, cut, line, panel, wipe, slide, push, dot). `stories/veasy-demo.json` and
+(`transition`: auto, cut, line, panel, wipe, slide, push, dot) and the ending (`outro`: card, overlay, loop; the
+`end` scene is always written, the outro decides whether it is shown). `stories/veasy-demo.json` and
 `stories/veasy-scenes.json` use every scene type.
 
 ### The map of Georgia (`where`)

@@ -18,7 +18,7 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import art, brand, captions, geo, meta, speech, store, variety, voices
+from tt_shorts import art, brand, captions, geo, meta, speech, store, swipe, variety, voices
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -57,10 +57,11 @@ def loops_for(music, family):
 
 
 def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts",
-          caption_design=None, music="family", transition="auto", style=None):
+          caption_design=None, music="family", transition="auto", style=None, outro=swipe.DEFAULT_OUTRO):
     """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off".
     transition: "auto" (variety picks one that suits the look) or one of TRANSITIONS.
-    style: {hook, motif, enter, transition, music} to force; by default variety.pick() chooses the least used."""
+    style: {hook, motif, enter, transition, music} to force; by default variety.pick() chooses the least used.
+    outro: card | overlay | loop (swipe.py: the end card, a chip over the last scene, or a seamless loop)."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     story = brand.with_say(story)  # the pack's own names (SiTech -> საი-თეჩი) are spoken right
     sid = story["id"]
@@ -83,7 +84,9 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
             shutil.copy(f, public / "brand" / f"{place}.svg")
 
     audio, words = speech.voice(story, voice_dir, engine, tone, edge_voice)
-    marks = speech.scene_frames(story, words)
+    trim = swipe.lead_trim(words, swipe.leading_silence(audio)) if audio else 0.0  # the voice starts at once
+    words = swipe.shift(words, trim)  # mix_audio cuts the same seconds from the track
+    shown, marks, chip = swipe.plan(story, words, outro)
     loops = loops_for(music, meta.family(category, b))
     st = {**variety.pick(b["name"], sid, variant, transition, loops), **(style or {})}
     bed = next((f for f in loops if f.name == st["music"]), loops[0] if loops else None)
@@ -103,10 +106,11 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "durationInFrames": marks[-1],
         "transition": st["transition"] if st["transition"] in TRANSITIONS else transition_for(transition, variant),
         "style": {k: st[k] for k in variety.OPTIONS},
-        "scenes": [_scene(s, a, b) for s, a, b in zip(story["scenes"], marks, marks[1:])],
+        "outro": outro, "outroFrom": chip,  # the frame the outro chip comes in (None: the end card)
+        "scenes": [_scene(s, a, b) for s, a, b in zip(shown, marks, marks[1:])],
         "words": words,
         "captions": captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"]),
-        "voice": audio.name if audio else None, "voiceVolume": 1.0,
+        "voice": audio.name if audio else None, "voiceVolume": 1.0, "voiceTrim": trim,
         "music": bed.name if bed else None, "musicVolume": 0.5 if engine == "silent" else 0.22,
         "previewNote": b["strings"][NOTES[engine]] if engine in NOTES else None,
         # words the aligner barely heard: the voice may have skipped or changed them (speech.voice_qa; Gemini only)
@@ -140,21 +144,25 @@ MUSIC_DB_SILENT = -1.0  # a preview without a voice: the music is the sound (abo
 def mix_audio(work, props, video, out):
     """Picture from Remotion + voice + music, mixed by ffmpeg. The voice is levelled on its own; the music sits at
     one constant level with a fade in and out, so nothing rises and falls under the speech (the owner's ear,
-    2026-11-01: the ducked bed pumped)."""
+    2026-11-01: the ducked bed pumped). The voice's leading silence beyond swipe.LEAD_KEEP is cut (props
+    "voiceTrim"; the word timings were moved by build()); a loop keeps the music level to the last frame."""
     dur = props["durationInFrames"] / FPS
     public = work / "public"
     inputs, graph, mix = ["-i", str(video)], [], []
     if props["voice"]:
         inputs += ["-i", str(public / props["voice"])]
-        graph.append("[1:a]aresample=48000,loudnorm=I=-16:TP=-2:LRA=7,aformat=channel_layouts=stereo,"
+        trim = props.get("voiceTrim") or 0
+        cut = f"atrim=start={trim:.3f},asetpts=PTS-STARTPTS," if trim else ""
+        graph.append(f"[1:a]{cut}aresample=48000,loudnorm=I=-16:TP=-2:LRA=7,aformat=channel_layouts=stereo,"
                      f"apad,atrim=0:{dur:.3f}[voice]")
         mix.append("[voice]")
     if props["music"]:
         k = len(inputs) // 2
         inputs += ["-stream_loop", "-1", "-i", str(public / props["music"])]
         db = MUSIC_DB if props["voice"] else MUSIC_DB_SILENT
-        graph.append(f"[{k}:a]aresample=48000,atrim=0:{dur:.3f},volume={db}dB,afade=t=in:d=1.2,"
-                     f"afade=t=out:st={max(0, dur - 2.5):.3f}:d=2.5[bed]")
+        fade_in, fade_out = swipe.music_fades(props.get("outro"))
+        graph.append(f"[{k}:a]aresample=48000,atrim=0:{dur:.3f},volume={db}dB,afade=t=in:d={fade_in},"
+                     f"afade=t=out:st={max(0, dur - fade_out):.3f}:d={fade_out}[bed]")
         mix.append("[bed]")
     if not mix:
         subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(video), "-c", "copy", str(out)], check=True)
@@ -195,10 +203,12 @@ if __name__ == "__main__":
     ap.add_argument("--tone", help=f"gemini preset: {', '.join(voices.PRESETS)}")
     ap.add_argument("--edge-voice", default="eka", choices=list(speech.EDGE_VOICES))
     ap.add_argument("--captions", choices=["page", "roll"], help="caption design (default SHORTS_CAPTIONS or page)")
+    ap.add_argument("--outro", default=swipe.DEFAULT_OUTRO, choices=swipe.OUTROS, help="end card, chip overlay or loop")
     ap.add_argument("--still", help="comma-separated frame numbers: PNG stills instead of the video")
     ap.add_argument("--out", default=str(ROOT / "out"))
     a = ap.parse_args()
-    work, props = build(a.story, a.variant, a.voice, a.tone, speech.EDGE_VOICES[a.edge_voice], caption_design=a.captions)
+    work, props = build(a.story, a.variant, a.voice, a.tone, speech.EDGE_VOICES[a.edge_voice], caption_design=a.captions,
+                        outro=a.outro)
     if a.still:
         for p in render_stills(work, [int(x) for x in a.still.split(",")], pathlib.Path(a.out) / "stills"):
             print(p)

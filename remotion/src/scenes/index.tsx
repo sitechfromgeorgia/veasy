@@ -4,7 +4,7 @@ import { CANVAS, fill, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, RA
 import type { Scene } from "../types";
 import { MapWhere } from "./map";
 import { Bars, Change, Draw, Pair, Steps, Trend } from "./more";
-import { Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, useIn, useStyle, useTheme } from "../ui";
+import { Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, useIn, useOpening, useStyle, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
 const LOW = RAIL_X - SIDE; // text that reaches the lower part stays left of the like/share rail
@@ -24,7 +24,10 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
   const width = (inner - (kinetic || blocks ? 48 : 8)) * 0.92;
   const size = fitSize(lead ? lines.slice(1) : lines, width, kinetic ? 176 : 160, 44);
   const leadSize = fitSize([lines[0] ?? ""], width, 72, 40);
-  const bar = useIn(8 + lines.length * 5, 22, 120);
+  // the opening (frame 0 decides the swipe): the rule is half drawn and the dot is there; underlines draw quickly
+  const opening = useOpening();
+  const grow = useIn(opening ? 2 : 8 + lines.length * 5, 22, 120);
+  const bar = opening ? 0.5 + 0.5 * grow : grow;
   return (
     <Frame s={s} head={false}>
       <In><Kicker text={s.kicker ?? props.category} /></In>
@@ -34,7 +37,8 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
           const block = blocks || (kinetic && hook === "stack" && i === lines.length - 1);
           const fs = quiet ? leadSize : size;
           const rule = hook === "underline"
-            ? interpolate(frame - (12 + i * 6), [0, 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
+            ? interpolate(frame - (opening ? i * 3 : 12 + i * 6), [0, opening ? 8 : 10], [opening ? 0.4 : 0, 1],
+              { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
           return (
             <In key={i} delay={4 + i * 5}>
               <div style={{ position: "relative", fontFamily: FONT, fontWeight: quiet ? 600 : 700, fontSize: fs, lineHeight: 1.16,
@@ -52,7 +56,7 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
       </div>
       <div style={{ display: "flex", alignItems: "center", marginTop: 40, gap: 0 }}>
         <div style={{ height: 8, width: 400 * bar, background: INK }} />
-        <span style={{ transform: `scale(${bar})` }}><Dot size={28} pulse /></span>
+        <span style={{ transform: `scale(${opening ? 1 : bar})` }}><Dot size={28} pulse /></span>
       </div>
       <In delay={14 + lines.length * 5}>
         <div style={{ display: "flex", gap: 16, marginTop: 48 }}>

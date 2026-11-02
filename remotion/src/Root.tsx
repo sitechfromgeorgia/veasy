@@ -1,16 +1,10 @@
-import { loadFont } from "@remotion/fonts";
 import React from "react";
-import { Composition, continueRender, delayRender, staticFile } from "remotion";
+import { Composition } from "remotion";
 import { DEFAULT_BRAND } from "./brand";
+import "./fonts"; // the brand pack's family, loaded before anything is measured (NewsShort waits for it)
 import { NewsShort } from "./NewsShort";
 import { Slide, SLIDE_H, type SlideProps } from "./Slide";
 import type { ShortProps } from "./types";
-
-// The brand pack's one family, from the render's public dir (props.py copies its four weights there as brand-<w>).
-const fonts = delayRender("fonts");
-Promise.all(["400", "500", "600", "700"].map((w) =>
-  loadFont({ family: "Brand", url: staticFile(`fonts/brand-${w}.woff2`), weight: w })))
-  .then(() => continueRender(fonts)).catch((e) => { throw e; });
 
 const sample: ShortProps = {
   brand: DEFAULT_BRAND, variant: "editorial", transition: "line", id: 0, category: "მსოფლიო", date: { date: "1 ნოემბერი 2026", time: "22:38", weekday: "კვირა" },

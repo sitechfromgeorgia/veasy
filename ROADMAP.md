@@ -235,9 +235,10 @@ Audience and formats:
 6. **Rubrics:** named recurring shows with a shape, a slot and an episode number: „რა იცვლება", „დღის ციფრი",
    „ამბავი გრძელდება · ნაწ. 2" (a cluster that grew since its first video), „ადასტურებს N გამოცემა" (an `agree`
    scene: facts literally in at least N members), „დილის 3 ამბავი" (the B7 digest at 08:00).
-7. **Built for the swipe and the loop:** the hook fully on screen at frame 0 (today the last hook line is readable
-   at ~0.7 s), no dead tail, `outro: card|overlay|loop` as an A/B arm (Shorts count every replay as a view since
-   2025-03-31).
+7. ~~**Built for the swipe and the loop:**~~ Done (`tt_shorts/swipe.py`, `remotion/src/outro.tsx`). The hook fully
+   on screen at frame 0 (it was readable only at ~0.7 s; `engine qa` now checks frame 0), the voice's leading
+   silence cut to 0.12 s with the timings moved, no dead tail, `outro: card|overlay|loop` as a format key, ready to
+   be an A/B arm (Shorts count every replay as a view since 2025-03-31). Choosing the arm per video is D8.
 8. **Measure, then choose:** a metrics table per job (YouTube engaged views and average view %, Instagram sends and
    saves), Thompson sampling over form only (rubric, outro, hook type, captions, length), drop-off mapped onto scene
    types, politics routed to YouTube, Facebook and Telegram (Meta doesn't recommend political content to
