@@ -65,7 +65,8 @@ export const DEFAULT_BRAND: BrandProps = {
     "preview_edge": "დროებითი ხმა · პრევიუ",
     "preview_silent": "ხმის გარეშე · პრევიუ",
     "card_meta": "{n} წყარო · {time}",
-    "category_default": "ამბები"
+    "category_default": "ამბები",
+    "at_least": "მინიმუმ {n}"
   }
 };
 
