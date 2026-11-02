@@ -22,7 +22,6 @@ renders are serialised, as Remotion advises. A job that already has a story skip
 """
 import contextlib
 import datetime as dt
-import fcntl
 import hashlib
 import json
 import pathlib
@@ -32,6 +31,12 @@ import subprocess
 import time
 import traceback
 import urllib.error
+
+try:
+    import fcntl
+except ImportError:  # Windows (a developer's machine): the same one-worker lock through msvcrt
+    fcntl = None
+    import msvcrt
 
 from tt_shorts import brand as brand_pack
 from tt_shorts import formats, programs, store
@@ -275,14 +280,21 @@ def _lock():
     path = store.home() / "queue.lock"
     with open(path, "w") as fh:
         try:
-            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
+            if fcntl:
+                fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            else:
+                msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+        except (BlockingIOError, PermissionError, OSError):
             yield False
             return
         try:
             yield True
         finally:
-            fcntl.flock(fh, fcntl.LOCK_UN)
+            if fcntl:
+                fcntl.flock(fh, fcntl.LOCK_UN)
+            else:
+                fh.seek(0)
+                msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def run(max_jobs=5, engine="gemini"):
