@@ -163,11 +163,17 @@ def drawing() -> bool:
     return os.environ.get(DRAW_ENV, "1") != "0"
 
 
-def schema() -> str:
-    """SCHEMA, with the draw scene and its style guide only when drawing is on."""
-    if drawing():
-        return f"{SCHEMA}\n{art.GUIDE}"
-    return "\n".join(line for line in SCHEMA.splitlines() if '"draw"' not in line) + \
+def schema(types=None) -> str:
+    """SCHEMA, with the draw scene and its style guide only when drawing is on. types: only these scene types'
+    example lines (a director's, directors.scene_types); the rules stay."""
+    text = SCHEMA
+    if types is not None:
+        keep = lambda line: not re.search(r'\{"type": "(\w+)"', line) or \
+            re.search(r'\{"type": "(\w+)"', line).group(1) in types  # noqa: E731
+        text = "\n".join(line for line in text.splitlines() if keep(line))
+    if drawing() and (types is None or "draw" in types):
+        return f"{text}\n{art.GUIDE}"
+    return "\n".join(line for line in text.splitlines() if '"draw"' not in line) + \
         '\n- never use a "draw" scene.'
 
 
@@ -180,12 +186,17 @@ def _variety_line(avoid: list[str] | None) -> str:
             "(pair, steps, bars, trend, change, timeline, quote, draw...), never a type the story has no facts for.\n\n")
 
 
-def _prompt(cluster: dict, articles: list[str], avoid: list[str] | None = None, mistakes: str = "") -> str:
+def _prompt(cluster: dict, articles: list[str], avoid: list[str] | None = None, mistakes: str = "",
+            director: dict | None = None, facts: dict | None = None) -> str:
+    """director (directors.py, assigned by code before writing): its brief, only its scene types, the facts."""
+    from tt_shorts import directors
     body = "\n\n".join(f"--- სტატია {i + 1} ---\n{a[:2600]}" for i, a in enumerate(articles[:3]))
     allowed = sorted(news_check.numbers(" ".join(articles)), key=lambda x: (len(x), x))
     allowed_line = ", ".join(allowed[:40]) if allowed else "არცერთი"
     georgian = kaeasy.prompt_block()  # free: kaeasy's ten rules + the fleet's frequent mistakes, when installed
-    return (f"{STYLE}\n\n{georgian + chr(10) * 2 if georgian else ''}{schema()}\n\n{_variety_line(avoid)}"
+    shape = schema(directors.scene_types(director)) if director else schema()
+    direction = directors.brief_block(director, facts) if director else ""
+    return (f"{STYLE}\n\n{georgian + chr(10) * 2 if georgian else ''}{shape}\n\n{direction}{_variety_line(avoid)}"
             f"{mistakes + chr(10) * 2 if mistakes else ''}"
             f"დაწერე ამ კლასტერის 30-40 წამიანი ვიდეოს სცენარი.\n"
             f"სათაური: {cluster.get('headline', '')}\n"
@@ -311,18 +322,19 @@ def _checks(story: dict, articles: list[str], cluster: dict):
 
 def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 2,
           avoid: list[str] | None = None, make_prompt=None, run_checks=None, mistakes: str = "",
-          on_problems=None) -> dict:
+          on_problems=None, director: dict | None = None, facts: dict | None = None) -> dict:
     """avoid: the scene orders the latest videos used (variety.recent_sequences), so this one can differ.
     make_prompt(cluster, articles, avoid) / run_checks(story, articles, cluster): a program's own prompt and rule
     tier (programs.write); by default the news cluster's (_prompt, _checks). mistakes: the brand's recent failed
     rules (failures.prompt_block, news prompt only); on_problems(list): called with the problems of every pass
     that goes back for a repair (failures.record)."""
     model = model or MODEL
-    prompt_of = make_prompt or (lambda c, a, av: _prompt(c, a, av, mistakes))
+    prompt_of = make_prompt or (lambda c, a, av: _prompt(c, a, av, mistakes, director, facts))
     checks_of = run_checks or _checks
     story = _object(_call(prompt_of(cluster, articles, avoid), model))
     story.pop("sources", None)
     story.pop("date", None)
+    story.pop("director", None)  # code assigns it (directors.py), like the date
     story.setdefault("category", cluster.get("category", "general"))
     _fix_dates(story, cluster)
     _tidy_end(story)
@@ -345,6 +357,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         story = _object(_call(fix, model))
         story.pop("sources", None)
         story.pop("date", None)
+        story.pop("director", None)
         story.setdefault("category", cluster.get("category", "general"))
         _fix_dates(story, cluster)
         _tidy_end(story)
@@ -367,6 +380,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     # grammar and calques while the facts, numbers and anchors stay frozen; if the edit breaks
     # a check, the pre-edit script is kept.
     edited = _edit(story, articles, cluster, model)
+    if edited:
+        edited.pop("director", None)
     if edited and _anchors_ok(edited) and not checks_of(edited, articles, cluster):
         kaeasy.learn_edit(story.get("narration", ""), edited.get("narration", ""))  # every agent learns the fix
         story = edited

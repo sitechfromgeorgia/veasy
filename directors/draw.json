@@ -1,0 +1,17 @@
+{"id": "draw", "label": "ესკიზი",
+ "about": "The Draughtsman: the thing the story is about is drawn, and one drawing leads to the next.",
+ "device": "the object is the explanation", "form": "object-to-object chain",
+ "brief": [
+  "The film is drawn: the object at the centre of the story (a pipe, a bus, a school) is the picture.",
+  "First 2 s: the hook names the object and what happens to it.",
+  "Then the drawing or the object's pictogram (a sign scene with the verb the narration says).",
+  "Each next scene follows from the last object: what it does, then what changes for people.",
+  "Draw things, never faces, logos or crime scenes.",
+  "The viewer leaves with the picture of the thing and what happened to it."],
+ "scenes": {"draw": 3, "sign": 3, "steps": 2, "pair": 1, "points": 1, "sources": 1, "marker": 1},
+ "count": [4, 5], "pacing": "slow: at least 3.5 s per picture.",
+ "hooks": ["underline", "lead"], "motifs": ["plain", "dots", "icons"], "enters": ["reveal", "rise"],
+ "transitions": ["line", "wipe"], "current": "right",
+ "motion": {"damping": 20, "stiffness": 140, "enter_frames": 12, "stagger_frames": 6},
+ "eligible": [{"icons": 1, "families": ["society", "economy", "tech"]}],
+ "never": [{"families": ["crime"]}, {"deaths": true}]}

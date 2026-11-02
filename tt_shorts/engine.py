@@ -38,8 +38,8 @@ import subprocess
 import sys
 
 from tt_shorts import brand as packs
-from tt_shorts import (captions, formats, geo, icons, ka_check, kaeasy, meta, news_check, programs, props, speech,
-                       store, swipe, variety, voices)
+from tt_shorts import (captions, directors, formats, geo, icons, ka_check, kaeasy, meta, news_check, programs, props,
+                       speech, store, swipe, variety, voices)
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -122,6 +122,7 @@ def options(brand_name=None):
         "engines": {"gemini": "production voice (GEMINI_API_KEY + the alignment venv)",
                     "edge": "free preview stand-in (robotic; timing only)", "silent": "music and captions only"},
         "formats": every,
+        "directors": directors.options(),
         "programs": {n: programs.summary(p) for n, p in programs.load_all().items()},
         "sources": _sources_about(),
         "scenes": {t: {"required": r, "optional": o, "shows": d} for t, (r, o, d) in SCENES.items()},
@@ -170,7 +171,7 @@ def structure_problems(story):
         p += [f"scene {i} ({t}): {x}" for x in shape_problems(s)]
     if "program" in story:  # a story without one is news, exactly as before programs
         p += programs.story_problems(story)
-    return p + icons.motif_problems(story)
+    return p + icons.motif_problems(story) + directors.structure_problems(story)
 
 
 def _number(v):
@@ -225,6 +226,8 @@ def check_story(story, sources=None):
         p += programs.length_problems(story)  # and its format's length window
     elif texts:
         p += news_check.problems(story, texts)
+    if texts and story.get("director"):  # the director's own gates (witness: both sides when both are quoted)
+        p += directors.story_problems(story, directors.facts(texts, story.get("category", ""), packs.of(story)))
     else:  # N10 needs no articles
         p += news_check.pictograms(story)
     ka = ka_check.problems(story, {"title": "", "description": "", "text": " ".join(texts)})
@@ -440,10 +443,12 @@ def package_cmd(a):
 # ---------------------------------------------------------------- write / voices / doctor
 
 
-def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None):
+def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, director=None):
     """A source reference -> a written, checked story file (+ its sources beside it). Used by `write` and the queue.
     program: news (default: the news-cluster writer, as before programs) or another program (programs.py), which
-    writes from its brief, under its scenes and rule tier. Every failed writer pass is remembered (failures.py)."""
+    writes from its brief, under its scenes and rule tier. Every failed writer pass is remembered (failures.py).
+    director: force one (directors.py); by default variety.direct picks the least used eligible one from the facts
+    code finds in the articles, before the writer runs, and the story keeps it (a code-owned field, like date)."""
     from tt_shorts import failures, sources as src, writer
     packs.load(brand)  # an unknown pack fails before any model call
     prog = programs.get(program)
@@ -451,17 +456,26 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None):
     programs.check_source(prog, source)  # and a source the program doesn't take
     data = src.fetch(source, ref)
     remember = lambda found: failures.record(brand, "write", found)  # noqa: E731
+    category = prog.get("category") or data["cluster"].get("category", "")
+    found = directors.facts(data["articles"], category, packs.load(brand), data["cluster"])
+    did = variety.direct(brand, data["cluster"].get("id") or ref, found, prog["scenes"], forced=director)
+    chosen = directors.get(did) if did else None
     try:  # failure memory: the writer reads the brand's recent mistakes; every failed pass is remembered
         if prog["name"] == programs.DEFAULT:
             story = writer.write(data["cluster"], data["articles"], avoid=variety.recent_sequences(brand),
-                                 mistakes=failures.prompt_block(brand), on_problems=remember)
+                                 mistakes=failures.prompt_block(brand), on_problems=remember, director=chosen,
+                                 facts=found, run_checks=(lambda s, a, c: writer._checks(s, a, c) +
+                                                          directors.story_problems({**s, "director": did}, found)))
         else:
-            story = programs.write(prog, data, brand, avoid=variety.recent_sequences(brand), on_problems=remember)
+            story = programs.write(prog, data, brand, avoid=variety.recent_sequences(brand), on_problems=remember,
+                                   director=chosen, facts=found)
     except writer.ChecksFailed as e:
         failures.record(brand, "write", e.problems)
         raise
     story["brand"] = brand
     story["source"] = {"name": source, "ref": str(ref)}
+    if did:
+        story["director"] = did  # code-owned: chosen before writing, kept on every re-render
     programs.stamp(story, prog, data["cluster"])  # program, category, the document's facts and link: data
     name = programs.story_ref(prog, data["cluster"], ref)
     target = pathlib.Path(out_path) if out_path else store.story_path(brand, name)
@@ -472,8 +486,9 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None):
     problems = check_story(story, data["articles"])
     failures.record(brand, "check", problems)
     store.log("written", story=str(target), problems=problems)
-    result = {"story": str(target.resolve()), "sources": str(side.resolve()),
-              "scenes": [s["type"] for s in story["scenes"]], "problems": problems}
+    result = {"story": str(target.resolve()), "sources": str(side.resolve()), "director": did,
+              "scenes": [s["type"] for s in story["scenes"]], "problems": problems,
+              "warnings": directors.warnings(story, prog["scenes"])}
     if prog["name"] != programs.DEFAULT:
         result.update(program=prog["name"], rules=prog["rules"], publish=prog["publish"], format=prog["format"])
     return result

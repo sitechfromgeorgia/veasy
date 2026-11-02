@@ -123,7 +123,7 @@ class Writer(Home):
         data = {"cluster": {"id": 1, "headline": "h"}, "articles": ["text"]}
         prompts = []
 
-        def fake_write(cluster, articles, avoid=None, mistakes="", on_problems=None):
+        def fake_write(cluster, articles, avoid=None, mistakes="", on_problems=None, **_):
             prompts.append(mistakes)
             on_problems(["N2: number 7000 is not in any source article"])
             raise writer.ChecksFailed(["K9: scene 1 (stat) gets only 2 words"])
