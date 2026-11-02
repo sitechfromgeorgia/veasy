@@ -1,0 +1,5 @@
+{
+ "motif": "tag",
+ "about": "a price tag on a string",
+ "svg": "<g class=\"s\" style=\"--d:0.2s\"><path d=\"M150 90 Q300 40 420 170\" stroke=\"MUTED\" stroke-width=\"5\"/><circle cx=\"150\" cy=\"90\" r=\"16\" stroke=\"MUTED\" stroke-width=\"5\"/></g><g class=\"s\" style=\"--d:0.5s\"><path d=\"M380 140 L780 140 Q810 140 810 170 L810 470 Q810 500 780 500 L380 500 L240 320 Z\" stroke=\"INK\" stroke-width=\"7\"/></g><g class=\"r\" style=\"--d:0.8s\"><circle cx=\"380\" cy=\"320\" r=\"28\" stroke=\"INK\" stroke-width=\"6\"/></g><g class=\"r\" style=\"--d:1.0s\"><path d=\"M480 260 L740 260 M480 330 L700 330 M480 400 L640 400\" stroke=\"MUTED\" stroke-width=\"7\"/></g><g class=\"p\" style=\"--d:1.4s\"><circle cx=\"380\" cy=\"320\" r=\"12\" fill=\"ACCENT\" stroke=\"ACCENT\" stroke-width=\"4\"/></g>"
+}

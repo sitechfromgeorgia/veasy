@@ -56,6 +56,21 @@ def loops_for(music, family):
     return sorted(speech.MUSIC_DIR.glob(f"{fam}-*.m4a")) or sorted(speech.MUSIC_DIR.glob("society-*.m4a"))
 
 
+def choose(story, variant, transition="auto", music="family", director=None, style=None):
+    """The variety picks of one video in one look -> (style {hook, motif, enter, transition, music}, the director dict
+    or None, the music loops, the story's main icon). Reads the variety history and records nothing (render_story
+    does, after a render), so `engine plan` can show the picks for free. director: an id instead of the story's own;
+    style: picks to force."""
+    b = brand.of(story)
+    loops = loops_for(music, meta.family(story.get("category", ""), b))
+    main = icons.story_icon(story)  # the story's main icon: the "icons" motif is possible only with one
+    did = director or story.get("director")
+    chosen = directors.get(did) if did else None  # an unknown director fails before anything renders
+    st = {**variety.pick(b["name"], story["id"], variant, transition, loops, icon=bool(main), director=chosen),
+          **(style or {})}
+    return st, chosen, loops, main
+
+
 def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts",
           caption_design=None, music="family", transition="auto", style=None, outro=swipe.DEFAULT_OUTRO, director=None):
     """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off".
@@ -89,11 +104,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     trim = swipe.lead_trim(words, swipe.leading_silence(audio)) if audio else 0.0  # the voice starts at once
     words = swipe.shift(words, trim)  # mix_audio cuts the same seconds from the track
     shown, marks, chip = swipe.plan(story, words, outro)
-    loops = loops_for(music, meta.family(category, b))
-    main = icons.story_icon(story)  # the story's main icon: the "icons" motif is possible only with one
-    did = director or story.get("director")
-    chosen = directors.get(did) if did else None  # an unknown director fails before anything renders
-    st = {**variety.pick(b["name"], sid, variant, transition, loops, icon=bool(main), director=chosen), **(style or {})}
+    st, chosen, loops, main = choose(story, variant, transition, music, director, style)
     bed = next((f for f in loops if f.name == st["music"]), loops[0] if loops else None)
     for f in (audio, bed):
         if f:

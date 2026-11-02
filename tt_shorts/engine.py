@@ -11,6 +11,9 @@ Every command prints JSON on stdout (human notes go to stderr), so an agent can 
   python -m tt_shorts.engine still  stories/24725.json --frames 60,300 [same choices as render]
   python -m tt_shorts.engine qa     out/24725.mp4 [--format news]   # length, size, loudness, the layout probe + a sheet
   python -m tt_shorts.engine probe  stories/24725.json [--look all]   # where every text really is, per scene (probe.py)
+  python -m tt_shorts.engine plan   stories/24725.json [--look kinetic]   # a free storyboard before paying for a voice:
+                                                             # timings, reading load, variety picks, motion rules,
+                                                             # the probe and a half-size contact sheet (plan.py)
   python -m tt_shorts.engine selftest [--update]              # golden stills of the fixture stories (golden.py)
   python -m tt_shorts.engine learn  [--brand sitech] [--days 7]   # the rules failing most lately (failures.py)
   python -m tt_shorts.engine package <render>.json [--only srt,vtt,cover,carousel,teaser,texts,telegram]
@@ -38,8 +41,8 @@ import subprocess
 import sys
 
 from tt_shorts import brand as packs
-from tt_shorts import (captions, directors, formats, geo, icons, ka_check, kaeasy, meta, news_check, programs, props,
-                       speech, store, swipe, variety, voices)
+from tt_shorts import (captions, directors, formats, geo, icons, ka_check, kaeasy, meta, motion_rules, news_check,
+                       programs, props, speech, store, swipe, variety, voices)
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -128,11 +131,16 @@ def options(brand_name=None):
         "scenes": {t: {"required": r, "optional": o, "shows": d} for t, (r, o, d) in SCENES.items()},
         "package": {"about": "engine package <render>.json --only <parts>: one render -> every surface", **package.PARTS},
         "areas": geo.areas(),  # a where scene's optional area (tt_shorts/geo.py)
-        "self_checks": {"probe": "engine probe <story> [--look all]: every text's real box per scene; part of every "
+        "self_checks": {"plan": "engine plan <story> [--look]: a free storyboard before the voice is paid for: scene "
+                                "times, words and reading load, the variety picks (not recorded), the motion rules, "
+                                "the probe and a half-size contact sheet",
+                        "probe": "engine probe <story> [--look all]: every text's real box per scene; part of every "
                                  "render (a problem holds the job)",
                         "selftest": "engine selftest [--update]: golden stills of the fixture stories in every look; "
                                     "run before merging a visual change",
                         "learn": "engine learn [--brand]: the rules failing most lately; the writer reads them"},
+        "motion_rules": {"about": "checks over a video's timeline (tt_shorts/motion_rules.py): warnings in plan; "
+                                  f"only {', '.join(motion_rules.HOLDS)} holds a render", **motion_rules.RULES},
         "icons": icons.options(),
         "categories": {c: {"label": meta.category_label(c, b), "family": meta.family(c, b),
                            "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
@@ -267,6 +275,7 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
                           caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
                           outro=fmt["outro"], director=director)
     checked = _probe_render(work, p)  # the layout probe: seconds, before the minutes of the render
+    motion = motion_rules.check(p)  # with the real voice's timings: unreadable text holds the video, like the probe
     secs = p["durationInFrames"] / FPS
     target = pathlib.Path(out_path) if out_path else store.render_path(
         brand_of(story), story["id"], fmt["name"], p["variant"], fmt["captions"])
@@ -278,8 +287,8 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
               "captions": fmt["captions"], "voice": fmt["voice"], "engine": engine, "music": p["music"],
               "brand": brand_of(story), "story": str(pathlib.Path(story_path).resolve()),
               "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version(),
-              "probe": checked}
-    problems = list(checked["problems"]) if checked else []
+              "probe": checked, "motion": {"holds": motion["holds"], "warnings": motion["warnings"]}}
+    problems = (list(checked["problems"]) if checked else []) + motion["holds"]
     if not fmt["min_seconds"] <= secs <= fmt["max_seconds"]:
         problems.append(f"length {secs:.1f}s is outside the format's {fmt['min_seconds']}-{fmt['max_seconds']}s")
     result["problems"] = problems
@@ -310,6 +319,12 @@ def probe_cmd(a):
     from tt_shorts import probe
     fmt = formats.get(a.format, captions=a.captions, transition=a.transition, voice=a.voice, platform=a.platform)
     result = probe.story(a.story, fmt, a.look, a.engine, a.stills)
+    return out(result, 1 if result["problems"] else 0)
+
+
+def plan_cmd(a):
+    from tt_shorts import plan
+    result = plan.run(a.story, _format(a), director=a.director, out=a.out)  # the format carries --look
     return out(result, 1 if result["problems"] else 0)
 
 
@@ -657,6 +672,18 @@ def main(argv=None):
     pr.add_argument("--engine", default="silent", choices=["gemini", "edge", "silent"],
                     help="silent: free, estimated timing; gemini/edge: a cached voice's real timing")
     pr.add_argument("--stills", help="also save each probed frame as a PNG in this folder")
+    pl = sub.add_parser("plan")
+    pl.add_argument("story")
+    pl.add_argument("--format", help="a format (default: the story's program's, news for news)")
+    pl.add_argument("--look", choices=formats.LOOKS)
+    pl.add_argument("--captions", choices=formats.CAPTIONS)
+    pl.add_argument("--transition", choices=formats.TRANSITIONS)
+    pl.add_argument("--outro", choices=formats.OUTROS)
+    pl.add_argument("--voice", help="family or a preset (the timing is the silent engine's estimate either way)")
+    pl.add_argument("--music", help="family, off or a family name (the loop the render would get)")
+    pl.add_argument("--platform")
+    pl.add_argument("--director", help="a director (see options: directors) instead of the story's own")
+    pl.add_argument("--out", help="the contact sheet's path (default: beside where the render will go, .plan.jpg)")
     st = sub.add_parser("selftest")
     st.add_argument("--update", action="store_true", help="rewrite tests/golden/ after a deliberate visual change")
     st.add_argument("--story", help="comma-separated fixtures (default veasy-scenes,veasy-demo)")
@@ -698,7 +725,7 @@ def main(argv=None):
             return out(result, 1 if problems else 0)
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
-                "selftest": selftest_cmd, "learn": learn_cmd}[a.cmd](a)
+                "plan": plan_cmd, "selftest": selftest_cmd, "learn": learn_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
 

@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SKILLS_DIR = ROOT / "skills"
-TIMEOUTS = {"render": 1500, "write": 900, "still": 600, "queue": 3600, "package": 900, "probe": 600}
+TIMEOUTS = {"render": 1500, "write": 900, "still": 600, "queue": 3600, "package": 900, "probe": 600, "plan": 600}
 
 HINT = (
     "[veasy] If this turn involves making, checking or fixing a video (a Short, a reel, a story video), first load "
@@ -148,6 +148,21 @@ TOOLS = {
                     "Every render runs it too; problems must be empty.",
                     lambda a: _engine("probe", [a["story"]] + _flags(a, ("look", "format", "captions", "transition",
                                                                          "voice", "platform", "engine", "stills")))),
+    "veasy_plan": ({"type": "object", "properties": {
+                       "story": STORY,
+                       **{k: CHOICE_PROPS[k] for k in ("format", "look", "captions", "transition", "outro", "voice",
+                                                       "music", "platform", "director")},
+                       "out": {"type": "string", "description": "Where to write the contact sheet (default: beside "
+                               "where the render will go, <render>.plan.jpg)."}},
+                    "required": ["story"]},
+                   "A free storyboard before paying for a voice (no TTS, no model call, records nothing): each "
+                   "scene's times, narration words, caption pages and reading load (every text needs 0.5 s + 0.3 s "
+                   "a word), the variety picks the render will get, the motion rules (warnings; unreadable text "
+                   "would hold the render), the layout probe and a half-size contact sheet to look at. About 5 s. "
+                   "Run it before veasy_render; problems must be empty.",
+                   lambda a: _engine("plan", [a["story"]] + _flags(a, ("format", "look", "captions", "transition",
+                                                                       "outro", "voice", "music", "platform",
+                                                                       "director", "out")))),
     "veasy_write": ({"type": "object", "properties": {
                         "program": PROGRAM,
                         "source": SOURCE,

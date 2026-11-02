@@ -1,0 +1,5 @@
+{
+ "motif": "fuel",
+ "about": "a fuel pump with its hose",
+ "svg": "<g class=\"s\" style=\"--d:0.2s\"><line x1=\"40\" y1=\"590\" x2=\"912\" y2=\"590\" stroke=\"LINE\" stroke-width=\"6\"/></g><g class=\"s\" style=\"--d:0.4s\"><rect x=\"300\" y=\"90\" width=\"300\" height=\"500\" rx=\"28\" stroke=\"INK\" stroke-width=\"7\"/></g><g class=\"r\" style=\"--d:0.7s\"><rect x=\"340\" y=\"140\" width=\"220\" height=\"140\" rx=\"14\" stroke=\"INK\" stroke-width=\"6\"/><path d=\"M370 190 L530 190 M370 235 L480 235\" stroke=\"MUTED\" stroke-width=\"5\"/><rect x=\"350\" y=\"340\" width=\"200\" height=\"200\" rx=\"14\" stroke=\"LINE\" stroke-width=\"5\"/></g><g class=\"s\" style=\"--d:1.0s\"><path d=\"M600 200 L680 200 Q720 200 720 240 L720 470 Q720 510 760 510 Q800 510 800 470 L800 300\" stroke=\"INK\" stroke-width=\"7\"/><path d=\"M780 300 L820 300 L820 250 L780 230 Z\" stroke=\"INK\" stroke-width=\"6\" fill=\"CANVAS\"/></g><g class=\"p\" style=\"--d:1.4s\"><circle cx=\"450\" cy=\"440\" r=\"26\" fill=\"ACCENT\" stroke=\"ACCENT\" stroke-width=\"4\"/></g>"
+}

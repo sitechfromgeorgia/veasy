@@ -26,8 +26,8 @@ bash /root/.hermes/shared-plugins/veasy/ops/install.sh --align    # the engine's
 ```
 
 What the agent gets:
-- **Tools:** `veasy_options`, `veasy_check`, `veasy_render`, `veasy_still`, `veasy_qa`, `veasy_probe`, `veasy_package`,
-  `veasy_write`, `veasy_queue` and `veasy_doctor`.
+- **Tools:** `veasy_options`, `veasy_check`, `veasy_render`, `veasy_still`, `veasy_qa`, `veasy_probe`, `veasy_plan`,
+  `veasy_package`, `veasy_write`, `veasy_queue` and `veasy_doctor`.
   - Each runs the engine in its own venv and returns its JSON.
   - A render takes a minute or two; the agent needs none of the render libraries.
 - **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:package`, `veasy:formats`, `veasy:queue`,
@@ -54,6 +54,7 @@ python -m tt_shorts.engine render <story.json> --format news [--look kinetic] [-
 python -m tt_shorts.engine still  <story.json>                     # one PNG per scene, no video
 python -m tt_shorts.engine qa     <file.mp4>                       # size, length, loudness, the probe + a contact sheet
 python -m tt_shorts.engine probe  <story.json> [--look all]        # where every text really is, per scene (free)
+python -m tt_shorts.engine plan   <story.json> [--look kinetic]    # a storyboard before paying for a voice (free, ~5 s)
 python -m tt_shorts.engine selftest [--update]                     # golden stills: run before merging a visual change
 python -m tt_shorts.engine learn  [--brand sitech]                 # the rules failing most lately
 python -m tt_shorts.engine package <file>.json [--only srt,texts]  # one render -> every surface (below), no new voice
@@ -105,6 +106,7 @@ veasy.db                                     the job queue, the cost ledger, var
 stories/<brand>/<day>/<ref>.json             a story; <ref>.sources.json beside it (the articles)
 renders/<brand>/<day>/<ref>-<format>-<look>-<captions>.mp4   + .json (what was rendered) + .sheet.jpg (QA)
                                              + .props.json (what Remotion drew) + -package/ (engine package)
+                                             + .plan.jpg (engine plan's contact sheet, made before the render)
 cache/voices/<sha16>/                        one voice per (engine, voice, style, spoken text): re-renders are free
 cache/work/<job>/                            render scratch, deleted after a good render
 cache/bundles/<sha16>/                       the Remotion bundle per version of remotion/src (probe, selftest)
@@ -142,6 +144,16 @@ About fifty videos a day go out without a person looking, so the engine looks fo
 - **Failure memory** (`failures` in `veasy.db`): every failed check (the writer's passes, the checks, render and
   QA problems, errors by class) is a row (ts, brand, stage, rule, message). `engine learn` lists the rules failing
   most lately; the writer's prompt carries the brand's recent mistakes (`failures.prompt_block`).
+- **A storyboard before paying** (`engine plan`, `tt_shorts/plan.py`, tool `veasy_plan`): with the silent engine's
+  estimated timings and no model call, each scene's times, narration words, caption pages and reading load (every
+  text on screen needs 0.5 s + 0.3 s a word), the variety picks the render will get (shown, not recorded: planning
+  uses nothing up; `plan.picks()` alone for other code), the motion rules, the layout probe and a half-size
+  contact sheet (`<render>.plan.jpg`). About 5 s (20 s when `remotion/src` changed and the bundle is rebuilt).
+- **Motion rules** (`tt_shorts/motion_rules.py`, HyperFrames' rules as checks over the timeline): a text on screen
+  too briefly to read; more than 3 s with nothing changing (the end card is exempt); more than 3 transition kinds;
+  ping-pong cuts (kinds A-B-A in three cuts in a row, or two cuts in a row moving in opposite directions); two
+  scenes of one type in a row. Warnings in `plan`; only unreadable text holds a render (in its `problems`, like the
+  probe: the job ends `held`).
 
 ## Variety (`tt_shorts/variety.py`)
 
@@ -151,7 +163,9 @@ plain, and `icons`, the story's own icon tiled, when it has one), entrance (rise
 (when the format says `auto`) and music loop (four per family, `tools/compose_music.py`). Each choice is the least
 used one among the brand's last 20 videos, remembered in `veasy.db`; one story keeps its picks on a re-render. The
 writer is told the scene orders used lately and asked for another shape when the facts allow, and it draws a picture
-of the story (`art.py`: whitelist + quality check; a drawing that fails is dropped, not the video).
+of the story (`art.py`: whitelist + quality check). A drawing that fails is swapped for one from the drawing library
+of its motif (`tt_shorts/drawings.py`: every drawing of a video that ended `done`, in `veasy.db`, plus 18 hand-made
+seeds in `assets/drawings/`; only the labels the new story itself says are kept), else dropped, not the video.
 `variety.report()` measures how alike the last videos were.
 
 **Directors** (`tt_shorts/directors.py`, `directors/*.json`, `veasy:directors`) decide what kind of film a story
