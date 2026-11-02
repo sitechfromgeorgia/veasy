@@ -33,6 +33,7 @@ tbilisi-today.
 | `voices` | the pack's own presets (`{"label", "voice", "style"}`), usable only by this pack |
 | `say` | spoken forms of the pack's own names (`"SiTech": "საი-თეჩი"`), under every story's `say` |
 | `strings`, `months`, `weekdays`, `utc_offset_hours` | the words on screen and the date |
+| `package` | `engine package`'s words (`veasy:package`): `more` (a link line with `{url}`), `link_in_bio`, and `hashtags` (3+, the pack's own after the category's tag; `_ka` has the words, a pack sets its tags) |
 
 ## Add a client
 

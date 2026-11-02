@@ -79,12 +79,12 @@ Next for other clients:
 - **B2. `engine plan`, a free storyboard (S).**
   - Returns timings, words per scene, caption pages, and a half-size contact sheet of mid-scene stills.
   - Costs no voice; about 15 s with B1. The agent and the owner review this before paying for a render.
-- **B3. Outputs that cost no extra voice (S).**
+- ~~**B3. Outputs that cost no extra voice (S).**~~ Done with D9 (`engine package`, `tt_shorts/package.py`).
   - SRT/VTT subtitles from `words` and the caption pages.
   - A cover PNG (`renderStill`).
   - A 6-10 s teaser: the hook plus the end card, using `renderMedia` `frameRange` and a word-timed cut of the same
-    voice.
-  - A Telegram album of stills.
+    voice. (Done as an ffmpeg cut of the finished mp4 at word boundaries, with a crossfade: no re-render.)
+  - A Telegram album of stills. (The carousel PNGs serve as one.)
 - ~~**B4. A jobs table (S-M).**~~ Done in a simpler form (`tt_shorts/queue.py`, `veasy.db`); still open: the git
   commit in the id, cost rows with the job id, a `published` state.
   - `jobs` in `state.db`. The id is a hash of spec, format, output, voice engine and git commit, so the same request
@@ -224,8 +224,10 @@ Audience and formats:
    saves), Thompson sampling over form only (rubric, outro, hook type, captions, length), drop-off mapped onto scene
    types, politics routed to YouTube, Facebook and Telegram (Meta doesn't recommend political content to
    non-followers), a volume test per platform.
-9. **One story, every surface, Facebook first** (88% of Georgians who get news on social media use Facebook,
-   IREX/CRRC 2024): `engine package` writes titles and descriptions by code, a 4:5 carousel, a Telegram post and SRT.
+9. ~~**One story, every surface, Facebook first**~~ Done (2026-11-02; 88% of Georgians who get news on social media
+   use Facebook, IREX/CRRC 2024): `engine package <render>.json` writes SRT/VTT, a cover, a 4:5 carousel (Remotion
+   `Slide`, 5-7 slides with a pixel fit check), a 6-10 s teaser, `texts.json` (YouTube, Instagram, Facebook, TikTok;
+   by code, through ka_check) and a Telegram post (`veasy:package`). Still open: publishing them (phase 2).
 10. **„თქვენ იკითხეთ":** viewers' factual questions answered from the articles (anonymized, checked by news_check);
     a weekly Telegram quiz from checked facts.
 
