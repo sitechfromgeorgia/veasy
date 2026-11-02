@@ -9,3 +9,9 @@ remotion/node_modules
 __pycache__/
 *.pyc
 .pytest_cache/
+# secrets never go in git (the repo is public): keys live only in data/.env on the server
+.env
+.env.*
+.dev.vars
+*.pem
+*.key
