@@ -62,6 +62,12 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   no ducking (the owner heard the ducked bed pump). The mix happens in ffmpeg (`props.mix_audio`), not in Remotion.
 - **Voices:** shared presets in `voices.py`; a pack's own in its `voices` (SiTech's `Charon` lives only in
   `brands/sitech`). edge-tts is a preview stand-in only.
+- **Icons** (`tt_shorts/icons.py`):
+  - `assets/icons/lucide.json` is built only by `tools/build_icons.py`; Lucide's `LICENSE` (ISC) stays beside it.
+  - A new Georgian stem goes in `icons._BY_ICON`, and a look-alike word in `_BLOCK`; either needs a case in
+    `tests/test_icons.py`.
+  - Pictograms follow news rule N10: a sign's verb is said in its part of the narration, and there are none for
+    crime, incidents or deaths. Icons are drawn in ink; the accent is only the dot.
 - **Captions** are laid out in Python (`captions.py`, fontTools on the real woff2), never measured in the render tabs.
   One size per video, pages ≥ 1 s, gaps under 1.2 s bridged, position a pure function of time. `tests/test_captions.py`
   holds the jitter rules; a caption change needs a case there.

@@ -22,7 +22,7 @@ LINT_RULES = {"translit": "K16", "ending_hyphen": "K16", "cyrillic": "K16", "quo
               "percent": "K21", "ellipsis": "K12", "number_plural": "K6", "space_punct": "K11",
               "double_space": "K11", "calque": "K3", "ai_filler": "K2", "country": "K17"}
 # K9: narration words (as written) a scene needs before the next one starts, so the eye can follow it
-MIN_WORDS = {"draw": 8, "bars": 7, "trend": 7, "end": 4}
+MIN_WORDS = {"draw": 8, "bars": 7, "trend": 7, "sign": 7, "end": 4}  # sign: the icon draws, then its verb plays
 MIN_WORDS_DEFAULT = 6
 FIELDS = ("kicker", "headline", "label", "text", "big", "from", "refused", "ok", "place", "sub", "by", "via", "start",
           "end", "cta", "unit", "between")

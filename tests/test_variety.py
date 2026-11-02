@@ -22,15 +22,15 @@ class Picks(unittest.TestCase):
         self.env.stop()
         self.home.cleanup()
 
-    def run_day(self, n, look="editorial", loops=("politics-1.m4a", "politics-2.m4a", "politics-3.m4a")):
+    def run_day(self, n, look="editorial", loops=("politics-1.m4a", "politics-2.m4a", "politics-3.m4a"), icon=True):
         picks = []
         for i in range(n):
-            p = variety.pick("tbilisi-today", 1000 + i, look, "auto", [pathlib.Path(x) for x in loops])
+            p = variety.pick("tbilisi-today", 1000 + i, look, "auto", [pathlib.Path(x) for x in loops], icon=icon)
             variety.record("tbilisi-today", 1000 + i, look, p, ["hook", "stat", "end"])
             picks.append(p)
         return picks
 
-    def test_a_run_moves_through_every_option(self):
+    def test_a_run_moves_through_every_option(self):  # stories with a main icon: every option, the icon motif too
         picks = self.run_day(20)
         for key, options in variety.OPTIONS.items():
             self.assertEqual({p[key] for p in picks}, set(options), key)  # all used...
@@ -38,6 +38,29 @@ class Picks(unittest.TestCase):
             self.assertLessEqual(max(counts) - min(counts), 1, key)  # ...and evenly
         self.assertEqual({p["transition"] for p in picks}, set(variety.TRANSITIONS["editorial"]))
         self.assertEqual({p["music"] for p in picks}, {"politics-1.m4a", "politics-2.m4a", "politics-3.m4a"})
+
+    def test_the_icon_motif_needs_an_icon(self):  # a story without one moves through the other motifs, evenly
+        picks = self.run_day(15, icon=False)
+        motifs = [p["motif"] for p in picks]
+        self.assertNotIn("icons", motifs)
+        others = variety.options_for("motif")
+        self.assertEqual(set(motifs), set(others))
+        self.assertEqual(max(map(motifs.count, others)) - min(map(motifs.count, others)), 0)
+
+    def test_a_mixed_run_stays_even(self):  # stories with and without icons share one history
+        for i in range(24):
+            p = variety.pick("tbilisi-today", 2000 + i, "cards", icon=i % 2 == 0)
+            variety.record("tbilisi-today", 2000 + i, "cards", p, ["hook", "end"])
+        past = variety.history("tbilisi-today", 24)
+        counts = [[r["motif"] for r in past].count(o) for o in variety.OPTIONS["motif"]]
+        self.assertLessEqual(max(counts) - min(counts), 2, counts)
+        self.assertTrue(all(r["motif"] != "icons" for r in past if int(r["story"]) % 2 == 1))
+
+    def test_a_re_render_without_its_icon_gets_another_motif(self):  # the story lost its icon since
+        first = variety.pick("tbilisi-today", 77, "kinetic", icon=True)
+        variety.record("tbilisi-today", 77, "kinetic", {**first, "motif": "icons"}, ["hook", "end"])
+        self.assertEqual(variety.pick("tbilisi-today", 77, "kinetic", icon=True)["motif"], "icons")
+        self.assertIn(variety.pick("tbilisi-today", 77, "kinetic", icon=False)["motif"], variety.options_for("motif"))
 
     def test_no_two_videos_in_a_row_are_the_same(self):
         picks = self.run_day(12)

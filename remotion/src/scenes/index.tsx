@@ -3,6 +3,7 @@ import { interpolate, useCurrentFrame } from "remotion";
 import { CANVAS, fill, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import type { Scene } from "../types";
 import { Bars, Change, Draw, Pair, Steps, Trend } from "./more";
+import { isoSpan, Isotype, railWidth, Sign } from "./sign";
 import { Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, useIn, useStyle, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
@@ -66,7 +67,9 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
 export const Stat: React.FC<P> = ({ s, inner = INNER }) => {
   const value = s.value ?? 0;
   const text = `${s.prefix ?? ""}${group(value)}${s.suffix ?? ""}`;
-  const size = fitSize([text], inner, 360, 120);
+  const iso = Boolean(s.isotype && s.glyph); // a count of 2-30 things, drawn as that many icons (tt_shorts/icons.py)
+  const size = fitSize([text], inner, iso ? 240 : 360, 120);
+  const span = iso ? isoSpan(s.duration) : 32;
   const frame = useCurrentFrame();
   const cells = 20;
   const fill = interpolate(frame, [8, 40], [0, cells], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
@@ -75,18 +78,20 @@ export const Stat: React.FC<P> = ({ s, inner = INNER }) => {
     <Frame s={s}>
       <In delay={4}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1, color: INK, whiteSpace: "nowrap" }}>
-          {s.prefix}<CountUp to={value} delay={4} />{s.suffix}
+          {s.prefix}<CountUp to={value} delay={4} frames={span} />{s.suffix}
         </div>
       </In>
+      {iso ? <Isotype s={s} width={railWidth(inner)} height={inner < INNER - 40 ? 300 : 380} delay={4} span={span} /> : (
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 48, width: Math.min(inner, LOW) }}>
         {Array.from({ length: cells }, (_, i) => (
           <div key={i} style={{ flex: 1, height: 40, borderRadius: 4, background: i < fill ? INK : "transparent",
             border: `2px solid ${i < fill ? INK : LINE_STRONG}` }} />
         ))}
         <Dot size={24} pulse />
-      </div>
+      </div>)}
       <In delay={14}>
-        <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 64, lineHeight: 1.2, color: INK, marginTop: 48, maxWidth: Math.min(inner, LOW) }}>
+        <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 64, lineHeight: 1.2, color: INK, marginTop: iso ? 40 : 48,
+          maxWidth: iso ? railWidth(inner) : Math.min(inner, LOW) }}>
           {s.label}
         </div>
       </In>
@@ -304,5 +309,5 @@ export const End: React.FC<P> = () => {
 
 export const SCENES: Record<string, React.FC<P>> = {
   hook: Hook, stat: Stat, timeline: Timeline, where: Where, who: Who, points: Points, quote: Quote, sources: Sources, draw: Draw,
-  pair: Pair, steps: Steps, bars: Bars, trend: Trend, change: Change, end: End,
+  pair: Pair, steps: Steps, bars: Bars, trend: Trend, change: Change, sign: Sign, end: End,
 };

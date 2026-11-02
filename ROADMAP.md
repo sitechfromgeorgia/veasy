@@ -19,6 +19,8 @@ for the owner, the agents and whoever codes it. Ranked: quick wins first.
 - **Variety** (the owner, 2026-11-02: "1000 videos in one style"): `tt_shorts/variety.py` (hook layouts, motifs,
   entrances, transitions, music loops; least used per brand), the writer told the recent scene orders, drawings on
   with `art.quality` and a drop-not-fail fallback, four music loops per family.
+- **Icons and pictograms** (C7 + D3): `tt_shorts/icons.py`, the `sign` scene, isotype counts on `stat`, the `icons`
+  motif, news rule N10.
 
 Next for other clients:
 - **B12. The writer per pack.** `writer.py`'s prompt is written for multi-source news (tbilisi.today). A pack
@@ -168,10 +170,11 @@ Next for other clients:
    - `steps`: 2-4 steps with arrows;
    - `figures`: 2-4 number tiles;
    - `share`: a 10×10 grid, only for percents stated in the article; replaces a pie.
-7. **C7. Icons from a whitelist (M).**
-   - About 80 Lucide (ISC) or Tabler (MIT) icons, with a Georgian keyword map (გაზი→flame, დენი→zap, მეტრო→train-front…).
-   - They draw on with `evolvePath`.
-   - Off for the crime family and for deaths.
+7. ~~**C7. Icons from a whitelist (M).**~~ Done (`tt_shorts/icons.py`, with D3).
+   - 250 Lucide (ISC) icons (`assets/icons/lucide.json`, `tools/build_icons.py`), a Georgian stem map of ~600 stems
+     that reads case endings (გაზი→flame, დენი→zap, მეტრო→train-front…).
+   - They draw on with pathLength (no extra package).
+   - Off for the crime family and for deaths (N10).
 8. **C8. Georgia region map (M).**
    - geoBoundaries ADM1 (12 units, CC BY 3.0: needs a small credit), projected once to ~30 KB of SVG paths.
    - Georgian names from Wikidata (CC0).
@@ -204,9 +207,11 @@ Visuals and motion:
 2. **Art direction from the story's content** (beyond variety.py): compositions (a number running off the edge,
    asymmetric stacks), word-by-word type on the voice timings, noise textures (`@remotion/noise`, MIT), a slow
    camera drift; a perceptual hash of contact sheets re-rolls a video too close to a recent one.
-3. **Pictogram grammar (Isotype):** ~250 Lucide/Tabler icons with a Georgian stem map; the writer picks a motif and
-   one of 8 verbs (rises, falls, stops, opens, closes, moves, splits, joins); code draws the tiled motif, a `sign`
-   scene and counts as repeated icons timed to the spoken number (counts only from the articles).
+3. ~~**Pictogram grammar (Isotype):**~~ Done (2026-11-02, `tt_shorts/icons.py`): ~250 Lucide icons with a Georgian
+   stem map; the writer picks a motif and one of 8 verbs (rises, falls, stops, opens, closes, moves, splits, joins);
+   code draws the tiled motif (variety's `icons` motif), a `sign` scene and counts as repeated icons in step with the
+   number (a stat's `icon`, 2-30, counts only from the articles). N10 checks the verb is said and keeps pictograms
+   away from crime and deaths. Open: time the count to the spoken number's word timings (with C2's cue mechanism).
 4. **Real geography:** a Wikidata gazetteer (CC0), Georgia → region → place zooms, OSM street maps of a ~1 km window
    for Tbilisi, Batumi, Kutaisi districts (credit in the corner); the Natural Earth Ukraine point-of-view file for
    the world map (decision 3: check Abkhazia and Tskhinvali stay in Georgia).

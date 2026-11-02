@@ -81,7 +81,8 @@ CHOICE_PROPS = {
 TOOLS = {
     "veasy_options": ({"type": "object", "properties": {"brand": BRAND}},
                       "Everything Veasy can do: brand packs, looks, caption designs, voices, music, formats, scene "
-                      "types and fields, and one pack's defaults per category. Read it before choosing.",
+                      "types and fields, the icons and sign verbs, and one pack's defaults per category. Read it "
+                      "before choosing.",
                       lambda a: _engine("options", _flags(a, ("brand",)))),
     "veasy_check": ({"type": "object", "properties": {
                         "story": STORY,

@@ -102,11 +102,24 @@ tbilisi.today stories and queues them.
 
 So that a thousand videos don't look alike (the owner, 2026-11-02), each video gets its own combination inside the
 brand and the look: hook layout (stack, lead, blocks, underline), background motif (grid, diagonal, dots, rules,
-plain), entrance (rise, slide, reveal, scale), transition (when the format says `auto`) and music loop (four per
-family, `tools/compose_music.py`). Each choice is the least used one among the brand's last 20 videos, remembered
-in `veasy.db`; one story keeps its picks on a re-render. The writer is told the scene orders used lately and asked
-for another shape when the facts allow, and it draws a picture of the story (`art.py`: whitelist + quality check;
-a drawing that fails is dropped, not the video). `variety.report()` measures how alike the last videos were.
+plain, and `icons`, the story's own icon tiled, when it has one), entrance (rise, slide, reveal, scale), transition
+(when the format says `auto`) and music loop (four per family, `tools/compose_music.py`). Each choice is the least
+used one among the brand's last 20 videos, remembered in `veasy.db`; one story keeps its picks on a re-render. The
+writer is told the scene orders used lately and asked for another shape when the facts allow, and it draws a picture
+of the story (`art.py`: whitelist + quality check; a drawing that fails is dropped, not the video).
+`variety.report()` measures how alike the last videos were.
+
+## Icons and pictograms (`tt_shorts/icons.py`)
+
+A visual vocabulary without photos: 250 Lucide line icons (`assets/icons/lucide.json`, ISC; rebuilt by
+`tools/build_icons.py`) and a map of ~600 Georgian stems that reads case endings (გაზი, გაზის, გაზით → flame;
+გაზეთი stays a newspaper). An icon is named in English or by the Georgian word.
+- `sign` scene: the icon draws itself stroke by stroke, then its verb plays: rises, falls, stops (a bar closes
+  across it), opens, closes (doors), moves, splits, joins.
+- `stat` with `icon`: a whole count of 2-30 is drawn as that many icons, in step with the number (no "1 icon = N").
+- The `icons` motif: the story's main icon (`motif`, else the hook's, else the first sign's) tiled in the grid color.
+- N10 (`news_check.pictograms`): a sign's verb is said in its part of the narration; no pictograms at all for crime,
+  incidents or deaths. `stories/veasy-icons.json` is the demo.
 
 ## Brand packs (`brands/`, `tt_shorts/brand.py`)
 
@@ -159,7 +172,8 @@ Below y=1100, no text goes right of x=940 (the like/share rail).
 | Remotion composition `NewsShort`, 9 scene types, 3 looks | done (`remotion/src`) |
 | Voice: Gemini presets (`voices.py`); edge-tts ka-GE as a timing stand-in only (it sounds robotic) | Gemini samples need `GEMINI_API_KEY` |
 | Audio mix (ffmpeg): voice levelled on its own, music at one constant level, with no ducking | done |
-| News rules N1-N9 (`ka_style.md` § N, `news_check.py`) | done |
+| News rules N1-N10 (`ka_style.md` § N, `news_check.py`) | done |
+| Icons: `sign` scene, isotype counts on `stat`, the icon motif (`icons.py`, 250 Lucide icons) | done (2026-11-02) |
 | Music: a news bed per category family, written from scratch (clock tick, e-piano, pad), with an even level (≤1 dB bar to bar) | done (`tools/compose_music.py`) |
 | Brand packs (`brands/`: tbilisi-today, sitech), storage layout, job queue, sources (tbilisi-today, text) | done (2026-11-02) |
 | Writer, daily run | done; the server timer waits for the owner's OK |
@@ -235,9 +249,10 @@ in the narration. Scene types and their fields are in `remotion/src/types.ts` an
 hook (lines), stat (value, label), timeline (start, end, label), where (place, sub), who (items: name, role),
 points (items), quote (text, by, via), sources, end, and since 2026-11-02: draw (svg: the writer's drawing, made safe
 by `tt_shorts/art.py`), pair (items: title, sub; between), steps (items), bars (items: label, value; unit), trend
-(items: label, value; unit), change (before, after: label, value; unit). Formats also choose the cut between scenes
-(`transition`: auto, cut, line, panel, wipe, slide, push, dot). `stories/veasy-demo.json` and
-`stories/veasy-scenes.json` use every scene type.
+(items: label, value; unit), change (before, after: label, value; unit), sign (icon, verb, label; `icons.py`), and
+an optional `icon` on stat. Formats also choose the cut between scenes (`transition`: auto, cut, line, panel, wipe,
+slide, push, dot). `stories/veasy-demo.json`, `stories/veasy-scenes.json` and `stories/veasy-icons.json` use every
+scene type.
 
 ## Licences
 
@@ -245,3 +260,4 @@ by `tt_shorts/art.py`), pair (items: title, sub; between), steps (items), bars (
   2026-11-02); a larger team would need a company licence (remotion.pro).
 - The music is composed in code and is ours.
 - The fonts are FiraGO (OFL).
+- The icons are Lucide (ISC; the Feather-derived ones MIT): `assets/icons/LICENSE`, no on-screen credit needed.

@@ -10,17 +10,24 @@ to the writer, like ka_check's K rules. `sources` is the list of member article 
   N5  sensitive stories are skipped, not written (sexual violence, children as victims, suicide)
   N6  the outlets and the date come from the data: the pipeline sets `sources` and `date` after the writer
       (not checked here; the writer's JSON never carries them)
+  N10 pictograms (icons.py) show only what the voice says: a sign's verb is said in its part of the narration, and
+      a story of the crime family (crime, incidents) or about deaths has no sign, no stat icon and no icon motif.
+      pictograms() needs no articles, so engine.check_story runs it even without --sources.
 """
 import re
 
 SCENE_TYPES = {"hook", "stat", "timeline", "where", "who", "points", "quote", "sources", "draw", "pair", "steps", "bars",
-               "trend", "change", "end"}
+               "trend", "change", "sign", "end"}
 RELATIVE_DAYS = ("დღეს", "გუშინ", "ხვალ", "ზეგ", "გუშინწინ")
 # Words that judge instead of report (stems: Georgian adds case endings). Extend from the edits log.
 EVALUATIVE = ("სკანდალურ", "შოკისმომგვრელ", "სამარცხვინო", "საოცარ", "გასაოცარ", "უპრეცედენტო", "საშინელ",
               "სენსაციურ", "ისტორიულ", "ბრწყინვალე", "კატასტროფულ", "აღმაშფოთებელ")
 SENSITIVE = ("გაუპატიურ", "სექსუალურ ძალადობ", "სექსუალური ძალადობ", "თვითმკვლელ", "სუიციდ", "არასრულწლოვან",
              "ბავშვზე ძალადობ", "პედოფილ")
+# N10: a story that tells of deaths gets no pictograms (an icon next to a death reads as making light of it)
+DEATHS = ("გარდაიცვალ", "გარდაცვალ", "გარდაცვლ", "დაიღუპ", "დაღუპ", "იღუპებ", "სიკვდილ", "ცხედ", "მკვლელობ",
+          "მოკლეს", "მოკლულ", "მოიკლ", "დაიხრჩო", "მსხვერპლ")
+NOT_SCREEN = ("type", "at", "icon", "verb")  # an icon's name and a sign's verb are drawn, not read
 NUM = re.compile(r"\d+")
 
 
@@ -58,7 +65,7 @@ def screen_text(story):
     out = []
     for s in story.get("scenes", []):
         for k, v in s.items():
-            if k in ("type", "at"):
+            if k in NOT_SCREEN:
                 continue
             if k == "svg":
                 out += art.labels(v) if isinstance(v, str) else []
@@ -71,6 +78,64 @@ def sensitive(texts):
     """N5: the stems found in a story's titles and texts; any hit means the story is skipped before writing."""
     joined = " ".join(texts).lower()
     return sorted({s for s in SENSITIVE if s in joined})
+
+
+def deaths(text):
+    low = (text or "").lower()
+    return sorted({s for s in DEATHS if s in low})
+
+
+def no_pictograms(story):
+    """N10: why a story may carry no pictograms (the crime family, deaths in its text), or None."""
+    from tt_shorts import brand, meta
+    try:
+        pack = brand.of(story)
+    except brand.BrandError:  # the structure check names the unknown brand; judge by the default pack meanwhile
+        pack = brand.load()
+    if meta.family(story.get("category", ""), pack) == "crime":
+        return f"the crime family (category {story.get('category')})"
+    hits = deaths(f"{story.get('narration', '')} {screen_text(story)}")
+    return f"deaths ({', '.join(hits)})" if hits else None
+
+
+def _norm(s):
+    return re.sub(r"[\W_]", "", s.lower())
+
+
+def scene_part(story, i):
+    """The narration of scene i, from its anchor to the next scene's; the whole narration when an anchor is off
+    (the timing check reports that)."""
+    from tt_shorts import normalize_ka
+    narration = story.get("narration", "")
+    toks = normalize_ka.tokens(narration)
+    keys = [_norm(t) for t in toks]
+    starts, after = [], 0
+    for s in story.get("scenes") or []:
+        want = [_norm(p) for p in normalize_ka.tokens(s.get("at") or "") if _norm(p)]
+        hit = next((k for k in range(after, len(keys) - len(want) + 1) if want and keys[k:k + len(want)] == want), None)
+        if hit is None:
+            return narration
+        starts.append(hit)
+        after = hit + 1
+    starts.append(len(toks))
+    return " ".join(toks[starts[i]:starts[i + 1]])
+
+
+def pictograms(story):
+    """N10 problems: a sign shows only what its part of the narration says; no pictograms for crime or deaths."""
+    from tt_shorts import icons
+    scenes = story.get("scenes") or []
+    used = [i for i, s in enumerate(scenes) if s.get("type") == "sign" or (s.get("type") == "stat" and s.get("icon"))]
+    out = []
+    why = no_pictograms(story) if used or story.get("motif") else None
+    if why:
+        out.append(f"N10: no pictograms in a story about {why}: drop the sign scene, the stat's icon and the motif")
+    for i in used:
+        verb = scenes[i].get("verb")
+        if scenes[i].get("type") == "sign" and verb in icons.VERBS and not icons.said(verb, scene_part(story, i)):
+            out.append(f"N10: scene {i} (sign) shows „{verb}“ but its part of the narration doesn't say it "
+                       f"({icons.VERB_WORDS[verb]}...): say it there, or choose the verb the narration says")
+    return out
 
 
 def problems(story, sources):
@@ -105,4 +170,4 @@ def problems(story, sources):
     hits = sensitive(sources + [narration])
     if hits:
         out.append(f"N5: sensitive story ({', '.join(hits)}): skip it")
-    return out
+    return out + pictograms(story)

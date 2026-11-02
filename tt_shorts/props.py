@@ -18,7 +18,7 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import art, brand, captions, meta, speech, store, variety, voices
+from tt_shorts import art, brand, captions, icons, meta, speech, store, variety, voices
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -85,7 +85,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     audio, words = speech.voice(story, voice_dir, engine, tone, edge_voice)
     marks = speech.scene_frames(story, words)
     loops = loops_for(music, meta.family(category, b))
-    st = {**variety.pick(b["name"], sid, variant, transition, loops), **(style or {})}
+    main = icons.story_icon(story)  # the story's main icon: the "icons" motif is possible only with one
+    st = {**variety.pick(b["name"], sid, variant, transition, loops, icon=bool(main)), **(style or {})}
     bed = next((f for f in loops if f.name == st["music"]), loops[0] if loops else None)
     for f in (audio, bed):
         if f:
@@ -102,7 +103,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "durationInFrames": marks[-1],
         "transition": st["transition"] if st["transition"] in TRANSITIONS else transition_for(transition, variant),
         "style": {k: st[k] for k in variety.OPTIONS},
-        "scenes": [_scene(s, a, b) for s, a, b in zip(story["scenes"], marks, marks[1:])],
+        "scenes": icons.attach([_scene(s, a, b) for s, a, b in zip(story["scenes"], marks, marks[1:])], story),
+        "motifIcon": icons.nodes(main) if st["motif"] == "icons" else None,  # the icon tiled in the background
         "words": words,
         "captions": captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"]),
         "voice": audio.name if audio else None, "voiceVolume": 1.0,

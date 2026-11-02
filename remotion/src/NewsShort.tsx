@@ -5,6 +5,7 @@ import {
   TICKER, W,
 } from "./brand";
 import { Captions } from "./Captions";
+import { IconTile } from "./icons";
 import { SCENES } from "./scenes";
 import type { Scene, ShortProps, Transition } from "./types";
 import { Chip, Dot, Logo, measure, Theme, useStyle, useTheme } from "./ui";
@@ -12,13 +13,15 @@ import { Chip, Dot, Logo, measure, Theme, useStyle, useTheme } from "./ui";
 const EXIT = 7; // frames a scene takes to leave
 const CARD_PAD = 48;
 
-/** The canvas and its texture, drifting slowly: this video's motif (grid, diagonal, dots, rules or plain), always in
- *  the pack's faint grid color. */
+/** The canvas and its texture, drifting slowly: this video's motif (grid, diagonal, dots, rules, plain or the story's
+ *  own icon tiled), always in the pack's faint grid color. */
 const Background: React.FC = () => {
   const { motif } = useStyle();
+  const { props } = useTheme();
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
-  const cell = motif === "dots" ? 48 : motif === "rules" ? 96 : 72;
+  const tile = motif === "icons" ? props.motifIcon : null;
+  const cell = tile ? 200 : motif === "dots" ? 48 : motif === "rules" ? 96 : 72;
   const pan = interpolate(frame, [0, durationInFrames], [0, cell]);
   const mark = {
     grid: <path d={`M${cell} 0H0V${cell}`} fill="none" stroke={GRID} strokeWidth={2} />,
@@ -26,6 +29,7 @@ const Background: React.FC = () => {
     dots: <circle cx={cell / 2} cy={cell / 2} r={3} fill={GRID} />,
     rules: <path d={`M0 ${cell - 1}H${cell}`} fill="none" stroke={GRID} strokeWidth={2} />,
     plain: null,
+    icons: tile ? <IconTile nodes={tile} cell={cell} color={GRID} /> : null,
   }[motif];
   return (
     <AbsoluteFill style={{ background: CANVAS }}>
