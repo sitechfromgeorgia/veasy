@@ -100,11 +100,12 @@ Next for other clients:
   - States: planned → voiced → framed → mixed → qa_ok/qa_failed → published/held.
   - Error classes as in sitech-shorts: transient, content, layout, config.
   - Cost rows carry the job id. This replaces `out/daily-state.json`.
-- **B5. A free quality score (S-M):**
-  - ffmpeg `silencedetect`, `freezedetect` and `blackdetect`;
-  - reading load (words and characters per second per scene);
-  - `voice_qa`;
-  - optionally Tesseract `kat` OCR on stills to catch clipped text.
+- **B5. A free quality score (S-M):** clipped text is done, without OCR: the layout probe (D13) reads every text's
+  real box from the page, so no Tesseract is needed. Still open:
+  - ffmpeg `silencedetect` (on the voice track before the mix: the music hides a gap), `freezedetect`;
+    `blackdetect` does not suit a dark canvas;
+  - reading load (words and characters per second per scene; the probe already has the scene's text and length);
+  - `voice_qa` in the score.
 - **B6. One versioned spec (M).**
   - Grow the story JSON into `{spec_version, program, data_ref, narration, say, segments:[{component, at, props}]}`.
   - Write a zod schema per component in `remotion/src/spec/` (zod 4 is already present; add it explicitly).
@@ -259,9 +260,17 @@ Engine and agent tooling:
     - Done (2026-11-02): programs (news, explainer, law, blog), sources url, pdf, ordo (Georgian law), sitech, tiers
       news / claims / law, `publish: auto|review` (the queue holds review jobs). Open: github-release and csv/sql
       sources, the data tier, the deliverables, and an approve action for held review jobs.
-13. **Self-checking renders:** a layout probe from the render tabs (`onBrowserLog`: overflow, tofu, shrunken text),
-    a vision rubric that can only hold (Workers AI vision, two calls must agree), golden stills, a failures table
-    that feeds the writer and retires variants that fail often.
+13. ~~**Self-checking renders:**~~ Mostly done (2026-11-02): the layout probe (`tt_shorts/probe.py`: band, rail,
+    captions, frame, overflow, glyph, font, size; every render, a problem holds the job), golden stills
+    (`engine selftest`, `tests/golden/`), the failures table that feeds the writer (`tt_shorts/failures.py`,
+    `engine learn`). Still open: a vision rubric that can only hold (Workers AI vision, two calls must agree), and
+    retiring variety options that fail often (`failures` has the data; `variety.pick` doesn't read it yet).
+    What the probe found on its first run, fixed: the cards' page count and any `low` width in a card reached under
+    the like/share rail (a card's content starts 32 px further right); a long `where` place or sub line crossed the
+    rail, and in a card its sub line sat on the card's footer; a long CTA crossed the rail; and a frame could be laid
+    out before the brand font loaded, so text sized by measuring got a fallback font's sizes (3 stills in 24; now
+    `remotion/src/fonts.ts` holds the layout until the four weights are in). Not fixed: the FiraGO subset has no
+    lari sign ₾ (normalize_ka speaks "₾5"; on screen it would be another font's glyph: the probe flags it).
 14. **Publishing with a canary window and a watchdog:** states scheduled → published → unlisted; a Telegram ⛔/✅
     window before auto-publishing; re-check the source at +1 h, +6 h, +24 h and unlist when the cluster is gone or
     the facts no longer hold; start the TikTok audit now.

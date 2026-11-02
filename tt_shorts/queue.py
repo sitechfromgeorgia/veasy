@@ -212,8 +212,9 @@ def classify(exc):
 
 def process(job, engine="gemini"):
     """Write (if needed), check, render and QA one claimed job; leaves it done, held, failed or re-queued."""
-    from tt_shorts import engine as eng
+    from tt_shorts import engine as eng, failures
     jid = job["id"]
+    stage = "write" if not job["story"] else "check"  # failure memory: where an exception happened
     try:
         story = job["story"]
         program = job.get("program") or programs.DEFAULT
@@ -225,16 +226,23 @@ def process(job, engine="gemini"):
                 _set(jid, state="failed", error_class="content", error="; ".join(w["problems"][:5]), result=w)
                 store.log("failed", job=jid, stage="write", problems=w["problems"][:5])
                 return get(jid)
+        stage = "check"
         fmt = formats.get(job["format"], **(job["overrides"] or {}))
         side = store.sources_path(story)
         sources = json.loads(side.read_text(encoding="utf-8")) if side.exists() else None
         problems = eng.check_story(json.loads(pathlib.Path(story).read_text(encoding="utf-8")), sources) + eng._kaeasy_required()
         if problems:
+            failures.record(job["brand"], "check", problems)
             _set(jid, state="failed", error_class="content", error="; ".join(problems[:5]))
             store.log("failed", job=jid, stage="check", problems=problems[:5])
             return get(jid)
+        stage = "render"
         r = eng.render_story(story, fmt, engine)
+        failures.record(job["brand"], "render", r["problems"])  # length, the layout probe
+        stage = "qa"
         q = eng.qa_file(r["file"], fmt) if not r["problems"] else {"problems": r["problems"]}
+        if not r["problems"]:
+            failures.record(job["brand"], "qa", q["problems"])
         if engine != "gemini":  # done means ready to publish: a preview voice never is
             q = {**q, "problems": q["problems"] + [f"preview render (engine {engine}): not for publishing; "
                                                    "retry with the gemini voice"]}
@@ -250,6 +258,8 @@ def process(job, engine="gemini"):
         store.log(state, job=jid, file=r["file"], problems=q["problems"])
     except Exception as e:  # noqa: BLE001 - one job never stops the queue
         kind = classify(e)
+        if not getattr(e, "problems", None):  # a writer's failed checks are already remembered, rule by rule
+            failures.record(job["brand"], stage, [f"{type(e).__name__}: {e}"], rule=kind)
         attempts = (get(jid) or {}).get("attempts", 1)
         if kind == "transient" and attempts < MAX_TRANSIENT:
             delay = BACKOFF_MIN * 60 * 2 ** (attempts - 1)

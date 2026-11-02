@@ -55,6 +55,9 @@ python -m tt_shorts.engine render <story.json> --format news
 - Output: `renders/<brand>/<day>/<ref>-<format>-<look>-<captions>.mp4` under VEASY_HOME, with a `.json` beside it
   (what was rendered: voice, look, kaeasy version), or `--out path.mp4`.
 - Quick look without a full render: `python -m tt_shorts.engine still <story.json>` (one PNG per scene).
+- Every render first runs the layout probe (where each text really is, per scene); its problems are the
+  render's `problems` and hold the video. Free on its own, before paying for a voice:
+  `python -m tt_shorts.engine probe <story.json> --look all` (see `veasy:qa`).
 
 ## 4. QA before anyone sees it
 

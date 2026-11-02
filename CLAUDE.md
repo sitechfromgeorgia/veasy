@@ -79,4 +79,7 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   holds the jitter rules; a caption change needs a case there.
 - **Tests:** `python -m unittest discover -s tests` and `(cd remotion && npx tsc --noEmit)`. A change to dates,
   rules, anchors or the safe zone needs a test.
+- **Visual changes** (scenes, looks, captions, `brand.ts`): `python -m tt_shorts.engine selftest` before merging
+  (golden stills + the layout probe in every look); `--update` only for a change you meant, committed with it.
+  Text in a component is marked by region (`data-probe`) so the probe can judge it; keep new chrome inside one.
 - Text on screen is in Georgian. Code, comments and commits are in English.

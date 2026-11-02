@@ -11,6 +11,7 @@
                                      telegram.md); kept and deleted with its render
       cache/voices/<sha16>/          one voice + its word timings per (engine, voice, style, spoken text)
       cache/work/<job>/              render scratch, deleted after a good render
+      cache/bundles/<sha16>/         the Remotion bundle per version of remotion/src (probe and stills: probe.py)
       logs/<day>.jsonl               one JSON line per event (queued, rendered, failed, gc...)
 
 Names:
@@ -19,8 +20,8 @@ Names:
   day     YYYY-MM-DD of when the job was created (the server's local date)
   job     <brand>-<ref>-<format>, e.g. tbilisi-today-24725-news
 
-Retention (`engine gc`): work scratch 2 days, renders 30 days, voices 90 days (re-renders within that window are
-free), logs 90 days. Stories are kept: they are small and they are the record of what was published.
+Retention (`engine gc`): work scratch 2 days, bundles 14 days, renders 30 days, voices 90 days (re-renders within
+that window are free), logs 90 days. Stories are kept: they are small and they are the record of what was published.
 """
 import datetime as dt
 import hashlib
@@ -32,7 +33,7 @@ import shutil
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-KEEP_DAYS = {"work": 2, "renders": 30, "voices": 90, "logs": 90}
+KEEP_DAYS = {"work": 2, "bundles": 14, "renders": 30, "voices": 90, "logs": 90}
 
 
 def home():
@@ -96,6 +97,13 @@ def work_dir(name):
     return p
 
 
+def bundle_dir():
+    """Where the Remotion bundles are kept, one folder per version of remotion/src (remotion/probe.mjs)."""
+    p = home() / "cache" / "bundles"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
 def log(event, **fields):
     """Append one event to today's log: {"ts", "event", ...}."""
     d = home() / "logs"
@@ -120,6 +128,7 @@ def gc(dry_run=False, now=None):
     targets = {
         "work": [p for p in (h / "cache" / "work").glob("*") if p.is_dir()],
         "voices": [p for p in (h / "cache" / "voices").glob("*") if p.is_dir()],
+        "bundles": [p for p in (h / "cache" / "bundles").glob("*") if p.is_dir()],
         "renders": [p for p in (h / "renders").glob("*/*/*") if p.is_file() or p.name.endswith("-package")],
         "logs": [p for p in (h / "logs").glob("*.jsonl")],
     }

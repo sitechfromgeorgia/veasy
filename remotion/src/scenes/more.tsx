@@ -7,7 +7,8 @@ import type { ArtNode, Scene } from "../types";
 import { Chip, Dot, fitSize, Frame, In, measure, useIn, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
-const LOW = RAIL_X - SIDE; // text that reaches the lower part stays left of the like/share rail
+// text that reaches the lower part stays left of the like/share rail (a card's content starts further right)
+const low = (inner: number) => Math.min(inner, RAIL_X - (W - inner) / 2);
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 const easeOut = Easing.out(Easing.cubic);
 
@@ -91,7 +92,7 @@ export const Draw: React.FC<P> = ({ s, inner = INNER }) => {
       {s.label && (
         <In delay={Math.round(last * k * fps) + 6}>
           <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 52, lineHeight: 1.2, color: INK, marginTop: 24,
-            maxWidth: Math.min(inner, LOW) }}>{s.label}</div>
+            maxWidth: low(inner) }}>{s.label}</div>
         </In>
       )}
     </Frame>
@@ -103,7 +104,7 @@ export const Draw: React.FC<P> = ({ s, inner = INNER }) => {
 /** Two sides: two cards with a drawn divider between them (the optional word on it, else the dot). */
 export const Pair: React.FC<P> = ({ s, inner = INNER }) => {
   const items = (s.items ?? []).slice(0, 2).map((it) => (typeof it === "string" ? { title: it } : it));
-  const width = Math.min(inner, LOW);
+  const width = low(inner);
   const size = fitSize(items.map((it) => it.title ?? ""), width - 96, 96, 48);
   const line = useIn(10, 22, 120);
   const card = (i: number) => {
@@ -141,7 +142,7 @@ export const Steps: React.FC<P> = ({ s, inner = INNER }) => {
   const items = (s.items ?? []).slice(0, 4).map((it) => (typeof it === "string" ? it : it.title ?? it.label ?? ""));
   const frame = useCurrentFrame();
   const ground = useGround();
-  const width = Math.min(inner, LOW);
+  const width = low(inner);
   const starts = stagger(items.length, s.duration, 6, 16);
   const active = starts.reduce((a, st, i) => (frame >= st ? i : a), 0);
   const many = items.length > 3;
@@ -194,7 +195,7 @@ export const Bars: React.FC<P> = ({ s, inner = INNER }) => {
   const items = (s.items ?? []).slice(0, 5).filter((it): it is { label: string; value: number } =>
     typeof it !== "string" && typeof it.value === "number");
   const frame = useCurrentFrame();
-  const width = Math.min(inner, LOW);
+  const width = low(inner);
   if (!items.length) return null;
   const max = Math.max(...items.map((it) => it.value));
   const dec = Math.max(...items.map((it) => decimalsOf(it.value)));
@@ -237,7 +238,7 @@ export const Trend: React.FC<P> = ({ s, inner = INNER }) => {
   const frame = useCurrentFrame();
   const ground = useGround();
   const { fps } = useVideoConfig();
-  const width = Math.min(inner, LOW);
+  const width = low(inner);
   if (items.length < 2) return null;
   const height = inner < INNER - 40 ? 400 : 480;
   const padT = 96, padB = 72, padX = 28;
@@ -288,7 +289,7 @@ export const Trend: React.FC<P> = ({ s, inner = INNER }) => {
 /** One value then and now: the old one muted, an arrow draws, the new one rolls up from the old to its value. */
 export const Change: React.FC<P> = ({ s, inner = INNER }) => {
   const frame = useCurrentFrame();
-  const width = Math.min(inner, LOW);
+  const width = low(inner);
   const b = s.before, a = s.after;
   if (!b || !a) return null;
   const dec = Math.max(decimalsOf(b.value), decimalsOf(a.value));

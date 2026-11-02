@@ -9,7 +9,10 @@ Every command prints JSON on stdout (human notes go to stderr), so an agent can 
   python -m tt_shorts.engine render stories/24725.json --format news [--look kinetic] [--captions roll]
                                     [--voice warm] [--music off] [--engine gemini|edge|silent] [--out out/x.mp4]
   python -m tt_shorts.engine still  stories/24725.json --frames 60,300 [same choices as render]
-  python -m tt_shorts.engine qa     out/24725.mp4 [--format news]   # length, size, loudness + a contact sheet
+  python -m tt_shorts.engine qa     out/24725.mp4 [--format news]   # length, size, loudness, the layout probe + a sheet
+  python -m tt_shorts.engine probe  stories/24725.json [--look all]   # where every text really is, per scene (probe.py)
+  python -m tt_shorts.engine selftest [--update]              # golden stills of the fixture stories (golden.py)
+  python -m tt_shorts.engine learn  [--brand sitech] [--days 7]   # the rules failing most lately (failures.py)
   python -m tt_shorts.engine package <render>.json [--only srt,vtt,cover,carousel,teaser,texts,telegram]
                                                              # one render -> every surface (package.py), no new voice
   python -m tt_shorts.engine write  --source tbilisi-today --ref 24725 [--brand tbilisi-today] [--out x.json]
@@ -120,6 +123,11 @@ def options(brand_name=None):
         "scenes": {t: {"required": r, "optional": o, "shows": d} for t, (r, o, d) in SCENES.items()},
         "package": {"about": "engine package <render>.json --only <parts>: one render -> every surface", **package.PARTS},
         "areas": geo.areas(),  # a where scene's optional area (tt_shorts/geo.py)
+        "self_checks": {"probe": "engine probe <story> [--look all]: every text's real box per scene; part of every "
+                                 "render (a problem holds the job)",
+                        "selftest": "engine selftest [--update]: golden stills of the fixture stories in every look; "
+                                    "run before merging a visual change",
+                        "learn": "engine learn [--brand]: the rules failing most lately; the writer reads them"},
         "categories": {c: {"label": meta.category_label(c, b), "family": meta.family(c, b),
                            "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
                        for c in b["categories"]},
@@ -245,6 +253,7 @@ def render_story(story_path, fmt, engine="gemini", out_path=None):
     work, p = props.build(str(story_path), fmt["look"], engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
                           caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
                           outro=fmt["outro"])
+    checked = _probe_render(work, p)  # the layout probe: seconds, before the minutes of the render
     secs = p["durationInFrames"] / FPS
     target = pathlib.Path(out_path) if out_path else store.render_path(
         brand_of(story), story["id"], fmt["name"], p["variant"], fmt["captions"])
@@ -255,8 +264,9 @@ def render_story(story_path, fmt, engine="gemini", out_path=None):
               "style": p["style"], "transition": p["transition"], "outro": p["outro"],
               "captions": fmt["captions"], "voice": fmt["voice"], "engine": engine, "music": p["music"],
               "brand": brand_of(story), "story": str(pathlib.Path(story_path).resolve()),
-              "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version()}
-    problems = []
+              "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version(),
+              "probe": checked}
+    problems = list(checked["problems"]) if checked else []
     if not fmt["min_seconds"] <= secs <= fmt["max_seconds"]:
         problems.append(f"length {secs:.1f}s is outside the format's {fmt['min_seconds']}-{fmt['max_seconds']}s")
     result["problems"] = problems
@@ -267,6 +277,40 @@ def render_story(story_path, fmt, engine="gemini", out_path=None):
     shutil.rmtree(work, ignore_errors=True)  # the scratch; the voice stays cached in cache/voices
     store.log("rendered", file=result["file"], seconds=result["seconds"], problems=problems)
     return result
+
+
+def _probe_render(work, p):
+    """The layout probe of a built render (probe.py) -> {"problems", ...}, or None when VEASY_PROBE=0. A probe
+    that can't run is itself a problem: an unchecked video is held, not published."""
+    from tt_shorts import probe
+    if not probe.enabled():
+        return None
+    try:
+        r = probe.check_work(work, p)
+    except Exception as e:  # noqa: BLE001 - reported as a problem; the render goes on
+        lines = [x for x in str(e).splitlines() if x.strip()] or [type(e).__name__]
+        return {"problems": [f"probe error: {lines[-1][:300]}"], "seconds": None}
+    return {k: r[k] for k in ("problems", "issues", "frames", "texts", "seconds")}
+
+
+def probe_cmd(a):
+    from tt_shorts import probe
+    fmt = formats.get(a.format, captions=a.captions, transition=a.transition, voice=a.voice, platform=a.platform)
+    result = probe.story(a.story, fmt, a.look, a.engine, a.stills)
+    return out(result, 1 if result["problems"] else 0)
+
+
+def selftest_cmd(a):
+    from tt_shorts import golden
+    pick = lambda v, every: [x.strip() for x in v.split(",") if x.strip()] if v else list(every)  # noqa: E731
+    result = golden.selftest(a.update, pick(a.story, golden.STORIES), pick(a.look, packs.LOOKS))
+    return out(result, 1 if result["problems"] else 0)
+
+
+def learn_cmd(a):
+    from tt_shorts import failures
+    return out({"brand": a.brand, "days": a.days, "top": failures.top(a.brand, a.days, a.limit),
+                "writer_block": failures.prompt_block(a.brand, a.days) if a.brand else None})
 
 
 def _format(a):
@@ -344,6 +388,9 @@ def qa_file(path, fmt):
         problems.append(f"size {v.get('width')}x{v.get('height')}, expected 1080x1920")
     if not fmt["min_seconds"] <= secs <= fmt["max_seconds"]:
         problems.append(f"length {secs:.1f}s outside {fmt['min_seconds']}-{fmt['max_seconds']}s")
+    probed = _sidecar(path).get("probe")  # render_story's layout probe of this video, when it made it
+    if probed:
+        problems += [x for x in probed.get("problems", []) if x not in problems]
     if not has_audio:
         problems.append("no audio track")
     elif not -19 <= loud.get("I", -99) <= -13:
@@ -357,7 +404,17 @@ def qa_file(path, fmt):
                    check=False)
     return {"file": str(path.resolve()), "seconds": round(secs, 1), "size": [v.get("width"), v.get("height")],
             "loudness": loud, "opening_ink": None if ink is None else round(ink, 3),
-            "sheet": str(sheet.resolve()) if sheet.exists() else None, "problems": problems}
+            "sheet": str(sheet.resolve()) if sheet.exists() else None,
+            "probe": {k: probed.get(k) for k in ("problems", "frames", "texts")} if probed else None,
+            "problems": problems}
+
+
+def _sidecar(path):
+    """What render_story wrote beside a video (<file>.json), or {}."""
+    try:
+        return json.loads(pathlib.Path(path).with_suffix(".json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
 
 
 def qa(a):
@@ -377,17 +434,23 @@ def package_cmd(a):
 def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None):
     """A source reference -> a written, checked story file (+ its sources beside it). Used by `write` and the queue.
     program: news (default: the news-cluster writer, as before programs) or another program (programs.py), which
-    writes from its brief, under its scenes and rule tier."""
-    from tt_shorts import sources as src, writer
+    writes from its brief, under its scenes and rule tier. Every failed writer pass is remembered (failures.py)."""
+    from tt_shorts import failures, sources as src, writer
     packs.load(brand)  # an unknown pack fails before any model call
     prog = programs.get(program)
     source = source or prog["sources"][0]
     programs.check_source(prog, source)  # and a source the program doesn't take
     data = src.fetch(source, ref)
-    if prog["name"] == programs.DEFAULT:
-        story = writer.write(data["cluster"], data["articles"], avoid=variety.recent_sequences(brand))
-    else:
-        story = programs.write(prog, data, brand, avoid=variety.recent_sequences(brand))
+    remember = lambda found: failures.record(brand, "write", found)  # noqa: E731
+    try:  # failure memory: the writer reads the brand's recent mistakes; every failed pass is remembered
+        if prog["name"] == programs.DEFAULT:
+            story = writer.write(data["cluster"], data["articles"], avoid=variety.recent_sequences(brand),
+                                 mistakes=failures.prompt_block(brand), on_problems=remember)
+        else:
+            story = programs.write(prog, data, brand, avoid=variety.recent_sequences(brand), on_problems=remember)
+    except writer.ChecksFailed as e:
+        failures.record(brand, "write", e.problems)
+        raise
     story["brand"] = brand
     story["source"] = {"name": source, "ref": str(ref)}
     programs.stamp(story, prog, data["cluster"])  # program, category, the document's facts and link: data
@@ -398,6 +461,7 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None):
     side = store.sources_path(target)  # the articles, so `check --sources` can re-run the news rules later
     side.write_text(json.dumps(data["articles"], ensure_ascii=False), encoding="utf-8")
     problems = check_story(story, data["articles"])
+    failures.record(brand, "check", problems)
     store.log("written", story=str(target), problems=problems)
     result = {"story": str(target.resolve()), "sources": str(side.resolve()),
               "scenes": [s["type"] for s in story["scenes"]], "problems": problems}
@@ -469,6 +533,10 @@ def doctor(_a):
         "D1 access (CLOUDFLARE_API_TOKEN)": bool(os.environ.get("CLOUDFLARE_API_TOKEN")),
         "home (VEASY_HOME)": str(store.home()),
         "kaeasy (Georgian gate)": kaeasy.version() or f"missing in {kaeasy.directory()} (KAEASY_DIR)",
+        "layout probe": "on: every render is probed (VEASY_PROBE=0 turns it off)"
+                        if os.environ.get("VEASY_PROBE", "1") != "0" else "OFF (VEASY_PROBE=0): renders are not probed",
+        "golden stills": f"{len(list((ROOT / 'tests' / 'golden').glob('*.json')))} in tests/golden; run "
+                         "'engine selftest' before merging a visual change",
     }
     bad_packs = []
     for n in packs.names():
@@ -551,6 +619,25 @@ def main(argv=None):
     v.add_argument("--story")
     v.add_argument("--only")
     sub.add_parser("doctor")
+    pr = sub.add_parser("probe")
+    pr.add_argument("story")
+    pr.add_argument("--look", default="auto", help="auto (the story's own), all, or a comma-separated list")
+    pr.add_argument("--format", default="news")
+    pr.add_argument("--captions", choices=formats.CAPTIONS)
+    pr.add_argument("--transition", choices=formats.TRANSITIONS)
+    pr.add_argument("--voice", help="family or a preset (it only changes the timing)")
+    pr.add_argument("--platform")
+    pr.add_argument("--engine", default="silent", choices=["gemini", "edge", "silent"],
+                    help="silent: free, estimated timing; gemini/edge: a cached voice's real timing")
+    pr.add_argument("--stills", help="also save each probed frame as a PNG in this folder")
+    st = sub.add_parser("selftest")
+    st.add_argument("--update", action="store_true", help="rewrite tests/golden/ after a deliberate visual change")
+    st.add_argument("--story", help="comma-separated fixtures (default veasy-scenes,veasy-demo)")
+    st.add_argument("--look", help="comma-separated looks (default all three)")
+    le = sub.add_parser("learn")
+    le.add_argument("--brand", help="one pack (default: every pack)")
+    le.add_argument("--days", type=int, default=7)
+    le.add_argument("--limit", type=int, default=10)
     qp = sub.add_parser("queue")
     qp.add_argument("action", choices=["add", "list", "run", "show", "retry", "cancel"])
     qp.add_argument("id", nargs="?")
@@ -583,7 +670,8 @@ def main(argv=None):
                 result.update(program=programs.name_of(story), rules=_rules_of(story))
             return out(result, 1 if problems else 0)
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
-                "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd}[a.cmd](a)
+                "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
+                "selftest": selftest_cmd, "learn": learn_cmd}[a.cmd](a)
     except (formats.FormatError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
 

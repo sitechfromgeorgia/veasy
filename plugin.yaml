@@ -8,6 +8,7 @@ provides_tools:
   - veasy_still
   - veasy_qa
   - veasy_package
+  - veasy_probe
   - veasy_write
   - veasy_queue
   - veasy_doctor

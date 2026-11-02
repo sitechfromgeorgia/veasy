@@ -290,10 +290,10 @@ def writer_checks(p, story, articles, cluster, brand=None):
     return out
 
 
-def write(p, data, brand=None, avoid=None):
+def write(p, data, brand=None, avoid=None, on_problems=None):
     """A source's data -> a story written under the program's brief, scenes and rules (writer.write does the rest:
-    the model call, one or two repairs, the editor pass, identity from the data)."""
+    the model call, one or two repairs, the editor pass, identity from the data). on_problems: as writer.write's."""
     from tt_shorts import writer
     return writer.write(data["cluster"], data["articles"], avoid=avoid,
                         make_prompt=lambda c, a, av: prompt(p, c, a, av, brand),
-                        run_checks=lambda s, a, c: writer_checks(p, s, a, c, brand))
+                        run_checks=lambda s, a, c: writer_checks(p, s, a, c, brand), on_problems=on_problems)

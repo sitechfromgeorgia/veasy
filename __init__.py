@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SKILLS_DIR = ROOT / "skills"
-TIMEOUTS = {"render": 1500, "write": 900, "still": 600, "queue": 3600, "package": 900}
+TIMEOUTS = {"render": 1500, "write": 900, "still": 600, "queue": 3600, "package": 900, "probe": 600}
 
 HINT = (
     "[veasy] If this turn involves making, checking or fixing a video (a Short, a reel, a story video), first load "
@@ -114,8 +114,8 @@ TOOLS = {
                      "video": {"type": "string", "description": "Path to the rendered mp4."},
                      "format": {"type": "string", "description": "The format it was rendered in (length window)."}},
                   "required": ["video"]},
-                 "Check a rendered video (size, length, loudness) and write a contact sheet of frames. "
-                 "Never publish with problems.",
+                 "Check a rendered video (size, length, loudness, and the layout probe's findings from its render) "
+                 "and write a contact sheet of frames. Never publish with problems.",
                  lambda a: _engine("qa", [a["video"]] + _flags(a, ("format",)))),
     "veasy_package": ({"type": "object", "properties": {
                           "render": {"type": "string", "description": "The render's .json manifest (beside its mp4), "
@@ -128,6 +128,23 @@ TOOLS = {
                       "(YouTube title + description, Instagram, Facebook, TikTok) and a Telegram post, in "
                       "<render>-package/. Seconds; problems must be empty.",
                       lambda a: _engine("package", [a["render"]] + _flags(a, ("only",)))),
+    "veasy_probe": ({"type": "object", "properties": {
+                        "story": STORY,
+                        "look": {"type": "string", "description": "auto (the story's own look), all, or a "
+                                 "comma-separated list of editorial, kinetic, cards. Default auto."},
+                        **{k: CHOICE_PROPS[k] for k in ("format", "captions", "transition", "voice", "platform")},
+                        "engine": {"type": "string", "enum": ["silent", "edge", "gemini"],
+                                   "description": "silent (default, free, estimated timing) or a voice already "
+                                                  "cached for this story (its real timing)."},
+                        "stills": {"type": "string", "description": "A folder to also save each probed frame as a "
+                                   "PNG, to look at."}},
+                     "required": ["story"]},
+                    "The layout probe: renders each scene at its settled frame and checks where every text really "
+                    "is: inside the scene band (y<=1380), nothing right of x=940 below y=1100, inside the frame, no "
+                    "overflow, the brand font with every glyph, no text shrunk too small. Free, about 5 s a look. "
+                    "Every render runs it too; problems must be empty.",
+                    lambda a: _engine("probe", [a["story"]] + _flags(a, ("look", "format", "captions", "transition",
+                                                                         "voice", "platform", "engine", "stills")))),
     "veasy_write": ({"type": "object", "properties": {
                         "program": PROGRAM,
                         "source": SOURCE,
