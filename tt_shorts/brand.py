@@ -16,6 +16,8 @@ that isn't there fails loudly, before anything is rendered.
 
 logo.kind:
 say: the pack's spoken forms of its own names, merged under every story's "say" map (with_say).
+package: the words of `engine package`'s texts (package.py): "more" (a link line with {url}), "link_in_bio" (for
+  Instagram, where a caption's link can't be clicked) and "hashtags" (3+, after the category's own tag).
 
   tmark   tbilisi.today's mark (drawn in code) next to the wordmark text
   svg     "header": an SVG for the header (it carries the name, so no wordmark text is drawn next to it),
@@ -24,19 +26,21 @@ say: the pack's spoken forms of its own names, merged under every story's "say" 
 import functools
 import json
 import pathlib
+import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIR = ROOT / "brands"
 DEFAULT = "tbilisi-today"
 REQUIRED = ("name", "label", "lang", "utc_offset_hours", "colors", "fonts", "logo", "wordmark", "link", "footer",
             "ctas", "categories", "family_by_category", "default_family", "look_by_family", "voice_by_family",
-            "strings", "months", "weekdays")
+            "strings", "months", "weekdays", "package")
 COLORS = ("canvas", "panel", "ink", "muted", "accent", "line", "lineStrong", "grid", "ticker", "waiting", "markBg")
 COLOR_DEFAULTS = {"onAccent": "#FFFFFF"}  # text on the accent (the end card's button)
 STRINGS = ("outlets", "source_one", "source_many", "covered_by", "today", "preview_edge", "preview_silent",
            "card_meta", "category_default")
 FONT_WEIGHTS = ("400", "500", "600", "700")
 LOOKS = ("editorial", "kinetic", "cards")
+HASHTAG = re.compile(r"^#[^\s#!.,:;?]+$")
 # The music moods tools/compose_music.py writes (assets/music/<family>-N.m4a): a family is one of these.
 FAMILIES = ("politics", "economy", "world", "crime", "sports", "culture", "tech", "society")
 
@@ -121,6 +125,12 @@ def validate(b, dirs):
         raise BrandError(f"brand {name}: link.display is the link as the video shows it")
     if not isinstance(b["footer"], dict) or "text" not in b["footer"]:
         raise BrandError(f"brand {name}: footer is {{\"text\": ..., \"strong\": ...}}")
+    pk = b["package"]
+    if not isinstance(pk, dict) or "{url}" not in str(pk.get("more", "")) or not str(pk.get("link_in_bio") or "").strip():
+        raise BrandError(f"brand {name}: package needs \"more\" (a link line with {{url}}) and \"link_in_bio\"")
+    tags = pk.get("hashtags")
+    if not isinstance(tags, list) or len(set(tags)) < 3 or not all(isinstance(t, str) and HASHTAG.match(t) for t in tags):
+        raise BrandError(f"brand {name}: package.hashtags is a list of 3+ different hashtags like \"#ამბები\" (no spaces)")
     kind = b["logo"].get("kind")
     if kind not in ("tmark", "svg"):
         raise BrandError(f"brand {name}: logo.kind is tmark or svg")

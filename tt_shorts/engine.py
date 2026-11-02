@@ -10,6 +10,8 @@ Every command prints JSON on stdout (human notes go to stderr), so an agent can 
                                     [--voice warm] [--music off] [--engine gemini|edge|silent] [--out out/x.mp4]
   python -m tt_shorts.engine still  stories/24725.json --frames 60,300 [same choices as render]
   python -m tt_shorts.engine qa     out/24725.mp4 [--format news]   # length, size, loudness + a contact sheet
+  python -m tt_shorts.engine package <render>.json [--only srt,vtt,cover,carousel,teaser,texts,telegram]
+                                                             # one render -> every surface (package.py), no new voice
   python -m tt_shorts.engine write  --source tbilisi-today --ref 24725 [--brand tbilisi-today] [--out x.json]
                                                              # a source's story -> a checked story JSON
   python -m tt_shorts.engine queue  add --ref 24725 [--brand sitech] [--format news] | list | run [--max 5]
@@ -77,6 +79,7 @@ def note(msg):
 
 
 def options(brand_name=None):
+    from tt_shorts import package
     every = formats.load_all()
     b = packs.load(brand_name)
     presets = voices.all_presets(b)
@@ -107,6 +110,7 @@ def options(brand_name=None):
                     "edge": "free preview stand-in (robotic; timing only)", "silent": "music and captions only"},
         "formats": every,
         "scenes": {t: {"required": r, "optional": o, "shows": d} for t, (r, o, d) in SCENES.items()},
+        "package": {"about": "engine package <render>.json --only <parts>: one render -> every surface", **package.PARTS},
         "categories": {c: {"label": meta.category_label(c, b), "family": meta.family(c, b),
                            "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
                        for c in b["categories"]},
@@ -234,6 +238,9 @@ def render_story(story_path, fmt, engine="gemini", out_path=None):
     if not fmt["min_seconds"] <= secs <= fmt["max_seconds"]:
         problems.append(f"length {secs:.1f}s is outside the format's {fmt['min_seconds']}-{fmt['max_seconds']}s")
     result["problems"] = problems
+    side = store.props_path(target)  # what was drawn (timings, captions, the pack): `engine package` reuses it
+    side.write_text(json.dumps(p, ensure_ascii=False), encoding="utf-8")
+    result["props"] = str(side.resolve())
     target.with_suffix(".json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
     shutil.rmtree(work, ignore_errors=True)  # the scratch; the voice stays cached in cache/voices
     store.log("rendered", file=result["file"], seconds=result["seconds"], problems=problems)
@@ -321,6 +328,12 @@ def qa_file(path, fmt):
 
 def qa(a):
     result = qa_file(a.video, formats.get(a.format))
+    return out(result, 1 if result["problems"] else 0)
+
+
+def package_cmd(a):
+    from tt_shorts import package
+    result = package.make(a.render, a.only)
     return out(result, 1 if result["problems"] else 0)
 
 
@@ -452,6 +465,9 @@ def main(argv=None):
     q = sub.add_parser("qa")
     q.add_argument("video")
     q.add_argument("--format", default="news")
+    pk = sub.add_parser("package")
+    pk.add_argument("render", help="the render's .json manifest (or its .mp4)")
+    pk.add_argument("--only", help="comma-separated: srt,vtt,cover,carousel,teaser,texts,telegram (default all)")
     w = sub.add_parser("write")
     w.add_argument("--source", default="tbilisi-today", help="tbilisi-today (ref = cluster id) or text (ref = JSON file)")
     w.add_argument("--ref", help="the story's reference in its source")
@@ -490,7 +506,7 @@ def main(argv=None):
             return out({"story": a.story, "news_rules": bool(sources), "kaeasy": kaeasy.version(),
                         "problems": problems, "warnings": ka_check.warnings(story)}, 1 if problems else 0)
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
-                "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd}[a.cmd](a)
+                "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd}[a.cmd](a)
     except (formats.FormatError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
 

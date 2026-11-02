@@ -14,7 +14,7 @@ const CARD_PAD = 48;
 
 /** The canvas and its texture, drifting slowly: this video's motif (grid, diagonal, dots, rules or plain), always in
  *  the pack's faint grid color. */
-const Background: React.FC = () => {
+export const Background: React.FC = () => {
   const { motif } = useStyle();
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();

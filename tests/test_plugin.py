@@ -10,7 +10,7 @@ import unittest
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SKILLS = ("make-video", "write-script", "qa", "formats", "queue", "brands")
+SKILLS = ("make-video", "write-script", "qa", "formats", "queue", "brands", "package")
 
 
 def load_plugin():
@@ -99,6 +99,9 @@ class Plugin(unittest.TestCase):
         self.assertIn("error", out)
         out = json.loads(self.ctx.tools["veasy_qa"][1]({"video": "out/no-such-file.mp4"}))
         self.assertTrue(out.get("problems"))
+        out = json.loads(self.ctx.tools["veasy_package"][1]({"render": "out/no-such-render.json"}))
+        self.assertTrue(out.get("problems") and "no render manifest" in out["problems"][0], out)
+        self.assertIn("error", json.loads(self.ctx.tools["veasy_package"][1]({})))
 
     def test_hint_once_per_session(self):
         hint = self.ctx.hooks["pre_llm_call"]
