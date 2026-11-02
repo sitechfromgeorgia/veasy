@@ -32,7 +32,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=10)
     ap.add_argument("--hours", type=int, default=30)
-    ap.add_argument("--format", default="news")
+    ap.add_argument("--format", default="news-roll")
     ap.add_argument("--brand", default="tbilisi-today")
     ap.add_argument("--run", type=int, default=5, help="jobs to process now (0: only queue)")
     ap.add_argument("--dry-run", action="store_true")
@@ -42,7 +42,8 @@ def main():
     out = {"picks": [{"id": c["id"], "category": c["category"], "sources": c["source_count"],
                       "headline": c["headline"][:80]} for c in picks]}
     if not a.dry_run:
-        out["queued"] = [queue.add(a.brand, "tbilisi-today", c["id"], a.format)[0]["id"] for c in picks]
+        out["queued"] = [queue.add(a.brand, "tbilisi-today", c["id"], a.format, priority=len(picks) - i)[0]["id"]
+                         for i, c in enumerate(picks)]
         out["run"] = queue.run(a.run) if a.run else None
     print(json.dumps(out, ensure_ascii=False, indent=1))
     return 0
