@@ -168,6 +168,18 @@ class Em(unittest.TestCase):
             self.assertFalse(any("mark" in s for s in plain["scenes"]))
 
 
+class Motion(unittest.TestCase):
+    def test_a_mark_and_the_rail_s_dot_count_as_change(self):  # motion_rules "still": the scene moves until they land
+        from tt_shorts import motion_rules
+        with tempfile.TemporaryDirectory() as home, mock.patch.dict("os.environ", {"VEASY_HOME": home}):
+            _, p = props.build(str(DEMO), "editorial", "silent", music="off")
+        rows = motion_rules.timeline(p)
+        for s, r in zip(p["scenes"], rows):
+            if s.get("mark"):
+                self.assertGreaterEqual(r["settled"] + 0.01, (s["mark"]["at"] + s["mark"]["frames"]) / speech.FPS, s["type"])
+        self.assertFalse([f for f in motion_rules.still(rows)])
+
+
 class Demo(unittest.TestCase):
     def test_the_demo_uses_every_new_brush_and_passes(self):
         s = json.loads(DEMO.read_text(encoding="utf-8"))

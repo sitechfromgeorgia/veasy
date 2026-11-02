@@ -122,6 +122,12 @@ def timeline(p):
         if s.get("art"):
             k, art_last = _draw_scale(s)
             built = max(built, art_last * k + SETTLE)
+        if s.get("type") == "rail" and len(s.get("items") or []) > 1:  # the dot travels the rail (scenes/brushes.tsx)
+            n = len(s["items"])
+            step = min(30, max(10, (s["duration"] * 0.6 - 10) / (n - 1)))
+            built = max(built, (10 + (n - 1) * step) / FPS + SETTLE)
+        if s.get("mark"):  # a voice-synced mark draws in the scene band until it lands (marks.py)
+            built = max(built, (s["mark"]["at"] + s["mark"]["frames"]) / FPS)
         rows.append({"scene": i, "type": s.get("type"), "from": s["from"], "to": end, "leaves": leaves,
                      "seconds": round(s["duration"] / FPS, 2), "texts": texts, "settled": round(built, 2)})
     if p.get("outroFrom") is not None and p.get("cta") and not any(r["type"] == "end" for r in rows):
