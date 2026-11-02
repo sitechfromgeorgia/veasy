@@ -18,7 +18,7 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import art, brand, captions, meta, speech, store, variety, voices
+from tt_shorts import art, brand, captions, geo, meta, speech, store, variety, voices
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -111,6 +111,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         # words the aligner barely heard: the voice may have skipped or changed them (speech.voice_qa; Gemini only)
         "voiceQa": story.get("qa", {}).get("voice", []),
     }
+    geo.attach(props["scenes"], meta.family(category, b))  # a Georgian place: only what its map scene draws
     (work / "props.json").write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
     return work, props
 
