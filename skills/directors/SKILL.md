@@ -54,8 +54,29 @@ python -m tt_shorts.engine write  --ref 24835 --director map
 python -m tt_shorts.engine render stories/24835-brief.json --director data --engine silent
 python -m tt_shorts.engine queue  add --ref 24835 --director chronicle
 ```
-A hand-written story may set `"director"` itself (`stories/24835-brief.json`). Render without one and nothing
-changes: today's motion and the full variety sets apply.
+A hand-written story may set `"director"` itself. Render without one and nothing changes: today's motion and the
+full variety sets apply.
+
+The demo is one story under three directors, with the same facts:
+- `stories/24835-data.json`: the number first, with the longest hold on the stat;
+- `stories/24835-map.json`: the place first, the Tbilisi map with both districts, then the gas sign stopping;
+- `stories/24835-brief.json`: a service card, points then steps.
+
+## The novelty guard
+
+Inside a director the style picks are few, so two videos can still look alike. Before the voice is paid for,
+`variety.choose` compares the planned video with the brand's last 20 (`props.choose`, so render, queue, still,
+probe and `engine plan` all pass it; plan shows `novelty` with the fingerprint and records nothing).
+- Fingerprint: director, scene sequence, hook, motif, enter, transition, music.
+- `similarity`: 1 for each equal field, plus the scene orders' difflib ratio (0-1); 0-7 in all.
+  `distance = 1 - similarity / 7`.
+- Too close: 5 or more of 7 shared with one recent video (the story's own renders don't count).
+- Then the style picks are re-rolled inside the director's subsets: least overused combinations first, at most 64,
+  the same for the same story and history. The director, the scenes and a format's fixed cut never change.
+- If no re-roll is far enough, the farthest is taken and the render result's `warnings` says so. The video is never
+  failed. A re-render keeps its picks.
+- `render` returns `novelty` (similarity, distance, nearest story, rerolls). `variety.report()["novelty"]` gives the
+  average distance. `variety.assess()` measures a plan without re-rolling.
 
 ## Add a director (JSON, no code)
 

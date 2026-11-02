@@ -99,6 +99,184 @@ class Picks(unittest.TestCase):
         self.assertEqual(r["scenes"]["most_used_share"], 1.0)  # every test video had the same scene order
 
 
+class NoveltyGuard(unittest.TestCase):
+    """A planned video too close to one of the brand's last 20 is re-rolled before the voice is paid for (ROADMAP
+    D11): fingerprint (director, scenes, hook, motif, enter, transition, music), too close at 5 of 7 shared."""
+    SCENES = ["hook", "stat", "timeline", "sources", "end"]
+
+    def setUp(self):
+        self.home = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"VEASY_HOME": self.home.name})
+        self.env.start()
+        from tt_shorts import directors
+        self.data = directors.get("data")  # cards: hooks stack|underline, enters rise|scale, cuts line|dot
+
+    def tearDown(self):
+        self.env.stop()
+        self.home.cleanup()
+
+    def seed_a_repeat(self):
+        """Story 1 under data, and other stories that use every other option twice: the plain least used picks for
+        the next data story with the same scenes are then exactly story 1's (a repeated plan)."""
+        first = {"hook": "stack", "motif": "grid", "enter": "rise", "transition": "line", "music": None, "director": "data"}
+        variety.record("tbilisi-today", 1, "cards", first, self.SCENES)
+        other = {"hook": "underline", "motif": "rules", "enter": "scale", "transition": "dot", "music": None,
+                 "director": "map"}
+        for i in range(2):
+            variety.record("tbilisi-today", 10 + i, "cards", other, ["hook", "where", "sign", "end"])
+            variety.record("tbilisi-today", 20 + i, "cards", {**other, "motif": "plain"}, ["hook", "where", "end"])
+        return first
+
+    def test_the_fingerprint_and_its_distance(self):
+        a = variety.fingerprint({"hook": "stack", "motif": "grid", "enter": "rise", "transition": "line",
+                                 "music": "x.m4a"}, ["hook", "stat", "end"], "data")
+        self.assertEqual(variety.similarity(a, a), 7.0)
+        self.assertEqual(variety.distance(a, a), 0.0)
+        b = {**a, "scenes": ("hook", "stat", "where", "end")}
+        self.assertEqual(variety.similarity(a, b), 6.857)  # the orders: difflib ratio 2*3/7
+        c = {**b, "hook": "lead", "director": "map"}
+        self.assertFalse(variety.too_close(a, c))  # 4.857 shared: not too close
+        self.assertTrue(variety.too_close(a, {**c, "director": "data"}))  # 5.857
+        row = {"story": "9", "director": "data", "scenes": '["hook", "stat", "end"]', "hook": "stack",
+               "motif": "grid", "enter": "rise", "transition": "line", "music": "x.m4a"}
+        self.assertEqual(variety.similarity(a, variety.fingerprint(row)), 7.0)  # a history row is a fingerprint
+        self.assertEqual(variety.nearest(a, [c, variety.fingerprint(row)])[1]["story"], "9")
+        self.assertEqual(variety.nearest(a, []), (0.0, None))
+
+    def test_a_repeated_plan_is_re_rolled(self):
+        first = self.seed_a_repeat()
+        with mock.patch.object(variety, "TOO_CLOSE", 99):  # the guard off: the plain picks repeat story 1
+            plain, _ = variety.choose("tbilisi-today", 2, "cards", director=self.data, scenes=self.SCENES)
+        self.assertEqual(plain, {k: first[k] for k in plain})
+        style, novelty = variety.choose("tbilisi-today", 2, "cards", director=self.data, scenes=self.SCENES)
+        self.assertNotEqual(style, plain)
+        self.assertGreaterEqual(novelty["rerolls"], 1)
+        self.assertFalse(novelty["too_close"])
+        self.assertIsNone(novelty["warning"])
+        fp = variety.fingerprint(style, self.SCENES, "data")
+        for r in variety.history("tbilisi-today"):
+            self.assertLess(variety.similarity(fp, variety.fingerprint(r)), variety.TOO_CLOSE, r["story"])
+        for key, sub in (("hook", "hooks"), ("motif", "motifs"), ("enter", "enters"), ("transition", "transitions")):
+            self.assertIn(style[key], self.data[sub], key)  # still inside the director's subsets
+
+    def test_a_novel_plan_is_untouched(self):
+        variety.record("tbilisi-today", 1, "cards", {"hook": "stack", "motif": "grid", "enter": "rise",
+                                                     "transition": "line", "music": None, "director": "map"},
+                       ["hook", "where", "end"])
+        with mock.patch.object(variety, "TOO_CLOSE", 99):
+            plain, _ = variety.choose("tbilisi-today", 2, "cards", director=self.data, scenes=self.SCENES)
+        style, novelty = variety.choose("tbilisi-today", 2, "cards", director=self.data, scenes=self.SCENES)
+        self.assertEqual(style, plain)
+        self.assertEqual((novelty["rerolls"], novelty["too_close"], novelty["warning"]), (0, False, None))
+        self.assertEqual(novelty["nearest"], "1")
+        self.assertEqual(variety.choose("tbilisi-today", 3, "cards")[1]["rerolls"], 0)
+
+    def test_a_re_render_keeps_its_picks(self):
+        self.seed_a_repeat()
+        once = variety.choose("tbilisi-today", 2, "cards", director=self.data, scenes=self.SCENES)
+        self.assertEqual(variety.choose("tbilisi-today", 2, "cards", director=self.data, scenes=self.SCENES), once)
+        style, novelty = once  # a probe, then the render: the same re-rolled picks
+        variety.record("tbilisi-today", 2, "cards", {**style, "director": "data"}, self.SCENES, novelty)
+        variety.record("tbilisi-today", 30, "cards", {**style, "director": "data"}, self.SCENES)  # a twin since
+        again, nov = variety.choose("tbilisi-today", 2, "cards", director=self.data, scenes=self.SCENES)
+        self.assertEqual(again, style)
+        self.assertTrue(nov["kept"])
+        self.assertEqual(nov["rerolls"], 0)
+        row = next(r for r in variety.history("tbilisi-today") if r["story"] == "2")
+        self.assertEqual((row["rerolls"], row["novelty"]), (novelty["rerolls"], novelty["distance"]))
+
+    def test_re_rolls_are_bounded_and_never_fail_the_video(self):
+        # a fixed cut, no music, the same director and scenes: one more shared pick is too close, and these two
+        # videos together hold every hook, so no plan is far enough
+        for i, hook in enumerate(("stack", "underline")):
+            variety.record("tbilisi-today", 40 + i, "cards", {"hook": hook, "motif": "grid", "enter": "rise",
+                                                              "transition": "dot", "music": None, "director": "data"},
+                           self.SCENES)
+        calls = []
+        real = variety.nearest
+        with mock.patch.object(variety, "REROLLS", 3), \
+                mock.patch.object(variety, "nearest", side_effect=lambda *a: calls.append(1) or real(*a)):
+            style, novelty = variety.choose("tbilisi-today", 2, "cards", "dot", director=self.data, scenes=self.SCENES)
+        self.assertEqual(novelty["rerolls"], 3)
+        self.assertEqual(len(calls), 1 + 3)  # the plan and at most REROLLS re-rolls
+        self.assertTrue(novelty["too_close"])
+        self.assertIn("novelty:", novelty["warning"])
+        self.assertEqual(style["transition"], "dot")  # a format's fixed cut is never re-rolled
+        self.assertIn(style["hook"], self.data["hooks"])
+
+    def test_an_old_database_is_migrated(self):
+        import sqlite3
+        con = sqlite3.connect(pathlib.Path(self.home.name) / "veasy.db")
+        con.executescript("create table variety(ts text, brand text, story text, look text, hook text, motif text, "
+                          "enter text, transition text, music text, scenes text);")
+        con.execute("insert into variety values('2026-10-01T00:00:00+00:00', 'tbilisi-today', '7', 'cards', 'stack', "
+                    "'grid', 'rise', 'line', null, '[\"hook\", \"stat\", \"end\"]')")
+        con.commit()
+        con.close()
+        old = variety.history("tbilisi-today")
+        self.assertEqual(len(old), 1)
+        self.assertEqual((old[0]["director"], old[0]["novelty"], old[0]["rerolls"]), (None, None, None))
+        style, novelty = variety.choose("tbilisi-today", 8, "cards", scenes=["hook", "stat", "end"])
+        self.assertEqual(novelty["nearest"], "7")
+        variety.record("tbilisi-today", 8, "cards", style, ["hook", "stat", "end"], novelty)
+        self.assertEqual(variety.history("tbilisi-today")[0]["rerolls"], novelty["rerolls"])
+        self.assertIn("novelty", variety.report("tbilisi-today"))
+
+    def test_the_guard_runs_before_the_voice(self):
+        """props.build is the path of render, the queue, still and probe: the picks (and any re-roll) come first."""
+        from tt_shorts import props, speech
+        order = []
+        choose, voice = variety.choose, speech.voice
+        with mock.patch.object(variety, "choose", side_effect=lambda *a, **k: order.append("guard") or choose(*a, **k)), \
+                mock.patch.object(speech, "voice", side_effect=lambda *a, **k: order.append("voice") or voice(*a, **k)):
+            _, p = props.build(str(ROOT / "stories" / "24835-brief.json"), "cards", "silent", music="off")
+        self.assertEqual(order, ["guard", "voice"])
+        self.assertEqual(set(p["novelty"]), {"similarity", "distance", "nearest", "too_close", "rerolls", "kept",
+                                             "warning"})
+
+    def test_plan_shows_the_fingerprint_and_the_closest_and_records_nothing(self):
+        from tt_shorts import plan
+        story = ROOT / "stories" / "24835-brief.json"
+        scenes = [s["type"] for s in json.loads(story.read_text(encoding="utf-8"))["scenes"]]
+        variety.record("tbilisi-today", 99, "cards", {"hook": "stack", "motif": "grid", "enter": "rise",
+                                                      "transition": "slide", "music": None, "director": "brief"}, scenes)
+        before = variety.history("tbilisi-today")
+        got = plan.picks(story, look="cards", music="off")
+        nov = got["novelty"]
+        self.assertEqual(nov["nearest"], "99")
+        self.assertEqual((nov["fingerprint"]["director"], nov["fingerprint"]["scenes"]), ("brief", scenes))
+        self.assertEqual({k: nov["fingerprint"][k] for k in ("hook", "motif", "enter", "transition")},
+                         {k: got[k] for k in ("hook", "motif", "enter", "transition")})
+        self.assertLess(nov["similarity"], variety.TOO_CLOSE)
+        self.assertEqual(variety.history("tbilisi-today"), before)  # planning uses nothing up
+
+    def test_a_render_records_the_guard_and_warns(self):
+        from tt_shorts import engine, formats, props
+        work = pathlib.Path(self.home.name) / "work"
+        work.mkdir()
+        nov = {"similarity": 5.0, "distance": 0.286, "nearest": "40", "too_close": True, "rerolls": 3, "kept": False,
+               "warning": "novelty: after 3 re-roll(s) ..."}
+        p = {"durationInFrames": 900, "variant": "cards", "style": {"hook": "stack", "director": "data"},
+             "transition": "line", "outro": "card", "music": None, "scenes": [{"type": "hook"}], "novelty": nov}
+        target = pathlib.Path(self.home.name) / "out" / "x.mp4"
+        touch = lambda w, pr, t: (t.parent.mkdir(parents=True, exist_ok=True), t.touch())  # noqa: E731
+        with mock.patch.object(props, "build", return_value=(work, p)), \
+                mock.patch.object(props, "render_video", side_effect=touch), \
+                mock.patch.dict(os.environ, {"VEASY_PROBE": "0"}):
+            r = engine.render_story(ROOT / "stories" / "24835-brief.json", formats.get("news"), "silent", target)
+        self.assertEqual((r["problems"], r["warnings"]), ([], [nov["warning"]]))  # a warning, never a problem
+        row = variety.history("tbilisi-today")[0]
+        self.assertEqual((row["rerolls"], row["novelty"]), (3, 0.286))
+
+    def test_report_shows_the_average_distance(self):
+        for i in range(6):
+            variety.record("tbilisi-today", 60 + i, "cards", {"hook": "stack", "motif": "grid", "enter": "rise",
+                                                              "transition": "line", "music": None}, self.SCENES)
+        r = variety.report("tbilisi-today")["novelty"]
+        self.assertEqual((r["mean_distance"], r["too_close"], r["videos"]), (0.0, 5, 5))  # six copies
+        self.assertEqual(variety.spread([]), None)
+
+
 class DrawingQuality(unittest.TestCase):
     def good(self):
         s = json.loads((ROOT / "stories" / "veasy-scenes.json").read_text(encoding="utf-8"))

@@ -108,7 +108,12 @@ def options(brand_name=None):
         "look_by_family": b["look_by_family"],
         "variety": {"about": "each video's own hook layout, background motif, entrance, transition (when auto) and music "
                              "loop: the least used lately for the brand (tt_shorts/variety.py); never the palette",
-                    **variety.OPTIONS, "transitions_by_look": variety.TRANSITIONS},
+                    **variety.OPTIONS, "transitions_by_look": variety.TRANSITIONS,
+                    "novelty": {"about": "before the voice, a plan sharing too_close or more of the fingerprint's "
+                                         "fields with one of the brand's last recent videos is re-rolled (at most "
+                                         "rerolls tries; then the farthest, with a warning)",
+                                "fingerprint": list(variety.FIELDS), "too_close": variety.TOO_CLOSE,
+                                "recent": variety.RECENT, "rerolls": variety.REROLLS}},
         "transitions": {"auto": "varied per video among the ones that suit the look (variety.TRANSITIONS)",
                         "cut": "a plain cut, the old scene just ends", "line": "an ink line with the dot sweeps across",
                         "panel": "an ink panel wipes through", "wipe": "the new scene is revealed left to right",
@@ -281,13 +286,17 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
         brand_of(story), story["id"], fmt["name"], p["variant"], fmt["captions"])
     props.render_video(work, p, target)
     variety.record(brand_of(story), story["id"], p["variant"], {**p["style"], "transition": p["transition"],
-                                                                "music": p["music"]}, [x["type"] for x in p["scenes"]])
+                                                                "music": p["music"]}, [x["type"] for x in p["scenes"]],
+                   p.get("novelty"))
     result = {"file": str(target.resolve()), "seconds": round(secs, 1), "format": fmt["name"], "look": p["variant"],
               "style": p["style"], "transition": p["transition"], "outro": p["outro"],
               "captions": fmt["captions"], "voice": fmt["voice"], "engine": engine, "music": p["music"],
               "brand": brand_of(story), "story": str(pathlib.Path(story_path).resolve()),
               "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version(),
-              "probe": checked, "motion": {"holds": motion["holds"], "warnings": motion["warnings"]}}
+              "probe": checked, "motion": {"holds": motion["holds"], "warnings": motion["warnings"]},
+              "novelty": p.get("novelty")}
+    # the novelty guard never holds a video: a plan it could not move far enough is a warning
+    result["warnings"] = [w for w in [(p.get("novelty") or {}).get("warning")] if w]
     problems = (list(checked["problems"]) if checked else []) + motion["holds"]
     if not fmt["min_seconds"] <= secs <= fmt["max_seconds"]:
         problems.append(f"length {secs:.1f}s is outside the format's {fmt['min_seconds']}-{fmt['max_seconds']}s")
@@ -297,7 +306,8 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
     result["props"] = str(side.resolve())
     target.with_suffix(".json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
     shutil.rmtree(work, ignore_errors=True)  # the scratch; the voice stays cached in cache/voices
-    store.log("rendered", file=result["file"], seconds=result["seconds"], problems=problems)
+    store.log("rendered", file=result["file"], seconds=result["seconds"], problems=problems,
+              warnings=result["warnings"])
     return result
 
 
@@ -717,6 +727,10 @@ def main(argv=None):
         if a.cmd == "check":
             story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
             sources = json.loads(pathlib.Path(a.sources).read_text(encoding="utf-8")) if a.sources else None
+            if isinstance(sources, dict):  # tests/fixtures/sources.json: {story id: [articles]}
+                if str(story.get("id")) not in sources:
+                    return out({"problems": [f"{a.sources} has no articles for story {story.get('id')}"]}, 2)
+                sources = sources[str(story["id"])]
             problems = check_story(story, sources) + _kaeasy_required()
             result = {"story": a.story, "news_rules": bool(sources), "kaeasy": kaeasy.version(),
                       "problems": problems, "warnings": ka_check.warnings(story)}

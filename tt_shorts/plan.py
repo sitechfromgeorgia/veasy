@@ -6,6 +6,9 @@ props as a render would, then reports:
                the seconds it needs (0.5 s + 0.3 s a word) and gets, and its reading load (motion_rules.py)
     variety    the picks the render would get (hook, motif, entrance, transition, music; inside the story's director's
                subsets), read from the variety history and NOT recorded: planning never uses up an option
+    novelty    the novelty guard's view (variety.choose): the video's fingerprint, the closest of the brand's recent
+               videos, the similarity (0-7) and distance, how many re-rolls it took, and a warning when none was far
+               enough (also in "warnings")
     motion     the motion rules (motion_rules.py): warnings here; only unreadable text would hold the render
     probe      the layout probe of every scene's settled frame (probe.py)
     sheet      a contact sheet of those frames at half size (540x960 each), beside where the render will go:
@@ -20,7 +23,7 @@ import pathlib
 import shutil
 import time
 
-from tt_shorts import brand, meta, motion_rules, probe, props, speech, store
+from tt_shorts import brand, meta, motion_rules, probe, props, speech, store, swipe, variety
 
 HALF = (540, 960)
 COLUMNS = 4
@@ -28,14 +31,22 @@ GAP = 12
 LABEL = 44  # px under each frame for "scene · type · times"
 
 
-def picks(story_path, look="auto", transition="auto", music="family", director=None):
-    """The variety picks a render of this story would get now -> {look, director, hook, motif, enter, transition,
-    music, current}, without recording them (props.choose)."""
+def picks(story_path, look="auto", transition="auto", music="family", director=None, outro=swipe.DEFAULT_OUTRO):
+    """The variety picks a render of this story would get now (after the novelty guard) -> {look, director, hook,
+    motif, enter, transition, music, current, novelty}, without recording them (props.choose)."""
     story = brand.with_say(json.loads(pathlib.Path(story_path).read_text(encoding="utf-8")))
     variant = meta.variant_for(story.get("category", ""), brand.of(story)) if look in (None, "auto") else look
-    st, chosen, _, _ = props.choose(story, variant, transition, music, director)
-    return {"look": variant, "director": chosen["id"] if chosen else None, **{k: st[k] for k in st},
-            "current": chosen["current"] if chosen else None}
+    st, chosen, _, _, nov = props.choose(story, variant, transition, music, director, outro=outro)
+    did = chosen["id"] if chosen else None
+    seq = [s["type"] for s in swipe.shown_scenes(story, outro)]
+    return {"look": variant, "director": did, **{k: st[k] for k in st},
+            "current": chosen["current"] if chosen else None, "novelty": novelty(nov, st, seq, did)}
+
+
+def novelty(report, style, scenes, director=None):
+    """The guard's report with the fingerprint it judged (variety.fingerprint), for showing."""
+    fp = variety.fingerprint(style, scenes, director)
+    return {**(report or {}), "fingerprint": {**fp, "scenes": list(fp["scenes"] or [])}}
 
 
 def _caption_pages(p, row):
@@ -106,6 +117,8 @@ def run(story_path, fmt, look=None, director=None, out=None, with_probe=True):
               "director": st.get("director"), "seconds": round(p["durationInFrames"] / speech.FPS, 1),
               "variety": {**{k: st[k] for k in ("hook", "motif", "enter") if k in st}, "transition": p["transition"],
                           "music": p["music"], "current": st.get("current")},
+              "novelty": novelty(p.get("novelty"), {**st, "transition": p["transition"], "music": p["music"]},
+                                 [s["type"] for s in p["scenes"]], st.get("director")),
               "outro": p["outro"], "captions": {"design": fmt["captions"], "pages": len(p["captions"].get("pages") or [])},
               "scenes": scenes(p, rows), "cuts": motion["cuts"],
               "motion": {"holds": motion["holds"], "warnings": motion["warnings"]}}
@@ -133,6 +146,6 @@ def run(story_path, fmt, look=None, director=None, out=None, with_probe=True):
                 brand.of(story)["name"], story["id"], fmt["name"], p["variant"], fmt["captions"]))
             result["sheet"] = str(sheet(judged["files"], rows, target).resolve())
     result["problems"] = problems
-    result["warnings"] = motion["warnings"]
+    result["warnings"] = motion["warnings"] + [w for w in [(p.get("novelty") or {}).get("warning")] if w]
     result["took"] = round(time.time() - t0, 1)
     return result

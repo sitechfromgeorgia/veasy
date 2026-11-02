@@ -82,6 +82,13 @@ def shift(words, by):
 # ---------------------------------------------------------------- the ending
 
 
+def shown_scenes(story, outro=DEFAULT_OUTRO):
+    """The scenes a video shows (no voice needed): overlay and loop drop the story's end scene."""
+    scenes = story["scenes"]
+    drop = outro != "card" and len(scenes) > 1 and scenes[-1].get("type") == "end"
+    return scenes[:-1] if drop else scenes
+
+
 def plan(story, words, outro=DEFAULT_OUTRO):
     """-> (scenes, marks, chip): the scenes the video shows, their start frames plus the last frame (speech.scene_frames),
     and the frame the outro chip comes in (None for the card).
@@ -91,8 +98,8 @@ def plan(story, words, outro=DEFAULT_OUTRO):
     if outro not in OUTROS:
         raise ValueError(f"outro {outro!r} is not one of {', '.join(OUTROS)}")
     scenes = story["scenes"]
-    drop = outro != "card" and len(scenes) > 1 and scenes[-1].get("type") == "end"
-    shown = scenes[:-1] if drop else scenes
+    shown = shown_scenes(story, outro)
+    drop = len(shown) < len(scenes)
     marks = speech.scene_frames({**story, "scenes": shown}, words, hold=HOLD[outro])
     if outro == "card":
         return shown, marks, None

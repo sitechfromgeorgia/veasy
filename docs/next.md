@@ -11,8 +11,8 @@ Rules for every brief:
 
 ## 0. Directors (first: the owner's "separate agents each choose a different direction")
 
-Done on 2026-11-02 (`directors/`, `tt_shorts/directors.py`, skill `veasy:directors`), except the novelty guard and
-the three-director demo below: do those first.
+Done on 2026-11-02 (`directors/`, `tt_shorts/directors.py`, skill `veasy:directors`), with the novelty guard and
+the three-director demo below.
 
 Language models drift toward the same choices when asked to "be creative", so code assigns a creative director
 before the writer runs. A director changes what kind of film a story becomes; it never touches facts, the palette,
@@ -55,10 +55,23 @@ the safe zone or the news rules.
   - `props.style` gets `director`, `motion` and `current`.
   - `ui.tsx` `useIn`/`In` read the motion numbers (defaults unchanged).
   - Entrances and cuts follow the current.
-- **Novelty guard.** A fingerprint of a planned video (director, scene sequence, hook, motif, enter, transition,
-  music). If it is too close to one of the last 20, re-roll the variety picks before paying for the voice.
-- **Demo.** One story (24835: gas cut, 6400 subscribers) hand-written under three directors (data, map, brief), each
-  passing `engine check` with `tests/fixtures/sources.json`, with stills.
+- **Novelty guard.** Done (`variety.choose`, `tests/test_variety.py` NoveltyGuard).
+  - A fingerprint of a planned video: director, scene sequence, hook, motif, enter, transition, music.
+  - `similarity` counts the shared fields, 1 each; the scene orders count as their difflib ratio.
+    `distance = 1 - similarity / 7`.
+  - Too close is 5 of 7 shared with one of the brand's last 20 (not the story's own renders). Then the picks are
+    re-rolled inside the director's subsets, least overused first, at most 64 tries, deterministic per story.
+  - It runs in `props.choose`, which `props.build` calls before `speech.voice`, so `render`, the queue, `still`,
+    `probe` and `engine plan` all pass it before any TTS. `engine plan` shows the fingerprint and the closest
+    recent video and records nothing. If nothing is far enough, the farthest is taken with a warning in the render result; it never fails a
+    video. A re-render keeps its picks.
+  - The `variety` table gains `novelty` (the distance) and `rerolls` (safe migration); `report()` gives the
+    average distance. The pure functions (`fingerprint`, `similarity`, `distance`, `assess`) are for `engine plan`.
+- **Demo.** Done: `stories/24835-data.json`, `24835-map.json`, `24835-brief.json`, the gas cut under three directors.
+  Each passes `engine check --sources tests/fixtures/sources.json` (with kaeasy too) and `engine probe --look all`.
+  - data: the number first; hook → stat (the longest hold) → timeline → sources → end.
+  - map: the place first; hook → where (Tbilisi map, both districts pinned) → sign (gas, stops) → timeline → end.
+  - brief: a service card; hook → points (who, where, why) → steps (when) → sources → end.
 
 ## 1. The brush kit (new brushes + one catalog that generates the writer's menu)
 
