@@ -18,7 +18,7 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import meta, speech, voices
+from tt_shorts import captions, meta, speech, voices
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -27,7 +27,11 @@ VARIANTS = ("editorial", "kinetic", "cards")
 NOTES = {"edge": "დროებითი ხმა · პრევიუ", "silent": "ხმის გარეშე · პრევიუ"}
 
 
-def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts"):
+CAPTIONS = os.environ.get("SHORTS_CAPTIONS", "page")  # page | roll (captions.py)
+
+
+def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts",
+          caption_design=None):
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     sid = story["id"]
     if variant == "auto":  # the look follows the kind of story (meta.VARIANT_BY_FAMILY)
@@ -57,6 +61,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "durationInFrames": marks[-1],
         "scenes": [{**s, "from": a, "duration": b - a} for s, a, b in zip(story["scenes"], marks, marks[1:])],
         "words": words,
+        "captions": captions.layout(words, caption_design or CAPTIONS, end=marks[-1] / FPS),
         "voice": audio.name if audio else None, "voiceVolume": 1.0,
         "music": music.name if music else None, "musicVolume": 0.5 if engine == "silent" else 0.22,
         "previewNote": NOTES.get(engine),
@@ -115,6 +120,7 @@ def mix_audio(work, props, video, out):
 
 
 def render_video(work, props, out):
+    out = pathlib.Path(out).resolve()
     raw = work / "raw.mp4"
     _remotion(["render", "src/index.ts", "NewsShort", str(raw), "--muted", f"--concurrency={speech.workers()}"], work)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -124,6 +130,7 @@ def render_video(work, props, out):
 
 
 def render_stills(work, frames, out_dir):
+    out_dir = pathlib.Path(out_dir).resolve()  # remotion runs in remotion/: a relative path would land there
     out_dir.mkdir(parents=True, exist_ok=True)
     paths = []
     for f in frames:
@@ -140,13 +147,15 @@ if __name__ == "__main__":
     ap.add_argument("--voice", default="edge", choices=["edge", "gemini", "silent"])
     ap.add_argument("--tone", help=f"gemini preset: {', '.join(voices.PRESETS)}")
     ap.add_argument("--edge-voice", default="eka", choices=list(speech.EDGE_VOICES))
+    ap.add_argument("--captions", choices=["page", "roll"], help="caption design (default SHORTS_CAPTIONS or page)")
     ap.add_argument("--still", help="comma-separated frame numbers: PNG stills instead of the video")
     ap.add_argument("--out", default=str(ROOT / "out"))
     a = ap.parse_args()
-    work, props = build(a.story, a.variant, a.voice, a.tone, speech.EDGE_VOICES[a.edge_voice])
+    work, props = build(a.story, a.variant, a.voice, a.tone, speech.EDGE_VOICES[a.edge_voice], caption_design=a.captions)
     if a.still:
         for p in render_stills(work, [int(x) for x in a.still.split(",")], pathlib.Path(a.out) / "stills"):
             print(p)
     else:
-        out = render_video(work, props, pathlib.Path(a.out) / f"{props['id']}-{props['variant']}{'' if a.voice == 'gemini' else '-' + a.voice}.mp4")
+        name = f"{props['id']}-{props['variant']}" + ("" if a.voice == "gemini" else f"-{a.voice}") + (f"-{a.captions}" if a.captions else "")
+        out = render_video(work, props, pathlib.Path(a.out) / f"{name}.mp4")
         print(f"{out} | {props['durationInFrames'] / FPS:.1f}s | {len(props['scenes'])} scenes | music {props['music']}")

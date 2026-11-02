@@ -6,6 +6,18 @@ export type Variant = "editorial" | "kinetic" | "cards";
 
 export type Word = { text: string; start: number; end: number }; // seconds
 
+// tt_shorts/captions.py: the caption layout, computed once per video with the real font (seconds)
+export type CaptionWord = { text: string; from: number; to: number };
+export type CaptionLayout = {
+  design: "page" | "roll";
+  size: number;
+  lineHeight: number;
+  band: number;
+  pad: number;
+  lines: { start: number; words: CaptionWord[] }[];
+  pages: { start: number; end: number; lines: number[] }[];
+};
+
 export type SceneBase = { type: string; from: number; duration: number; kicker?: string; headline?: string };
 
 export type Scene = SceneBase & {
@@ -38,6 +50,7 @@ export type ShortProps = {
   durationInFrames: number;
   scenes: Scene[];
   words: Word[];
+  captions: CaptionLayout | null;
   voice: string | null; // file in the public dir
   voiceVolume: number;
   music: string | null;

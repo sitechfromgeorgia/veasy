@@ -28,6 +28,9 @@ project. It is not a Worker: nothing here deploys through Workers Builds, and it
 - **Music** is composed by `tools/compose_music.py`; the m4a files are not in git. One constant level: no build-ups,
   no ducking (the owner heard the ducked bed pump). The mix happens in ffmpeg (`props.mix_audio`), not in Remotion.
 - **Voices:** presets in `voices.py`. SiTech's `Charon` stays SiTech's. edge-tts is a preview stand-in only.
+- **Captions** are laid out in Python (`captions.py`, fontTools on the real woff2), never measured in the render tabs.
+  One size per video, pages ≥ 1 s, gaps under 1.2 s bridged, position a pure function of time. `tests/test_captions.py`
+  holds the jitter rules; a caption change needs a case there.
 - **Tests:** `python -m unittest discover -s tests` and `(cd remotion && npx tsc --noEmit)`. A change to dates,
   rules, anchors or the safe zone needs a test.
 - Text on screen is in Georgian. Code, comments and commits are in English.

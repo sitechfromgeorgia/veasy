@@ -18,7 +18,6 @@ import json
 import os
 import pathlib
 import re
-import shutil
 import subprocess
 import sys
 import urllib.request
@@ -155,13 +154,9 @@ def main() -> int:
             story = writer.write(data["cluster"], data["articles"])
             path = ROOT / "stories" / f"{sid}.json"
             path.write_text(json.dumps(story, ensure_ascii=False, indent=1), encoding="utf-8")
-            _work, built = props.build(str(path), variant="auto", engine="gemini")
-            variant = (built or {}).get("variant", "editorial")
-            produced = ROOT / "out" / f"{sid}-{variant}.mp4"
+            work, built = props.build(str(path), variant="auto", engine="gemini")
             target = day_dir / f"{sid}.mp4"
-            if not produced.exists():
-                raise RuntimeError(f"render produced no file ({produced.name})")
-            shutil.move(str(produced), target)
+            props.render_video(work, built, target)  # build() only writes the props; this renders and mixes
             if not target.exists() or target.stat().st_size < 500_000:
                 raise RuntimeError(f"render output is empty or too small ({target})")
             state["ids"].append(sid)

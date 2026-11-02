@@ -34,7 +34,7 @@ agent server (84.46.250.149).
 |---|---|
 | 80-210 | mark + wordmark, date, weekday · time · category, progress rule with the red dot |
 | 248-1380 | the scene (story text never goes lower) |
-| 1460-1552 | captions, lower third: up to 3 words; the spoken word is ink with a red underline |
+| ~1380-1552 | captions, lower third (`tt_shorts/captions.py` lays them out once with the real font; `remotion/src/Captions.tsx` draws them): `page` = a fixed two-line block whose words light up as they are spoken, `roll` = a three-line teleprompter that scrolls continuously. The spoken word gets a red underline |
 | 1580-1760 | moving ticker (category, date, outlets). Platforms draw their UI here, so this band carries no story text |
 | 1768-1880 | sources line; story link on the left, „SiTech-ის პროექტი · sitech.ge“ on the right |
 
