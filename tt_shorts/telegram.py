@@ -9,15 +9,33 @@ import pathlib
 import urllib.request
 
 
-def send_video(path, caption: str, chat: str | None = None, token: str | None = None) -> bool:
-    token = token or os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    chat = chat or os.environ.get("SHORTS_TELEGRAM_CHANNEL", "")
+TOKEN_FILE = "/root/sitech/.secrets/telegram_tbilisi_bot_token"
+DEFAULT_CHANNEL = "@tbilisitodayofficial"
+
+
+def bot_token() -> str:
+    """The tbilisi.today bot, never the shared asistent.ge one."""
+    try:
+        value = pathlib.Path(TOKEN_FILE).read_text(encoding="utf-8").strip()
+        if value:
+            return value
+    except OSError:
+        pass
+    return os.environ.get("TELEGRAM_BOT_TOKEN", "")
+
+
+def send_video(path, caption: str, chat: str | None = None, token: str | None = None, buttons=None) -> bool:
+    token = token or bot_token()
+    chat = chat or os.environ.get("SHORTS_TELEGRAM_CHANNEL") or DEFAULT_CHANNEL
     path = pathlib.Path(path)
     if not token or not chat or not path.exists():
         return False
     boundary = "----tt" + str(int(path.stat().st_mtime))
     parts = []
-    for name, value in (("chat_id", chat), ("caption", caption[:1000]), ("supports_streaming", "true")):
+    fields = [("chat_id", chat), ("caption", caption[:1000]), ("supports_streaming", "true")]
+    if buttons:
+        fields.append(("reply_markup", json.dumps({"inline_keyboard": buttons}, ensure_ascii=False)))
+    for name, value in fields:
         parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode())
     parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="video"; filename="{path.name}"\r\n'
                  f'Content-Type: video/mp4\r\n\r\n'.encode() + path.read_bytes() + b"\r\n")
