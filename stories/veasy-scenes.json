@@ -1,0 +1,131 @@
+{
+ "id": "veasy-scenes",
+ "brand": "tbilisi-today",
+ "lang": "ka",
+ "category": "tech",
+ "date": "2026-11-02T18:00:00Z",
+ "sources": [
+  "tbilisi.today",
+  "SiTech"
+ ],
+ "say": {
+  "Veasy": "ვიიზი",
+  "SiTech": "საი-თეჩი"
+ },
+ "cta": "გამოიწერე არხი",
+ "narration": "Veasy-ს ექვსი ახალი სცენა უკვე დაემატა. პირველი ნახატია: მოდელი თითო ამბისთვის საკუთარ ნახატს ხატავს. ორი მხარე გვერდიგვერდ ჩანს, მაგალითად tbilisi.today და SiTech. ნაბიჯები ისრებით ერთმანეთს უერთდება, ერთი მეორის მიყოლებით. სვეტები ციფრებს ადარებს და ყველაზე დიდს წერტილით აღნიშნავს. ტრენდის ხაზი დროში ცვლილებას თავად ხატავს, წერტილიდან წერტილამდე. ცვლილების სცენა ძველსა და ახალს აჩვენებს: ტიპები 9-დან 15-მდე გაიზარდა. დეტალები tbilisi.today-ზე. გამოიწერე არხი.",
+ "scenes": [
+  {
+   "type": "hook",
+   "at": "Veasy-ს ექვსი ახალი",
+   "kicker": "ახალი",
+   "lines": [
+    "Veasy-ს",
+    "6 ახალი",
+    "სცენა აქვს"
+   ]
+  },
+  {
+   "type": "draw",
+   "at": "პირველი ნახატია",
+   "kicker": "ნახატი",
+   "headline": "ამბის ნახატი",
+   "svg": "<g class=\"s\" style=\"--d:0.2s\"><rect x=\"236\" y=\"210\" width=\"480\" height=\"300\" rx=\"24\" stroke=\"INK\" stroke-width=\"7\"/></g><g class=\"s\" style=\"--d:0.5s\"><path d=\"M236 210 L262 120 L742 120 L716 210\" stroke=\"INK\" stroke-width=\"7\"/><path d=\"M342 120 L316 210 M442 120 L416 210 M542 120 L516 210 M642 120 L616 210\" stroke=\"MUTED\" stroke-width=\"6\"/></g><g class=\"s\" style=\"--d:0.8s\"><rect x=\"96\" y=\"250\" width=\"96\" height=\"220\" rx=\"14\" stroke=\"MUTED\" stroke-width=\"5\"/><rect x=\"760\" y=\"250\" width=\"96\" height=\"220\" rx=\"14\" stroke=\"MUTED\" stroke-width=\"5\"/></g><g class=\"r\" style=\"--d:1.1s\"><line x1=\"290\" y1=\"460\" x2=\"662\" y2=\"460\" stroke=\"LINE\" stroke-width=\"6\"/></g><g class=\"p\" style=\"--d:1.3s\"><path d=\"M436 290 L436 400 L536 345 Z\" stroke=\"ACCENT\" stroke-width=\"7\" fill=\"ACCENT\"/></g><text class=\"r\" style=\"--d:1.6s\" x=\"476\" y=\"590\" text-anchor=\"middle\" font-size=\"36\" font-weight=\"700\" fill=\"INK\">ყოველ ამბავს თავისი</text>",
+   "label": "მოდელი ხატავს, კოდი ამოწმებს"
+  },
+  {
+   "type": "pair",
+   "at": "ორი მხარე",
+   "kicker": "ორი მხარე",
+   "headline": "ერთი ძრავა, ორი ბრენდი",
+   "between": "და",
+   "items": [
+    {
+     "title": "tbilisi.today",
+     "sub": "ახალი ამბები"
+    },
+    {
+     "title": "SiTech",
+     "sub": "ტექნოლოგიები"
+    }
+   ]
+  },
+  {
+   "type": "steps",
+   "at": "ნაბიჯები ისრებით",
+   "kicker": "ნაბიჯები",
+   "headline": "როგორ იქმნება ვიდეო",
+   "items": [
+    "წყარო",
+    "სცენარი და შემოწმება",
+    "ხმა და ვიდეო",
+    "გამოქვეყნება"
+   ]
+  },
+  {
+   "type": "bars",
+   "at": "სვეტები ციფრებს",
+   "kicker": "სვეტები",
+   "headline": "Veasy ციფრებში",
+   "unit": "რაოდენობა",
+   "items": [
+    {
+     "label": "სცენის ტიპი",
+     "value": 15
+    },
+    {
+     "label": "მუსიკის განწყობა",
+     "value": 8
+    },
+    {
+     "label": "გადასვლა",
+     "value": 7
+    },
+    {
+     "label": "ხმის ტონი",
+     "value": 6
+    }
+   ]
+  },
+  {
+   "type": "trend",
+   "at": "ტრენდის ხაზი",
+   "kicker": "ტრენდი",
+   "headline": "ტესტები 2 ნოემბერს",
+   "unit": "ტესტი",
+   "items": [
+    {
+     "label": "დილა",
+     "value": 86
+    },
+    {
+     "label": "შუადღე",
+     "value": 99
+    },
+    {
+     "label": "საღამო",
+     "value": 114
+    }
+   ]
+  },
+  {
+   "type": "change",
+   "at": "ცვლილების სცენა",
+   "kicker": "ცვლილება",
+   "headline": "სცენის ტიპები",
+   "unit": "ტიპი",
+   "before": {
+    "label": "დილით",
+    "value": 9
+   },
+   "after": {
+    "label": "საღამოს",
+    "value": 15
+   }
+  },
+  {
+   "type": "end",
+   "at": "დეტალები"
+  }
+ ]
+}

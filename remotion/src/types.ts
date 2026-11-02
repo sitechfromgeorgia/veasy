@@ -18,6 +18,22 @@ export type CaptionLayout = {
   pages: { start: number; end: number; lines: number[] }[];
 };
 
+// who {name, role} · pair {title, sub} · bars and trend {label, value} · points and steps: plain strings
+export type Item = string | { name?: string; role?: string; title?: string; sub?: string; label?: string; value?: number };
+
+// tt_shorts/art.py: one SVG element; colors are brand tokens, motion r (rise) | p (pop) | s (stroke draws itself)
+export type ArtNode = {
+  tag: string;
+  attrs: Record<string, string>;
+  motion: "r" | "p" | "s" | null;
+  delay: number; // seconds into the scene
+  children: ArtNode[];
+  text: string | null;
+};
+
+// the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python
+export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot";
+
 export type SceneBase = { type: string; from: number; duration: number; kicker?: string; headline?: string };
 
 export type Scene = SceneBase & {
@@ -31,7 +47,12 @@ export type Scene = SceneBase & {
   end?: string;
   place?: string;
   sub?: string;
-  items?: (string | { name: string; role?: string })[];
+  items?: Item[];
+  art?: ArtNode[]; // draw: the drawing, sanitized by tt_shorts/art.py
+  between?: string; // pair: the word on the divider
+  unit?: string; // bars, trend, change
+  before?: { label: string; value: number }; // change
+  after?: { label: string; value: number };
   text?: string;
   by?: string;
   via?: string;
@@ -57,6 +78,7 @@ export type BrandProps = {
 export type ShortProps = {
   brand: BrandProps;
   variant: Variant;
+  transition: Transition;
   id: number;
   category: string; // Georgian label
   date: { date: string; time: string; weekday: string };

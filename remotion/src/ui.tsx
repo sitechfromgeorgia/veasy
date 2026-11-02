@@ -1,7 +1,7 @@
 import React, { createContext, useContext } from "react";
 import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, FONT, INK, LINE_STRONG, MARK_BG, RED, T_PATH } from "./brand";
-import type { ShortProps, Variant } from "./types";
+import type { Scene, ShortProps, Variant } from "./types";
 
 type Ctx = { v: Variant; props: ShortProps };
 export const Theme = createContext<Ctx>(null as unknown as Ctx);
@@ -138,3 +138,16 @@ export const CountUp: React.FC<{ to: number; delay?: number; frames?: number }> 
 };
 
 export const group = (n: number) => n.toLocaleString("en-US").replace(/,/g, " ");
+
+/** Scene frame: kicker and headline on top, the body fills the rest of the scene band. */
+export const Frame: React.FC<{ s: Scene; children: React.ReactNode; head?: boolean }> = ({ s, children, head = true }) => (
+  <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
+    {head && (
+      <div>
+        <Kicker text={s.kicker} />
+        <Headline text={s.headline} />
+      </div>
+    )}
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>{children}</div>
+  </div>
+);

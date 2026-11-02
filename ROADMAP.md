@@ -11,6 +11,10 @@ for the owner, the agents and whoever codes it. Ranked: quick wins first.
   rendering → done / held / failed, transient retries with backoff, one worker per machine.
 - **Sources** (`tt_shorts/sources/`): `tbilisi-today` and `text`.
 - A4 and A6 below.
+- **New scenes and transitions** (the owner, 2026-11-02): `draw` ported from sitech-shorts (the writer's drawing,
+  sanitized into a tree and animated by frame), `pair`, `steps` (C6), `bars` (C4), `trend` (C5), `change` (C3, as a
+  roll-up rather than an odometer), and C1 transitions as a format key. A1 (numbers at any depth in N2) and a light A2
+  (counts and number types per new scene in `engine.shape_problems`).
 
 Next for other clients:
 - **B12. The writer per pack.** `writer.py`'s prompt is written for multi-source news (tbilisi.today). A pack
@@ -32,7 +36,7 @@ Next for other clients:
 
 ## A. Fix first (small, prevents silent errors)
 
-- **A1. Nested numbers in N2.**
+- ~~**A1. Nested numbers in N2.**~~ Done (`news_check._walk`).
   - `news_check.screen_text()` reads only strings and a top-level int `value`.
   - A future `items:[{value:1450}]` would skip the number check.
   - Read every number at any depth; add a test.
@@ -137,7 +141,7 @@ Next for other clients:
     - three (WebGL on CPU).
   - Check the licence of `@remotion/transitions` (its package.json says UNLICENSED).
 
-1. **C1. Transitions as a format key (S).**
+1. ~~**C1. Transitions as a format key (S).**~~ Done.
    - `"transition": "auto|cut|line|panel|wipe|slide|push|dot"`, drawn with clip-path and transform.
    - `dot`: the progress dot drops and an ink iris opens from it.
    - Wire it into `formats.validate`, `options()` and the formats skill.
@@ -145,17 +149,17 @@ Next for other clients:
    - `"em": "6400 აბონენტს"` on any scene. `speech.py` resolves the phrase to a frame from the word timings.
    - At that frame an ink block sweeps behind the phrase and the red dot lands at its end.
    - The same cue mechanism reveals list items as they are spoken.
-3. **C3. Odometer numbers and a `change` scene (S).**
+3. ~~**C3. Odometer numbers and a `change` scene (S).**~~ Done (`change`).
    - `{"type":"change","from":{"label":"2024","value":1.2},"to":{"label":"2025","value":1.5},"unit":"ლარი"}`.
    - No computed differences (N2). `pct` is allowed only when the article states it.
-4. **C4. `bars` / `results` (S-M).**
+4. ~~**C4. `bars` / `results` (S-M).**~~ Done (`bars`).
    - 2-5 items, one unit, values above zero, a linear axis from zero.
    - Bars grow as they are spoken.
    - An optional threshold line only if the article states it; no party colours.
-5. **C5. `trend` (S-M).**
+5. ~~**C5. `trend` (S-M).**~~ Done (drawn with pathLength, no extra package).
    - 3-8 points.
    - `evolvePath` draws the line; the red "now" dot sits on the last point.
-6. **C6. Small blocks (S each):**
+6. **C6. Small blocks (S each):** `steps` done; the rest open:
    - `events`: 2-4 dated items on a rail;
    - `steps`: 2-4 steps with arrows;
    - `figures`: 2-4 number tiles;

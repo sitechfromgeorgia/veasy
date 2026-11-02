@@ -223,7 +223,11 @@ pacing (K9): a scene that starts too late in the narration is rejected rather th
 (default tbilisi-today); `stories/sitech-cybercartel.json` is a SiTech sample. `at` holds the first words of the scene
 in the narration. Scene types and their fields are in `remotion/src/types.ts` and `remotion/src/scenes/index.tsx`:
 hook (lines), stat (value, label), timeline (start, end, label), where (place, sub), who (items: name, role),
-points (items), quote (text, by, via), sources, end.
+points (items), quote (text, by, via), sources, end, and since 2026-11-02: draw (svg: the writer's drawing, made safe
+by `tt_shorts/art.py`), pair (items: title, sub; between), steps (items), bars (items: label, value; unit), trend
+(items: label, value; unit), change (before, after: label, value; unit). Formats also choose the cut between scenes
+(`transition`: auto, cut, line, panel, wipe, slide, push, dot). `stories/veasy-demo.json` and
+`stories/veasy-scenes.json` use every scene type.
 
 ## Licences
 

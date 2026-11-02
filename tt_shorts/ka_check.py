@@ -22,11 +22,11 @@ LINT_RULES = {"translit": "K16", "ending_hyphen": "K16", "cyrillic": "K16", "quo
               "percent": "K21", "ellipsis": "K12", "number_plural": "K6", "space_punct": "K11",
               "double_space": "K11", "calque": "K3", "ai_filler": "K2", "country": "K17"}
 # K9: narration words (as written) a scene needs before the next one starts, so the eye can follow it
-MIN_WORDS = {"draw": 8, "end": 4}
+MIN_WORDS = {"draw": 8, "bars": 7, "trend": 7, "end": 4}
 MIN_WORDS_DEFAULT = 6
 FIELDS = ("kicker", "headline", "label", "text", "big", "from", "refused", "ok", "place", "sub", "by", "via", "start",
-          "end", "cta")
-ITEM_FIELDS = ("text", "title", "status", "name", "role", "label", "what", "when")
+          "end", "cta", "unit", "between")
+ITEM_FIELDS = ("text", "title", "status", "name", "role", "label", "what", "when", "sub")
 # K20: Latin letters as Russian names them (TPM "ტე-პე-ემ"); a voice reads letters the English way ("ტი პი ემ")
 RUSSIAN_LETTERS = {"ა", "ბე", "ცე", "დე", "ე", "გე", "ხა", "კა", "ო", "პე", "კუ", "ერ", "ტე", "უ", "ვე", "ზეტ"}
 # K22: imperial units a Georgian viewer doesn't use (a screen's diagonal in დიუმი stays: shops sell it that way)
@@ -70,8 +70,9 @@ def screen_texts(story):
                 out.append((f"{where} items", it))
             elif isinstance(it, dict):
                 out += [(f"{where} items", it[k]) for k in ITEM_FIELDS if isinstance(it.get(k), str)]
-        if isinstance(s.get("field"), dict):
-            out += [(f"{where} field", v) for v in s["field"].values() if isinstance(v, str)]
+        for k in ("field", "before", "after"):
+            if isinstance(s.get(k), dict):
+                out += [(f"{where} {k}", v) for v in s[k].values() if isinstance(v, str)]
         out += [(f"{where} svg text", t) for t in re.findall(r">([^<>]+)</text>", s.get("svg") or "")]
     if isinstance(story.get("cta"), str) and story["cta"].strip():
         out.append(("cta", story["cta"]))

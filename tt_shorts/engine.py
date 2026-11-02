@@ -46,8 +46,21 @@ SCENES = {
     "points": (["items"], ["kicker", "headline"], "2-3 short points: items [\"...\"]"),
     "quote": (["text", "by"], ["kicker", "headline", "via"], "a verbatim quote with its speaker"),
     "sources": ([], ["kicker", "headline"], "the outlets that covered it (from the data, never written)"),
+    "draw": (["svg"], ["kicker", "headline", "label"],
+             "a line drawing of what the story is about, drawn by the writer (art.GUIDE); it builds up stroke by stroke"),
+    "pair": (["items"], ["kicker", "headline", "between"],
+             "two sides side by side: items [{title, sub}] x2; between: a short word on the divider"),
+    "steps": (["items"], ["kicker", "headline"], "2-4 steps in order, joined by drawn arrows: items [\"...\"]"),
+    "bars": (["items"], ["kicker", "headline", "unit"],
+             "2-5 values from the articles as growing bars: items [{label, value}], one unit"),
+    "trend": (["items"], ["kicker", "headline", "unit", "label"],
+              "3-8 values over time from the articles, a line that draws itself: items [{label, value}]"),
+    "change": (["before", "after"], ["kicker", "headline", "unit", "label"],
+               "one value then and now from the articles: before {label, value}, after {label, value}"),
     "end": ([], [], "the end card: logo, QR to the story page, the call to action"),
 }
+# Shapes the new scenes must have (counts and numbers); the older ones are checked by their required fields.
+COUNTS = {"pair": (2, 2), "steps": (2, 4), "bars": (2, 5), "trend": (3, 8), "who": (1, 3), "points": (2, 3)}
 STORY_KEYS = ("id", "category", "date", "narration", "scenes")
 
 
@@ -75,6 +88,11 @@ def options(brand_name=None):
             ("kinetic", "giant type, hard cuts, inverted blocks: light news"),
             ("cards", "every scene a site-style story card: service news"))}},
         "look_by_family": b["look_by_family"],
+        "transitions": {"auto": "the look's own (editorial and cards: line; kinetic: panel)",
+                        "cut": "a plain cut, the old scene just ends", "line": "an ink line with the dot sweeps across",
+                        "panel": "an ink panel wipes through", "wipe": "the new scene is revealed left to right",
+                        "slide": "a short slide and fade", "push": "the old scene leaves left, the new one comes from the right",
+                        "dot": "an iris opens from the header's progress dot"},
         "captions": {"page": "a fixed two-line block; words light up as spoken (most stable)",
                      "roll": "a three-line teleprompter that scrolls continuously"},
         "voices": {name: {"label": p["label"], "voice": p["voice"], "approved": name in voices.APPROVED,
@@ -115,7 +133,44 @@ def structure_problems(story):
         for field in SCENES[t][0]:
             if s.get(field) in (None, "", []):
                 p.append(f"scene {i} ({t}): missing {field!r}")
+        p += [f"scene {i} ({t}): {x}" for x in shape_problems(s)]
     return p
+
+
+def _number(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def shape_problems(s):
+    """Counts, item shapes and numbers of one scene; a draw scene's SVG through art.sanitize."""
+    t, out = s.get("type"), []
+    items = s.get("items")
+    if t in COUNTS and isinstance(items, list):
+        lo, hi = COUNTS[t]
+        if not lo <= len(items) <= hi:
+            out.append(f"items: {len(items)}, needs {lo}-{hi}" if lo != hi else f"items: {len(items)}, needs {lo}")
+    if t == "pair":
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("title"), str) or not it["title"].strip():
+                out.append(f"items[{k}]: needs {{title, sub}}")
+    if t == "steps":
+        if any(not isinstance(it, str) or not it.strip() for it in items or []):
+            out.append("items: each step is a short text")
+    if t in ("bars", "trend"):
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not _number(it.get("value")):
+                out.append(f"items[{k}]: needs {{label, value}} with a number value")
+            elif t == "bars" and it["value"] <= 0:
+                out.append(f"items[{k}]: a bar's value is above zero (the axis starts at zero)")
+    if t == "change":
+        for k in ("before", "after"):
+            v = s.get(k)
+            if v is not None and (not isinstance(v, dict) or not isinstance(v.get("label"), str) or not _number(v.get("value"))):
+                out.append(f"{k}: needs {{label, value}} with a number value")
+    if t == "draw" and s.get("svg"):
+        from tt_shorts import art
+        out += art.sanitize(s["svg"])[1]
+    return out
 
 
 def check_story(story, sources=None):
@@ -160,7 +215,7 @@ def render_story(story_path, fmt, engine="gemini", out_path=None):
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     work, p = props.build(str(story_path), fmt["look"], engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
-                          caption_design=fmt["captions"], music=fmt["music"])
+                          caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"])
     secs = p["durationInFrames"] / FPS
     target = pathlib.Path(out_path) if out_path else store.render_path(
         brand_of(story), story["id"], fmt["name"], p["variant"], fmt["captions"])
@@ -180,7 +235,8 @@ def render_story(story_path, fmt, engine="gemini", out_path=None):
 
 
 def _format(a):
-    return formats.get(a.format, look=a.look, captions=a.captions, voice=a.voice, music=a.music, platform=a.platform)
+    return formats.get(a.format, look=a.look, captions=a.captions, transition=a.transition, voice=a.voice, music=a.music,
+                       platform=a.platform)
 
 
 def _kaeasy_required():
@@ -200,7 +256,7 @@ def still(a):
     story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     work, p = props.build(a.story, fmt["look"], a.engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
-                          caption_design=fmt["captions"], music=fmt["music"])
+                          caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"])
     frames = [int(x) for x in a.frames.split(",")] if a.frames else \
         [s["from"] + s["duration"] // 2 for s in p["scenes"]]  # default: the middle of every scene
     target = pathlib.Path(a.out) if a.out else store.home() / "renders" / store.safe(brand_of(story)) / store.today() / "stills"
@@ -302,7 +358,7 @@ def voice_samples(a):
 def queue_cmd(a):
     from tt_shorts import queue
     if a.action == "add":
-        overrides = {k: getattr(a, k) for k in ("look", "captions", "voice", "music", "platform") if getattr(a, k)}
+        overrides = {k: getattr(a, k) for k in ("look", "captions", "transition", "voice", "music", "platform") if getattr(a, k)}
         job, created = queue.add(a.brand, a.source if not a.story else None, a.ref, a.format, overrides, a.story,
                                  a.priority)
         return out({"job": job, "created": created})
@@ -379,6 +435,7 @@ def main(argv=None):
         r.add_argument("--format", default="news")
         r.add_argument("--look", choices=formats.LOOKS)
         r.add_argument("--captions", choices=formats.CAPTIONS)
+        r.add_argument("--transition", choices=formats.TRANSITIONS, help="the cut between scenes (auto: the look's own)")
         r.add_argument("--voice", help="family or a preset (see options)")
         r.add_argument("--music", help="family, off or a family name")
         r.add_argument("--platform", help="utm_source of the QR link")
@@ -407,7 +464,7 @@ def main(argv=None):
     qp.add_argument("--ref")
     qp.add_argument("--story", help="an already written story file (skips writing)")
     qp.add_argument("--format", default="news")
-    for k in ("look", "captions", "voice", "music", "platform"):
+    for k in ("look", "captions", "transition", "voice", "music", "platform"):
         qp.add_argument(f"--{k}")
     qp.add_argument("--priority", type=int, default=0)
     qp.add_argument("--state", choices=queue_states())

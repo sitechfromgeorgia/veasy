@@ -25,6 +25,9 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   JSON out).
   The skills in `skills/` say how an agent uses it. Keep the engine, the skills and `options` in step: a new
   choice in code must appear in `engine.options()`, `formats.py` validation and the `veasy:formats` skill.
+- **A new scene type** goes in all of these (`tests/test_scenes.py` and `test_engine.py` check the first three agree):
+  `engine.SCENES` (+ `shape_problems`), `news_check.SCENE_TYPES`, `remotion/src/scenes` (`SCENES`), `types.ts`,
+  `ka_check.FIELDS` / `MIN_WORDS`, `speech.MIN_SCENE`, the `writer.py` schema and the `veasy:write-script` skill.
 - **Data flow:** source → story JSON → `tt_shorts/props.py` (voice, timings, data, the brand pack) → `remotion/`
   composition `NewsShort` → mp4.
   - The writer (an LLM) fills only text fields.

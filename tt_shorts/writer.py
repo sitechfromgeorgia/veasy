@@ -14,7 +14,7 @@ import time
 import urllib.error
 import urllib.request
 
-from tt_shorts import ka_check, kaeasy, news_check
+from tt_shorts import art, ka_check, kaeasy, news_check
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STYLE = (ROOT / "tt_shorts" / "ka_style.md").read_text(encoding="utf-8")
@@ -37,6 +37,12 @@ Return ONE JSON object and nothing else. Shape:
    {"type": "who", "at": "...", "kicker": "...", "items": [{"name": "...", "role": "..."}]},
    {"type": "points", "at": "...", "kicker": "...", "items": ["...", "..."]},
    {"type": "quote", "at": "...", "kicker": "...", "text": "verbatim quote", "by": "speaker", "via": "outlet"},
+   {"type": "draw", "at": "...", "kicker": "...", "headline": "...", "svg": "<g class=\"s\" style=\"--d:0.3s\">...</g>", "label": "..."},
+   {"type": "pair", "at": "...", "kicker": "...", "items": [{"title": "...", "sub": "..."}, {"title": "...", "sub": "..."}], "between": "..."},
+   {"type": "steps", "at": "...", "kicker": "...", "items": ["...", "...", "..."]},
+   {"type": "bars", "at": "...", "kicker": "...", "unit": "...", "items": [{"label": "...", "value": 120}, {"label": "...", "value": 80}]},
+   {"type": "trend", "at": "...", "kicker": "...", "unit": "...", "items": [{"label": "2023", "value": 1.2}, {"label": "2024", "value": 1.4}, {"label": "2025", "value": 1.5}]},
+   {"type": "change", "at": "...", "kicker": "...", "unit": "...", "before": {"label": "...", "value": 1.2}, "after": {"label": "...", "value": 1.5}},
    {"type": "end", "at": "last words of the narration"}
  ]
 }
@@ -49,6 +55,9 @@ Rules that code enforces and will send back to you:
 - "at" must be the exact first words of that part of the narration;
 - never invent a number, time or date: if the article does not contain it, do not write it;
 - do not use a "timeline" scene unless the article states exact times or dates for it;
+- charts (bars, trend, change) only with values the article states, one unit, no computed differences;
+  bars: 2-5 values above zero; trend: 3-8 values in time order; pair: two sides of the story; steps: 2-4 steps in order;
+- at most one "draw" scene; it is the drawing of what the story is about (see the drawing guide below);
 - the last scene must start at least 4 narration words before the end, so it does not flash by.
 """
 
@@ -132,7 +141,7 @@ def _prompt(cluster: dict, articles: list[str]) -> str:
     allowed = sorted(news_check.numbers(" ".join(articles)), key=lambda x: (len(x), x))
     allowed_line = ", ".join(allowed[:40]) if allowed else "არცერთი"
     georgian = kaeasy.prompt_block()  # free: kaeasy's ten rules + the fleet's frequent mistakes, when installed
-    return (f"{STYLE}\n\n{georgian + chr(10) * 2 if georgian else ''}{SCHEMA}\n\n"
+    return (f"{STYLE}\n\n{georgian + chr(10) * 2 if georgian else ''}{SCHEMA}\n\n{art.GUIDE}\n\n"
             f"დაწერე ამ კლასტერის 30-40 წამიანი ვიდეოს სცენარი.\n"
             f"სათაური: {cluster.get('headline', '')}\n"
             f"კატეგორია: {cluster.get('category', 'general')}\n"

@@ -30,7 +30,8 @@ FPS = 30
 GEMINI_TTS = os.environ.get("SHORTS_GEMINI_TTS", "gemini-3.8-flash-tts")
 ALIGN_PYTHON = os.environ.get("ALIGN_PYTHON", sys.executable)
 EDGE_VOICES = {"eka": "ka-GE-EkaNeural", "giorgi": "ka-GE-GiorgiNeural"}
-MIN_SCENE = {"where": 2.8, "sources": 2.8, "end": 3.5}  # seconds on screen
+MIN_SCENE = {"where": 2.8, "sources": 2.8, "draw": 3.5, "bars": 3.2, "trend": 3.2, "steps": 3.0, "change": 3.0,
+             "pair": 2.8, "end": 3.5}  # seconds on screen: a drawing or a chart builds up and must then be seen
 MIN_SCENE_DEFAULT = 2.5
 LEND = 0.6  # seconds a short scene may borrow from a neighbour before it counts as too short
 END_HOLD = 1.6  # the end card stays up after the last word: time to see the QR

@@ -18,7 +18,7 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import brand, captions, meta, speech, store, voices
+from tt_shorts import art, brand, captions, meta, speech, store, voices
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -30,9 +30,28 @@ NOTES = {"edge": "preview_edge", "silent": "preview_silent"}  # the pack's words
 CAPTIONS = os.environ.get("SHORTS_CAPTIONS", "page")  # page | roll (captions.py)
 
 
+TRANSITIONS = ("cut", "line", "panel", "wipe", "slide", "push", "dot")
+DEFAULT_TRANSITION = {"editorial": "line", "cards": "line", "kinetic": "panel"}
+
+
+def transition_for(name, variant):
+    """The cut between scenes: a format's choice, or the look's own ("auto")."""
+    return DEFAULT_TRANSITION[variant] if name in (None, "auto") else name
+
+
+def _scene(s, a, b):
+    """One scene's props: its frames, and a drawing as a safe tree instead of the writer's SVG."""
+    out = {**s, "from": a, "duration": b - a}
+    if s.get("type") == "draw":
+        out["art"] = art.sanitize(s.get("svg", ""))[0]
+        out.pop("svg", None)
+    return out
+
+
 def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts",
-          caption_design=None, music="family"):
-    """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off"."""
+          caption_design=None, music="family", transition="auto"):
+    """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off".
+    transition: "auto" (the look's own) or one of TRANSITIONS."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     story = brand.with_say(story)  # the pack's own names (SiTech -> საი-თეჩი) are spoken right
     sid = story["id"]
@@ -70,7 +89,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "cta": story.get("cta") or meta.cta_for(sid, b),
         "url": meta.display_url(sid, b), "qrSvg": meta.qr_svg(meta.story_url(sid, platform, b), b["colors"]["canvas"]),
         "durationInFrames": marks[-1],
-        "scenes": [{**s, "from": a, "duration": b - a} for s, a, b in zip(story["scenes"], marks, marks[1:])],
+        "transition": transition_for(transition, variant),
+        "scenes": [_scene(s, a, b) for s, a, b in zip(story["scenes"], marks, marks[1:])],
         "words": words,
         "captions": captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"]),
         "voice": audio.name if audio else None, "voiceVolume": 1.0,

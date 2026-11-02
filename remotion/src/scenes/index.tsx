@@ -2,25 +2,13 @@ import React from "react";
 import { interpolate, useCurrentFrame } from "remotion";
 import { CANVAS, fill, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import type { Scene } from "../types";
-import { Chip, CountUp, Dot, fitSize, group, Headline, In, Kicker, Logo, useIn, useTheme } from "../ui";
+import { Bars, Change, Draw, Pair, Steps, Trend } from "./more";
+import { Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, useIn, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
 const LOW = RAIL_X - SIDE; // text that reaches the lower part stays left of the like/share rail
 
 type P = { s: Scene; inner?: number };
-
-/** Scene frame: kicker and headline on top, the body fills the rest of the scene band. */
-const Frame: React.FC<{ s: Scene; children: React.ReactNode; head?: boolean }> = ({ s, children, head = true }) => (
-  <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
-    {head && (
-      <div>
-        <Kicker text={s.kicker} />
-        <Headline text={s.headline} />
-      </div>
-    )}
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>{children}</div>
-  </div>
-);
 
 export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
   const { v, props } = useTheme();
@@ -297,5 +285,6 @@ export const End: React.FC<P> = () => {
 };
 
 export const SCENES: Record<string, React.FC<P>> = {
-  hook: Hook, stat: Stat, timeline: Timeline, where: Where, who: Who, points: Points, quote: Quote, sources: Sources, end: End,
+  hook: Hook, stat: Stat, timeline: Timeline, where: Where, who: Who, points: Points, quote: Quote, sources: Sources, draw: Draw,
+  pair: Pair, steps: Steps, bars: Bars, trend: Trend, change: Change, end: End,
 };

@@ -13,7 +13,8 @@ to the writer, like ka_check's K rules. `sources` is the list of member article 
 """
 import re
 
-SCENE_TYPES = {"hook", "stat", "timeline", "where", "who", "points", "quote", "sources", "end"}
+SCENE_TYPES = {"hook", "stat", "timeline", "where", "who", "points", "quote", "sources", "draw", "pair", "steps", "bars",
+               "trend", "change", "end"}
 RELATIVE_DAYS = ("დღეს", "გუშინ", "ხვალ", "ზეგ", "გუშინწინ")
 # Words that judge instead of report (stems: Georgian adds case endings). Extend from the edits log.
 EVALUATIVE = ("სკანდალურ", "შოკისმომგვრელ", "სამარცხვინო", "საოცარ", "გასაოცარ", "უპრეცედენტო", "საშინელ",
@@ -34,20 +35,35 @@ def numbers(text):
     return set(NUM.findall(text))
 
 
+def _walk(v):
+    """Every string and number at any depth (a chart's values sit inside items and before/after)."""
+    if isinstance(v, bool):
+        return
+    if isinstance(v, str):
+        yield v
+    elif isinstance(v, (int, float)):
+        yield f"{v:g}" if isinstance(v, float) else str(v)
+    elif isinstance(v, dict):
+        for x in v.values():
+            yield from _walk(x)
+    elif isinstance(v, list):
+        for x in v:
+            yield from _walk(x)
+
+
 def screen_text(story):
-    """Every word the writer put on screen (sources and date come from the data, not the writer)."""
+    """Every word and number the writer put on screen (sources and date come from the data, not the writer).
+    A drawing's on-screen words are its labels; its coordinates are not numbers anyone reads."""
+    from tt_shorts import art
     out = []
     for s in story.get("scenes", []):
         for k, v in s.items():
             if k in ("type", "at"):
                 continue
-            if isinstance(v, str):
-                out.append(v)
-            elif isinstance(v, list):
-                for it in v:
-                    out += [x for x in (it.values() if isinstance(it, dict) else [it]) if isinstance(x, str)]
-            elif isinstance(v, int) and k == "value":
-                out.append(str(v))
+            if k == "svg":
+                out += art.labels(v) if isinstance(v, str) else []
+                continue
+            out += list(_walk(v))
     return " ".join(out)
 
 
