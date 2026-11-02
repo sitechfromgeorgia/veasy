@@ -98,6 +98,16 @@ a preview voice; a person looks). Errors are classed: `transient` ones (network,
 time per machine (a lock), so cron can call `queue run` every few minutes. `ops/daily.py` picks the day's
 tbilisi.today stories and queues them.
 
+## Variety (`tt_shorts/variety.py`)
+
+So that a thousand videos don't look alike (the owner, 2026-11-02), each video gets its own combination inside the
+brand and the look: hook layout (stack, lead, blocks, underline), background motif (grid, diagonal, dots, rules,
+plain), entrance (rise, slide, reveal, scale), transition (when the format says `auto`) and music loop (four per
+family, `tools/compose_music.py`). Each choice is the least used one among the brand's last 20 videos, remembered
+in `veasy.db`; one story keeps its picks on a re-render. The writer is told the scene orders used lately and asked
+for another shape when the facts allow, and it draws a picture of the story (`art.py`: whitelist + quality check;
+a drawing that fails is dropped, not the video). `variety.report()` measures how alike the last videos were.
+
 ## Brand packs (`brands/`, `tt_shorts/brand.py`)
 
 `brands/<name>/brand.json` holds the palette, fonts, logo (tbilisi.today's t-mark drawn in code, or SVG files),

@@ -18,7 +18,7 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import art, brand, captions, meta, speech, store, voices
+from tt_shorts import art, brand, captions, meta, speech, store, variety, voices
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -48,10 +48,19 @@ def _scene(s, a, b):
     return out
 
 
+def loops_for(music, family):
+    """The music loops a video can use: the family's (or the named family's), none when music is off."""
+    if music == "off" or os.environ.get("SHORTS_MUSIC", "on").lower() in ("off", "0", "no"):
+        return []
+    fam = family if music in (None, "family") else music
+    return sorted(speech.MUSIC_DIR.glob(f"{fam}-*.m4a")) or sorted(speech.MUSIC_DIR.glob("society-*.m4a"))
+
+
 def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts",
-          caption_design=None, music="family", transition="auto"):
+          caption_design=None, music="family", transition="auto", style=None):
     """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off".
-    transition: "auto" (the look's own) or one of TRANSITIONS."""
+    transition: "auto" (variety picks one that suits the look) or one of TRANSITIONS.
+    style: {hook, motif, enter, transition, music} to force; by default variety.pick() chooses the least used."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     story = brand.with_say(story)  # the pack's own names (SiTech -> საი-თეჩი) are spoken right
     sid = story["id"]
@@ -75,7 +84,9 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
 
     audio, words = speech.voice(story, voice_dir, engine, tone, edge_voice)
     marks = speech.scene_frames(story, words)
-    bed = None if music == "off" else speech.music_for(sid, meta.family(category, b) if music in (None, "family") else music)
+    loops = loops_for(music, meta.family(category, b))
+    st = {**variety.pick(b["name"], sid, variant, transition, loops), **(style or {})}
+    bed = next((f for f in loops if f.name == st["music"]), loops[0] if loops else None)
     for f in (audio, bed):
         if f:
             shutil.copy(f, public / f.name)
@@ -89,7 +100,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "cta": story.get("cta") or meta.cta_for(sid, b),
         "url": meta.display_url(sid, b), "qrSvg": meta.qr_svg(meta.story_url(sid, platform, b), b["colors"]["canvas"]),
         "durationInFrames": marks[-1],
-        "transition": transition_for(transition, variant),
+        "transition": st["transition"] if st["transition"] in TRANSITIONS else transition_for(transition, variant),
+        "style": {k: st[k] for k in variety.OPTIONS},
         "scenes": [_scene(s, a, b) for s, a, b in zip(story["scenes"], marks, marks[1:])],
         "words": words,
         "captions": captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"]),

@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from tt_shorts import art, engine, formats, ka_check, news_check, props
+from tt_shorts import art, engine, formats, ka_check, news_check, props, variety
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GOOD = ('<g class="s" style="--d:0.2s"><rect x="236" y="210" width="480" height="300" rx="24" stroke="INK" '
@@ -72,7 +72,7 @@ class Draw(unittest.TestCase):
 
 
 class Writer(unittest.TestCase):
-    def test_the_writer_draws_only_when_turned_on(self):  # no review before publishing: unproven drawings stay off
+    def test_the_switch_decides_whether_the_writer_draws(self):  # on by default since art.quality; 0 turns it off
         from tt_shorts import writer
         with mock.patch.dict("os.environ", {writer.DRAW_ENV: "0"}):
             off = writer._prompt({"headline": "x"}, ["ა 1"])
@@ -147,7 +147,7 @@ class Transitions(unittest.TestCase):
     def test_props_carry_it(self):
         with tempfile.TemporaryDirectory() as home, mock.patch.dict("os.environ", {"VEASY_HOME": home}):
             _, p = props.build(str(ROOT / "stories" / "veasy-scenes.json"), "kinetic", "silent", music="off")
-            self.assertEqual(p["transition"], "panel")
+            self.assertIn(p["transition"], variety.TRANSITIONS["kinetic"])  # auto: variety picks one that suits the look
             _, p = props.build(str(ROOT / "stories" / "veasy-scenes.json"), "cards", "silent", music="off", transition="wipe")
             self.assertEqual(p["transition"], "wipe")
             draw = next(s for s in p["scenes"] if s["type"] == "draw")

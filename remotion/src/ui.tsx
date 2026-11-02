@@ -1,7 +1,7 @@
 import React, { createContext, useContext } from "react";
 import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, FONT, INK, LINE_STRONG, MARK_BG, RED, T_PATH } from "./brand";
-import type { Scene, ShortProps, Variant } from "./types";
+import type { Scene, ShortProps, Style, Variant } from "./types";
 
 type Ctx = { v: Variant; props: ShortProps };
 export const Theme = createContext<Ctx>(null as unknown as Ctx);
@@ -14,12 +14,31 @@ export const useIn = (delay = 0, damping = 20, stiffness = 170) => {
   return spring({ frame: frame - delay, fps, config: { damping, stiffness, mass: 0.8 } });
 };
 
-/** The look's entrance: editorial and cards rise, kinetic slams in from the left. */
+/** This video's style (tt_shorts/variety.py), or the look's own when the props carry none. */
+export const useStyle = (): Style => {
+  const { v, props } = useTheme();
+  return props.style ?? { hook: "stack", motif: v === "kinetic" ? "diagonal" : "grid", enter: v === "kinetic" ? "slide" : "rise" };
+};
+
+/** How things come on screen: they rise, slide in from the left, come up from behind a mask, or scale up.
+ *  Kinetic keeps its harder spring whichever motion the video has. */
 export const In: React.FC<{ delay?: number; style?: React.CSSProperties; children: React.ReactNode }> = ({ delay = 0, style, children }) => {
   const { v } = useTheme();
+  const { enter } = useStyle();
   const t = useIn(delay, v === "kinetic" ? 16 : 20, v === "kinetic" ? 220 : 170);
-  const move = v === "kinetic" ? `translateX(${(1 - t) * -140}px)` : `translateY(${(1 - t) * 56}px)`;
-  return <div style={{ opacity: Math.min(1, t * 1.6), transform: move, ...style }}>{children}</div>;
+  const css: React.CSSProperties = { opacity: Math.min(1, t * 1.6) };
+  if (enter === "slide") css.transform = `translateX(${(1 - t) * -140}px)`;
+  if (enter === "rise") css.transform = `translateY(${(1 - t) * 56}px)`;
+  if (enter === "scale") {
+    css.transform = `scale(${0.9 + 0.1 * Math.min(1.02, t)})`;
+    css.transformOrigin = "left center";
+  }
+  if (enter === "reveal") {
+    css.opacity = Math.min(1, t * 3);
+    css.clipPath = `inset(${(1 - Math.min(1, t)) * 100}% -4% -20% -4%)`;
+    css.transform = `translateY(${(1 - t) * 32}px)`;
+  }
+  return <div style={{ ...css, ...style }}>{children}</div>;
 };
 
 /** Width of `text` at 100px in the brand font (synchronous canvas measure, the same in every frame). */

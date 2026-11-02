@@ -3,7 +3,7 @@ import { interpolate, useCurrentFrame } from "remotion";
 import { CANVAS, fill, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import type { Scene } from "../types";
 import { Bars, Change, Draw, Pair, Steps, Trend } from "./more";
-import { Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, useIn, useTheme } from "../ui";
+import { Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, useIn, useStyle, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
 const LOW = RAIL_X - SIDE; // text that reaches the lower part stays left of the like/share rail
@@ -12,21 +12,39 @@ type P = { s: Scene; inner?: number };
 
 export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
   const { v, props } = useTheme();
+  const { hook } = useStyle();
+  const frame = useCurrentFrame();
   const lines = s.lines ?? [];
   const kinetic = v === "kinetic";
-  const size = fitSize(lines, (inner - (kinetic ? 48 : 8)) * 0.92, kinetic ? 176 : 160, 44);
+  // stack: the lines as they are (kinetic inverts the last) · lead: the first line small and quiet, the rest large ·
+  // blocks: every line in an ink block · underline: an ink rule draws under each line after it lands
+  const lead = hook === "lead" && lines.length > 1;
+  const blocks = hook === "blocks";
+  const width = (inner - (kinetic || blocks ? 48 : 8)) * 0.92;
+  const size = fitSize(lead ? lines.slice(1) : lines, width, kinetic ? 176 : 160, 44);
+  const leadSize = fitSize([lines[0] ?? ""], width, 72, 40);
   const bar = useIn(8 + lines.length * 5, 22, 120);
   return (
     <Frame s={s} head={false}>
       <In><Kicker text={s.kicker ?? props.category} /></In>
       <div style={{ marginTop: 48 }}>
         {lines.map((l, i) => {
-          const block = kinetic && i === lines.length - 1;
+          const quiet = lead && i === 0;
+          const block = blocks || (kinetic && hook === "stack" && i === lines.length - 1);
+          const fs = quiet ? leadSize : size;
+          const rule = hook === "underline"
+            ? interpolate(frame - (12 + i * 6), [0, 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
           return (
             <In key={i} delay={4 + i * 5}>
-              <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.16, whiteSpace: "nowrap",
-                color: block ? CANVAS : INK, background: block ? INK : "transparent", display: "inline-block",
-                padding: block ? `0 ${size * 0.14}px ${size * 0.1}px` : 0, marginTop: block ? 12 : 0 }}>{l}</div>
+              <div style={{ position: "relative", fontFamily: FONT, fontWeight: quiet ? 600 : 700, fontSize: fs, lineHeight: 1.16,
+                whiteSpace: "nowrap", color: block ? CANVAS : quiet ? MUTED : INK, background: block ? INK : "transparent",
+                display: "inline-block", padding: block ? `0 ${fs * 0.14}px ${fs * 0.1}px` : 0,
+                marginTop: block ? 12 : 0, marginBottom: quiet ? 20 : hook === "underline" ? 16 : 0 }}>
+                {l}
+                {hook === "underline" && (
+                  <div style={{ position: "absolute", left: 0, bottom: -6, height: 8, width: `${rule * 100}%`, background: INK }} />
+                )}
+              </div>
             </In>
           );
         })}

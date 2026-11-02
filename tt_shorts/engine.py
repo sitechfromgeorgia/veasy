@@ -31,7 +31,7 @@ import subprocess
 import sys
 
 from tt_shorts import brand as packs
-from tt_shorts import captions, formats, ka_check, kaeasy, meta, news_check, props, speech, store, voices
+from tt_shorts import captions, formats, ka_check, kaeasy, meta, news_check, props, speech, store, variety, voices
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -88,7 +88,10 @@ def options(brand_name=None):
             ("kinetic", "giant type, hard cuts, inverted blocks: light news"),
             ("cards", "every scene a site-style story card: service news"))}},
         "look_by_family": b["look_by_family"],
-        "transitions": {"auto": "the look's own (editorial and cards: line; kinetic: panel)",
+        "variety": {"about": "each video's own hook layout, background motif, entrance, transition (when auto) and music "
+                             "loop: the least used lately for the brand (tt_shorts/variety.py); never the palette",
+                    **variety.OPTIONS, "transitions_by_look": variety.TRANSITIONS},
+        "transitions": {"auto": "varied per video among the ones that suit the look (variety.TRANSITIONS)",
                         "cut": "a plain cut, the old scene just ends", "line": "an ink line with the dot sweeps across",
                         "panel": "an ink panel wipes through", "wipe": "the new scene is revealed left to right",
                         "slide": "a short slide and fade", "push": "the old scene leaves left, the new one comes from the right",
@@ -169,7 +172,7 @@ def shape_problems(s):
                 out.append(f"{k}: needs {{label, value}} with a number value")
     if t == "draw" and s.get("svg"):
         from tt_shorts import art
-        out += art.sanitize(s["svg"])[1]
+        out += art.scene_problems(s["svg"])
     return out
 
 
@@ -220,7 +223,10 @@ def render_story(story_path, fmt, engine="gemini", out_path=None):
     target = pathlib.Path(out_path) if out_path else store.render_path(
         brand_of(story), story["id"], fmt["name"], p["variant"], fmt["captions"])
     props.render_video(work, p, target)
+    variety.record(brand_of(story), story["id"], p["variant"], {**p["style"], "transition": p["transition"],
+                                                                "music": p["music"]}, [x["type"] for x in p["scenes"]])
     result = {"file": str(target.resolve()), "seconds": round(secs, 1), "format": fmt["name"], "look": p["variant"],
+              "style": p["style"], "transition": p["transition"],
               "captions": fmt["captions"], "voice": fmt["voice"], "engine": engine, "music": p["music"],
               "brand": brand_of(story), "story": str(pathlib.Path(story_path).resolve()),
               "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version()}
@@ -326,7 +332,7 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None):
     from tt_shorts import sources as src, writer
     packs.load(brand)  # an unknown pack fails before any model call
     data = src.fetch(source, ref)
-    story = writer.write(data["cluster"], data["articles"])
+    story = writer.write(data["cluster"], data["articles"], avoid=variety.recent_sequences(brand))
     story["brand"] = brand
     story["source"] = {"name": source, "ref": str(ref)}
     target = pathlib.Path(out_path) if out_path else store.story_path(brand, ref)

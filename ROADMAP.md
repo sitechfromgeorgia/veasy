@@ -16,6 +16,10 @@ for the owner, the agents and whoever codes it. Ranked: quick wins first.
   roll-up rather than an odometer), and C1 transitions as a format key. A1 (numbers at any depth in N2) and a light A2
   (counts and number types per new scene in `engine.shape_problems`).
 
+- **Variety** (the owner, 2026-11-02: "1000 videos in one style"): `tt_shorts/variety.py` (hook layouts, motifs,
+  entrances, transitions, music loops; least used per brand), the writer told the recent scene orders, drawings on
+  with `art.quality` and a drop-not-fail fallback, four music loops per family.
+
 Next for other clients:
 - **B12. The writer per pack.** `writer.py`'s prompt is written for multi-source news (tbilisi.today). A pack
   should name its writer style (news cluster, blog post, product update) so `write --brand sitech` writes from a

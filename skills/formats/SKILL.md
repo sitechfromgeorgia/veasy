@@ -18,7 +18,7 @@ python -m tt_shorts.engine options   # looks, captions, voices (with the owner-a
 |---|---|---|
 | `look` | `auto` (by category), `editorial`, `kinetic`, `cards` | `auto` |
 | `captions` | `page` (fixed two-line block), `roll` (three-line teleprompter) | `page` |
-| `transition` | `auto` (the look's own: line for editorial and cards, panel for kinetic), `cut`, `line`, `panel`, `wipe`, `slide`, `push`, `dot` (an iris from the header's progress dot) | `auto` |
+| `transition` | `auto` (varied per video among those that suit the look), `cut`, `line`, `panel`, `wipe`, `slide`, `push`, `dot` (an iris from the header's progress dot) | `auto` |
 | `voice` | `family` (by category, from the brand pack) or a preset: `plain`, `anchor`, `warm`, `clear` (approved for tbilisi.today), `firm`, `documentary`, or a pack's own (`sitech`) | `family` |
 | `music` | `family` (by category), `off`, or a family: politics, economy, world, crime, sports, culture, tech, society | `family` |
 | `platform` | the QR link's utm_source: `shorts`, `youtube`, `instagram`, `tiktok`, ... | `shorts` |
@@ -28,6 +28,13 @@ Built-in: `news` (all defaults) and `news-roll` (roll captions). `auto` and `fam
 (`options --brand <name>` shows its table). tbilisi.today: hard news `editorial` + `anchor`, light news `kinetic`,
 service news `cards`; people's news `warm`, numbers and tech `clear`, sports `plain`. SiTech: its own `sitech`
 voice (Charon) for every family. A format works for every brand; a pack's own voice only for that pack.
+
+## Variety comes on its own
+
+Inside a format, every video gets its own hook layout (stack, lead, blocks, underline), background motif (grid,
+diagonal, dots, rules, plain), entrance (rise, slide, reveal, scale), transition (when `auto`) and music loop
+(four per family): the least used lately for the brand (`options` → `variety`). So a format doesn't need to vary
+these by hand; fix one in a format only when a show must always look one way (e.g. `"transition": "cut"`).
 
 ## Add a show (no code change)
 

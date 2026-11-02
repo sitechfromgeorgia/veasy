@@ -7,26 +7,31 @@ import {
 import { Captions } from "./Captions";
 import { SCENES } from "./scenes";
 import type { Scene, ShortProps, Transition } from "./types";
-import { Chip, Dot, Logo, measure, Theme, useTheme } from "./ui";
+import { Chip, Dot, Logo, measure, Theme, useStyle, useTheme } from "./ui";
 
 const EXIT = 7; // frames a scene takes to leave
 const CARD_PAD = 48;
 
+/** The canvas and its texture, drifting slowly: this video's motif (grid, diagonal, dots, rules or plain), always in
+ *  the pack's faint grid color. */
 const Background: React.FC = () => {
-  const { v } = useTheme();
+  const { motif } = useStyle();
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
-  const cell = 72;
+  const cell = motif === "dots" ? 48 : motif === "rules" ? 96 : 72;
   const pan = interpolate(frame, [0, durationInFrames], [0, cell]);
+  const mark = {
+    grid: <path d={`M${cell} 0H0V${cell}`} fill="none" stroke={GRID} strokeWidth={2} />,
+    diagonal: <path d={`M0 ${cell}L${cell} 0`} fill="none" stroke={GRID} strokeWidth={2} />,
+    dots: <circle cx={cell / 2} cy={cell / 2} r={3} fill={GRID} />,
+    rules: <path d={`M0 ${cell - 1}H${cell}`} fill="none" stroke={GRID} strokeWidth={2} />,
+    plain: null,
+  }[motif];
   return (
     <AbsoluteFill style={{ background: CANVAS }}>
       <svg width={W} height={H + cell} style={{ position: "absolute", top: -cell + pan }}>
         <defs>
-          <pattern id="g" width={cell} height={cell} patternUnits="userSpaceOnUse">
-            {v === "kinetic"
-              ? <path d={`M0 ${cell}L${cell} 0`} fill="none" stroke={GRID} strokeWidth={2} />
-              : <path d={`M${cell} 0H0V${cell}`} fill="none" stroke={GRID} strokeWidth={2} />}
-          </pattern>
+          <pattern id="g" width={cell} height={cell} patternUnits="userSpaceOnUse">{mark}</pattern>
         </defs>
         <rect width={W} height={H + cell} fill="url(#g)" />
       </svg>

@@ -146,6 +146,147 @@ def sanitize(fragment):
     return tree, problems
 
 
+_TOKEN = re.compile(r"[MmLlHhVvCcSsQqTtAaZz]|-?(?:\d+\.?\d*|\.\d+)(?:[eE]-?\d+)?")
+_ARITY = {"m": 2, "l": 2, "h": 1, "v": 1, "c": 6, "s": 4, "q": 4, "t": 2, "a": 7, "z": 0}
+
+
+def _path_points(d):
+    """Every end and control point of a path (absolute), for its bounding box."""
+    pts, x, y, start, cmd, nums = [], 0.0, 0.0, (0.0, 0.0), None, []
+    for tok in _TOKEN.findall(d or ""):
+        if tok.isalpha():
+            cmd, nums = tok, []
+            if cmd in "Zz":
+                x, y = start
+            continue
+        if cmd is None:
+            continue
+        nums.append(float(tok))
+        k = cmd.lower()
+        if len(nums) < _ARITY[k]:
+            continue
+        rel = cmd.islower()
+        if k == "h":
+            x = x + nums[0] if rel else nums[0]
+        elif k == "v":
+            y = y + nums[0] if rel else nums[0]
+        else:
+            pairs = [(nums[i], nums[i + 1]) for i in range(0, len(nums), 2)] if k != "a" else [(nums[5], nums[6])]
+            for px, py in pairs[:-1]:  # control points
+                pts.append((x + px, y + py) if rel else (px, py))
+            ex, ey = pairs[-1]
+            x, y = (x + ex, y + ey) if rel else (ex, ey)
+            if k == "m":
+                start = (x, y)
+                cmd = "l" if rel else "L"  # extra pairs after a move are lines
+        pts.append((x, y))
+        nums = []
+    return pts
+
+
+def _translate(transform):
+    m = re.search(rf"translate\(\s*({_N})(?:\s*[ ,]\s*({_N}))?", transform or "")
+    return (float(m.group(1)), float(m.group(2) or 0)) if m else (0.0, 0.0)
+
+
+def _f(attrs, k, default=0.0):
+    try:
+        return float(attrs.get(k, default))
+    except ValueError:
+        return default
+
+
+def _box(tree, dx=0.0, dy=0.0):
+    """(points of every element, shifted by the translations above it)."""
+    pts = []
+    for n in tree:
+        a = n["attrs"]
+        tx, ty = _translate(a.get("transform"))
+        ox, oy = dx + tx, dy + ty
+        t = n["tag"]
+        local = []
+        if t == "rect":
+            x, y = _f(a, "x"), _f(a, "y")
+            local = [(x, y), (x + _f(a, "width"), y + _f(a, "height"))]
+        elif t in ("circle", "ellipse"):
+            rx = _f(a, "r") if t == "circle" else _f(a, "rx")
+            ry = _f(a, "r") if t == "circle" else _f(a, "ry")
+            local = [(_f(a, "cx") - rx, _f(a, "cy") - ry), (_f(a, "cx") + rx, _f(a, "cy") + ry)]
+        elif t == "line":
+            local = [(_f(a, "x1"), _f(a, "y1")), (_f(a, "x2"), _f(a, "y2"))]
+        elif t in ("polyline", "polygon"):
+            nums = [float(v) for v in re.findall(_N, a.get("points", ""))]
+            local = list(zip(nums[::2], nums[1::2]))
+        elif t == "path":
+            local = _path_points(a.get("d"))
+        elif t == "text" and n["text"]:
+            size = _f(a, "font-size", 32)
+            w = len(n["text"]) * size * 0.58
+            x0 = {"middle": -w / 2, "end": -w}.get(a.get("text-anchor"), 0)
+            local = [(_f(a, "x") + x0, _f(a, "y") - size), (_f(a, "x") + x0 + w, _f(a, "y"))]
+        pts += [(px + ox, py + oy) for px, py in local]
+        pts += _box(n["children"], ox, oy)
+    return pts
+
+
+def _walk(tree):
+    for n in tree:
+        yield n
+        yield from _walk(n["children"])
+
+
+def quality(tree):
+    """What code can judge of a drawing nobody reviews: it is big enough to read on a phone, stays on its canvas,
+    builds up (motion with different delays) and keeps the accent for one focal part."""
+    out = []
+    pts = _box(tree)
+    if not pts:
+        return ["draw: the drawing has no visible shapes"]
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    w, h = max(xs) - min(xs), max(ys) - min(ys)
+    if w < 0.40 * VIEW[0] or h < 0.35 * VIEW[1]:
+        out.append(f"draw: the drawing is small ({w:.0f}x{h:.0f} of {VIEW[0]}x{VIEW[1]}): draw it bigger, use most "
+                   f"of the canvas")
+    if min(xs) < -40 or min(ys) < -40 or max(xs) > VIEW[0] + 40 or max(ys) > VIEW[1] + 40:
+        out.append(f"draw: parts are outside the 0 0 {VIEW[0]} {VIEW[1]} canvas")
+    nodes = list(_walk(tree))
+    moving = [n for n in nodes if n["motion"]]
+    if len(moving) < 3 or len({n["delay"] for n in moving}) < 2:
+        out.append("draw: give at least 3 parts a motion class (r, p, s) with different --d delays, so it builds up")
+    accent = [n for n in nodes if "ACCENT" in (n["attrs"].get("fill"), n["attrs"].get("stroke"))]
+    if len(accent) > 6:
+        out.append(f"draw: ACCENT is on {len(accent)} elements: keep it for the one focal part")
+    return out
+
+
+def scene_problems(svg):
+    """Everything wrong with one draw scene's SVG: what the whitelist removed and what the quality check found."""
+    tree, problems = sanitize(svg)
+    return problems + (quality(tree) if tree else [])
+
+
+def story_problems(story):
+    """The drawing problems of a whole story (the writer's checks add these)."""
+    draws = [s for s in story.get("scenes") or [] if s.get("type") == "draw"]
+    out = [] if len(draws) <= 1 else [f"draw: {len(draws)} drawings; use at most one"]
+    for s in draws:
+        out += scene_problems(s.get("svg", ""))
+    return out
+
+
+def drop_bad(story):
+    """(story without the drawings that still fail, how many were dropped). The scene before a dropped drawing simply
+    stays up longer; a video without a drawing is better than no video."""
+    kept, dropped, seen = [], 0, False
+    for s in story.get("scenes") or []:
+        if s.get("type") == "draw" and (seen or scene_problems(s.get("svg", ""))):
+            dropped += 1
+            continue
+        seen = seen or s.get("type") == "draw"
+        kept.append(s)
+    return {**story, "scenes": kept}, dropped
+
+
 def labels_of(tree):
     """Every label (<text>) of a sanitized tree, in order: the only on-screen words in a drawing."""
     for n in tree:

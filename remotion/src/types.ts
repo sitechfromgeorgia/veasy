@@ -34,6 +34,13 @@ export type ArtNode = {
 // the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python
 export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot";
 
+// tt_shorts/variety.py: this video's own combination inside the brand and the look (layout and motion, never color)
+export type Style = {
+  hook: "stack" | "lead" | "blocks" | "underline";
+  motif: "grid" | "diagonal" | "dots" | "rules" | "plain";
+  enter: "rise" | "slide" | "reveal" | "scale";
+};
+
 export type SceneBase = { type: string; from: number; duration: number; kicker?: string; headline?: string };
 
 export type Scene = SceneBase & {
@@ -79,6 +86,7 @@ export type ShortProps = {
   brand: BrandProps;
   variant: Variant;
   transition: Transition;
+  style?: Style; // absent: the look's own (stack; grid or diagonal; rise or slide)
   id: number;
   category: string; // Georgian label
   date: { date: string; time: string; weekday: string };

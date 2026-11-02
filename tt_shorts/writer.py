@@ -20,8 +20,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 STYLE = (ROOT / "tt_shorts" / "ka_style.md").read_text(encoding="utf-8")
 MODEL = os.environ.get("SHORTS_WRITER_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free")
 FALLBACK = os.environ.get("SHORTS_WRITER_FALLBACK", "")
-# The writer may draw ("draw" scenes) only when VEASY_WRITER_DRAW=1: videos go out without a review, and a free
-# model's drawings are unproven here. An agent writing a story by hand can always use draw.
+# The writer draws ("draw" scenes): a drawing per story is what makes each video its own (owner, 2026-11-02: "1000
+# videos in one style is no good"; SiTech's channel draws with a free model). No person reviews it, so code does:
+# art.sanitize (safe, on brand) and art.quality (big enough, builds up, one focal part); a drawing that still fails
+# after the repairs is dropped and the video goes out without it. VEASY_WRITER_DRAW=0 turns drawing off.
 DRAW_ENV = "VEASY_WRITER_DRAW"
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 
@@ -140,7 +142,7 @@ def _object(text: str) -> dict:
 
 
 def drawing() -> bool:
-    return os.environ.get(DRAW_ENV, "0") == "1"
+    return os.environ.get(DRAW_ENV, "1") != "0"
 
 
 def schema() -> str:
@@ -151,12 +153,21 @@ def schema() -> str:
         '\n- never use a "draw" scene.'
 
 
-def _prompt(cluster: dict, articles: list[str]) -> str:
+def _variety_line(avoid: list[str] | None) -> str:
+    """The scene orders the latest videos used, so this one can take another shape (tt_shorts/variety.py)."""
+    if not avoid:
+        return ""
+    return ("Scene orders the latest videos already used (most frequent first): " + "; ".join(avoid[:8]) +
+            ". Viewers see these every day: when the story allows, choose a different order or other scene types "
+            "(pair, steps, bars, trend, change, timeline, quote, draw...), never a type the story has no facts for.\n\n")
+
+
+def _prompt(cluster: dict, articles: list[str], avoid: list[str] | None = None) -> str:
     body = "\n\n".join(f"--- სტატია {i + 1} ---\n{a[:2600]}" for i, a in enumerate(articles[:3]))
     allowed = sorted(news_check.numbers(" ".join(articles)), key=lambda x: (len(x), x))
     allowed_line = ", ".join(allowed[:40]) if allowed else "არცერთი"
     georgian = kaeasy.prompt_block()  # free: kaeasy's ten rules + the fleet's frequent mistakes, when installed
-    return (f"{STYLE}\n\n{georgian + chr(10) * 2 if georgian else ''}{schema()}\n\n"
+    return (f"{STYLE}\n\n{georgian + chr(10) * 2 if georgian else ''}{schema()}\n\n{_variety_line(avoid)}"
             f"დაწერე ამ კლასტერის 30-40 წამიანი ვიდეოს სცენარი.\n"
             f"სათაური: {cluster.get('headline', '')}\n"
             f"კატეგორია: {cluster.get('category', 'general')}\n"
@@ -217,13 +228,15 @@ def _tidy_end(story: dict) -> None:
 
 def _checks(story: dict, articles: list[str], cluster: dict):
     joined = "\n\n".join(articles)
-    art = {"title": cluster.get("headline", ""), "description": "", "text": joined}
-    return news_check.problems(story, articles) + ka_check.problems(story, art)
+    article = {"title": cluster.get("headline", ""), "description": "", "text": joined}
+    return news_check.problems(story, articles) + ka_check.problems(story, article) + art.story_problems(story)
 
 
-def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 2) -> dict:
+def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 2,
+          avoid: list[str] | None = None) -> dict:
+    """avoid: the scene orders the latest videos used (variety.recent_sequences), so this one can differ."""
     model = model or MODEL
-    story = _object(_call(_prompt(cluster, articles), model))
+    story = _object(_call(_prompt(cluster, articles, avoid), model))
     story.pop("sources", None)
     story.pop("date", None)
     story.setdefault("category", cluster.get("category", "general"))
@@ -236,7 +249,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     for _ in range(repairs):
         if not problems:
             break
-        fix = (f"{_prompt(cluster, articles)}\n\nწინა პასუხი უარყოფილია ამ შეცდომებით:\n- "
+        fix = (f"{_prompt(cluster, articles, avoid)}\n\nწინა პასუხი უარყოფილია ამ შეცდომებით:\n- "
                + "\n- ".join(problems[:12])
                + "\n\nგანსაკუთრებით: არ დატოვო არც ერთი რიცხვი, რომელიც სტატიაში არ არის; "
                + "თუ timeline სცენას სტატიაში ზუსტი დრო არ აქვს, წაშალე ის და მისი ტექსტი narration-იდანაც მოხსენი.\n"
@@ -252,6 +265,12 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
             problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if not _anchors_ok(story):
         problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
+    if any(p.startswith("draw:") for p in problems):  # a drawing that still fails is dropped, not the video
+        story, dropped = art.drop_bad(story)
+        if dropped:
+            problems = _checks(story, articles, cluster)
+            if not _anchors_ok(story):
+                problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if problems:
         raise ValueError("checks failed: " + "; ".join(problems[:6]))
     # The free writer's Georgian is serviceable but not publishable. One editor pass fixes

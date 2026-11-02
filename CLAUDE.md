@@ -28,6 +28,12 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
 - **A new scene type** goes in all of these (`tests/test_scenes.py` and `test_engine.py` check the first three agree):
   `engine.SCENES` (+ `shape_problems`), `news_check.SCENE_TYPES`, `remotion/src/scenes` (`SCENES`), `types.ts`,
   `ka_check.FIELDS` / `MIN_WORDS`, `speech.MIN_SCENE`, the `writer.py` schema and the `veasy:write-script` skill.
+- **Variety is a rule** (owner, 2026-11-02: "1000 videos in one style is no good"). `tt_shorts/variety.py` gives
+  each video its own hook layout, background motif, entrance, transition and music loop (the least used lately per
+  brand, remembered in `veasy.db`), and the writer sees the scene orders used lately. A new layout or motion goes in
+  as one more option there (and in `remotion/src`), never as a replacement of the others; `tests/test_variety.py`
+  checks a run uses every option evenly. The writer draws (`art.py`: sanitize + quality; a failing drawing is
+  dropped, not the video); `VEASY_WRITER_DRAW=0` turns it off.
 - **Data flow:** source → story JSON → `tt_shorts/props.py` (voice, timings, data, the brand pack) → `remotion/`
   composition `NewsShort` → mp4.
   - The writer (an LLM) fills only text fields.
