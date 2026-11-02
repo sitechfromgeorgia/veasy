@@ -14,7 +14,7 @@ import time
 import urllib.error
 import urllib.request
 
-from tt_shorts import ka_check, news_check
+from tt_shorts import ka_check, kaeasy, news_check
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STYLE = (ROOT / "tt_shorts" / "ka_style.md").read_text(encoding="utf-8")
@@ -131,7 +131,8 @@ def _prompt(cluster: dict, articles: list[str]) -> str:
     body = "\n\n".join(f"--- სტატია {i + 1} ---\n{a[:2600]}" for i, a in enumerate(articles[:3]))
     allowed = sorted(news_check.numbers(" ".join(articles)), key=lambda x: (len(x), x))
     allowed_line = ", ".join(allowed[:40]) if allowed else "არცერთი"
-    return (f"{STYLE}\n\n{SCHEMA}\n\n"
+    georgian = kaeasy.prompt_block()  # free: kaeasy's ten rules + the fleet's frequent mistakes, when installed
+    return (f"{STYLE}\n\n{georgian + chr(10) * 2 if georgian else ''}{SCHEMA}\n\n"
             f"დაწერე ამ კლასტერის 30-40 წამიანი ვიდეოს სცენარი.\n"
             f"სათაური: {cluster.get('headline', '')}\n"
             f"კატეგორია: {cluster.get('category', 'general')}\n"
@@ -232,6 +233,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     # a check, the pre-edit script is kept.
     edited = _edit(story, articles, cluster, model)
     if edited and _anchors_ok(edited) and not _checks(edited, articles, cluster):
+        kaeasy.learn_edit(story.get("narration", ""), edited.get("narration", ""))  # every agent learns the fix
         story = edited
     # N6: identity, date and outlets come from the data, never from the writer.
     if cluster.get("id"):

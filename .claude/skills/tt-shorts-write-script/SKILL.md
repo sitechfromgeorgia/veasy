@@ -31,6 +31,15 @@ is the working summary. After every edit run
 - End with „დეტალები იხილე tbilisi.today-ზე." and a short call to action that matches `cta`.
 - Latin names: the screen keeps them, the voice reads `lexicon_ka.json` or the story's `say` map (K20).
 
+## Georgian beyond these rules: kaeasy
+
+The engine's Georgian gate is SiTech's kaeasy plugin.
+- `check` returns kaeasy's blocking findings as `problems`: strict rules as `KE:` and mapped rules under their K number.
+  It returns the rest as `warnings`; read them, fix what is right to fix.
+- When the agent runs on Hermes with kaeasy enabled, load `kaeasy:georgian-writing` (and `kaeasy:georgian-speech`
+  for what the voice reads) before writing by hand.
+- After a human or a review corrects a phrase, record it with `ka_learn` so every agent avoids it.
+
 ## Common check failures
 
 - `K9 … gets only N narration words`: a scene starts too late or too close to the next; move its `at` earlier,

@@ -33,6 +33,14 @@ python -m tt_shorts.engine voices --story stories/24886.json       # Gemini tone
   `tt-shorts-formats`.
 - The voice is cached per story (`work/<id>-voice-<engine>/`): another look or caption design costs no new TTS.
 - What comes next (new visual blocks, render server, more outputs, the decisions needed): [ROADMAP.md](ROADMAP.md).
+- **Georgian gate: [kaeasy](https://github.com/sitechfromgeorgia/kaeasy)** (`tt_shorts/kaeasy.py`).
+  - It is loaded from the plugin folder every agent shares (`KAEASY_DIR`), so a new rule there reaches the videos.
+  - Each text gets its own mode: the narration is checked as an article, the on-screen text as social copy, and
+    the spoken text as speech.
+  - kaeasy's strict rules block a render; the rest come back as `warnings` from `engine check`.
+  - The writer reads kaeasy's ten most-broken rules and the fleet's frequent mistakes before it writes (free).
+  - The editor's fixes go back into the shared memory.
+  - `SHORTS_REQUIRE_KAEASY=1` on the server: no gate, no video.
 
 ## Brand (v1.2, https://tbilisi.today/brand)
 

@@ -28,7 +28,8 @@ python -m tt_shorts.engine options       # every look, caption design, voice, mu
 python -m tt_shorts.engine check stories/24886.json --sources stories/24886.sources.json
 ```
 `problems` must be empty. Rules named N* are news rules (numbers and quotes from the articles, no relative days,
-no sensitive stories), K* are Georgian rules, `timing:` and `captions:` are layout. Fix the story, never the rule.
+no sensitive stories), K* and KE are Georgian rules (KE = kaeasy, SiTech's Georgian plugin), `timing:` and
+`captions:` are layout. Fix the story, never the rule. `warnings` don't block; read them anyway.
 
 ## 3. Render
 

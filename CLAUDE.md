@@ -23,6 +23,9 @@ project. It is not a Worker: nothing here deploys through Workers Builds, and it
   - Never add an opinion scene. Never let the writer set `date` or `sources`.
 - **Georgian:** K1-K22 come from sitech-shorts (`ka_style.md`, `ka_check.py`, `normalize_ka.py`, `lexicon_ka.json`).
   A Latin name's spoken form goes in `lexicon_ka.json` (approved) or in the story's `say` map.
+  General Georgian rules belong in **kaeasy**, SiTech's plugin (`tt_shorts/kaeasy.py` loads it from `KAEASY_DIR`):
+  - add a new general rule there, not here;
+  - keep only video-specific rules in this folder (news rules, timing, the spoken form).
 - **Safe zone:**
   - Scene text ends at y=1380 and captions at y=1552.
   - Below y=1100, no text goes right of x=940.

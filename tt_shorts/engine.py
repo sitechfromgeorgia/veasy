@@ -24,7 +24,7 @@ import shutil
 import subprocess
 import sys
 
-from tt_shorts import captions, formats, ka_check, meta, news_check, props, speech, voices
+from tt_shorts import captions, formats, ka_check, kaeasy, meta, news_check, props, speech, voices
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -112,7 +112,10 @@ def check_story(story, sources=None):
     texts = sources or []
     if texts:
         p += news_check.problems(story, texts)
-    p += ka_check.problems(story, {"title": "", "description": "", "text": " ".join(texts)})
+    ka = ka_check.problems(story, {"title": "", "description": "", "text": " ".join(texts)})
+    if not texts:  # without the articles a quote can't be compared: that check needs --sources (the news rules say so)
+        ka = [x for x in ka if "is quoted but not in the article" not in x]
+    p += ka
     words = speech.estimate_words(story["narration"])
     try:
         marks = speech.scene_frames(story, words)
@@ -140,7 +143,17 @@ def _format(a):
     return formats.get(a.format, look=a.look, captions=a.captions, voice=a.voice, music=a.music, platform=a.platform)
 
 
+def _kaeasy_required():
+    """On the server SHORTS_REQUIRE_KAEASY=1: no Georgian gate, no video."""
+    if os.environ.get("SHORTS_REQUIRE_KAEASY") == "1" and not kaeasy.available():
+        return [f"kaeasy is required (SHORTS_REQUIRE_KAEASY=1) but not found in {kaeasy.directory()}"]
+    return []
+
+
 def render(a):
+    missing = _kaeasy_required()
+    if missing:
+        return out({"problems": missing}, 1)
     fmt = _format(a)
     work, p = _build(a, fmt)
     secs = p["durationInFrames"] / FPS
@@ -148,7 +161,7 @@ def render(a):
     props.render_video(work, p, target)
     result = {"file": str(target.resolve()), "seconds": round(secs, 1), "format": a.format, "look": p["variant"],
               "captions": fmt["captions"], "voice": fmt["voice"], "engine": a.engine, "music": p["music"],
-              "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", [])}
+              "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version()}
     problems = []
     if not fmt["min_seconds"] <= secs <= fmt["max_seconds"]:
         problems.append(f"length {secs:.1f}s is outside the format's {fmt['min_seconds']}-{fmt['max_seconds']}s")
@@ -264,6 +277,7 @@ def doctor(_a):
         "alignment python": os.environ.get("ALIGN_PYTHON") or "unset (uses this python; needs torch + transformers)",
         "writer key (OPENROUTER_API_KEY)": bool(os.environ.get("OPENROUTER_API_KEY")),
         "D1 access (CLOUDFLARE_API_TOKEN)": bool(os.environ.get("CLOUDFLARE_API_TOKEN")),
+        "kaeasy (Georgian gate)": kaeasy.version() or f"missing in {kaeasy.directory()} (KAEASY_DIR)",
     }
     try:
         n = len(formats.load_all())
@@ -271,6 +285,7 @@ def doctor(_a):
     except formats.FormatError as e:
         checks["formats"] = f"ERROR: {e}"
     blocking = [k for k in ("ffmpeg", "node", "remotion installed", "fonts") if checks[k] is not True]
+    blocking += _kaeasy_required()
     if not checks["music loops"]:
         blocking.append("music loops (run tools/compose_music.py)")
     return out({"checks": checks, "problems": blocking}, 1 if blocking else 0)
@@ -316,8 +331,9 @@ def main(argv=None):
         if a.cmd == "check":
             story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
             sources = json.loads(pathlib.Path(a.sources).read_text(encoding="utf-8")) if a.sources else None
-            problems = check_story(story, sources)
-            return out({"story": a.story, "news_rules": bool(sources), "problems": problems}, 1 if problems else 0)
+            problems = check_story(story, sources) + _kaeasy_required()
+            return out({"story": a.story, "news_rules": bool(sources), "kaeasy": kaeasy.version(),
+                        "problems": problems, "warnings": ka_check.warnings(story)}, 1 if problems else 0)
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor}[a.cmd](a)
     except formats.FormatError as e:

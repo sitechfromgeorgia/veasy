@@ -4,15 +4,17 @@ script.check() adds these for Georgian scripts, so a broken rule goes back to th
 like any other failed check. What code can't judge (ergative, calques in context, naturalness) is the editor's
 job (script.edit with ka_editor.md).
 
-The SiTech-wide linter ge_ka_lint.py also runs on every text when it is installed (SiTech Hub
-/root/sitech/georgian-style, kept up to date by the other SiTech agents; SHORTS_KA_LINT overrides the folder).
+Kaeasy (SiTech's Georgian plugin, tt_shorts/kaeasy.py) also checks every text when it is installed: the narration
+as an article, the on-screen text as social copy and the spoken text as speech. Its strict rules and the rules mapped
+to K numbers below block; the rest come back from warnings(). The legacy ge_ka_lint.py (SHORTS_KA_LINT) is used only
+when kaeasy is missing.
 """
 import importlib.util
 import os
 import re
 import sys
 
-from tt_shorts import normalize_ka
+from tt_shorts import kaeasy, normalize_ka
 
 LINT_DIR = os.environ.get("SHORTS_KA_LINT", "/root/sitech/georgian-style")
 # linter rule -> rulebook rule; the linter's high-confidence set plus calques, filler and Latin country names
@@ -22,7 +24,9 @@ LINT_RULES = {"translit": "K16", "ending_hyphen": "K16", "cyrillic": "K16", "quo
 # K9: narration words (as written) a scene needs before the next one starts, so the eye can follow it
 MIN_WORDS = {"draw": 8, "end": 4}
 MIN_WORDS_DEFAULT = 6
-FIELDS = ("kicker", "headline", "label", "text", "big", "from", "refused", "ok")
+FIELDS = ("kicker", "headline", "label", "text", "big", "from", "refused", "ok", "place", "sub", "by", "via", "start",
+          "end", "cta")
+ITEM_FIELDS = ("text", "title", "status", "name", "role", "label", "what", "when")
 # K20: Latin letters as Russian names them (TPM "ტე-პე-ემ"); a voice reads letters the English way ("ტი პი ემ")
 RUSSIAN_LETTERS = {"ა", "ბე", "ცე", "დე", "ე", "გე", "ხა", "კა", "ო", "პე", "კუ", "ერ", "ტე", "უ", "ვე", "ზეტ"}
 # K22: imperial units a Georgian viewer doesn't use (a screen's diagonal in დიუმი stays: shops sell it that way)
@@ -62,10 +66,46 @@ def screen_texts(story):
         for k in ("lines", "terminal"):
             out += [(f"{where} {k}", t) for t in s.get(k) or [] if isinstance(t, str)]
         for it in s.get("items") or []:
-            out += [(f"{where} items", it[k]) for k in ("text", "title", "status") if isinstance(it, dict) and isinstance(it.get(k), str)]
+            if isinstance(it, str):
+                out.append((f"{where} items", it))
+            elif isinstance(it, dict):
+                out += [(f"{where} items", it[k]) for k in ITEM_FIELDS if isinstance(it.get(k), str)]
         if isinstance(s.get("field"), dict):
             out += [(f"{where} field", v) for v in s["field"].values() if isinstance(v, str)]
         out += [(f"{where} svg text", t) for t in re.findall(r">([^<>]+)</text>", s.get("svg") or "")]
+    if isinstance(story.get("cta"), str) and story["cta"].strip():
+        out.append(("cta", story["cta"]))
+    return out
+
+
+def _kaeasy_findings(story):
+    """(where, finding) for every kaeasy finding: narration as article, screen text as social, the spoken text as
+    speech (numbers in words, brands in Georgian letters: what the voice will actually read)."""
+    narration = story.get("narration", "")
+    say = story.get("say") if isinstance(story.get("say"), dict) else {}
+    jobs = [("narration", narration, "article")] + [(w, t, "social") for w, t in screen_texts(story)]
+    try:
+        jobs.append(("spoken text", normalize_ka.speech(narration, say), "speech"))
+    except Exception:  # noqa: BLE001 - a normalisation problem is reported by the K rules, not here
+        pass
+    out = []
+    for where, text, mode in jobs:
+        out += [(where, mode, f) for f in kaeasy.check(text, mode)]
+    return out
+
+
+def _blocking(f):
+    return f["check"] in LINT_RULES or f["check"] in kaeasy.strict_rules()
+
+
+def warnings(story):
+    """kaeasy findings that don't block (style, collocations, possible calques): shown to the agent, not enforced."""
+    seen, out = set(), []
+    for where, mode, f in _kaeasy_findings(story):
+        key = (f["check"], f["snippet"])
+        if not _blocking(f) and key not in seen:
+            seen.add(key)
+            out.append(f"kaeasy {f['check']} ({mode}): {where}: {f['message']} ({f['snippet'][:60]})")
     return out
 
 
@@ -155,7 +195,16 @@ def problems(story, art):
     for cve in dict.fromkeys(IDS.findall(narration)):
         p.append(f'K15: the narration reads the identifier {cve} aloud: say "ხარვეზი" or "განახლება", keep the ID on screen')
 
-    check_text = lint()
+    if kaeasy.available():
+        seen = set()
+        for where, mode, f in _kaeasy_findings(story):
+            key = (f["check"], f["snippet"])
+            if _blocking(f) and key not in seen:
+                seen.add(key)
+                rule = LINT_RULES.get(f["check"], "KE")  # KE: a kaeasy strict rule with no K number of its own
+                p.append(f"{rule}: {where}: {f['message']} ({f['snippet'][:60]})")
+        return p
+    check_text = lint()  # legacy: the Hub's ge_ka_lint.py, only when kaeasy is missing
     if check_text:
         seen = set()
         for where, t in texts:
