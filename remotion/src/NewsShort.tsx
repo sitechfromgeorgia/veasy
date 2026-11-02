@@ -1,12 +1,13 @@
 import React, { useMemo } from "react";
 import { AbsoluteFill, Html5Audio, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import {
-  alpha, applyBrand, CANVAS, CAPTION_BOTTOM, fill, FONT, GRID, H, INK, LINE, MUTED, PANEL, RADIUS, SCENE_BOTTOM, SCENE_TOP, SIDE,
-  TICKER, W,
+  alpha, applyBrand, CANVAS, CAPTION_BOTTOM, fill, FONT, GRID, H, INK, LINE, MUTED, PANEL, RADIUS, RAIL_X, SCENE_BOTTOM, SCENE_TOP,
+  SIDE, TICKER, W,
 } from "./brand";
 import { Captions } from "./Captions";
 import { SCENES } from "./scenes";
 import type { Scene, ShortProps, Transition } from "./types";
+import { Probe } from "./Probe";
 import { Chip, Dot, Logo, measure, Theme, useStyle, useTheme } from "./ui";
 
 const EXIT = 7; // frames a scene takes to leave
@@ -48,10 +49,10 @@ const Header: React.FC = () => {
   const x = (W - 2 * SIDE) * (frame / Math.max(1, durationInFrames - 1));
   return (
     <>
-      <div style={{ position: "absolute", left: SIDE, top: 80, height: 88, display: "flex", alignItems: "center" }}>
+      <div data-probe="header" style={{ position: "absolute", left: SIDE, top: 80, height: 88, display: "flex", alignItems: "center" }}>
         <Logo place="header" size={88} />
       </div>
-      <div style={{ position: "absolute", right: SIDE, top: 80, textAlign: "right", fontFamily: FONT }}>
+      <div data-probe="header" style={{ position: "absolute", right: SIDE, top: 80, textAlign: "right", fontFamily: FONT }}>
         <div style={{ fontWeight: 700, fontSize: 40, lineHeight: 1.2, color: INK }}>{props.date.date}</div>
         <div style={{ fontWeight: 400, fontSize: 30, lineHeight: 1.4, color: MUTED }}>
           {props.date.weekday} · {props.date.time} · {props.category}
@@ -120,13 +121,15 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
       easing: (t) => 1 - Math.pow(1 - t, 3) }) : 1;
     const shown = Math.min(enter, m.opacity);
     return (
-      <div style={{ position: "absolute", left, right: SIDE - 16, top: SCENE_TOP, bottom: H - SCENE_BOTTOM, background: PANEL,
+      <div data-probe="card" style={{ position: "absolute", left, right: SIDE - 16, top: SCENE_TOP, bottom: H - SCENE_BOTTOM, background: PANEL,
         border: `2px solid ${LINE}`, borderRadius: RADIUS, opacity: shown, ...m.style,
         transform: `translate(${m.dx}px, ${(1 - enter) * 120 + m.dy * (40 / 48)}px) scale(${own ? 0.96 + 0.04 * Math.min(enter, m.out) : 1})` }}>
-        <div style={{ position: "absolute", left: CARD_PAD, right: CARD_PAD, top: CARD_PAD, bottom: 120 }}>
+        <div data-probe="scene" style={{ position: "absolute", left: CARD_PAD, right: CARD_PAD, top: CARD_PAD, bottom: 120 }}>
           {Comp ? <Comp s={s} inner={W - 2 * (SIDE - 16) - 2 * CARD_PAD} /> : null}
         </div>
+        {/* the page count ends left of the like/share rail (the layout probe found it under the buttons) */}
         <div style={{ position: "absolute", left: CARD_PAD, right: CARD_PAD, bottom: 40, borderTop: `2px solid ${LINE}`, paddingTop: 20,
+          paddingRight: Math.max(0, W - left - CARD_PAD - RAIL_X),
           display: "flex", justifyContent: "space-between", fontFamily: FONT, fontSize: 30, color: MUTED }}>
           <span>{fill(props.brand.strings.card_meta, { n: props.sources.length, time: props.date.time })}</span>
           <span>{i + 1} / {props.scenes.length - 1}</span>
@@ -136,7 +139,7 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
   }
   const m = sceneMotion(tr, frame, s, first, last, durationInFrames, SIDE);
   return (
-    <div style={{ position: "absolute", left: SIDE, right: SIDE, top: SCENE_TOP, height: SCENE_BOTTOM - SCENE_TOP, opacity: m.opacity,
+    <div data-probe="scene" style={{ position: "absolute", left: SIDE, right: SIDE, top: SCENE_TOP, height: SCENE_BOTTOM - SCENE_TOP, opacity: m.opacity,
       transform: `translate(${m.dx}px, ${m.dy}px)`, ...m.style }}>
       {Comp ? <Comp s={s} /> : null}
     </div>
@@ -150,7 +153,7 @@ const Ticker: React.FC = () => {
   const rows = [[props.category, props.date.date, ...props.sources, props.brand.label].join("  ·  ")];
   const speed = v === "kinetic" ? 4 : 2.2;
   return (
-    <div style={{ position: "absolute", left: 0, right: 0, top: CAPTION_BOTTOM + 28, height: 180, overflow: "hidden" }}>
+    <div data-probe="ticker" style={{ position: "absolute", left: 0, right: 0, top: CAPTION_BOTTOM + 28, height: 180, overflow: "hidden" }}>
       {props.previewNote && (
         <div style={{ position: "absolute", right: SIDE, top: 0, zIndex: 1 }}><Chip size={26}>{props.previewNote}</Chip></div>
       )}
@@ -173,7 +176,7 @@ const Footer: React.FC = () => {
   const right = (measure(props.brand.footer.text, 400) + measure(props.brand.footer.strong ?? "", 700)) * 0.28 + 32;
   const urlSize = Math.max(22, Math.min(36, Math.floor((100 * (W - 2 * SIDE - right)) / Math.max(1, measure(props.url, 700)))));
   return (
-    <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 1768, borderTop: `2px solid ${LINE}`, paddingTop: 16, fontFamily: FONT }}>
+    <div data-probe="footer" style={{ position: "absolute", left: SIDE, right: SIDE, top: 1768, borderTop: `2px solid ${LINE}`, paddingTop: 16, fontFamily: FONT }}>
       <div style={{ fontWeight: 400, fontSize: 28, lineHeight: 1.4, color: MUTED, whiteSpace: "nowrap", overflow: "hidden" }}>{props.sourcesLine}</div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <span style={{ fontWeight: 700, fontSize: urlSize, lineHeight: 1.4, color: INK, whiteSpace: "nowrap" }}>{props.url}</span>
@@ -193,7 +196,7 @@ export const NewsShort: React.FC<ShortProps> = (props) => {
   const { durationInFrames } = useVideoConfig();
   return (
     <Theme.Provider value={theme}>
-      <AbsoluteFill style={{ overflow: "hidden", fontFamily: FONT }}>
+      <AbsoluteFill data-probe-root style={{ overflow: "hidden", fontFamily: FONT }}>
         <Background />
         <Ticker />
         <Header />
@@ -205,6 +208,7 @@ export const NewsShort: React.FC<ShortProps> = (props) => {
         ))}
         <Captions cap={props.captions} />
         <Footer />
+        {props.probe && <Probe />}
         {/* Studio preview only: the final mix is ffmpeg's (voice levelled alone, music at one constant level) */}
         {props.voice && <Html5Audio src={staticFile(props.voice)} volume={props.voiceVolume} />}
         {props.music && (

@@ -28,6 +28,15 @@ FALLBACK = os.environ.get("SHORTS_WRITER_FALLBACK", "")
 DRAW_ENV = "VEASY_WRITER_DRAW"
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 
+
+class ChecksFailed(ValueError):
+    """The script still fails the checks after the repairs; .problems lists them (failures.py remembers them)."""
+
+    def __init__(self, problems):
+        super().__init__("checks failed: " + "; ".join(problems[:6]))
+        self.problems = list(problems)
+
+
 SCHEMA = """
 Return ONE JSON object and nothing else. Shape:
 {
@@ -163,12 +172,13 @@ def _variety_line(avoid: list[str] | None) -> str:
             "(pair, steps, bars, trend, change, timeline, quote, draw...), never a type the story has no facts for.\n\n")
 
 
-def _prompt(cluster: dict, articles: list[str], avoid: list[str] | None = None) -> str:
+def _prompt(cluster: dict, articles: list[str], avoid: list[str] | None = None, mistakes: str = "") -> str:
     body = "\n\n".join(f"--- სტატია {i + 1} ---\n{a[:2600]}" for i, a in enumerate(articles[:3]))
     allowed = sorted(news_check.numbers(" ".join(articles)), key=lambda x: (len(x), x))
     allowed_line = ", ".join(allowed[:40]) if allowed else "არცერთი"
     georgian = kaeasy.prompt_block()  # free: kaeasy's ten rules + the fleet's frequent mistakes, when installed
     return (f"{STYLE}\n\n{georgian + chr(10) * 2 if georgian else ''}{schema()}\n\n{_variety_line(avoid)}"
+            f"{mistakes + chr(10) * 2 if mistakes else ''}"
             f"დაწერე ამ კლასტერის 30-40 წამიანი ვიდეოს სცენარი.\n"
             f"სათაური: {cluster.get('headline', '')}\n"
             f"კატეგორია: {cluster.get('category', 'general')}\n"
@@ -291,10 +301,12 @@ def _checks(story: dict, articles: list[str], cluster: dict):
 
 
 def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 2,
-          avoid: list[str] | None = None) -> dict:
-    """avoid: the scene orders the latest videos used (variety.recent_sequences), so this one can differ."""
+          avoid: list[str] | None = None, mistakes: str = "", on_problems=None) -> dict:
+    """avoid: the scene orders the latest videos used (variety.recent_sequences), so this one can differ.
+    mistakes: the brand's recent failed rules (failures.prompt_block); on_problems(list): called with the problems
+    of every pass that goes back for a repair (failures.record)."""
     model = model or MODEL
-    story = _object(_call(_prompt(cluster, articles, avoid), model))
+    story = _object(_call(_prompt(cluster, articles, avoid, mistakes), model))
     story.pop("sources", None)
     story.pop("date", None)
     story.setdefault("category", cluster.get("category", "general"))
@@ -309,7 +321,9 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     for _ in range(repairs):
         if not problems:
             break
-        fix = (f"{_prompt(cluster, articles, avoid)}\n\nწინა პასუხი უარყოფილია ამ შეცდომებით:\n- "
+        if on_problems:
+            on_problems(list(problems))
+        fix = (f"{_prompt(cluster, articles, avoid, mistakes)}\n\nწინა პასუხი უარყოფილია ამ შეცდომებით:\n- "
                + "\n- ".join(problems[:12])
                + "\n\nგანსაკუთრებით: არ დატოვო არც ერთი რიცხვი, რომელიც სტატიაში არ არის; "
                + "თუ timeline სცენას სტატიაში ზუსტი დრო არ აქვს, წაშალე ის და მისი ტექსტი narration-იდანაც მოხსენი.\n"
@@ -334,7 +348,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
             if not _anchors_ok(story):
                 problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if problems:
-        raise ValueError("checks failed: " + "; ".join(problems[:6]))
+        raise ChecksFailed(problems)
     # The free writer's Georgian is serviceable but not publishable. One editor pass fixes
     # grammar and calques while the facts, numbers and anchors stay frozen; if the edit breaks
     # a check, the pre-edit script is kept.

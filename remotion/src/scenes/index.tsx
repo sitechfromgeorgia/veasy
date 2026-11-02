@@ -6,7 +6,9 @@ import { Bars, Change, Draw, Pair, Steps, Trend } from "./more";
 import { Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, useIn, useStyle, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
-const LOW = RAIL_X - SIDE; // text that reaches the lower part stays left of the like/share rail
+// text that reaches the lower part stays left of the like/share rail (a card's content starts further right)
+const low = (inner: number) => Math.min(inner, RAIL_X - (W - inner) / 2);
+const MID = 2 * (RAIL_X - W / 2); // 800: the widest centered text that still ends left of the rail
 
 type P = { s: Scene; inner?: number };
 
@@ -78,7 +80,7 @@ export const Stat: React.FC<P> = ({ s, inner = INNER }) => {
           {s.prefix}<CountUp to={value} delay={4} />{s.suffix}
         </div>
       </In>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 48, width: Math.min(inner, LOW) }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 48, width: low(inner) }}>
         {Array.from({ length: cells }, (_, i) => (
           <div key={i} style={{ flex: 1, height: 40, borderRadius: 4, background: i < fill ? INK : "transparent",
             border: `2px solid ${i < fill ? INK : LINE_STRONG}` }} />
@@ -86,7 +88,7 @@ export const Stat: React.FC<P> = ({ s, inner = INNER }) => {
         <Dot size={24} pulse />
       </div>
       <In delay={14}>
-        <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 64, lineHeight: 1.2, color: INK, marginTop: 48, maxWidth: Math.min(inner, LOW) }}>
+        <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 64, lineHeight: 1.2, color: INK, marginTop: 48, maxWidth: low(inner) }}>
           {s.label}
         </div>
       </In>
@@ -130,7 +132,7 @@ export const Timeline: React.FC<P> = ({ s, inner = INNER }) => {
       </div>
       <In delay={28}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: tight ? 48 : 56, lineHeight: 1.2, color: INK, marginTop: tight ? 24 : 40,
-          maxWidth: Math.min(inner, LOW) }}>
+          maxWidth: low(inner) }}>
           {s.label}
         </div>
       </In>
@@ -146,24 +148,29 @@ export const Where: React.FC<P> = ({ s, inner = INNER }) => {
   const words = String(s.place ?? "").split(" ").filter(Boolean);
   const half = Math.ceil(words.length / 2);
   const placeLines = words.length > 2 ? [words.slice(0, half).join(" "), words.slice(half).join(" ")] : [String(s.place ?? "")];
-  const size = fitSize(placeLines, inner, 148, 54);
+  // The name sits low and centered: it stays inside MID so it ends left of the rail. A card has less height, so its
+  // map is shorter and the pin smaller (the layout probe found the sub line on the card's footer).
+  const width = Math.min(inner, MID);
+  const size = fitSize(placeLines, width, 148, 54);
+  const tight = inner < INNER - 40;
+  const mapH = tight ? 340 : 460, cy = tight ? 230 : 300, pinK = tight ? 0.72 : 1;
   return (
     <Frame s={s}>
-      <div style={{ position: "relative", height: 460 }}>
-        <svg width={inner} height={460} viewBox={`0 0 ${inner} 460`} style={{ position: "absolute", left: 0 }}>
+      <div style={{ position: "relative", height: mapH }}>
+        <svg width={inner} height={mapH} viewBox={`0 0 ${inner} ${mapH}`} style={{ position: "absolute", left: 0 }}>
           {[-3, -2, -1, 0, 1, 2, 3].map((k) => (
-            <line key={`h${k}`} x1={0} y1={300 + k * 64} x2={inner} y2={300 + k * 64} stroke={LINE} strokeWidth={2} />
+            <line key={`h${k}`} x1={0} y1={cy + k * 64} x2={inner} y2={cy + k * 64} stroke={LINE} strokeWidth={2} />
           ))}
           {[-6, -4, -2, 0, 2, 4, 6].map((k) => (
-            <line key={`v${k}`} x1={inner / 2 + k * 64} y1={0} x2={inner / 2 + k * 64} y2={460} stroke={LINE} strokeWidth={2} />
+            <line key={`v${k}`} x1={inner / 2 + k * 64} y1={0} x2={inner / 2 + k * 64} y2={mapH} stroke={LINE} strokeWidth={2} />
           ))}
           {[0, 1, 2].map((i) => {
             const t = ((frame - i * 18) % 54) / 54;
             return frame >= i * 18 ? (
-              <circle key={i} cx={inner / 2} cy={300} r={40 + t * 330} fill="none" stroke={INK} strokeWidth={3} opacity={(1 - t) * 0.5} />
+              <circle key={i} cx={inner / 2} cy={cy} r={(40 + t * 330) * pinK} fill="none" stroke={INK} strokeWidth={3} opacity={(1 - t) * 0.5} />
             ) : null;
           })}
-          <g transform={`translate(${inner / 2} 300) scale(${pin})`}>
+          <g transform={`translate(${inner / 2} ${cy}) scale(${pin * pinK})`}>
             <path d="M0 -250c-74 0-130 56-130 128 0 96 130 222 130 222s130-126 130-222c0-72-56-128-130-128z" fill={INK} />
             <circle cx={0} cy={-122} r={46} fill={RED} />
           </g>
@@ -171,10 +178,11 @@ export const Where: React.FC<P> = ({ s, inner = INNER }) => {
       </div>
       <In delay={10}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.12, color: INK, textAlign: "center",
-          marginTop: 32 }}>{placeLines.map((l, i) => <div key={i}>{l}</div>)}</div>
+          marginTop: 32, maxWidth: width, marginLeft: "auto", marginRight: "auto" }}>{placeLines.map((l, i) => <div key={i}>{l}</div>)}</div>
       </In>
       <In delay={16}>
-        <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 44, lineHeight: 1.3, color: MUTED, textAlign: "center", marginTop: 16 }}>
+        <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 44, lineHeight: 1.3, color: MUTED, textAlign: "center", marginTop: 16,
+          maxWidth: width, marginLeft: "auto", marginRight: "auto" }}>
           {s.sub}
         </div>
       </In>
@@ -186,7 +194,7 @@ const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((
 
 export const Who: React.FC<P> = ({ s, inner = INNER }) => {
   const items = (s.items ?? []).slice(0, 3) as { name: string; role?: string }[];
-  const width = Math.min(inner, LOW);
+  const width = low(inner);
   return (
     <Frame s={s}>
       <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
@@ -222,7 +230,7 @@ export const Points: React.FC<P> = ({ s, inner = INNER }) => {
       {items.map((t, i) => (
         <In key={i} delay={6 + i * 10}>
           <div style={{ display: "flex", alignItems: "center", gap: 40, padding: "32px 0", borderTop: `2px solid ${LINE}`,
-            width: Math.min(inner, LOW) }}>
+            width: low(inner) }}>
             <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 120, lineHeight: 1, width: 120, flex: "none",
               color: i === active ? INK : MUTED }}>{i + 1}</div>
             <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 64, lineHeight: 1.2, color: INK, flex: 1 }}>{t}</div>
@@ -259,7 +267,7 @@ export const Quote: React.FC<P> = ({ s }) => {
 export const Sources: React.FC<P> = ({ s, inner = INNER }) => {
   const { props } = useTheme();
   const names = props.sources.slice(0, 8);
-  const width = Math.min(inner, LOW);
+  const width = low(inner);
   return (
     <Frame s={s}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 40 }}>
@@ -292,11 +300,15 @@ export const End: React.FC<P> = () => {
       <div style={{ marginTop: 40, width: 416, height: 416, background: "#FFFFFF", padding: 16, borderRadius: RADIUS,
         transform: `scale(${0.7 + 0.3 * qr})`, opacity: qr }} dangerouslySetInnerHTML={{ __html: props.qrSvg }} />
       <In delay={16}>
-        <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 44, color: INK, marginTop: 32 }}>{props.url}</div>
+        <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: fitSize([props.url], MID, 44, 28), color: INK, marginTop: 32,
+          whiteSpace: "nowrap" }}>{props.url}</div>
       </In>
       <In delay={22}>
-        <div style={{ marginTop: 32, background: RED, color: ON_ACCENT, fontFamily: FONT, fontWeight: 700, fontSize: 48,
-          padding: "20px 48px 26px", borderRadius: 999, whiteSpace: "nowrap" }}>{props.cta}</div>
+        {/* the button sits below y=1100: it stays inside MID, left of the rail, however long the call is */}
+        <div style={{ marginTop: 32, background: RED, color: ON_ACCENT, fontFamily: FONT, fontWeight: 700,
+          fontSize: fitSize([props.cta], MID - 96, 48, 32), padding: "20px 48px 26px", borderRadius: 999, whiteSpace: "nowrap" }}>
+          {props.cta}
+        </div>
       </In>
     </div>
   );

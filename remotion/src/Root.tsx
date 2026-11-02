@@ -1,15 +1,12 @@
-import { loadFont } from "@remotion/fonts";
 import React from "react";
-import { Composition, continueRender, delayRender, staticFile } from "remotion";
+import { Composition } from "remotion";
 import { DEFAULT_BRAND } from "./brand";
+import { withBrandFonts } from "./fonts";
 import { NewsShort } from "./NewsShort";
 import type { ShortProps } from "./types";
 
-// The brand pack's one family, from the render's public dir (props.py copies its four weights there as brand-<w>).
-const fonts = delayRender("fonts");
-Promise.all(["400", "500", "600", "700"].map((w) =>
-  loadFont({ family: "Brand", url: staticFile(`fonts/brand-${w}.woff2`), weight: w })))
-  .then(() => continueRender(fonts)).catch((e) => { throw e; });
+// The brand pack's fonts load in fonts.tsx; nothing is laid out before they are in (text is sized by measuring it).
+const Short = withBrandFonts(NewsShort);
 
 const sample: ShortProps = {
   brand: DEFAULT_BRAND, variant: "editorial", transition: "line", id: 0, category: "მსოფლიო", date: { date: "1 ნოემბერი 2026", time: "22:38", weekday: "კვირა" },
@@ -21,7 +18,7 @@ const sample: ShortProps = {
 export const Root: React.FC = () => (
   <Composition
     id="NewsShort"
-    component={NewsShort as unknown as React.FC<Record<string, unknown>>}
+    component={Short as unknown as React.FC<Record<string, unknown>>}
     width={1080}
     height={1920}
     fps={30}

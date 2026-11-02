@@ -9,7 +9,8 @@ kaeasy handles Georgian writing, Veasy handles video.
   folder, no code.
 - **Who drives it:** an agent, through formats it can choose and extend and a **job queue** that makes each video
   once, retries what failed for a passing reason and keeps every file in one place under one naming scheme.
-- **Built-in quality gates:** news integrity rules, Georgian quality through kaeasy, and caption stability.
+- **Built-in quality gates:** news integrity rules, Georgian quality through kaeasy, caption stability, and renders
+  that check themselves (a layout probe on every render, golden stills, a memory of what failed).
 - **First client:** [tbilisi.today](https://tbilisi.today), daily Georgian news Shorts from multi-source stories
   (D1 story clusters, read only).
 - **Layout:** the repo root is a Hermes plugin (`plugin.yaml`, `__init__.py`, `skills/`), like kaeasy. Claude Code
@@ -25,8 +26,8 @@ bash /root/.hermes/shared-plugins/veasy/ops/install.sh --align    # the engine's
 ```
 
 What the agent gets:
-- **Tools:** `veasy_options`, `veasy_check`, `veasy_render`, `veasy_still`, `veasy_qa`, `veasy_write`,
-  `veasy_queue` and `veasy_doctor`.
+- **Tools:** `veasy_options`, `veasy_check`, `veasy_render`, `veasy_still`, `veasy_qa`, `veasy_probe`,
+  `veasy_write`, `veasy_queue` and `veasy_doctor`.
   - Each runs the engine in its own venv and returns its JSON.
   - A render takes a minute or two; the agent needs none of the render libraries.
 - **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:formats`, `veasy:queue`, `veasy:brands`.
@@ -49,7 +50,10 @@ python -m tt_shorts.engine write  --source tbilisi-today --ref 24886 [--brand tb
 python -m tt_shorts.engine check  <story.json> --sources <story>.sources.json
 python -m tt_shorts.engine render <story.json> --format news [--look kinetic] [--captions roll] [--voice warm]
 python -m tt_shorts.engine still  <story.json>                     # one PNG per scene, no video
-python -m tt_shorts.engine qa     <file.mp4>                       # size, length, loudness + a contact sheet
+python -m tt_shorts.engine qa     <file.mp4>                       # size, length, loudness, the probe + a contact sheet
+python -m tt_shorts.engine probe  <story.json> [--look all]        # where every text really is, per scene (free)
+python -m tt_shorts.engine selftest [--update]                     # golden stills: run before merging a visual change
+python -m tt_shorts.engine learn  [--brand sitech]                 # the rules failing most lately
 python -m tt_shorts.engine queue  add --ref 24886 | list | run | show <id> | retry <id> | cancel <id>
 python -m tt_shorts.engine gc     [--dry-run]                      # retention (below)
 python -m tt_shorts.engine voices --story <story.json>             # Gemini tone samples, by ear
@@ -77,26 +81,46 @@ One home, `$VEASY_HOME` (default `<veasy>/data`; `SHORTS_DATA` is still read), w
 
 ```
 .env                                         secrets (chmod 600), never in git
-veasy.db                                     the job queue and the cost ledger (SQLite)
+veasy.db                                     the job queue, the cost ledger, variety and failures (SQLite)
 stories/<brand>/<day>/<ref>.json             a story; <ref>.sources.json beside it (the articles)
 renders/<brand>/<day>/<ref>-<format>-<look>-<captions>.mp4   + .json (what was rendered) + .sheet.jpg (QA)
 cache/voices/<sha16>/                        one voice per (engine, voice, style, spoken text): re-renders are free
 cache/work/<job>/                            render scratch, deleted after a good render
+cache/bundles/<sha16>/                       the Remotion bundle per version of remotion/src (probe, selftest)
 logs/<day>.jsonl                             one JSON line per event (queued, written, rendered, failed, gc)
 ```
 Names are lowercase ASCII with hyphens (Georgian and spaces become hyphens); `day` is the server's date. A job is
 `<brand>-<ref>-<format>`, e.g. `tbilisi-today-24725-news`. Retention (`engine gc`, safe for cron): scratch 2 days,
-renders 30, voices and logs 90; stories are kept, they are the record of what was published.
+bundles 14, renders 30, voices and logs 90; stories are kept, they are the record of what was published.
 
 ## The queue (`tt_shorts/queue.py`)
 
 A job is one video: (brand, source, ref, format, overrides); its id is a hash of exactly that, so the same request
 twice is the same job. `queue run` takes the oldest highest-priority job, writes the story if it has none, checks
-it (news rules, Georgian, kaeasy), renders, runs QA and ends `done` (ready to publish) or `held` (QA problems or
-a preview voice; a person looks). Errors are classed: `transient` ones (network, 429, 5xx) are re-queued after 5, 10 and 20 minutes;
+it (news rules, Georgian, kaeasy), renders, runs QA and ends `done` (ready to publish) or `held` (QA or layout
+probe problems, or a preview voice; a person looks). Errors are classed: `transient` ones (network, 429, 5xx) are re-queued after 5, 10 and 20 minutes;
 `config`, `content`, `layout` and `render` ones fail with the reason, for a fix and `queue retry`. One worker at a
 time per machine (a lock), so cron can call `queue run` every few minutes. `ops/daily.py` picks the day's
 tbilisi.today stories and queues them.
+
+## Renders that check themselves (`probe.py`, `golden.py`, `failures.py`)
+
+About fifty videos a day go out without a person looking, so the engine looks for what a person would catch.
+- **Layout probe** (`tt_shorts/probe.py`, `remotion/src/Probe.tsx`, `remotion/probe.mjs`): every render first
+  renders each scene's settled frame (entrances done, exit not begun) in one browser, and the page reports the real
+  box of every text it draws. The rules: scene text inside 248-1380; nothing right of x=940 below y=1100 (scene
+  text and captions); captions above 1552; nothing outside the frame; no text past its box (`scrollWidth >
+  clientWidth`, a line on a card's footer); every glyph in the brand font (checked against the woff2's cmap); the
+  pack's font, loaded before the frame was laid out; nothing shrunk under 24 px (40 in captions). A problem holds
+  the job; `engine probe <story> --look all` runs it alone in ~5 s a look (the bundle is cached per version of
+  `remotion/src`). `VEASY_PROBE=0` turns it off.
+- **Golden stills** (`engine selftest`): the two fixture stories in every look with one fixed style, each scene's
+  still hashed (a 16x16 dHash of the frame and a 32x32 one of the scene band) and compared with `tests/golden/`.
+  It names the scenes that changed and fails on any probe problem; `--update` accepts a deliberate change. Run it
+  before merging a visual change; it is not a unit test (half a minute).
+- **Failure memory** (`failures` in `veasy.db`): every failed check (the writer's passes, the checks, render and
+  QA problems, errors by class) is a row (ts, brand, stage, rule, message). `engine learn` lists the rules failing
+  most lately; the writer's prompt carries the brand's recent mistakes (`failures.prompt_block`).
 
 ## Variety (`tt_shorts/variety.py`)
 

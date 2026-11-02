@@ -47,7 +47,7 @@ const PageCaptions: React.FC<{ cap: CaptionLayout; t: number }> = ({ cap, t }) =
   const boxIn = afterGap ? interpolate(t - p.start, [0, 0.2], [0, 1], clamp) : 1;
   const rowH = size * lineHeight;
   return (
-    <div style={{ position: "absolute", left: W - RAIL_X, width: band, bottom: H - CAPTION_BOTTOM, height: rowH * 2 + 2 * 14,
+    <div data-probe="captions" style={{ position: "absolute", left: W - RAIL_X, width: band, bottom: H - CAPTION_BOTTOM, height: rowH * 2 + 2 * 14,
       background: alpha(CANVAS, 0.8), border: `2px solid ${LINE}`, borderRadius: RADIUS, opacity: Math.min(boxIn, out),
       display: "flex", alignItems: "center", justifyContent: "center", padding: `0 ${pad}px` }}>
       <div style={{ opacity: enter, transform: `translateY(${(1 - enter) * 10}px)` }}>
@@ -74,7 +74,7 @@ const RollCaptions: React.FC<{ cap: CaptionLayout; t: number }> = ({ cap, t }) =
     interpolate(t, [last.end - 0.25, last.end], [1, 0], clamp));
   const viewH = rowH * 3;
   return (
-    <div style={{ position: "absolute", left: W - RAIL_X, width: band, bottom: H - CAPTION_BOTTOM, height: viewH + 24,
+    <div data-probe="captions" data-probe-clip style={{ position: "absolute", left: W - RAIL_X, width: band, bottom: H - CAPTION_BOTTOM, height: viewH + 24,
       background: alpha(CANVAS, 0.62), borderRadius: RADIUS, overflow: "hidden", opacity: fade,
       WebkitMaskImage: "linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%)",
       maskImage: "linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%)" }}>

@@ -21,24 +21,28 @@ python -m tt_shorts.engine queue show <id> | retry <id> | cancel <id>
 
 ```
 queued -> writing -> rendering -> done      QA passed, real voice: ready to publish (result.file, result.qa)
-                              \-> held      rendered, but QA found problems or it was a preview voice
-                                            (`queue run --engine silent|edge`): a person looks (error says what)
+                              \-> held      rendered, but QA or the layout probe found problems, or it was a
+                                            preview voice (`queue run --engine silent|edge`): a person looks
+                                            (error says what; `probe ...` lines are layout, see veasy:qa)
               any step -------> failed      error_class + error; fix the cause, then `queue retry <id>`
 cancelled: taken out by hand
 ```
 `error_class`: `transient` (network, 429, 5xx, timeouts: re-queued by itself after 5, 10, 20 min, then failed),
 `config` (a key, a format or a brand pack is wrong), `content` (the story failed a check: fix the story, never the
 rule), `layout` (scene timing), `render` (Remotion or ffmpeg: read the log line). Higher `--priority` runs first.
+Every failed check is remembered (`failures` in veasy.db): `python -m tt_shorts.engine learn [--brand ...]` lists
+the rules failing most lately, and the writer reads them before its next script.
 
 ## Where things are (VEASY_HOME, default <veasy>/data)
 
 ```
-veasy.db                                   the queue and the cost ledger (SQLite)
+veasy.db                                   the queue, the cost ledger, variety and failures (SQLite)
 stories/<brand>/<day>/<ref>.json           the story; <ref>.sources.json beside it (the articles)
 renders/<brand>/<day>/<ref>-<format>-<look>-<captions>.mp4
                                            + .json (what was rendered, with which voice and kaeasy) + .sheet.jpg
 cache/voices/<sha16>/                      one voice track per (engine, voice, style, spoken text): re-renders free
 cache/work/<job>/                          scratch, deleted after a good render
+cache/bundles/<sha16>/                     the Remotion bundle per version of remotion/src (probe, selftest)
 logs/<day>.jsonl                           one JSON line per event (queued, written, rendered, failed, gc)
 ```
 Names are lowercase ASCII with hyphens; `day` is the server's date when the work was done. A job is named

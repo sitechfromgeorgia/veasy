@@ -105,4 +105,5 @@ export type ShortProps = {
   musicVolume: number;
   sourcesLine: string; // "წყარო: პირველი არხი, იმედი ნიუსი +5"
   previewNote: string | null; // e.g. the temporary preview voice, shown small above the ticker
+  probe?: boolean; // tt_shorts/probe.py: report where every text block is (remotion/src/Probe.tsx)
 };
