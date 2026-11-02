@@ -47,6 +47,8 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N9 news); this is the w
 - `draw`: at most one per video. The style guide is `tt_shorts/art.py` GUIDE (line art, tokens INK, MUTED, LINE,
   CANVAS and ACCENT for the one focal part, motion classes r/p/s with `--d` delays, up to 4 Georgian labels).
   `check` sends back anything the whitelist removed. A drawing needs 8 narration words (about 3.5 s).
+  The automatic writer draws only with `VEASY_WRITER_DRAW=1` (off by default until its drawings are looked at);
+  an agent writing by hand can use `draw` any time.
 
 ## Narration
 

@@ -71,6 +71,21 @@ class Draw(unittest.TestCase):
         self.assertEqual((out["from"], out["duration"]), (0, 90))
 
 
+class Writer(unittest.TestCase):
+    def test_the_writer_draws_only_when_turned_on(self):  # no review before publishing: unproven drawings stay off
+        from tt_shorts import writer
+        with mock.patch.dict("os.environ", {writer.DRAW_ENV: "0"}):
+            off = writer._prompt({"headline": "x"}, ["ა 1"])
+            self.assertNotIn('"svg"', off)
+            self.assertNotIn(art.GUIDE[:40], off)
+            self.assertIn('never use a "draw" scene', off)
+            self.assertIn('"type": "bars"', off)  # the other new scenes are always on
+        with mock.patch.dict("os.environ", {writer.DRAW_ENV: "1"}):
+            on = writer._prompt({"headline": "x"}, ["ა 1"])
+            self.assertIn('"svg"', on)
+            self.assertIn(art.GUIDE[:40], on)
+
+
 class Shapes(unittest.TestCase):
     def test_counts_items_and_numbers(self):
         p = engine.shape_problems

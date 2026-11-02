@@ -20,6 +20,9 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 STYLE = (ROOT / "tt_shorts" / "ka_style.md").read_text(encoding="utf-8")
 MODEL = os.environ.get("SHORTS_WRITER_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free")
 FALLBACK = os.environ.get("SHORTS_WRITER_FALLBACK", "")
+# The writer may draw ("draw" scenes) only when VEASY_WRITER_DRAW=1: videos go out without a review, and a free
+# model's drawings are unproven here. An agent writing a story by hand can always use draw.
+DRAW_ENV = "VEASY_WRITER_DRAW"
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 
 SCHEMA = """
@@ -136,12 +139,24 @@ def _object(text: str) -> dict:
     raise ValueError("no JSON object in the model answer")
 
 
+def drawing() -> bool:
+    return os.environ.get(DRAW_ENV, "0") == "1"
+
+
+def schema() -> str:
+    """SCHEMA, with the draw scene and its style guide only when drawing is on."""
+    if drawing():
+        return f"{SCHEMA}\n{art.GUIDE}"
+    return "\n".join(line for line in SCHEMA.splitlines() if '"draw"' not in line) + \
+        '\n- never use a "draw" scene.'
+
+
 def _prompt(cluster: dict, articles: list[str]) -> str:
     body = "\n\n".join(f"--- სტატია {i + 1} ---\n{a[:2600]}" for i, a in enumerate(articles[:3]))
     allowed = sorted(news_check.numbers(" ".join(articles)), key=lambda x: (len(x), x))
     allowed_line = ", ".join(allowed[:40]) if allowed else "არცერთი"
     georgian = kaeasy.prompt_block()  # free: kaeasy's ten rules + the fleet's frequent mistakes, when installed
-    return (f"{STYLE}\n\n{georgian + chr(10) * 2 if georgian else ''}{SCHEMA}\n\n{art.GUIDE}\n\n"
+    return (f"{STYLE}\n\n{georgian + chr(10) * 2 if georgian else ''}{schema()}\n\n"
             f"დაწერე ამ კლასტერის 30-40 წამიანი ვიდეოს სცენარი.\n"
             f"სათაური: {cluster.get('headline', '')}\n"
             f"კატეგორია: {cluster.get('category', 'general')}\n"
