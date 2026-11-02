@@ -1,0 +1,5 @@
+{
+ "about": "The digest demo's request (source stories): two tbilisi.today stories, their articles from sources.json. A real three-story digest needs a third cluster with its articles (the server's D1).",
+ "stories": ["stories/24835.json", "stories/24725.json"],
+ "sources": "tests/fixtures/sources.json"
+}

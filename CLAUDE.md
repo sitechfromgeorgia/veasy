@@ -44,6 +44,10 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   the brand's last 20 before the voice is made; it warns, never fails a video. The writer draws (`art.py`:
   sanitize + quality; a failing drawing is swapped for a library one of its motif, `drawings.py`, else dropped,
   not the video); `VEASY_WRITER_DRAW=0` turns it off. A new seed drawing in `assets/drawings/` must pass both (`tests/test_drawings.py`).
+- **Rubrics** (`rubrics/<id>.json`, `tt_shorts/rubrics.py`, `veasy:rubrics`): named shows with a chip in the hook,
+  a shape, a slot and an episode. `rubric`, `episode` and `part` are code-owned like `date`; eligibility is
+  declarative data (no code strings); a new rubric needs a case in `tests/test_rubrics.py`. The digest (program
+  `digest`) is built by code from checked stories, never by a model, and states its real story count.
 - **Motion rules** (`tt_shorts/motion_rules.py`): warnings in `engine plan`; only unreadable text (0.5 s + 0.3 s a
   word) holds a render. A new rule needs a case in `tests/test_motion_rules.py`.
 - **Data flow:** source → story JSON → `tt_shorts/props.py` (voice, timings, data, the brand pack) → `remotion/`

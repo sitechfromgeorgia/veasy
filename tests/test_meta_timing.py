@@ -77,12 +77,17 @@ class Timing(unittest.TestCase):
         self.assertEqual([w["text"] for w in words], ["6400", "აბონენტს"])
         self.assertEqual((words[0]["start"], words[0]["end"]), (0.0, 1.4))
 
-    def test_sample_stories_fit(self):  # anchors in order, every scene long enough, 28-45 s
+    def test_sample_stories_fit(self):  # anchors in order, every scene long enough, 28-45 s (a rubric: its format's)
+        from tt_shorts import engine, formats
         for path in STORIES:
             story = json.loads(path.read_text(encoding="utf-8"))
             marks = speech.scene_frames(story, speech.estimate_words(story["narration"]))
             self.assertEqual(len(marks), len(story["scenes"]) + 1)
-            self.assertTrue(28 <= marks[-1] / speech.FPS <= 45, f"{path.name}: {marks[-1] / speech.FPS:.1f}s")
+            lo, hi = 28, 45
+            if story.get("rubric"):  # number: 20-25 s, the digest: 45-60 s
+                f = formats.get(engine.program_format(path))
+                lo, hi = f["min_seconds"], f["max_seconds"]
+            self.assertTrue(lo <= marks[-1] / speech.FPS <= hi, f"{path.name}: {marks[-1] / speech.FPS:.1f}s")
 
     def test_news_rules(self):  # the news samples (their articles are in the fixtures); sitech-* is a blog post
         news = [p for p in STORIES if str(json.loads(p.read_text(encoding="utf-8"))["id"]) in FIXTURES]

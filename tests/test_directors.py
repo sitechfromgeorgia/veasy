@@ -51,12 +51,12 @@ class Data(unittest.TestCase):
 
     def test_a_planned_brush_is_offered_once_it_exists(self):
         raw = json.loads((ROOT / "directors" / "data.json").read_text(encoding="utf-8"))
-        with mock.patch.object(directors, "PLANNED", ("agree",)):
-            d = directors.validate("data", {**raw, "scenes": {**raw["scenes"], "agree": 1}})
-            self.assertIn("agree", directors.planned(d))
-            self.assertNotIn("agree", directors.scene_types(d))
-            with mock.patch.dict(engine.SCENES, {"agree": (["items"], [], "facts in N outlets")}):
-                self.assertIn("agree", directors.scene_types(d))
+        with mock.patch.object(directors, "PLANNED", ("tally",)):
+            d = directors.validate("data", {**raw, "scenes": {**raw["scenes"], "tally": 1}})
+            self.assertIn("tally", directors.planned(d))
+            self.assertNotIn("tally", directors.scene_types(d))
+            with mock.patch.dict(engine.SCENES, {"tally": (["items"], [], "facts in N outlets")}):
+                self.assertIn("tally", directors.scene_types(d))
 
     def test_the_brushes_once_planned_are_offered_and_the_marker_is_a_device(self):
         d = directors.get("data")
@@ -153,7 +153,8 @@ class Assignment(unittest.TestCase):
         self.assertEqual(shown, set(directors.scene_types(d)) - {"sources"})  # sources has no example line
         plain = writer._prompt({"headline": "x"}, FIXTURES["24835"])
         self.assertNotIn("Direction for this video", plain)
-        self.assertEqual(set(re.findall(r'\{"type": "(\w+)"', plain)), set(engine.SCENES) - {"sources"})
+        # sources, agree and chapter have no example line (code fills them; agree comes with its rubric's brief)
+        self.assertEqual(set(re.findall(r'\{"type": "(\w+)"', plain)), set(engine.SCENES) - {"sources", "agree", "chapter"})
 
     def test_a_writer_set_director_is_dropped(self):
         answer = json.loads((ROOT / "stories" / "24835.json").read_text(encoding="utf-8"))

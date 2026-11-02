@@ -226,6 +226,16 @@ class Sitech(unittest.TestCase):
         self.assertEqual(sitech.rss_times(b"not xml"), {})
 
 
+class Stories(unittest.TestCase):
+    def test_checked_story_files_with_their_articles(self):  # the digest's source (more in test_rubrics.Digest)
+        data = sources.fetch("stories", "tests/fixtures/digest-demo.json")
+        self.assertEqual(len(data["stories"]), 2)
+        self.assertEqual(data["cluster"]["created_at"], "2026-11-01T18:38:46Z")  # the latest story's date
+        self.assertTrue(set(data["stories"][0]["articles"]) <= set(data["articles"]))
+        with self.assertRaises(ValueError):
+            sources.fetch("stories", "stories/24835.json,stories/24725.json")  # no articles beside them
+
+
 class Registry(unittest.TestCase):
     def test_every_source_is_known_and_described(self):
         self.assertEqual(set(sources.KNOWN), set(sources.ABOUT))

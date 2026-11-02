@@ -28,7 +28,8 @@ format choice. The map itself needs no format key; see `veasy:write-script`.)
 | `min_seconds`, `max_seconds` | the length window a render must land in | 18, 45 |
 
 Built-in: `news` (all defaults) and `news-roll` (roll captions); `formats/explainer.json` (25-45 s) is the
-default of the explainer and law programs (a program names its format: `veasy:programs`). `auto` and `family` follow the story's brand pack
+default of the explainer and law programs; `formats/number.json` (20-25 s) is the rubric „დღის ციფრი“'s and
+`formats/digest.json` (45-60 s) the morning digest's (`veasy:rubrics`) (a program names its format: `veasy:programs`). `auto` and `family` follow the story's brand pack
 (`options --brand <name>` shows its table). tbilisi.today: hard news `editorial` + `anchor`, light news `kinetic`,
 service news `cards`; people's news `warm`, numbers and tech `clear`, sports `plain`. SiTech: its own `sitech`
 voice (Charon) for every family. A format works for every brand; a pack's own voice only for that pack.
