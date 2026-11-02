@@ -6,6 +6,7 @@
 import React from "react";
 import { Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, FONT, INK, LINE_STRONG, MUTED, RAIL_X, RED, SIDE, W } from "../brand";
+import { marked } from "../marker";
 import type { Scene } from "../types";
 import { fitSize, Frame, In, useTheme } from "../ui";
 
@@ -137,7 +138,7 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number }> = ({ s, inner = IN
       {s.sub && (
         <In delay={14}>
           <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 40, lineHeight: 1.3, color: MUTED, marginTop: 12,
-            maxWidth: textW }}>{s.sub}</div>
+            maxWidth: textW }}>{marked(s, "sub", s.sub, { px: 44 })}</div>
         </In>
       )}
     </Frame>

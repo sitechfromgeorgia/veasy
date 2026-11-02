@@ -3,6 +3,7 @@
 import React from "react";
 import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, FONT, INK, LINE, LINE_STRONG, MUTED, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
+import { marked } from "../marker";
 import type { ArtNode, Scene } from "../types";
 import { Chip, Dot, fitSize, Frame, In, measure, useIn, useTheme } from "../ui";
 
@@ -92,7 +93,7 @@ export const Draw: React.FC<P> = ({ s, inner = INNER }) => {
       {s.label && (
         <In delay={Math.round(last * k * fps) + 6}>
           <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 52, lineHeight: 1.2, color: INK, marginTop: 24,
-            maxWidth: low(inner) }}>{s.label}</div>
+            maxWidth: low(inner) }}>{marked(s, "label", s.label, { px: 52 })}</div>
         </In>
       )}
     </Frame>
@@ -115,9 +116,9 @@ export const Pair: React.FC<P> = ({ s, inner = INNER }) => {
         <div style={{ width, boxSizing: "border-box", padding: "36px 48px 40px", background: PANEL, borderRadius: RADIUS,
           border: `2px solid ${i === 0 ? LINE_STRONG : LINE}` }}>
           <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.16, color: INK, whiteSpace: "nowrap" }}>
-            {it.title}
+            {marked(s, `items.${i}.title`, it.title, { px: size })}
           </div>
-          {it.sub && <div style={{ fontFamily: FONT, fontWeight: 400, fontSize: 40, lineHeight: 1.3, color: MUTED, marginTop: 12 }}>{it.sub}</div>}
+          {it.sub && <div style={{ fontFamily: FONT, fontWeight: 400, fontSize: 40, lineHeight: 1.3, color: MUTED, marginTop: 12 }}>{marked(s, `items.${i}.sub`, it.sub, { px: 40 })}</div>}
         </div>
       </In>
     );
@@ -170,7 +171,7 @@ export const Steps: React.FC<P> = ({ s, inner = INNER }) => {
                   background: i === active ? INK : ground, color: i === active ? ground : INK,
                   border: i === active ? "none" : `3px solid ${LINE_STRONG}` }}>{i + 1}</div>
                 <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.2, flex: 1,
-                  color: i <= active ? INK : MUTED }}>{t}</div>
+                  color: i <= active ? INK : MUTED }}>{marked(s, `items.${i}`, t, { px: size })}</div>
                 <span style={{ opacity: i === active ? 1 : 0, flex: "none" }}><Dot size={22} pulse /></span>
               </div>
             </In>
@@ -278,7 +279,7 @@ export const Trend: React.FC<P> = ({ s, inner = INNER }) => {
       {s.label && (
         <In delay={Math.round(8 + span)}>
           <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 52, lineHeight: 1.2, color: INK, marginTop: 24, maxWidth: width }}>
-            {s.label}
+            {marked(s, "label", s.label, { px: 52 })}
           </div>
         </In>
       )}
@@ -331,7 +332,7 @@ export const Change: React.FC<P> = ({ s, inner = INNER }) => {
       {s.label && (
         <In delay={30}>
           <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 48, lineHeight: 1.2, color: INK, marginTop: 32, maxWidth: width }}>
-            {s.label}
+            {marked(s, "label", s.label, { px: 48 })}
           </div>
         </In>
       )}
