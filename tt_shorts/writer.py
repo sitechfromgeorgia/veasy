@@ -179,24 +179,71 @@ def _anchors_ok(story: dict) -> bool:
     return True
 
 
+# Georgian has no hyphenation, so a broken head has to be typeset by hand: a line that holds one word leaves a
+# hole in the block, and a line that ends on a word belonging to what follows („და", „რომ") reads as a mistake.
+# The limit stays in characters because the hook renders at a fixed width and the composition shrinks the size.
+HANG = {"და", "თუ", "ან", "რომ", "მაგრამ", "ხოლო", "კი", "არ", "ვერ", "ამ", "ის", "ეს", "იმ", "მისი", "მათი",
+        "როცა", "რადგან", "თუმცა", "ასევე", "მერე"}
+
+
+def _width(words, i, j):
+    """Characters a line of words[i:j] takes, spaces included."""
+    return sum(len(w) for w in words[i:j]) + (j - i - 1)
+
+
+def hook_lines(lines, limit=22, max_lines=4):
+    """A hook headline as balanced lines: the fewest lines that read evenly, each within `limit` characters.
+
+    The old wrap was `len(cand) <= limit`, which splits wherever the count runs out: it produced a line of one
+    word and lines ending on „და". Here every split of 1..max_lines lines is scored (widest line + a penalty for
+    a one-word line and for a hanging ending), and the cheapest split wins; a head that fits on one line stays on
+    one line. Words are never changed or reordered.
+    """
+    words = " ".join(lines).split()
+    if not words:
+        return []
+    n = len(words)
+    if n == 1 or _width(words, 0, n) <= limit:
+        return [" ".join(words)]
+    best = None
+    for k in range(1, min(max_lines, n) + 1):
+        INF = float("inf")
+        # dp[i][j]: (bad, widest) for the first i words in j lines; bad counts a one-word line and a hanging ending.
+        # Compared lexicographically, so a split with no hole wins over a narrower one that has a hole.
+        dp = [[(INF, INF)] * (k + 1) for _ in range(n + 1)]
+        back = [[0] * (k + 1) for _ in range(n + 1)]
+        dp[0][0] = (0, 0)
+        for j in range(1, k + 1):
+            for i in range(j, n + 1):
+                for p in range(j - 1, i):
+                    if dp[p][j - 1][0] == INF or _width(words, p, i) > limit:
+                        continue
+                    bad = dp[p][j - 1][0] + ((i - p == 1) and i < n) + ((i < n) and words[i - 1] in HANG)
+                    cand = (bad, max(dp[p][j - 1][1], _width(words, p, i)))
+                    if cand < dp[i][j]:
+                        dp[i][j], back[i][j] = cand, p
+        if dp[n][k][0] == INF:
+            continue
+        key = (dp[n][k][0], k, dp[n][k][1])  # no holes first, then fewer lines (bigger type), then the narrowest
+        if best is None or key < best[0]:
+            best = (key, k, [row[:] for row in back])
+    if best is None:
+        return [" ".join(words)]  # nothing fits the limit; the composition shrinks the size
+    _, k, back = best
+    out, i = [], n
+    while i > 0:
+        p = back[i][k]
+        out.append(" ".join(words[p:i]))
+        i, k = p, k - 1
+    return out[::-1]
+
+
 def _wrap_hook(story: dict, limit: int = 22) -> None:
     """The hook renders at a fixed width; a line longer than ~18 characters clips."""
     for scene in story.get("scenes") or []:
         if scene.get("type") != "hook" or not isinstance(scene.get("lines"), list):
             continue
-        out = []
-        for line in scene["lines"]:
-            cur = ""
-            for word in str(line).split():
-                cand = (cur + " " + word).strip()
-                if len(cand) <= limit or not cur:
-                    cur = cand
-                else:
-                    out.append(cur)
-                    cur = word
-            if cur:
-                out.append(cur)
-        scene["lines"] = out
+        scene["lines"] = hook_lines([str(line) for line in scene["lines"]], limit)
 
 
 def _tidy_end(story: dict) -> None:

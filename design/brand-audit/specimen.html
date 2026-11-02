@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+<meta charset="utf-8">
+<title>SiTech — veasy pack vs brandbook 1.0</title>
+<style>
+@font-face { font-family: "FiraGO"; src: url("file:///root/.hermes/shared-knowledge/social/tools/fonts/ka/firago/FiraGO-Regular.ttf"); font-weight: 400; }
+@font-face { font-family: "FiraGO"; src: url("file:///root/.hermes/shared-knowledge/social/tools/fonts/ka/firago/FiraGO-Medium.ttf"); font-weight: 500; }
+@font-face { font-family: "FiraGO"; src: url("file:///root/.hermes/shared-knowledge/social/tools/fonts/ka/firago/FiraGO-Bold.ttf"); font-weight: 700; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1800px; height: 1350px; background: #0A0B0B; color: #EDEDED;
+       font-family: "FiraGO", sans-serif; padding: 64px; }
+.top { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.14); padding-bottom: 20px; }
+h1 { font-size: 44px; font-weight: 700; letter-spacing: 0; }
+.top span { font-size: 24px; color: #8C8C88; }
+.cols { display: flex; gap: 40px; margin-top: 40px; }
+.panel { width: 816px; }
+.pname { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+.psub { font-size: 21px; color: #8C8C88; margin-bottom: 24px; }
+.frame { height: 560px; border-radius: 18px; padding: 44px 40px; display: flex; flex-direction: column; justify-content: space-between; }
+.logo { height: 44px; }
+.head { font-size: 56px; font-weight: 700; line-height: 1.14; }
+.cap { font-size: 30px; font-weight: 700; line-height: 1.28; }
+.cap .dim { opacity: .45; }
+.fig { font-size: 84px; font-weight: 700; line-height: 1.05; }
+.row { display: flex; gap: 14px; margin-top: 26px; }
+.sw { flex: 1; }
+.chip { height: 74px; border-radius: 10px; border: 1px solid rgba(255,255,255,.16); }
+.hex { font-size: 19px; margin-top: 8px; color: #E7E7E3; }
+.role { font-size: 17px; color: #8C8C88; }
+.note { margin-top: 22px; font-size: 20px; line-height: 1.5; color: #B9B9B4; }
+.note b { color: #fff; }
+.ok { color: #8FE3B0; }
+.bad { color: #FF9A80; }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>SiTech ვიდეოში: ერთი ბრენდი, ორი პალიტრა</h1>
+  <span>veasy · brands/sitech/brand.json &nbsp;/&nbsp; sitech-brandbook-ka-v1</span>
+</div>
+
+<div class="cols">
+  <!-- NOW -->
+  <div class="panel">
+    <div class="pname">ახლა — veasy-ის <code>sitech</code> პაკი</div>
+    <div class="psub">ნაღები შავი + ნარინჯისფერი (sitech-shorts-იდან)</div>
+    <div class="frame" style="background:#171817">
+      <img class="logo" src="file:///root/.hermes/shared-knowledge/social/projects/sitech/brand/kit/sitech-logo-horizontal-white.svg" alt="">
+      <div class="head" style="color:#F1EDE4">რატომ იტვირთება<br>შენი საიტი ნელა?</div>
+      <div>
+        <div class="cap" style="color:#F1EDE4"><span class="dim">რატომ</span> იტვირთება <span class="dim">შენი საიტი</span></div>
+        <div style="height:5px;width:150px;background:#FF792E;margin-top:10px;border-radius:3px"></div>
+      </div>
+      <div class="fig" style="color:#FF792E">2,8 თვეში</div>
+      <div style="color:#B6B4AC;font-size:22px">sitech.ge · ციფრული სააგენტო</div>
+    </div>
+    <div class="row">
+      <div class="sw"><div class="chip" style="background:#171817"></div><div class="hex">#171817</div><div class="role">canvas</div></div>
+      <div class="sw"><div class="chip" style="background:#F1EDE4"></div><div class="hex">#F1EDE4</div><div class="role">ink · 15,2:1</div></div>
+      <div class="sw"><div class="chip" style="background:#FF792E"></div><div class="hex">#FF792E</div><div class="role">accent · 6,8:1</div></div>
+      <div class="sw"><div class="chip" style="background:#B6B4AC"></div><div class="hex">#B6B4AC</div><div class="role">muted · 8,6:1</div></div>
+    </div>
+    <div class="note"><b>პრობლემა:</b> <span class="bad">#FF792E ნარინჯისფერი ბრენდბუქში არ არსებობს.</span> ბრენდბუქი მონოქრომია — მხოლოდ ერთი ცისფერი აქცენტი.</div>
+  </div>
+
+  <!-- BRANDBOOK -->
+  <div class="panel">
+    <div class="pname">ბრენდბუქი 1.0 — წესი</div>
+    <div class="psub">Ink / White / Night / Mist / Cyan — ცისფერი მხოლოდ აქცენტი</div>
+    <div class="frame" style="background:#101313">
+      <img class="logo" src="file:///root/.hermes/shared-knowledge/social/projects/sitech/brand/kit/sitech-logo-horizontal-white.svg" alt="">
+      <div class="head" style="color:#F8FAFC">რატომ იტვირთება<br>შენი საიტი ნელა?</div>
+      <div>
+        <div class="cap" style="color:#F8FAFC"><span class="dim">რატომ</span> იტვირთება <span class="dim">შენი საიტი</span></div>
+        <div style="height:5px;width:150px;background:#00C8FF;margin-top:10px;border-radius:3px"></div>
+      </div>
+      <div class="fig" style="color:#00C8FF">2,8 თვეში</div>
+      <div style="color:#A9B1B4;font-size:22px">sitech.ge · ციფრული სააგენტო</div>
+    </div>
+    <div class="row">
+      <div class="sw"><div class="chip" style="background:#101313"></div><div class="hex">#101313</div><div class="role">Night · canvas</div></div>
+      <div class="sw"><div class="chip" style="background:#F8FAFC"></div><div class="hex">#F8FAFC</div><div class="role">Ink · 17,9:1</div></div>
+      <div class="sw"><div class="chip" style="background:#00C8FF"></div><div class="hex">#00C8FF</div><div class="role">Cyan · 9,5:1</div></div>
+      <div class="sw"><div class="chip" style="background:#05080F"></div><div class="hex">#05080F</div><div class="role">Night deep · panel</div></div>
+    </div>
+    <div class="note"><b>უპირატესობა:</b> <span class="ok">ლოგო ოფიციალურია</span> (sha256 ემთხვევა), ფერები — არა. Cyan მოქმედებაზე/აქცენტზე; ღია ფონზე მხოლოდ #0076A3.</div>
+  </div>
+</div>
+</body>
+</html>
