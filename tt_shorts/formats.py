@@ -6,6 +6,8 @@ A format chooses only among what the engine can do:
   look      auto | editorial | kinetic | cards      (auto: by the story's category, the pack's look_by_family)
   captions  page | roll                             (captions.py)
   transition auto | cut | line | panel | wipe | slide | push | dot   (auto: the look's own; props.TRANSITIONS)
+  outro     card | overlay | loop                   (swipe.py: the end card, a QR/link/CTA chip over the last
+                                                     scene, or a seamless loop back into the hook)
   voice     family | <a preset>                     (family: by category, the pack's voice_by_family; presets are
                                                      voices.PRESETS plus the packs' own, e.g. sitech)
   music     family | <a family in brand.FAMILIES> | off
@@ -18,15 +20,16 @@ keys (a file overrides a built-in of the same name). `python -m tt_shorts.engine
 import json
 import pathlib
 
-from tt_shorts import meta, voices
+from tt_shorts import meta, swipe, voices
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIR = ROOT / "formats"
 LOOKS = ("auto", "editorial", "kinetic", "cards")
 CAPTIONS = ("page", "roll")
 TRANSITIONS = ("auto", "cut", "line", "panel", "wipe", "slide", "push", "dot")  # props.TRANSITIONS + auto
-DEFAULTS = {"look": "auto", "captions": "page", "transition": "auto", "voice": "family", "music": "family",
-            "platform": "shorts", "min_seconds": 18, "max_seconds": 45}
+OUTROS = swipe.OUTROS
+DEFAULTS = {"look": "auto", "captions": "page", "transition": "auto", "outro": swipe.DEFAULT_OUTRO, "voice": "family",
+            "music": "family", "platform": "shorts", "min_seconds": 18, "max_seconds": 45}
 BUILTIN = {
     "news": {"label": "ამბავი: სტანდარტული", "about": "The default news Short: look and voice by category, "
              "two-line captions that never move."},
@@ -49,6 +52,8 @@ def validate(name, f):
         bad("captions", f["captions"], CAPTIONS)
     if f["transition"] not in TRANSITIONS:
         bad("transition", f["transition"], TRANSITIONS)
+    if f["outro"] not in OUTROS:
+        bad("outro", f["outro"], OUTROS)
     tones = ("family",) + tuple(sorted(voices.known()))
     if f["voice"] not in tones:
         bad("voice", f["voice"], tones)

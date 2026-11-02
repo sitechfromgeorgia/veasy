@@ -5,6 +5,8 @@ import {
   TICKER, W,
 } from "./brand";
 import { Captions } from "./Captions";
+import { useFontsLoaded } from "./fonts";
+import { LoopBack, loopSpeed, musicLevel, OutroChip, SwipeSlot } from "./outro";
 import { SCENES } from "./scenes";
 import type { Scene, ShortProps, Transition } from "./types";
 import { Chip, Dot, Logo, measure, Theme, useStyle, useTheme } from "./ui";
@@ -116,8 +118,8 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
     const left = SIDE - 16;
     const m = sceneMotion(tr, frame, s, first, last, durationInFrames, left);
     const own = tr === "line" || tr === "cut" || tr === "panel"; // the card's own entrance: it rises and settles
-    const enter = own ? interpolate(frame, [0, 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
-      easing: (t) => 1 - Math.pow(1 - t, 3) }) : 1;
+    const enter = own && !first ? interpolate(frame, [0, 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
+      easing: (t) => 1 - Math.pow(1 - t, 3) }) : 1; // the first card is there at frame 0 (outro.tsx: the opening)
     const shown = Math.min(enter, m.opacity);
     return (
       <div style={{ position: "absolute", left, right: SIDE - 16, top: SCENE_TOP, bottom: H - SCENE_BOTTOM, background: PANEL,
@@ -129,7 +131,7 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
         <div style={{ position: "absolute", left: CARD_PAD, right: CARD_PAD, bottom: 40, borderTop: `2px solid ${LINE}`, paddingTop: 20,
           display: "flex", justifyContent: "space-between", fontFamily: FONT, fontSize: 30, color: MUTED }}>
           <span>{fill(props.brand.strings.card_meta, { n: props.sources.length, time: props.date.time })}</span>
-          <span>{i + 1} / {props.scenes.length - 1}</span>
+          <span>{i + 1} / {props.scenes.filter((x) => x.type !== "end").length}</span>
         </div>
       </div>
     );
@@ -147,8 +149,9 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
 const Ticker: React.FC = () => {
   const { v, props } = useTheme();
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   const rows = [[props.category, props.date.date, ...props.sources, props.brand.label].join("  ·  ")];
-  const speed = v === "kinetic" ? 4 : 2.2;
+  const base = v === "kinetic" ? 4 : 2.2;
   return (
     <div style={{ position: "absolute", left: 0, right: 0, top: CAPTION_BOTTOM + 28, height: 180, overflow: "hidden" }}>
       {props.previewNote && (
@@ -156,6 +159,7 @@ const Ticker: React.FC = () => {
       )}
       {rows.map((r, i) => {
         const unit = (measure(`${r}  ·  `, 700) * 128) / 100;
+        const speed = loopSpeed(props, base, unit, durationInFrames); // a loop's ticker ends where it began
         const x = i === 0 ? -((frame * speed) % unit) : -unit + ((frame * speed) % unit);
         return (
           <div key={i} style={{ position: "absolute", top: 44, left: x, whiteSpace: "pre", fontFamily: FONT, fontWeight: 700,
@@ -190,7 +194,9 @@ const Footer: React.FC = () => {
 export const NewsShort: React.FC<ShortProps> = (props) => {
   applyBrand(props.brand); // before anything below reads a color
   const theme = useMemo(() => ({ v: props.variant, props }), [props]);
-  const { durationInFrames } = useVideoConfig();
+  const { durationInFrames, fps } = useVideoConfig();
+  const fonts = useFontsLoaded();
+  if (!fonts) return null; // nothing is measured with a fallback font (fonts.ts); the render waits for it
   return (
     <Theme.Provider value={theme}>
       <AbsoluteFill style={{ overflow: "hidden", fontFamily: FONT }}>
@@ -199,18 +205,20 @@ export const NewsShort: React.FC<ShortProps> = (props) => {
         <Header />
         {props.scenes.map((s, i) => (
           <Sequence key={i} from={s.from} durationInFrames={s.duration} layout="none">
-            <SceneSlot i={i} />
+            <SwipeSlot i={i}><SceneSlot i={i} /></SwipeSlot>
             {i > 0 && <Cut />}
           </Sequence>
         ))}
+        <OutroChip />
+        <LoopBack background={<Background />} hook={<SwipeSlot i={0}><SceneSlot i={0} /></SwipeSlot>} />
         <Captions cap={props.captions} />
         <Footer />
         {/* Studio preview only: the final mix is ffmpeg's (voice levelled alone, music at one constant level) */}
-        {props.voice && <Html5Audio src={staticFile(props.voice)} volume={props.voiceVolume} />}
+        {props.voice && <Html5Audio src={staticFile(props.voice)} volume={props.voiceVolume}
+          trimBefore={props.voiceTrim ? Math.round(props.voiceTrim * fps) : undefined} />}
         {props.music && (
           <Html5Audio src={staticFile(props.music)} loop
-            volume={(f) => props.musicVolume *
-              interpolate(f, [0, 30, durationInFrames - 75, durationInFrames], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} />
+            volume={(f) => props.musicVolume * musicLevel(props, f, durationInFrames)} />
         )}
       </AbsoluteFill>
     </Theme.Provider>

@@ -31,7 +31,7 @@ import subprocess
 import sys
 
 from tt_shorts import brand as packs
-from tt_shorts import captions, formats, ka_check, kaeasy, meta, news_check, props, speech, store, variety, voices
+from tt_shorts import captions, formats, ka_check, kaeasy, meta, news_check, props, speech, store, swipe, variety, voices
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -96,7 +96,8 @@ def options(brand_name=None):
                         "panel": "an ink panel wipes through", "wipe": "the new scene is revealed left to right",
                         "slide": "a short slide and fade", "push": "the old scene leaves left, the new one comes from the right",
                         "dot": "an iris opens from the header's progress dot"},
-        "captions": {"page": "a fixed two-line block; words light up as spoken (most stable)",
+        "outros": dict(swipe.ABOUT),
+        "captions": {"page":"a fixed two-line block; words light up as spoken (most stable)",
                      "roll": "a three-line teleprompter that scrolls continuously"},
         "voices": {name: {"label": p["label"], "voice": p["voice"], "approved": name in voices.APPROVED,
                           **({"brand": b["name"]} if name in (b.get("voices") or {}) else {})}
@@ -218,7 +219,8 @@ def render_story(story_path, fmt, engine="gemini", out_path=None):
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     work, p = props.build(str(story_path), fmt["look"], engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
-                          caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"])
+                          caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
+                          outro=fmt["outro"])
     secs = p["durationInFrames"] / FPS
     target = pathlib.Path(out_path) if out_path else store.render_path(
         brand_of(story), story["id"], fmt["name"], p["variant"], fmt["captions"])
@@ -226,7 +228,7 @@ def render_story(story_path, fmt, engine="gemini", out_path=None):
     variety.record(brand_of(story), story["id"], p["variant"], {**p["style"], "transition": p["transition"],
                                                                 "music": p["music"]}, [x["type"] for x in p["scenes"]])
     result = {"file": str(target.resolve()), "seconds": round(secs, 1), "format": fmt["name"], "look": p["variant"],
-              "style": p["style"], "transition": p["transition"],
+              "style": p["style"], "transition": p["transition"], "outro": p["outro"],
               "captions": fmt["captions"], "voice": fmt["voice"], "engine": engine, "music": p["music"],
               "brand": brand_of(story), "story": str(pathlib.Path(story_path).resolve()),
               "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version()}
@@ -241,8 +243,8 @@ def render_story(story_path, fmt, engine="gemini", out_path=None):
 
 
 def _format(a):
-    return formats.get(a.format, look=a.look, captions=a.captions, transition=a.transition, voice=a.voice, music=a.music,
-                       platform=a.platform)
+    return formats.get(a.format, look=a.look, captions=a.captions, transition=a.transition, outro=a.outro, voice=a.voice,
+                       music=a.music, platform=a.platform)
 
 
 def _kaeasy_required():
@@ -262,7 +264,8 @@ def still(a):
     story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     work, p = props.build(a.story, fmt["look"], a.engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
-                          caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"])
+                          caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
+                          outro=fmt["outro"])
     frames = [int(x) for x in a.frames.split(",")] if a.frames else \
         [s["from"] + s["duration"] // 2 for s in p["scenes"]]  # default: the middle of every scene
     target = pathlib.Path(a.out) if a.out else store.home() / "renders" / store.safe(brand_of(story)) / store.today() / "stills"
@@ -292,7 +295,8 @@ def _loudness(path):
 
 
 def qa_file(path, fmt):
-    """Size, length window, loudness and a contact sheet -> dict with "problems". Used by `qa` and the queue."""
+    """Size, length window, loudness, a readable hook at frame 0 (swipe.opening_problems) and a contact sheet
+    -> dict with "problems". Used by `qa` and the queue."""
     path = pathlib.Path(path)
     if not path.exists():
         return {"problems": [f"no such file: {path}"]}
@@ -310,13 +314,16 @@ def qa_file(path, fmt):
         problems.append("no audio track")
     elif not -19 <= loud.get("I", -99) <= -13:
         problems.append(f"loudness {loud.get('I')} LUFS, expected -19..-13 (voice -16, music under it)")
+    ink = swipe.opening_ink(path)  # the first frame decides the swipe: the hook must be on screen there
+    problems += swipe.opening_problems(path, ink)
     sheet = path.with_suffix(".sheet.jpg")
     n = 8
     subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(path), "-vf",
                     f"fps={n / max(secs, 1):.4f},scale=270:480,tile={n}x1", "-frames:v", "1", "-q:v", "4", str(sheet)],
                    check=False)
     return {"file": str(path.resolve()), "seconds": round(secs, 1), "size": [v.get("width"), v.get("height")],
-            "loudness": loud, "sheet": str(sheet.resolve()) if sheet.exists() else None, "problems": problems}
+            "loudness": loud, "opening_ink": None if ink is None else round(ink, 3),
+            "sheet": str(sheet.resolve()) if sheet.exists() else None, "problems": problems}
 
 
 def qa(a):
@@ -364,7 +371,8 @@ def voice_samples(a):
 def queue_cmd(a):
     from tt_shorts import queue
     if a.action == "add":
-        overrides = {k: getattr(a, k) for k in ("look", "captions", "transition", "voice", "music", "platform") if getattr(a, k)}
+        overrides = {k: getattr(a, k) for k in ("look", "captions", "transition", "outro", "voice", "music", "platform")
+                     if getattr(a, k)}
         job, created = queue.add(a.brand, a.source if not a.story else None, a.ref, a.format, overrides, a.story,
                                  a.priority)
         return out({"job": job, "created": created})
@@ -442,6 +450,7 @@ def main(argv=None):
         r.add_argument("--look", choices=formats.LOOKS)
         r.add_argument("--captions", choices=formats.CAPTIONS)
         r.add_argument("--transition", choices=formats.TRANSITIONS, help="the cut between scenes (auto: the look's own)")
+        r.add_argument("--outro", choices=formats.OUTROS, help="card (end card), overlay (a QR/link/CTA chip) or loop")
         r.add_argument("--voice", help="family or a preset (see options)")
         r.add_argument("--music", help="family, off or a family name")
         r.add_argument("--platform", help="utm_source of the QR link")
@@ -470,7 +479,7 @@ def main(argv=None):
     qp.add_argument("--ref")
     qp.add_argument("--story", help="an already written story file (skips writing)")
     qp.add_argument("--format", default="news")
-    for k in ("look", "captions", "transition", "voice", "music", "platform"):
+    for k in ("look", "captions", "transition", "outro", "voice", "music", "platform"):
         qp.add_argument(f"--{k}")
     qp.add_argument("--priority", type=int, default=0)
     qp.add_argument("--state", choices=queue_states())

@@ -272,13 +272,14 @@ def voice(story, work, engine, tone, edge_voice):
     return audio, words
 
 
-def scene_frames(story, words):
+def scene_frames(story, words, hold=END_HOLD):
+    """Start frame of every scene plus the last frame; `hold` is the time after the last word (swipe.HOLD per outro)."""
     scenes = story["scenes"]
     starts, after = [0.0], 0
     for s in scenes[1:]:
         t, after = anchor(words, s["at"], after)
         starts.append(max(starts[-1] + 0.1, t - 0.08))
-    starts.append(words[-1]["end"] + END_HOLD)
+    starts.append(words[-1]["end"] + hold)
     starts = lend_time(starts, [s["type"] for s in scenes])
     marks = [round(t * FPS) for t in starts]
     short = [f"scene {i} ({s['type']}) is on screen {(b - a) / FPS:.1f}s"

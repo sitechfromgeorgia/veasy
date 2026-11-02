@@ -43,7 +43,9 @@ python -m tt_shorts.engine render <story.json> --format news
 ```
 - `--format` picks a show (see `veasy:formats`); any single choice can be overridden for one render:
   `--look auto|editorial|kinetic|cards`, `--captions page|roll`, `--voice family|plain|anchor|warm|clear|...`,
-  `--music family|off|<family>`, `--platform youtube|instagram|tiktok|shorts` (the QR's utm_source).
+  `--music family|off|<family>`, `--platform youtube|instagram|tiktok|shorts` (the QR's utm_source),
+  `--outro card|overlay|loop` (the end card, a QR/link/CTA chip over the last scene, or a seamless loop back into
+  the hook; see `veasy:formats`).
 - `--engine gemini` (default) is the real voice and costs ~$0.01; `edge` (robotic) and `silent` are free previews
   for checking layout and timing only. Never publish an `edge` or `silent` render.
 - The voice is cached per story: rendering the same story in another look or caption design costs nothing.

@@ -20,12 +20,26 @@ export const useStyle = (): Style => {
   return props.style ?? { hook: "stack", motif: v === "kinetic" ? "diagonal" : "grid", enter: v === "kinetic" ? "slide" : "rise" };
 };
 
+/** True inside the first scene (outro.tsx SwipeSlot): the swipe is decided at frame 0, so there everything is on
+ *  screen and readable from the first frame, and motion only settles by a few px (tt_shorts/swipe.py). */
+export const Opening = createContext(false);
+export const useOpening = () => useContext(Opening);
+
+/** The opening's entrance: fully visible at frame 0, it only settles the last few px in this video's motion. */
+const settle = (enter: Style["enter"], t: number): React.CSSProperties => {
+  if (enter === "slide") return { transform: `translateX(${(1 - t) * -16}px)` };
+  if (enter === "scale") return { transform: `scale(${0.985 + 0.015 * Math.min(1.02, t)})`, transformOrigin: "left center" };
+  return { transform: `translateY(${(1 - t) * (enter === "reveal" ? 6 : 10)}px)` }; // rise, reveal (nothing masked)
+};
+
 /** How things come on screen: they rise, slide in from the left, come up from behind a mask, or scale up.
- *  Kinetic keeps its harder spring whichever motion the video has. */
+ *  Kinetic keeps its harder spring whichever motion the video has. In the opening they only settle (`Opening`). */
 export const In: React.FC<{ delay?: number; style?: React.CSSProperties; children: React.ReactNode }> = ({ delay = 0, style, children }) => {
   const { v } = useTheme();
   const { enter } = useStyle();
-  const t = useIn(delay, v === "kinetic" ? 16 : 20, v === "kinetic" ? 220 : 170);
+  const opening = useOpening();
+  const t = useIn(opening ? Math.round(delay / 2) : delay, v === "kinetic" ? 16 : 20, v === "kinetic" ? 220 : 170);
+  if (opening) return <div style={{ ...settle(enter, t), ...style }}>{children}</div>;
   const css: React.CSSProperties = { opacity: Math.min(1, t * 1.6) };
   if (enter === "slide") css.transform = `translateX(${(1 - t) * -140}px)`;
   if (enter === "rise") css.transform = `translateY(${(1 - t) * 56}px)`;
@@ -126,7 +140,8 @@ export const Chip: React.FC<{ children: React.ReactNode; live?: boolean; solid?:
 /** Scene label: the "now" chip with the red dot (editorial, cards) or an inverted ink block (kinetic). */
 export const Kicker: React.FC<{ text?: string; delay?: number }> = ({ text, delay = 0 }) => {
   const { v } = useTheme();
-  const t = useIn(delay);
+  const shown = useIn(delay);
+  const t = useOpening() ? 1 : shown; // the opening's kicker is there at frame 0
   if (!text) return null;
   if (v === "kinetic") {
     return (

@@ -34,6 +34,9 @@ export type ArtNode = {
 // the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python
 export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot";
 
+// the ending (tt_shorts/swipe.py OUTROS): the end card, a QR/link/CTA chip over the last scene, or a seamless loop
+export type Outro = "card" | "overlay" | "loop";
+
 // tt_shorts/variety.py: this video's own combination inside the brand and the look (layout and motion, never color)
 export type Style = {
   hook: "stack" | "lead" | "blocks" | "underline";
@@ -87,6 +90,8 @@ export type ShortProps = {
   variant: Variant;
   transition: Transition;
   style?: Style; // absent: the look's own (stack; grid or diagonal; rise or slide)
+  outro?: Outro; // absent: the end card
+  outroFrom?: number | null; // overlay and loop: the frame the chip comes in
   id: number;
   category: string; // Georgian label
   date: { date: string; time: string; weekday: string };
@@ -101,6 +106,7 @@ export type ShortProps = {
   captions: CaptionLayout | null;
   voice: string | null; // file in the public dir
   voiceVolume: number;
+  voiceTrim?: number; // seconds of leading silence cut from the voice (the word timings already moved)
   music: string | null;
   musicVolume: number;
   sourcesLine: string; // "წყარო: პირველი არხი, იმედი ნიუსი +5"

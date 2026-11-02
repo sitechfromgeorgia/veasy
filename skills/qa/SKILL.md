@@ -7,14 +7,17 @@ description: "Use after rendering a Veasy video (a tbilisi.today or SiTech Short
 
 1. Machine checks:
    `python -m tt_shorts.engine qa <file>.mp4 --format <format>`. `problems` must be empty: 1080x1920, length
-   inside the format's window, loudness -19..-13 LUFS (voice at -16 with the music ~13 LU under it). It also writes
-   `<file>.sheet.jpg`, eight frames across the video: look at it.
+   inside the format's window, loudness -19..-13 LUFS (voice at -16 with the music ~13 LU under it), and the hook
+   on screen at frame 0 (`opening_ink`: the share of ink in the hook band y 250-1100 of the very first frame, at
+   least 2%; a swipe decides there). It also writes `<file>.sheet.jpg`, eight frames across the video: look at it.
 2. The story check must have passed: `python -m tt_shorts.engine check <story.json> --sources <story>.sources.json`.
    A queue job in state `done` passed both; `held` means it rendered but QA found problems (its `error` says which).
 3. Look (the sheet, or `engine still` for exact scenes):
    - nothing clipped or overflowing; story text above the captions; nothing right of x=940 below y=1100;
    - the date, the outlets line and the pack's link visible (tbilisi.today/stories/<id>, sitech.ge/ka/blog); the
-     pack's footer line bottom right; QR on the end card; the pack's logo and colors, not another client's;
+     pack's footer line bottom right; QR on the end card (`outro` card) or on the chip over the last scene
+     (`overlay`, `loop`: left of x=940, above the captions); the pack's logo and colors, not another client's;
+   - `loop`: the last frame is the first one (`engine still --frames 0,<last>` shows both);
    - the accent (tbilisi.today red, SiTech orange) only on dots, the progress head, the spoken word's underline
      and the CTA button, never as text color.
 4. Captions: they are laid out once by `tt_shorts/captions.py` and must not jump. `page` pages stay ≥ 1 s and the
