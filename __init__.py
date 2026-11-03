@@ -113,6 +113,28 @@ CHOICE_PROPS = {
 }
 
 TOOLS = {
+    "veasy_make": ({"type": "object", "properties": {
+                       "request": {"type": "string", "description": "What you want in a sentence (what the video is about)."},
+                       "brand": BRAND,
+                       "style": CHOICE_PROPS["style"],
+                       "source": SOURCE,
+                       "length": {"type": "string", "description": "short (15-30s), standard (30-45s), long (45-60s) or seconds."},
+                       "yes": {"type": "boolean", "description": "True to accept code decisions and skip question rounds."},
+                       "queue": {"type": "boolean", "description": "True to add to queue instead of rendering immediately."},
+                       "preview_storyboard": {"type": "boolean", "description": "True to stop after plan and return storyboard stills."},
+                       "engine": {"type": "string", "enum": ["gemini", "edge", "silent"], "description": "Voice engine."},
+                       "format": CHOICE_PROPS["format"],
+                       "look": CHOICE_PROPS["look"],
+                       "director": {"type": "string", "description": "Override director."},
+                       "theme": {"type": "string", "description": "Override theme."}},
+                    "required": ["request"]},
+                   "The front door to Veasy: say what you want in a sentence, name at most a brand and a style, "
+                   "and get a finished, checked film. Flags like --source, --length, --format or --look override.",
+                   lambda a: _engine("make", [a["request"]] + _flags(
+                       a, ("brand", "style", "source", "length", "format", "look", "director", "theme", "engine")) +
+                       (["--yes"] if a.get("yes") else []) +
+                       (["--queue"] if a.get("queue") else []) +
+                       (["--preview-storyboard"] if a.get("preview_storyboard") else []))),
     "veasy_options": ({"type": "object", "properties": {
                           "brand": BRAND,
                           "section": {"type": "string",

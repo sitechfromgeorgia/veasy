@@ -456,6 +456,7 @@ def summary(b):
     return {"label": b["label"], "about": b.get("about", ""), "lang": b["lang"], "logo": b["logo"]["kind"],
             "link": b["link"]["display"], "categories": len(b["categories"]), "voices": sorted(b.get("voices") or {}),
             "styles": allowed_styles(b),
+            "still": f"assets/stills/brand-{b['name']}.jpg",
             "default_theme": b["default_theme"],
             "themes": {t: {"label": s["label"], "about": s["about"], "allowed": s["allowed"], "mode": mode(s["colors"]),
                            "canvas": s["colors"]["canvas"], "ink": s["colors"]["ink"], "accent": s["colors"]["accent"]}

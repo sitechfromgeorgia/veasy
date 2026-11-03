@@ -177,22 +177,26 @@ def brand_allows(brand_pack, style_or_slug, program="news"):
     return True, ""
 
 
-def for_story(story, brand_pack=None, program=None):
+def for_story(story, brand_pack=None, program=None, engine=None):
     """Return all styles eligible for this story, ordered by slug.
 
     Filters by:
     - program (from argument, story.get("program"), or 'news')
     - family (story.get("family"), cannot be in style.never_families)
+    - engine (if provided: style engine must be 'both' or match)
     - brand allow rules (via brand_allows)
     """
     from tt_shorts import brand
     b = brand_pack or brand.of(story)
     prog = program or story.get("program") or "news"
     fam = story.get("family")
+    eng = engine or story.get("engine")
 
     eligible = []
     for s in all():
         if prog not in s["programs"]:
+            continue
+        if eng and eng not in (s.get("engine"), "both"):
             continue
         if fam and fam in s.get("never_families", []):
             continue
@@ -252,4 +256,5 @@ def summary(style):
         "never_families": list(style.get("never_families", [])),
         "picks": dict(style.get("picks", {})),
         "uses": style["uses"],
+        "still": f"assets/stills/style-{style['slug']}.jpg",
     }

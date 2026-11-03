@@ -330,12 +330,12 @@ def pick(brand, story, look, transition="auto", loops=(), icon=False, director=N
     return choose(brand, story, look, transition, loops, icon, director, scenes)[0]
 
 
-def pick_style(brand_name, story, program="news", family=None):
+def pick_style(brand_name, story, program="news", family=None, engine=None):
     """The style of one video: rotates eligible styles a brand and program allow, least used first (ties by story id).
     A re-render (this story already having a valid style in history) keeps its own."""
     from tt_shorts import brand as brand_mod, styles
     b = brand_mod.load(brand_name)
-    eligible = styles.for_story({"program": program, "family": family}, brand_pack=b, program=program)
+    eligible = styles.for_story({"program": program, "family": family, "engine": engine}, brand_pack=b, program=program, engine=engine)
     pool = [s["slug"] for s in eligible]
     if not pool:
         return "swiss-motion"

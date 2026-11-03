@@ -1,125 +1,118 @@
 ---
 name: make-video
-description: "Use when asked to make, render or re-render a vertical video (a Short or reel of 25-45 s, Georgian voice) from a story cluster, an article or a story JSON, for tbilisi.today, SiTech or any brand pack, in any format, look, caption design or voice. Examples: \"make a video of cluster 24886\", \"render story 24725 in kinetic with roll captions\", \"make this post a SiTech video\""
+description: "The single front door to Veasy. Use when asked to create, plan, or render any video from a sentence, story, article, or document. You name at most a brand and a style, answer one round of questions, and get a finished checked film."
 ---
 
 # Make a video with Veasy
 
-Everything goes through one entry point; every command prints JSON on stdout and exits 0 (ok), 1 (problems) or 2
-(usage). Run from the Veasy folder (the repo root) with the server env loaded: `set -a; . data/.env; set +a`.
+Veasy has one front door for any person or AI: **one sentence request**, at most a **brand** and a **style**, **one round of questions** for what code cannot decide, and a finished, checked vertical video (1080×1920, Georgian voice, captions, music, mix).
+
+All existing expert commands and flags keep working underneath.
 
 ```bash
-python -m tt_shorts.engine doctor        # first, on a new machine or after an install: everything true?
-python -m tt_shorts.engine options       # every brand pack, look, caption design, voice, music, format, scene type
+python -m tt_shorts.engine make "<request>" [--brand <brand>] [--style <style>] [--source <src>] [--length <len>]
 ```
-Which client the video is for is the story's `"brand"` (default tbilisi-today; see `veasy:brands`). Several videos,
-a daily batch or retries: use the queue (`veasy:queue`); it runs these same steps per job.
+Or tool `veasy_make({"request": "...", "brand": "...", "style": "..."})`.
 
-## 0. Which way: routing requests to program, format, and engine
+---
 
-| Request / Goal | Program | Format | Director / Look | Engine | Route |
-|---|---|---|---|---|---|
-| "a news story on cluster 24886" | `news` | `news` | `auto` / `cards` | `remotion` | Standard facts workflow (§ 1-5) |
-| "an animated explainer about X" | `explainer` | `explainer` | `editorial` | `remotion` | `veasy:programs` (`url`, `pdf`, `text`) |
-| "a 30 s story for kids / fable" | `story` | `story` | `cards` / `kinetic` | `hyperframes` | `veasy:compose` (fictional characters, S1) |
-| "a data video / stats report" | `explainer` | `explainer` | `kinetic` | `remotion` | `veasy:formats` (`count`, `points`, `bars`) |
-| "article 17 of the Constitution" | `law` | `explainer` | `editorial` | `remotion` | `veasy:programs` (`ordo`, `matsne`) |
-| "turn this sitech.ge post to video" | `blog` | `news` | `editorial` | `remotion` | `veasy:brands` (brand `sitech`) |
-| "morning digest of top stories" | `digest` | `digest` | `editorial` | `remotion` | `veasy:rubrics` (checked stories) |
-| "custom brand / promo film" | `story` | `story` | custom | `hyperframes` | `veasy:compose` (HyperFrames lane) |
+## 1. The three concepts
 
-Veasy has two film engines, both first-class, and any video can be made:
-- **News and data** (a cluster, a document, a law, a blog post, the digest): Veasy's programs (`veasy:programs`)
-  with the **Remotion** kit, the steps below. Facts, checks and the queue are built for it; ~50 a day.
-- **Free-form films** (a cartoon, an animated story or fable, a product or brand film, a tutorial, or a news story
-  in a form the kit lacks): **compose** it for **HyperFrames** with `veasy:compose`, using the engines' own skills
-  (`hyperframes`, `hyperframes-cli`; `remotion-*` for Remotion work; installed by `ops/install.sh --skills`).
-  Fiction is program `story` (its rules: Georgian, brand, probe, no real person).
-- Either way the film gets Veasy's voice, captions, media, music, mix, checks, QA, package and brand pack. Where the
-  engines' skills and Veasy's overlap, Veasy's win: captions are `captions.py`'s (locked), media is Veasy's media
-  layer (never `media-use` or HeyGen), HyperFrames runs only through `engine compose` (no publish, cloud, tts,
-  feedback, add).
-- The engine is the story's `"engine"`: the director's, else the program's, else the format's, else the pack's,
-  else remotion; `engine render` follows it (`--renderer` overrides). A composed film ends `held` for a person's
-  review in the queue (`veasy:queue`).
+A newcomer only meets three things:
 
-## 1. Get a story JSON
+| Concept | What it is | Choices & Defaults |
+|---|---|---|
+| **brand** | Who the video is for | `tbilisi-today` (default), `sitech`, or custom pack. See `veasy:brands`. |
+| **style** | How it looks and sounds | 18 named film styles (`swiss-motion`, `living-screencast`, `countdown`...). Omit to let variety pick. See `veasy:styles`. |
+| **story** | What the video is about | Your sentence request, article, document, or story JSON. |
 
-- From a source: `python -m tt_shorts.engine write --source tbilisi-today --ref 24886 [--brand tbilisi-today]`
-  (a cluster; needs OPENROUTER_API_KEY, CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, TT_D1_DATABASE_ID), or
-  `--source text --ref articles.json` (`{"cluster": {"id", "headline", "category", "date", "sources"},
-  "articles": ["text", ...]}`, any client). It writes `stories/<brand>/<day>/<ref>.json` under VEASY_HOME and the
-  articles beside it as `.sources.json` (kept for re-checks); the JSON result gives both paths. A non-empty
-  `problems` list means: don't render.
-- Not a news cluster (a web page, a PDF, an article of Georgian law, a SiTech post): pick a program,
-  `write --program explainer|law|blog --source url|pdf|ordo|sitech --ref ...` (see `veasy:programs`). A program
-  brings its own brief, scenes, rules and default format; law and explainer videos are held for a person's review.
-- By hand or to repair one: follow the `veasy:write-script` skill.
-- The daily selection (4+ outlets, last 18 h, category caps, sensitive stories skipped, no repeats):
-  `python -m ops.daily --limit 10 --dry-run` shows the picks; without `--dry-run` it writes and renders them.
-
-## 2. Check it (free, seconds)
-
+### Visual Catalogue
+Browse the full visual library before choosing:
 ```bash
-python -m tt_shorts.engine check <story.json> --sources <story>.sources.json
+python -m tt_shorts.engine gallery           # builds out/gallery.html with stills & clips of all 18 styles, 3 looks, 31 scene brushes, 8 directors
+python -m tt_shorts.engine options           # leads with brands & styles (with stills); advanced options under "advanced"
 ```
-`problems` must be empty. Rules named N* are news rules (numbers and quotes from the articles, no relative days,
-no sensitive stories), K* and KE are Georgian rules (KE = kaeasy, SiTech's Georgian plugin), `timing:` and
-`captions:` are layout. Fix the story, never the rule. `warnings` don't block; read them anyway.
 
-## 3. Plan before you render (free, ~5 s)
+---
 
+## 2. What code decides automatically
+
+You don't need to specify formats, engines, looks, or directors. From your sentence, code derives:
+
+1. **Program & Source**:
+   - Law ("კონსტიტუცია", "მუხლი 17") → program `law`, source `ordo` (`matsne.gov.ge`).
+   - Tech blog ("SiTech", "კიბერ", "AI აგენტები") → program `blog`, source `sitech` (brand `sitech`).
+   - Children's fiction ("რობოტი ბიპი", "მზეს ხატავს") → program `story`, engine `hyperframes`.
+   - Explainer ("ინფლაცია", "ფასები", "ახსენი") → program `explainer`, format `explainer`.
+   - News ("ვარკეთილი", "გაზი", "6400") → program `news`, source `tbilisi-today`.
+   See `veasy:programs` for details.
+2. **Style**: if `--style` is omitted, `variety.pick_style` chooses the least-used style permitted for that brand and program.
+3. **Engine**: Remotion for high-volume data/news brushes; HyperFrames for composed fiction/fables. See `veasy:compose`.
+4. **Director, Look & Theme**: picked from the style's invariants (`picks.directors`, `picks.looks`) and brand theme. See `veasy:directors`.
+5. **Format & Duration**: default format for the program, scaled to target length (`short` 15-30s, `standard` 30-45s, `long` 45-60s). See `veasy:formats`.
+
+---
+
+## 3. The ONE round of questions
+
+Before rendering, Veasy asks **ONE single round of questions** strictly for what code cannot decide on its own:
+
+1. **Facts / Source**: asked *only* if your request doesn't match a known document, URL, or cluster ID.
+2. **Custom Assets**: whether you wish to include custom logos or images (default: no; see `veasy:media`).
+3. **Storyboard Preview**: whether to inspect the contact sheet first (`--preview-storyboard`) or render immediately.
+
+### Automation & Non-interactive Flags
+- `--yes` (`-y`): skips questions, accepts code defaults, renders immediately.
+- `--preview-storyboard`: stops after `engine plan` and returns contact sheet stills (`.plan.jpg`).
+- `--queue`: adds the job to Veasy's job queue instead of rendering in-process. See `veasy:queue`.
+- `--engine silent`: free preview voice (no paid TTS API).
+
+---
+
+## 4. Examples
+
+### News incident (default brand)
 ```bash
-python -m tt_shorts.engine dry-run <story.json>   # tool veasy_dry_run: $0.00 cost calculation, words, render time
-python -m tt_shorts.engine plan <story.json>      # tool veasy_plan: contact sheet of stills + timings
-python -m tt_shorts.engine critique <story.json>  # tool veasy_critique: checklist score on safe zones, contrast, pacing
-``` A storyboard with no voice and no model call, and it uses up nothing (the variety picks are
-shown, not recorded):
-- per scene: start, end, narration words, caption pages, and every text on screen with the seconds it `need`s
-  (0.5 s + 0.3 s a word) and the seconds it is `shown`; `load` above 1 means more text than time;
-- `variety`: the hook layout, motif, entrance, transition and music the render will get (inside the director's);
-- the motion rules as `warnings` (a still stretch over 3 s, more than 3 transition kinds, ping-pong cuts, two
-  scenes of one type in a row): fix them when the facts allow;
-- the layout probe and `sheet`, a contact sheet of every scene's settled frame at half size: look at it.
-
-`problems` must be empty before you render: a text on screen too briefly to read holds the render too (the job
-ends `held`), so shorten the text or give its scene more narration. Then render.
-
-## 4. Render
-
-```bash
-python -m tt_shorts.engine render <story.json> --format news
+python -m tt_shorts.engine make "ვარკეთილში გაზის მილის დაზიანების გამო 6400 აბონენტს გაზმომარაგება შეუწყდა" --yes
 ```
-- `--format` picks a show (see `veasy:formats`); any single choice can be overridden for one render:
-  `--look auto|editorial|kinetic|cards`, `--captions page|roll`, `--voice family|plain|anchor|warm|clear|...`,
-  `--music family|off|<family>`, `--platform youtube|instagram|tiktok|shorts` (the QR's utm_source),
-  `--outro card|overlay|loop` (the end card, a QR/link/CTA chip over the last scene, or a seamless loop back into
-  the hook; see `veasy:formats`), `--sfx on|off` (sound effects on the cuts, marks and counts).
-- Pictures behind scenes come from the story's `show` hints, resolved by `engine media` (and `plan`): `veasy:media`.
-- `--engine gemini` (default) is the real voice and costs ~$0.01; `edge` (robotic) and `silent` are free previews
-  for checking layout and timing only. Never publish an `edge` or `silent` render.
-- The voice is cached per story: rendering the same story in another look or caption design costs nothing.
-- Output: `renders/<brand>/<day>/<ref>-<format>-<look>-<captions>.mp4` under VEASY_HOME, with a `.json` beside it
-  (what was rendered: voice, look, kaeasy version), or `--out path.mp4`.
-- Quick look without a full render: `python -m tt_shorts.engine still <story.json>` (one PNG per scene).
-- Every render first runs the layout probe (where each text really is, per scene); its problems are the
-  render's `problems` and hold the video. Free on its own, before paying for a voice:
-  `python -m tt_shorts.engine probe <story.json> --look all` (see `veasy:qa`).
 
-## 5. QA before anyone sees it
+### Explainer with specific style
+```bash
+python -m tt_shorts.engine make "როგორ იცვლება ფასები და ინფლაცია საქართველოში ბოლო წლებში" --style swiss-motion --yes
+```
 
-`python -m tt_shorts.engine qa <file.mp4> --format news`, then follow `veasy:qa`.
+### Georgian Law
+```bash
+python -m tt_shorts.engine make "საქართველოს კონსტიტუციის მე-17 მუხლი იცავს აზრის, სიტყვისა და ინფორმაციის თავისუფლებას" --yes
+```
 
-## 6. Every other surface (free, seconds)
+### Composed Story for Children (HyperFrames)
+```bash
+python -m tt_shorts.engine make "პატარა რობოტი ბიპი სწავლობს ხატვას და მზეს ხატავს" --brand sitech --yes
+```
 
-`python -m tt_shorts.engine package <file>.json` (the render's manifest): subtitles, a cover, a 4:5 carousel, a
-teaser, the platforms' titles and captions and a Telegram post, from the same render with no new voice. See
-`veasy:package`.
+---
 
-## Hard rules (the engine enforces most; don't work around them)
+## 5. When to use specialized skills
 
-- The brand pack draws the colors, logo, link and words: one accent color for the dot, the active state and the
-  CTA button, never for text. Don't restyle a video by hand; change or add a pack (`veasy:brands`).
-- The date, the outlets and the story link come from the source's data, never from a writer.
-- No publisher photos. No opinion. Sensitive stories are skipped, not softened.
-- Secrets live only in `data/.env` on the server; never print, commit or paste them.
+`veasy:make-video` is the only skill you need to start. Route to others only when a specific expert step is required:
+
+- **Style details**: read `veasy:styles` for style invariants, sound palettes, plucking models, and `TEXTS(t)`.
+- **Brand pack creation / WCAG**: read `veasy:brands` to create `brands/<name>/` from guidelines with `engine brand new`.
+- **Custom story scripts**: read `veasy:write-script` to hand-author scenes or repair text fields.
+- **Rubrics & Chips**: read `veasy:rubrics` for „დღის ციფრი“, „რა იცვლება“, „ამბავი გრძელდება“.
+- **Composed HyperFrames engineering**: read `veasy:compose` for blocks, timeline assembly, and Playwright DOM checks.
+- **Batch publishing & Queues**: read `veasy:queue` for background workers, retries, and daily runs.
+- **Visual QA & ASR**: read `veasy:qa` for the layout probe, safe zone audits, and wav2vec2 speech checks.
+- **Multi-platform publishing**: read `veasy:package` for `.srt`, covers, 4:5 carousels, teasers, and Telegram posts.
+- **Media licenses**: read `veasy:media` for official screenshots and illustrative images (news rule N13).
+- **Directed pacing**: read `veasy:directors` for pacing, hook, and motif constraints.
+- **Show formats**: read `veasy:formats` for show formats (news, explainer, showcase, story, number, digest).
+
+---
+
+## Hard Rules
+
+- **Brand pack is law**: dark canvas, light ink, 1 accent that is never on text, 1 font family, safe zone strictly respected (scene text ends at y=1380, captions at y=1552).
+- **News integrity**: news rules N1-N5 never get relaxed; numbers and quotes must match sources verbatim.
+- **No paid API in preview**: use `engine plan`, `still`, `probe`, and `--engine silent` / `edge`.

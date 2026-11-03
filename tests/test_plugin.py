@@ -144,6 +144,23 @@ class Plugin(unittest.TestCase):
         self.assertTrue(out.get("problems") and "no render manifest" in out["problems"][0], out)
         self.assertIn("error", json.loads(self.ctx.tools["veasy_package"][1]({})))
 
+    def test_make_tool(self):
+        props = self.ctx.tools["veasy_make"][0]["parameters"]["properties"]
+        self.assertIn("request", props)
+        self.assertIn("brand", props)
+        self.assertIn("style", props)
+        self.assertEqual(self.ctx.tools["veasy_make"][0]["parameters"]["required"], ["request"])
+
+        out = json.loads(self.ctx.tools["veasy_make"][1]({
+            "request": "ვარკეთილში გაზის მილის დაზიანების გამო 6400 აბონენტს გაზმომარაგება შეუწყდა",
+            "preview_storyboard": True,
+            "yes": True,
+        }))
+        self.assertEqual(out.get("status"), "preview", out)
+        self.assertEqual(out.get("brand"), "tbilisi-today")
+        self.assertTrue(out.get("sheet"))
+        self.assertTrue(out.get("questions_log"))
+
     def test_hint_once_per_session(self):
         hint = self.ctx.hooks["pre_llm_call"]
         self.assertIn("veasy:make-video", hint(is_first_turn=True)["context"])

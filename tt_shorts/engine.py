@@ -82,9 +82,7 @@ def options(brand_name=None, section=None):
     every = formats.load_all()
     b = packs.load(brand_name)
     presets = voices.all_presets(b)
-    full = {
-        "brand": b["name"],
-        "brands": {n: packs.summary(packs.load(n)) for n in packs.names()},
+    advanced = {
         "looks": {"auto": "by the story's category", **{v: d for v, d in (
             ("editorial", "calm, grid, rising type: hard news"),
             ("kinetic", "giant type, hard cuts, inverted blocks: light news"),
@@ -187,6 +185,19 @@ def options(brand_name=None, section=None):
                            "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
                        for c in b["categories"]},
     }
+    brands_data = {n: {**packs.summary(packs.load(n)), "still": f"assets/stills/brand-{n}.jpg"} for n in packs.names()}
+    styles_data = {
+        "about": "named film styles as data (styles/<slug>): selects engine, palette mode, layout invariants, "
+                 "directing constraints, and motion pacing (tt_shorts/styles.py)",
+        "known": {s["slug"]: {**styles.summary(s), "still": f"assets/stills/style-{s['slug']}.jpg"} for s in styles.load_all()},
+    }
+    full = {
+        "brand": b["name"],
+        "brands": brands_data,
+        "styles": styles_data,
+        "advanced": advanced,
+        **advanced,
+    }
     if section is None:
         return full
     if section == "summary":
@@ -194,6 +205,7 @@ def options(brand_name=None, section=None):
             "brand": b["name"],
             "section": "summary",
             "brands": list(packs.names()),
+            "styles": list(styles.names()),
             "formats": {n: f.get("about", "") for n, f in every.items()},
             "looks": full["looks"],
             "captions": list(full["captions"].keys()),
@@ -938,6 +950,39 @@ def contact_sheet_cmd(a):
     res = contact_sheet.generate_contact_sheet_html(out_path=a.out, brand_filter=a.brand, theme_filter=a.theme)
     return out(res, 0)
 
+
+def make_cmd(a):
+    from tt_shorts import make
+    res = make.make_film(
+        request=a.request,
+        brand=getattr(a, "brand", None),
+        style=getattr(a, "style", None),
+        source=getattr(a, "source", None),
+        length=getattr(a, "length", None),
+        yes=getattr(a, "yes", False),
+        queue=getattr(a, "queue", False),
+        engine_voice=getattr(a, "engine", "silent"),
+        preview_storyboard=getattr(a, "preview_storyboard", False),
+        out=getattr(a, "out", None),
+        interactive=True,
+        format=getattr(a, "format", None),
+        look=getattr(a, "look", None),
+        director=getattr(a, "director", None),
+        theme=getattr(a, "theme", None),
+        captions=getattr(a, "captions", None),
+        voice=getattr(a, "voice", None),
+        music=getattr(a, "music", None),
+        transition=getattr(a, "transition", None),
+        outro=getattr(a, "outro", None),
+    )
+    return out(res, 1 if res.get("status") == "error" else 0)
+
+
+def gallery_cmd(a):
+    from tt_shorts import gallery
+    res = gallery.build_gallery(getattr(a, "out", None))
+    return out(res, 0)
+
 def _source_tools():
     """What the document sources can use here (none of it blocks a news render)."""
     import importlib.util as iu
@@ -1204,6 +1249,28 @@ def main(argv=None):
     cs.add_argument("--out", help="target HTML file (default out/contact-sheet.html)")
     cs.add_argument("--brand", default="all", help="all, sitech, or tbilisi-today")
     cs.add_argument("--theme", default="all", help="all, dark, or light")
+    mk = sub.add_parser("make", help="one front door: request sentence, brand and style -> finished checked film")
+    mk.add_argument("request", help="what you want in a sentence (or a story JSON path, or source ref)")
+    mk.add_argument("--brand", help="who it's for (tbilisi-today, sitech; see options: brands)")
+    mk.add_argument("--style", help="how it looks and sounds (see options: styles)")
+    mk.add_argument("--source", help="where facts come from (tbilisi-today, ordo, sitech, url, pdf, text)")
+    mk.add_argument("--length", help="short (15-30s), standard (30-45s), long (45-60s) or target seconds")
+    mk.add_argument("--yes", "-y", action="store_true", help="accept code's decisions and defaults; ask no interactive questions")
+    mk.add_argument("--queue", action="store_true", help="add to the job queue instead of rendering immediately")
+    mk.add_argument("--preview-storyboard", action="store_true", help="build contact sheet and stop at plan stage")
+    mk.add_argument("--engine", default="silent", choices=["gemini", "edge", "silent"], help="voice engine (default silent preview)")
+    mk.add_argument("--out", help="output path for the render (.mp4)")
+    mk.add_argument("--format", help="override format")
+    mk.add_argument("--look", choices=formats.LOOKS, help="override look")
+    mk.add_argument("--director", help="override director")
+    mk.add_argument("--theme", help="override theme")
+    mk.add_argument("--captions", choices=formats.CAPTIONS, help="override captions")
+    mk.add_argument("--voice", help="override voice preset or family")
+    mk.add_argument("--music", help="override music")
+    mk.add_argument("--transition", choices=formats.TRANSITIONS, help="override transition")
+    mk.add_argument("--outro", choices=formats.OUTROS, help="override outro")
+    gy = sub.add_parser("gallery", help="generate static HTML visual catalogue of all styles, looks, scenes and directors")
+    gy.add_argument("--out", help="target HTML file (default out/gallery.html)")
     a = ap.parse_args(argv)
     if a.cmd == "compose" and a.engine is None:
         a.engine = "gemini" if a.action == "render" else "silent"
@@ -1240,7 +1307,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
     except FileNotFoundError as e:
