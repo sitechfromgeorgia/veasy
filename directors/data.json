@@ -13,6 +13,6 @@
  "count": [4, 5], "pacing": "few scenes, long holds on the numbers; the number scene is the longest.",
  "hooks": ["stack", "underline"], "motifs": ["grid", "rules", "plain", "icons"], "enters": ["rise", "scale"],
  "transitions": ["line", "dot", "cut", "meter"], "current": "up", "holds": ["stat"],
- "motion": {"damping": 20, "stiffness": 170, "enter_frames": 10, "stagger_frames": 5},
+ "motion": {"damping": 22, "stiffness": 180, "enter_frames": 10, "stagger_frames": 4},
  "eligible": [{"quantities": 2}, {"quantities": 1, "percents": 1}, {"quantities": 1, "times": 2}],
  "never": [{"families": ["crime"], "deaths": true}]}

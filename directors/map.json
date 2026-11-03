@@ -13,6 +13,6 @@
  "count": [4, 6], "pacing": "the map scenes get the most time; the camera carries the cuts.",
  "hooks": ["lead", "stack"], "motifs": ["plain", "grid", "dots"], "enters": ["slide", "rise", "reveal"],
  "transitions": ["slide", "push", "dot"], "current": "left",
- "motion": {"damping": 20, "stiffness": 170, "enter_frames": 12, "stagger_frames": 5},
+ "motion": {"damping": 21, "stiffness": 160, "enter_frames": 12, "stagger_frames": 5},
  "eligible": [{"places": 1}, {"regions": 1}],
  "never": []}

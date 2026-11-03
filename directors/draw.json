@@ -9,9 +9,9 @@
   "Draw things, never faces, logos or crime scenes.",
   "The viewer leaves with the picture of the thing and what happened to it."],
  "scenes": {"draw": 3, "sign": 3, "steps": 2, "pair": 1, "points": 1, "sources": 1, "marker": 1},
- "count": [4, 5], "pacing": "slow: at least 3.5 s per picture.",
- "hooks": ["underline", "lead"], "motifs": ["plain", "dots", "icons"], "enters": ["reveal", "rise"],
- "transitions": ["line", "wipe"], "current": "right", "themes": ["light"],
+ "count": [4, 5], "pacing": "each scene stays long enough for the drawing to complete (at least 2 s).",
+ "hooks": ["stack", "underline"], "motifs": ["plain", "grid"], "enters": ["rise", "reveal"],
+ "transitions": ["line", "wipe", "dot"], "current": "right", "themes": ["light"],
  "motion": {"damping": 20, "stiffness": 140, "enter_frames": 12, "stagger_frames": 6},
- "eligible": [{"icons": 1, "families": ["society", "economy", "tech"]}],
+ "eligible": [{"icons": 1}],
  "never": [{"families": ["crime"]}, {"deaths": true}]}

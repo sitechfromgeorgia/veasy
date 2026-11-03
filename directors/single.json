@@ -12,6 +12,6 @@
  "count": [3, 4], "pacing": "3-4 beats; the hero scene holds longest.",
  "hooks": ["stack", "lead", "underline"], "motifs": ["plain", "grid"], "enters": ["rise", "reveal", "scale"],
  "transitions": ["cut", "dot"], "current": "up",
- "motion": {"damping": 19.6, "stiffness": 120, "enter_frames": 14, "stagger_frames": 6},
+ "motion": {"damping": 25, "stiffness": 120, "enter_frames": 14, "stagger_frames": 6},
  "eligible": [{"facts": {"max": 4}}],
  "never": []}
