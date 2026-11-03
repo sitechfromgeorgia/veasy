@@ -115,6 +115,25 @@ class Shapes(unittest.TestCase):
         self.assertTrue(p({"type": "steps", "items": ["a", "b", "c", "d", "e"]}))
         self.assertTrue(p({"type": "change", "before": {"label": "a", "value": 1}, "after": {"label": "b"}}))
         self.assertEqual(p({"type": "change", "before": {"label": "a", "value": 1}, "after": {"label": "b", "value": 2}}), [])
+        # new scene types shape checks
+        self.assertEqual(p({"type": "ranking", "items": [{"label": "a", "rank": 1}, {"label": "b", "rank": 2}, {"label": "c", "rank": 3}]}), [])
+        self.assertTrue(p({"type": "ranking", "items": [{"rank": 1}, {"label": "b"}]}))  # missing label
+        self.assertEqual(p({"type": "versus", "items": [{"title": "a"}, {"title": "b"}]}), [])
+        self.assertTrue(p({"type": "versus", "items": [{"title": "a"}]}))  # needs 2
+        self.assertEqual(p({"type": "countdown", "value": 14, "label": "ვადა"}), [])
+        self.assertTrue(p({"type": "countdown", "value": -1, "label": "ვადა"}))
+        self.assertEqual(p({"type": "calendar", "day": 15, "month": "მაისი", "event": "სხდომა"}), [])
+        self.assertTrue(p({"type": "calendar", "day": 35, "month": "მაისი", "event": "სხდომა"}))  # day > 31
+        self.assertEqual(p({"type": "glossary", "term": "კანონი", "definition": "წესი"}), [])
+        self.assertTrue(p({"type": "glossary", "term": "", "definition": "წესი"}))
+        self.assertEqual(p({"type": "checklist", "items": [{"text": "დოკუმენტი", "state": "done"}, {"text": "ფორმა", "state": "pending"}]}), [])
+        self.assertTrue(p({"type": "checklist", "items": [{"state": "done"}]}))
+        self.assertEqual(p({"type": "impact", "target": "მგზავრები", "change": "ტარიფი", "when": "ხვალ"}), [])
+        self.assertTrue(p({"type": "impact", "target": "", "change": "ტარიფი", "when": "ხვალ"}))
+        self.assertEqual(p({"type": "route", "stops": ["თბილისი", "ბათუმი"]}), [])
+        self.assertTrue(p({"type": "route", "stops": ["თბილისი"]}))  # needs >= 2
+        self.assertEqual(p({"type": "budget", "items": [{"label": "ა", "value": 10}, {"label": "ბ", "value": 20}]}), [])
+        self.assertTrue(p({"type": "budget", "items": [{"label": "ა", "value": -5}, {"label": "ბ", "value": 20}]}))
 
     def test_chart_numbers_must_be_in_the_articles(self):  # N2 reads numbers at any depth now
         s = story(type="bars", items=[{"label": "ა", "value": 120}, {"label": "ბ", "value": 7.5}])
@@ -140,7 +159,7 @@ class Shapes(unittest.TestCase):
     def test_sample_stories_pass(self):  # the demos use every scene type, old and new
         used = set()
         for name in ("veasy-demo", "veasy-scenes", "veasy-icons", "sitech-cybercartel", "veasy-brushes",
-                     "digest-2026-11-01", "../tests/fixtures/rubric-agree"):  # agree: a synthetic test fixture
+                     "digest-2026-11-01", "../tests/fixtures/rubric-agree", "veasy-new-01", "veasy-new-02"):  # agree: a synthetic test fixture
             s = json.loads((ROOT / "stories" / f"{name}.json").read_text(encoding="utf-8"))
             self.assertEqual(engine.check_story(s), [], name)
             used |= {x["type"] for x in s["scenes"]}

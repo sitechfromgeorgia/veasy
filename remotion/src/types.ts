@@ -26,7 +26,7 @@ export type CaptionLayout = {
 // points and steps: plain strings
 export type Item = string | {
   name?: string; role?: string; title?: string; sub?: string; label?: string; value?: number; when?: string;
-  text?: string; count?: number; // agree: a fact and how many member articles state it (code counts them)
+  text?: string; count?: number; rank?: number; state?: "done" | "pending"; note?: string; share?: number;
 };
 
 // tt_shorts/marks.py: a scene's voice-synced mark (its "em"), resolved in Python. field: the slot it sits in
@@ -148,6 +148,18 @@ export type Scene = SceneBase & {
   of?: number; // chapter: how many stories the digest has
   total?: number; // agree: the member articles code counted across
   media?: MediaProps; // set by tt_shorts/props.py from the story's assets ledger (never the writer's)
+  target?: string;
+  day?: number;
+  month?: string;
+  weekday?: string;
+  event?: string;
+  term?: string;
+  definition?: string;
+  context?: string;
+  change?: string;
+  stops?: string[];
+  detail?: string;
+  when?: string;
 };
 
 // tt_shorts/brand.py for_remotion(): the brand pack, without file paths

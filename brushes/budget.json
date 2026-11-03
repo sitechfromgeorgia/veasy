@@ -1,0 +1,58 @@
+{
+ "type": "budget",
+ "order": 240,
+ "what": "a segmented breakdown of a budget, resource or total into 2-4 proportional categories",
+ "use_when": "the story provides a breakdown of a total amount: state budget, funding distribution, energy mix",
+ "avoid_when": "independent non-summing values (bars); single percentage (share); two geometric squares (compare)",
+ "pairs_with": ["stat", "bars", "change", "points"],
+ "slots": {
+  "items": {
+   "kind": "list",
+   "count": [2, 4],
+   "of": {
+    "label": {"kind": "text", "max": 24, "required": true},
+    "value": {"kind": "num", "required": true},
+    "share": {"kind": "num", "min": 1, "max": 100}
+   },
+   "required": true
+  },
+  "total": {"kind": "num"},
+  "unit": {"kind": "text", "max": 16},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": ["crime"],
+ "min_seconds": 3.4,
+ "min_words": 8,
+ "em": {"fields": ["items.label", "headline"], "kinds": ["underline", "box", "highlight"]},
+ "schema": {
+  "type": "budget",
+  "at": "...",
+  "kicker": "...",
+  "headline": "ხარჯების განაწილება",
+  "items": [
+   {"label": "ჯანდაცვა", "value": 3.2, "share": 40},
+   {"label": "განათლება", "value": 2.8, "share": 35},
+   {"label": "ინფრასტრუქტურა", "value": 2.0, "share": 25}
+  ],
+  "total": 8.0,
+  "unit": "მლრდ ლარი"
+ },
+ "rules": [
+  "\"budget\": 2-4 budget or resource parts totaling 100% or total amount; all values and labels from the articles;"
+ ],
+ "example": {
+  "type": "budget",
+  "at": "ბიუჯეტის ძირითადი პრიორიტეტები",
+  "kicker": "სახელმწიფო ბიუჯეტი",
+  "headline": "ხარჯების განაწილება",
+  "items": [
+   {"label": "ჯანდაცვა", "value": 3.2, "share": 40},
+   {"label": "განათლება", "value": 2.8, "share": 35},
+   {"label": "ინფრასტრუქტურა", "value": 2.0, "share": 25}
+  ],
+  "total": 8.0,
+  "unit": "მლრდ ლარი",
+  "em": "ხარჯების განაწილება"
+ }
+}

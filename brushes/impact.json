@@ -1,0 +1,40 @@
+{
+ "type": "impact",
+ "order": 220,
+ "what": "a service card stating who is affected, what changes and when it takes effect",
+ "use_when": "service or municipal news: a new tariff, schedule, rule, benefit or restriction with target group and date",
+ "avoid_when": "pure political controversy with no practical public impact; stories without a clear who or when",
+ "pairs_with": ["stat", "change", "calendar", "checklist"],
+ "slots": {
+  "target": {"kind": "text", "max": 32, "required": true},
+  "change": {"kind": "text", "max": 56, "required": true},
+  "when": {"kind": "text", "max": 24, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": ["crime"],
+ "min_seconds": 3.4,
+ "min_words": 8,
+ "em": {"fields": ["target", "change", "headline"], "kinds": ["underline", "box", "highlight"]},
+ "schema": {
+  "type": "impact",
+  "at": "...",
+  "kicker": "რა იცვლება",
+  "target": "საზოგადოებრივი ტრანსპორტი",
+  "change": "სამგზავრო ტარიფი 1 ლარამდე გაიზრდება",
+  "when": "1 დეკემბრიდან"
+ },
+ "rules": [
+  "\"impact\": service news card stating target group, what changes and when it takes effect; all from the articles;"
+ ],
+ "example": {
+  "type": "impact",
+  "at": "მგზავრებისთვის ახალი ტარიფი ამოქმედდება",
+  "kicker": "რა იცვლება",
+  "headline": "მუნიციპალური ცვლილება",
+  "target": "საზოგადოებრივი ტრანსპორტი",
+  "change": "სამგზავრო ტარიფი 1 ლარამდე გაიზრდება",
+  "when": "1 დეკემბრიდან",
+  "em": "სამგზავრო ტარიფი"
+ }
+}

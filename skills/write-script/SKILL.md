@@ -25,7 +25,7 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N12 news); this is the 
 - On-screen texts have length limits (a kicker 24 characters, a headline 40, a hook line 24; the rest per slot):
   `check` names a text that is too long.
 
-## Which scene for what (22 types)
+## Which scene for what (31 types)
 
 | Type | Use it for | Fields |
 |---|---|---|
@@ -47,6 +47,15 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N12 news); this is the 
 | `points` | 2-3 separate points | items ["..."] |
 | `quote` | a verbatim quote with its speaker | text, by, via |
 | `draw` | a drawing of what the story is about: what makes each video look different | svg, label |
+| `ranking` | 3-5 ranked items in order (rank 1, 2, 3...) with labels and values | items [{rank, label, value}], unit |
+| `versus` | two sides in direct face-off with metrics or claims | items [{title, value, note}] x2, between |
+| `countdown` | countdown of remaining days or hours to a deadline | value, label, unit, target |
+| `calendar` | a calendar sheet displaying a scheduled date and event | day, month, event, weekday, sub |
+| `glossary` | explanation of a key term, legal concept or technical word | term, definition, context |
+| `checklist` | 2-4 factual conditions or requirements with status indicators | items [{text, state}], headline |
+| `impact` | a service card: who is affected, what changes and when | target, change, when |
+| `route` | a transit or movement path between 2-4 points | stops [...], label, detail |
+| `budget` | a segmented breakdown of a budget into 2-4 proportional parts | items [{label, value, share}], total, unit |
 | `agree`, `chapter` | rubrics only (`veasy:rubrics`) | code |
 | `sources` | the outlets (from the data) | nothing |
 | `end` | logo, QR, call to action | nothing |
@@ -69,37 +78,21 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N12 news); this is the 
   - Copy them word for word from that scene's on-screen text (a stat's or a share's value counts: `"em": "6400"`;
     the kicker never does) and say them in that scene's part of the narration (case endings may differ).
   - One per scene, not on `end` or `sources`. `N11: scene N marks „…“ but ...` names what is missing.
-- `draw`: at most one per video. The style guide is `tt_shorts/art.py` GUIDE (line art, tokens INK, MUTED, LINE,
-  CANVAS and ACCENT for the one focal part, motion classes r/p/s with `--d` delays, up to 4 Georgian labels).
-  `check` sends back anything the whitelist removed. A drawing needs 8 narration words (about 3.5 s).
-  `check` also judges the drawing itself (`art.quality`): big enough (40% of the width, 35% of the height), on
-  the canvas, at least 3 moving parts with different delays, ACCENT on at most 6 elements. A drawing that still
-  fails after the repairs is swapped for a library one of its motif (`tt_shorts/drawings.py`), else dropped
-  (`VEASY_WRITER_DRAW=0` turns drawing off).
+- `draw`: at most one per video. Style guide is `tt_shorts/art.py` GUIDE (tokens INK, MUTED, LINE, CANVAS,
+  ACCENT, motion r/p/s with `--d` delays, up to 4 Georgian labels). Needs 8 narration words. A drawing that fails
+  is swapped for a library drawing of its motif (`tt_shorts/drawings.py`), else dropped (`VEASY_WRITER_DRAW=0`).
 - `"show"` (optional, on 2-4 scenes): a short English query for a picture behind the scene ("gas pipeline
   repair"); code finds a licensed one, labels and credits it. Never a person, a logo or the event (`veasy:media`).
-- `where` in Georgia gets the real map on its own (`tt_shorts/geo.py`).
-  - What it shows: Georgia's outline draws itself, the camera zooms to the region, which fills in, and a pin drops
-    on the town. A Tbilisi district zooms into the city; two or three places get a marker each.
-  - Write `place` as the article names it, in any case: ბათუმიდან, ვაკეში and ქუთაისის are all found. The
-    `sub` line helps when a name is shared (ახალდაბა + ბორჯომი).
-  - A name it doesn't know, or a foreign place, keeps the grid scene with the pin.
-  - `area` is optional: `ge:<region>` (`options` → `areas`), `ge:<place id>` or `ge`, for when the place text
-    doesn't name the region (e.g. a village).
-  - Crime and incidents: the map stops at the region and never marks a district. This is code, not your choice.
-  - Check it without a render: `python -c "from tt_shorts import geo; print(geo.locate('ვაკეში'))"`.
-- Icons (`tt_shorts/icons.py`, 250 Lucide line icons; `options` → `icons` lists them):
-  - `icon` is an English name (`flame`, `train-front`, `school`) or the Georgian word for the thing (`გაზი`,
-    `მეტრო`, `სკოლა`); the stem map reads any case ending.
-  - `sign`: the icon draws itself, then `verb` plays. The verbs are rises, falls, stops (a bar closes across it),
-    opens, closes (doors), moves, splits and joins. The scene's own part of the narration must say that verb
-    (გაიზარდა, შემცირდა, შეწყდება, გაიხსნება, დაიხურება, გადავა, გაიყო, შეუერთდა): N10. It needs 7 narration words
-    (3.2 s). Use it for a change to one thing, not for a person or an event.
-  - `stat` with `icon`: a whole count of 2-30 from the articles shows as that many icons; the number counts with
-    them. Anything else (a percent, 6400, 2.5) keeps the bar.
-  - The story's `"motif"` (optional) is its main icon, tiled faintly in the background when variety picks the icon
-    motif; without one, the first icon the hook names (or the first sign's) is used.
-  - Never for crime, incidents or a story about deaths (N10): no sign, no stat icon, no motif.
+- `where`: Georgia gets the real map (`tt_shorts/geo.py`), any other a pin on a grid.
+  - Write `place` as named in any case: ბათუმიდან, ვაკეში, ქუთაისის.
+  - `area` is optional: `ge:<region>` (`options` → `areas`).
+  - Crime and incidents: the map stops at the region and never marks a district.
+- Icons (`tt_shorts/icons.py`, 250 Lucide icons; `options` → `icons`):
+  - `icon` is an English name (`flame`) or Georgian word (`გაზი`); reads case endings.
+  - `sign`: icon draws, then verb plays (rises, falls, stops, opens, closes, moves, splits, joins). The scene's
+    narration must say that verb (N10). Needs 7 words.
+  - `stat` with `icon`: count of 2-30 from articles shows as that many icons.
+  - Never for crime, incidents or deaths (N10): no sign, no stat icon, no motif.
 - Vary the shape: the writer is shown the scene orders the latest videos used; pick another one when the story's
   facts allow it (a number → stat, bars or change; a place → where; two sides → pair; a process → steps; one thing
   that stops, opens or rises → sign).

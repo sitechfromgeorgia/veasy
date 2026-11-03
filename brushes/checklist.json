@@ -1,0 +1,52 @@
+{
+ "type": "checklist",
+ "order": 210,
+ "what": "a list of 2-4 factual conditions or requirements with status indicators",
+ "use_when": "the story lists factual criteria, documentation requirements or conditions met under a law or program",
+ "avoid_when": "advice, opinion recommendations, subjective lists or sequential steps (use steps)",
+ "pairs_with": ["glossary", "impact", "steps", "points"],
+ "slots": {
+  "items": {
+   "kind": "list",
+   "count": [2, 4],
+   "of": {
+    "text": {"kind": "text", "max": 44, "required": true},
+    "state": {"kind": "enum", "values": ["done", "pending"], "required": true}
+   },
+   "required": true
+  },
+  "label": {"kind": "text", "max": 40},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": ["crime"],
+ "min_seconds": 3.4,
+ "min_words": 8,
+ "em": {"fields": ["items.text", "headline", "label"], "kinds": ["underline", "box"]},
+ "schema": {
+  "type": "checklist",
+  "at": "...",
+  "kicker": "...",
+  "headline": "სავალდებულო მოთხოვნები",
+  "items": [
+   {"text": "პირადობის მოწმობა", "state": "done"},
+   {"text": "ცნობა შემოსავლების შესახებ", "state": "done"},
+   {"text": "განაცხადის ფორმა", "state": "pending"}
+  ]
+ },
+ "rules": [
+  "\"checklist\": 2-4 factual criteria or conditions from the articles with state done or pending; facts only, no advice;"
+ ],
+ "example": {
+  "type": "checklist",
+  "at": "პროგრამის ძირითადი მოთხოვნები",
+  "kicker": "მოთხოვნები",
+  "headline": "სავალდებულო კრიტერიუმები",
+  "items": [
+   {"text": "პირადობის მოწმობა", "state": "done"},
+   {"text": "ცნობა შემოსავლების შესახებ", "state": "done"},
+   {"text": "განაცხადის ფორმა", "state": "pending"}
+  ],
+  "em": "სავალდებულო კრიტერიუმები"
+ }
+}

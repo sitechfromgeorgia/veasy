@@ -34,7 +34,7 @@ import re
 # The news rules' own allowlist of scene types (N1: no opinion or take scene), kept by hand on purpose: a new brush
 # (brushes/<type>.json) is allowed in news only once it is named here too.
 SCENE_TYPES = {"hook", "stat", "timeline", "where", "who", "points", "quote", "sources", "draw", "pair", "steps", "bars",
-               "trend", "change", "sign", "end", "share", "rail", "compare", "link", "agree", "chapter"}
+               "trend", "change", "sign", "end", "share", "rail", "compare", "link", "agree", "chapter", "ranking", "versus", "countdown", "calendar", "glossary", "checklist", "impact", "route", "budget"}
 RELATIVE_DAYS = ("დღეს", "გუშინ", "ხვალ", "ზეგ", "გუშინწინ")
 # Words that judge instead of report (stems: Georgian adds case endings). Extend from the edits log.
 EVALUATIVE = ("სკანდალურ", "შოკისმომგვრელ", "სამარცხვინო", "საოცარ", "გასაოცარ", "უპრეცედენტო", "საშინელ",
@@ -45,7 +45,7 @@ SENSITIVE = ("გაუპატიურ", "სექსუალურ ძა�
 DEATHS = ("გარდაიცვალ", "გარდაცვალ", "გარდაცვლ", "დაიღუპ", "დაღუპ", "იღუპებ", "სიკვდილ", "ცხედ", "მკვლელობ",
           "მოკლეს", "მოკლულ", "მოიკლ", "დაიხრჩო", "მსხვერპლ")
 # an icon's name and a sign's verb are drawn, not read; em points at a text already on screen; style is a stat's motion
-NOT_SCREEN = ("type", "at", "icon", "verb", "em", "style", "n", "of", "total", "show", "media")  # counts code makes (agree,
+NOT_SCREEN = ("type", "at", "icon", "verb", "em", "style", "n", "of", "total", "show", "media", "rank", "status", "state")  # counts code makes (agree,
 # chapter) are not claims of the articles
 # N12: words that label an outlet by its side; a video never sorts outlets (stems: Georgian adds case endings)
 SIDES = ("პროსამთავრობო", "სამთავრობო მედი", "ოპოზიციურ", "პროსახელისუფლებო", "სახელისუფლებო მედი", "პრორუსულ",
@@ -77,8 +77,9 @@ def _walk(v):
     elif isinstance(v, (int, float)):
         yield f"{v:g}" if isinstance(v, float) else str(v)
     elif isinstance(v, dict):
-        for x in v.values():
-            yield from _walk(x)
+        for k, x in v.items():
+            if k not in NOT_SCREEN:
+                yield from _walk(x)
     elif isinstance(v, list):
         for x in v:
             yield from _walk(x)
