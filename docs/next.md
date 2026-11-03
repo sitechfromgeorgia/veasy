@@ -1,8 +1,13 @@
-# Next: three briefs ready to hand to an agent
+# Next: briefs ready to hand to an agent
 
-Written 2026-11-02 when the session's budget ran out. Each is a self-contained brief for one agent working in its
-own branch. Read CLAUDE.md first. The design behind them is in ROADMAP section D and in the research summarized
-there (brushes, directors, HyperFrames motion rules).
+Briefs 0-3 (written 2026-11-02) are done and merged. **What comes next is Veasy v2,
+[docs/plan-v2.md](plan-v2.md)** (2026-11-03): a media layer (stock, illustration, screenshots, maps, sound effects),
+a composed lane where the agent writes the film in HyperFrames, and templates agents can promote. Its first brief
+is § 4 below; read the plan first.
+
+Each brief is self-contained for one agent working in its own branch. Read CLAUDE.md first. The design behind
+briefs 0-3 is in ROADMAP section D and in the research summarized there (brushes, directors, HyperFrames motion
+rules).
 
 Rules for every brief:
 - Verify with `python -m unittest discover -s tests`, `(cd remotion && npx tsc --noEmit)` and
@@ -170,3 +175,25 @@ Done on 2026-11-02: `engine plan` (`tt_shorts/plan.py`, tool `veasy_plan`), `tt_
     labels re-checked.
   - Seed it with `assets/drawings/*.json`: 12-20 hand-made line drawings (gas pipe, bus, school, hospital, court,
     bridge, power line, tap, house, car, ballot box, phone, money, factory), each passing sanitize and quality.
+
+## 4. Veasy v2, phase 0: the HyperFrames spike (docs/plan-v2.md § 7)
+
+Two days, one agent, its own branch. It decides how Lane B plugs in; nothing here ships to the queue.
+- Install `hyperframes@0.9.8` (pinned) in a `compose/` folder of the repo with its own `package.json`, and the core
+  skills (`/hyperframes`, `/hyperframes-cli`, `/hyperframes-registry`) for the agent. Turn off anything that calls
+  HeyGen's paid APIs (`/media-use` stays unused: our media layer replaces it).
+- Write `tt_shorts/frame_md.py`: a brand pack -> HyperFrames' `frame.md` (font, palette tokens, radius, the rule
+  "the accent is a dot, an active state or the button, never text", the safe zone as layout rules). A test checks
+  both packs give a valid file.
+- By hand, as an agent would: a composed 24835 (same facts as `stories/24835.json`) with beats every 1.5-3 s, the
+  chapter bar, a stacked-card scene, a big number with its source chip, and Veasy's chrome (logo, date, source line,
+  captions) as components the scene can't restyle. Voice: the silent engine's timings (`timing.json`).
+- Measure: render time per second of video here and on the server (84.46.250.149, after the owner's OK to install
+  there), two renders give the same frames (hash a few), FiraGO's Georgian glyphs, file size.
+- Try the probe: can `remotion/probe.mjs`'s rules read a HyperFrames page (text boxes, fonts, the safe zone)? If
+  not, what a HyperFrames-side probe needs.
+- Decide and write down in plan-v2.md: a whole film rendered by HyperFrames and mixed by `props.mix_audio`, or
+  HyperFrames scene clips placed by Remotion's `OffthreadVideo`. Say which keeps captions, chrome and the checks in
+  one place.
+- Done means: the composed 24835 mp4 and its contact sheet, the numbers above, the decision, and the list of what
+  phase 2 must build. Silent voice only; no paid media.
