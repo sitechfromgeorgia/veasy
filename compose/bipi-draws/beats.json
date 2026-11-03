@@ -26,7 +26,7 @@
   {"id": "step", "at": "ნაბიჯია", "show": "the line climbs like stairs, the dot goes up"},
   {"id": "end", "at": "მეტი ზღაპრისთვის", "show": "the end card"},
   {"id": "end-link", "at": "გამოიწერე", "show": "the link and the QR"},
-  {"id": "cta", "at": "SiTech", "show": "the call to action"}
+  {"id": "cta", "at": "არხი", "show": "the call to action"}
  ],
  "keywords": ["ბიპი", "კვადრატივით", "ტალღასავით", "ყოველდღე", "მზე", "ნაბიჯია"],
  "icons": []

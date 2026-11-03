@@ -378,8 +378,9 @@ class StoryTier(unittest.TestCase):
         self.assertEqual(claims_check.fiction(quiet, allow=["SiTech"]), [])
 
     def test_the_brand_names_are_allowed(self):
-        self.assertEqual(claims_check.fiction(tale(), allow=["SiTech"]), [])
-        self.assertIn("S1", rules(claims_check.fiction(tale())))  # SiTech in the CTA, without the brand allowed
+        branded = tale(cta="გამოიწერე SiTech")  # the pack's own name, in a SiTech film
+        self.assertEqual(claims_check.fiction(branded, allow=["SiTech"]), [])
+        self.assertIn("S1", rules(claims_check.fiction(branded)))  # in another pack it is a real company
 
 
 if __name__ == "__main__":

@@ -415,6 +415,8 @@ def bind_index(text, t, fx, slots=None):
         g = re.search(r"<script\s+src\s*=\s*[\"']assets/vendor/gsap\.min\.js[\"']\s*>\s*</script>", text)
         tag = f'<script src="{VEASY_JS}"></script>'
         text = text[:g.end()] + "\n    " + tag + text[g.end():] if g else text.replace("</head>", f"  {tag}\n  </head>", 1)
+    if not text.startswith("﻿"):  # UTF-8, whatever the server says: the variables on <html> push <meta charset>
+        text = "﻿" + text  # past the 1024 bytes a browser scans for it, and Georgian came out as mojibake
     return text, hosts
 
 

@@ -24,7 +24,8 @@ const puppeteer = require("puppeteer-core");
 const HF = path.join(HERE, "node_modules", "hyperframes", "dist");
 const RUNTIME = path.join(HF, "hyperframe.runtime.iife.js");
 const GSAP = path.join(HF, "vendor", "npm", "gsap@3.15.0", "dist", "gsap.min.js");
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png",
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+  ".svg": "image/svg+xml", ".png": "image/png",
   ".jpg": "image/jpeg", ".woff2": "font/woff2", ".json": "application/json", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".mp4": "video/mp4" };
 
 const emit = (o) => process.stdout.write(`${JSON.stringify(o)}\n`);
