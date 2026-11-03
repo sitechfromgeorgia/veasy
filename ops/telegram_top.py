@@ -43,12 +43,17 @@ def main() -> int:
         if count >= LIMIT:
             break
         title = ""
+        private = False
         try:
             story = json.loads(pathlib.Path(job["story"]).read_text(encoding="utf-8"))
+            private = story.get("private") is True or story.get("visibility") == "private"
             hook = next((s for s in story.get("scenes", []) if s.get("type") == "hook"), {})
             title = " ".join(hook.get("lines") or []) or story.get("narration", "")[:90]
         except Exception:
             pass
+        if private:
+            # An embargoed piece never reaches the channel: the owner publishes it himself or not at all.
+            continue
         link = f"https://tbilisi.today/stories/{job.get('ref')}"
         caption = f"{title}\n\n{link}"
         buttons = [[{"text": "სრულად წაკითხვა", "url": link}],
