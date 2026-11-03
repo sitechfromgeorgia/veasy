@@ -44,6 +44,11 @@ class Packs(unittest.TestCase):
             self.assertEqual(b["media"]["providers"], [])  # pictures are opt-in per pack (2026-11-03): none by default
             self.assertIn("illustrative", brand.for_remotion(b)["strings"])
 
+    def test_a_tinted_keyword_falls_back_where_the_theme_cant_carry_it(self):
+        st = brand.load("sitech")
+        self.assertEqual(brand.keyword_style(brand.themed(st, "dark")), "tint")  # orange on the dark box: fine
+        self.assertEqual(brand.keyword_style(brand.themed(st, "light")), "underline")  # orange on paper: 2.24:1
+
     def test_a_base_is_not_a_brand(self):
         with self.assertRaises(brand.BrandError):
             brand.load("_ka")

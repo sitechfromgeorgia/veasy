@@ -420,9 +420,21 @@ def with_say(story):
     return {**story, "say": {**pack, **(story.get("say") or {})}}
 
 
+KEYWORD_TINT_FLOOR = 3.0  # a tinted keyword is large bold text: the probe's floor for it (probe contrast)
+
+
 def keyword_style(b):
-    """How the pack's keyword captions draw a keyword (design.keyword): underline, block or tint."""
-    return (b.get("design") or {}).get("keyword", KEYWORD_DEFAULT)
+    """How the pack's keyword captions draw a keyword (design.keyword): underline, block or tint. A tint the
+    theme's captions box can't carry (the accent under KEYWORD_TINT_FLOOR on it: SiTech's orange on paper is 2.24)
+    falls back to underline, so one pack choice works in every theme."""
+    style = (b.get("design") or {}).get("keyword", KEYWORD_DEFAULT)
+    colors = b.get("colors")
+    if style == "tint" and colors:
+        canvas = rgba(colors["canvas"])
+        box = over(canvas[:3] + (CAPTION_BOX,), canvas)
+        if contrast(rgba(colors["accent"]), box) < KEYWORD_TINT_FLOOR:
+            return "underline"
+    return style
 
 
 def summary(b):
