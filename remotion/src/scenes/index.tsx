@@ -8,6 +8,7 @@ import { Mark, marked } from "../marker";
 import { Compare, flapSize, Link, Rail, Share, StatNumber } from "./brushes";
 import { Bars, Change, Draw, Pair, Steps, Trend } from "./more";
 import { isoSpan, Isotype, railWidth, Sign } from "./sign";
+import { Budget, Calendar, Checklist, Countdown, Glossary, Impact, Ranking, Route, Versus } from "./extra";
 import {
   beat, Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, measure, stepped, useIn, useOpening, useStyle, useTheme,
 } from "../ui";
@@ -26,21 +27,12 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
   const lines = s.lines ?? [];
   const kinetic = v === "kinetic";
   // stack: the lines as they are (kinetic inverts the last) · lead: the first line small and quiet, the rest large ·
-  // blocks: every line in an ink block · underline: an ink rule draws under each line after it lands ·
-  // split: line 0 in an ink block with subsequent lines indented · badge: line 0 in a rounded ink badge ·
-  // bracket: corner brackets framing the lines · rail: an ink rail running along the left of the lines
+  // blocks: every line in an ink block · underline: an ink rule draws under each line after it lands
   const lead = hook === "lead" && lines.length > 1;
   const blocks = hook === "blocks";
-  const split = hook === "split";
-  const badge = hook === "badge";
-  const bracket = hook === "bracket";
-  const rail = hook === "rail";
-
-  const padLeft = rail ? 32 : split ? 20 : 0;
-  const width = (inner - (kinetic || blocks || split || badge ? 48 : 8) - padLeft) * 0.92;
+  const width = (inner - (kinetic || blocks ? 48 : 8)) * 0.92;
   const size = fitSize(lead ? lines.slice(1) : lines, width, kinetic ? 176 : 160, 44);
   const leadSize = fitSize([lines[0] ?? ""], width, 72, 40);
-  const badgeSize = fitSize([lines[0] ?? ""], width - 40, kinetic ? 140 : 120, 38);
   // the opening (frame 0 decides the swipe): the rule is half drawn and the dot is there; underlines draw quickly
   const opening = useOpening();
   // with a beat track the rule steps on with the voice, a stage a beat (tt_shorts/beats.py), and ends full as before
@@ -53,45 +45,21 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
         <In><div style={{ marginBottom: 28 }}><Chip size={40}>{props.rubric}</Chip></div></In>
       )}
       <In><Kicker text={s.kicker ?? props.category} /></In>
-      <div style={{ position: "relative", marginTop: 48, paddingLeft: padLeft }}>
-        {bracket && (
-          <>
-            <div style={{ position: "absolute", top: -14, left: -14, width: 32, height: 32,
-              borderTop: `4px solid ${INK}`, borderLeft: `4px solid ${INK}`,
-              opacity: opening ? 1 : interpolate(frame, [0, 8], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }} />
-            <div style={{ position: "absolute", bottom: -14, right: -14, width: 32, height: 32,
-              borderBottom: `4px solid ${INK}`, borderRight: `4px solid ${INK}`,
-              opacity: opening ? 1 : interpolate(frame, [4, 12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }} />
-          </>
-        )}
-        {rail && (
-          <div style={{ position: "absolute", left: 8, top: 4, bottom: 4, width: 6, background: INK, borderRadius: 3,
-            transformOrigin: "top center", transform: `scaleY(${opening ? 1 : bar})` }}>
-            <div style={{ position: "absolute", left: -6, top: -6 }}><Dot size={18} pulse /></div>
-          </div>
-        )}
+      <div style={{ marginTop: 48 }}>
         {lines.map((l, i) => {
           const quiet = lead && i === 0;
-          const block = blocks || (split && i === 0) || (kinetic && hook === "stack" && i === lines.length - 1);
-          const isBadge = badge && i === 0;
-          const fs = quiet ? leadSize : isBadge ? badgeSize : size;
+          const block = blocks || (kinetic && hook === "stack" && i === lines.length - 1);
+          const fs = quiet ? leadSize : size;
           const rule = hook === "underline"
             ? interpolate(frame - (opening ? i * 3 : 12 + i * 6), [0, opening ? 8 : 10], [opening ? 0.4 : 0, 1],
               { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
           return (
             <In key={i} delay={4 + i * 5}>
               <div style={{ position: "relative", fontFamily: FONT, fontWeight: quiet ? 600 : 700, fontSize: fs, lineHeight: 1.16,
-                whiteSpace: "nowrap", color: (block || isBadge) ? CANVAS : quiet ? MUTED : INK,
-                background: (block || isBadge) ? INK : "transparent",
-                borderRadius: isBadge ? 999 : 0,
-                display: "inline-block",
-                padding: isBadge ? `8px ${fs * 0.3}px 12px` : block ? `0 ${fs * 0.14}px ${fs * 0.1}px` : 0,
-                marginTop: (block || isBadge) ? 12 : 0,
-                marginBottom: quiet ? 20 : hook === "underline" ? 16 : isBadge ? 16 : 0,
-                marginLeft: (split && i > 0) ? 16 : 0,
-                borderLeft: (split && i > 0) ? `2px solid ${LINE}` : "none",
-                paddingLeft: (split && i > 0) ? 16 : isBadge ? fs * 0.3 : block ? fs * 0.14 : 0 }}>
-                {marked(s, `lines.${i}`, l, { px: fs, inverted: block || isBadge })}
+                whiteSpace: "nowrap", color: block ? CANVAS : quiet ? MUTED : INK, background: block ? INK : "transparent",
+                display: "inline-block", padding: block ? `0 ${fs * 0.14}px ${fs * 0.1}px` : 0,
+                marginTop: block ? 12 : 0, marginBottom: quiet ? 20 : hook === "underline" ? 16 : 0 }}>
+                {marked(s, `lines.${i}`, l, { px: fs, inverted: block })}
                 {hook === "underline" && (
                   <div style={{ position: "absolute", left: 0, bottom: -6, height: 8, width: `${rule * 100}%`, background: INK }} />
                 )}
@@ -401,5 +369,5 @@ export const End: React.FC<P> = () => {
 export const SCENES: Record<string, React.FC<P>> = {
   hook: Hook, stat: Stat, timeline: Timeline, where: Where, who: Who, points: Points, quote: Quote, sources: Sources, draw: Draw,
   pair: Pair, steps: Steps, bars: Bars, trend: Trend, change: Change, sign: Sign, share: Share, rail: Rail, compare: Compare,
-  link: Link, agree: Agree, chapter: Chapter, end: End,
+  link: Link, agree: Agree, chapter: Chapter, ranking: Ranking, versus: Versus, countdown: Countdown, calendar: Calendar, glossary: Glossary, checklist: Checklist, impact: Impact, route: Route, budget: Budget, end: End,
 };

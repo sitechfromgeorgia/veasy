@@ -27,6 +27,7 @@ export type CaptionLayout = {
 export type Item = string | {
   name?: string; role?: string; title?: string; sub?: string; label?: string; value?: number; when?: string;
   text?: string; count?: number; // agree: a fact and how many member articles state it (code counts them)
+  rank?: number; state?: "done" | "pending"; note?: string; share?: number;
 };
 
 // tt_shorts/marks.py: a scene's voice-synced mark (its "em"), resolved in Python. field: the slot it sits in
@@ -56,20 +57,18 @@ export type ArtNode = {
 export type IconNode = [string, Record<string, string>];
 // what a sign scene shows happening to its icon (icons.VERBS)
 export type Verb = "rises" | "falls" | "stops" | "opens" | "closes" | "moves" | "splits" | "joins";
-// icon motion vocabulary (icons.MOTIONS)
-export type IconMotion = "draw" | "pop" | "pulse" | "count" | "morph" | "sketch";
 
 // the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python
-export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter" | "fade" | "shutter" | "split" | "corner" | "iris" | "blind";
+export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter";
 
 // the ending (tt_shorts/swipe.py OUTROS): the end card, a QR/link/CTA chip over the last scene, or a seamless loop
 export type Outro = "card" | "overlay" | "loop";
 
 // tt_shorts/variety.py: this video's own combination inside the brand and the look (layout and motion, never color)
 export type Style = {
-  hook: "stack" | "lead" | "blocks" | "underline" | "split" | "badge" | "bracket" | "rail";
-  motif: "grid" | "diagonal" | "dots" | "rules" | "plain" | "icons" | "crosses" | "mesh" | "waves" | "hash"; // icons: props.motifIcon tiled
-  enter: "rise" | "slide" | "reveal" | "scale" | "drop" | "expand" | "drift" | "flip";
+  hook: "stack" | "lead" | "blocks" | "underline";
+  motif: "grid" | "diagonal" | "dots" | "rules" | "plain" | "icons"; // icons: props.motifIcon tiled
+  enter: "rise" | "slide" | "reveal" | "scale";
   // tt_shorts/directors.py: the video's director, its motion personality and its current (absent: today's motion)
   director?: string;
   motion?: Motion;
@@ -130,6 +129,18 @@ export type Scene = SceneBase & {
   area?: string; // where: ge, ge:<region> or ge:<place>, when the place text alone doesn't say it
   map?: GeoMap; // where: set by tt_shorts/geo.py when the place is in Georgia
   items?: Item[];
+  target?: number;
+  day?: number;
+  month?: string;
+  weekday?: string;
+  event?: string;
+  term?: string;
+  definition?: string;
+  context?: string;
+  change?: string;
+  stops?: string[];
+  detail?: string;
+  when?: string;
   art?: ArtNode[]; // draw: the drawing, sanitized by tt_shorts/art.py
   between?: string; // pair: the word on the divider
   unit?: string; // bars, trend, change
@@ -138,9 +149,6 @@ export type Scene = SceneBase & {
   icon?: string; // sign, stat: the icon's library name (resolved in Python)
   verb?: Verb; // sign
   glyph?: IconNode[]; // sign, stat: the icon's shapes
-  chart?: "isotype" | "part_of_whole" | "unit_chart"; // isotype chart mode
-  motion?: IconMotion; // sign, stat: icon motion style (icons.MOTIONS)
-  morphGlyph?: IconNode[]; // sign: target glyph to morph towards
   isotype?: boolean; // stat: the value is drawn as that many icons (2-30 whole things)
   text?: string;
   by?: string;

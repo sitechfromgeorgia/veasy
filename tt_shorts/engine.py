@@ -103,13 +103,7 @@ def options(brand_name=None):
                         "panel": "an ink panel wipes through", "wipe": "the new scene is revealed left to right",
                         "slide": "a short slide and fade", "push": "the old scene leaves left, the new one comes from the right",
                         "dot": "an iris opens from the header's progress dot",
-                        "meter": "equaliser bars in ink rise over the old scene and fall away from the new one",
-                        "fade": "a clean opacity fade between scenes, dipping through canvas",
-                        "shutter": "horizontal ink shutter slats sweep across along the current",
-                        "split": "an ink split wipe reveals the new scene outward from the center",
-                        "corner": "a diagonal geometric wipe sweeps across from the corner",
-                        "iris": "a circular ink iris opens from the center of the scene band",
-                        "blind": "vertical ink louver blinds rotate and wipe across the scene"},
+                        "meter": "equaliser bars in ink rise over the old scene and fall away from the new one"},
         "outros": dict(swipe.ABOUT),
         "themes": {"about": "a pack's palettes (brand.json themes; brands.<pack>.themes lists them): a format's or "
                             "--theme's default (the pack's default theme: nothing changes), auto (variety: the least "
@@ -301,6 +295,50 @@ def shape_problems(s):
         out += geo.area_problems(s["area"])
     if t in ("sign", "stat"):
         out += icons.scene_problems(s)
+    if t == "ranking":
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not it["label"].strip():
+                out.append(f"items[{k}]: needs {{label}}")
+            elif "value" in it and not _number(it["value"]):
+                out.append(f"items[{k}]: value must be a number")
+            elif "rank" in it and (not isinstance(it["rank"], int) or it["rank"] < 1):
+                out.append(f"items[{k}]: rank must be a positive integer")
+    if t == "versus":
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("title"), str) or not it["title"].strip():
+                out.append(f"items[{k}]: needs {{title}}")
+    if t == "countdown":
+        if not _number(s.get("value")) or s["value"] <= 0:
+            out.append("value: countdown needs a positive number")
+    if t == "calendar":
+        day = s.get("day")
+        if not isinstance(day, int) or not (1 <= day <= 31):
+            out.append("day: calendar day must be 1-31")
+    if t == "glossary":
+        if not isinstance(s.get("term"), str) or not s["term"].strip():
+            out.append("term: glossary needs a non-empty term")
+        if not isinstance(s.get("definition"), str) or not s["definition"].strip():
+            out.append("definition: glossary needs a non-empty definition")
+    if t == "checklist":
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("text"), str) or not it["text"].strip():
+                out.append(f"items[{k}]: checklist item needs {{text}}")
+    if t == "impact":
+        for field in ("target", "change", "when"):
+            if not isinstance(s.get(field), str) or not s[field].strip():
+                out.append(f"{field}: impact card needs non-empty {field}")
+    if t == "route":
+        stops = s.get("stops")
+        if not isinstance(stops, list) or len(stops) < 2 or any(not isinstance(p, str) or not p.strip() for p in stops):
+            out.append("stops: route needs at least 2 non-empty places")
+    if t == "budget":
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not _number(it.get("value")):
+                out.append(f"items[{k}]: budget item needs {{label, value}}")
+            elif it["value"] <= 0:
+                out.append(f"items[{k}]: budget value must be above zero")
+            elif "share" in it and (not _number(it["share"]) or not (0 < it["share"] <= 100)):
+                out.append(f"items[{k}]: share must be a percent 1-100")
     return out
 
 

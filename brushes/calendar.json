@@ -1,0 +1,44 @@
+{
+ "type": "calendar",
+ "order": 190,
+ "what": "a calendar sheet displaying a scheduled date, month and event",
+ "use_when": "the story announces a specific upcoming date for a court hearing, parliament session, festival or meeting",
+ "avoid_when": "a sequence of multiple dated events (rail); a from-to span (timeline); remaining days (countdown)",
+ "pairs_with": ["countdown", "where", "who", "impact"],
+ "slots": {
+  "day": {"kind": "num", "min": 1, "max": 31, "required": true},
+  "month": {"kind": "text", "max": 16, "required": true},
+  "event": {"kind": "text", "max": 48, "required": true},
+  "weekday": {"kind": "text", "max": 16},
+  "sub": {"kind": "text", "max": 32},
+  "kicker": {"kind": "text", "max": 24}
+ },
+ "families_deny": [],
+ "min_seconds": 3.0,
+ "min_words": 7,
+ "em": {"fields": ["event", "sub"], "kinds": ["underline", "box"]},
+ "schema": {
+  "type": "calendar",
+  "at": "...",
+  "kicker": "...",
+  "day": 24,
+  "month": "ნოემბერი",
+  "weekday": "სამშაბათი",
+  "event": "საკრებულოს სხდომა",
+  "sub": "12:00 საათზე"
+ },
+ "rules": [
+  "\"calendar\": a specific date and scheduled event; day (1-31) and month must appear in the articles;"
+ ],
+ "example": {
+  "type": "calendar",
+  "at": "24 ნოემბერს გაიმართება",
+  "kicker": "განრიგი",
+  "day": 24,
+  "month": "ნოემბერი",
+  "weekday": "სამშაბათი",
+  "event": "საკრებულოს სხდომა",
+  "sub": "12:00 საათზე",
+  "em": "საკრებულოს სხდომა"
+ }
+}

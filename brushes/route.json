@@ -1,0 +1,45 @@
+{
+ "type": "route",
+ "order": 230,
+ "what": "a transit or movement path between 2-4 points from origin to destination",
+ "use_when": "the story describes a journey, new transport line, trade corridor or diplomatic itinerary",
+ "avoid_when": "one fixed place without movement (where); steps without geographic points (steps)",
+ "pairs_with": ["where", "rail", "stat", "steps"],
+ "slots": {
+  "stops": {
+   "kind": "list",
+   "count": [2, 4],
+   "of": {"kind": "text", "max": 24},
+   "required": true
+  },
+  "label": {"kind": "text", "max": 40},
+  "detail": {"kind": "text", "max": 24},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": ["crime"],
+ "min_seconds": 3.4,
+ "min_words": 8,
+ "em": {"fields": ["label", "detail", "headline"], "kinds": ["underline", "box"]},
+ "schema": {
+  "type": "route",
+  "at": "...",
+  "kicker": "...",
+  "stops": ["თბილისი", "ბათუმი", "ტრაპიზონი"],
+  "label": "ახალი სატრანზიტო დერეფანი",
+  "detail": "450 კილომეტრი"
+ },
+ "rules": [
+  "\"route\": 2-4 stops in geographic travel order from origin to destination; all places from the articles;"
+ ],
+ "example": {
+  "type": "route",
+  "at": "ახალი სატრანზიტო მარშრუტი იხსნება",
+  "kicker": "ტრანსპორტი",
+  "headline": "სატრანზიტო მარშრუტი",
+  "stops": ["თბილისი", "ბათუმი", "ტრაპიზონი"],
+  "label": "ახალი სატრანზიტო დერეფანი",
+  "detail": "450 კილომეტრი",
+  "em": "ახალი სატრანზიტო დერეფანი"
+ }
+}

@@ -1,0 +1,43 @@
+{
+ "type": "countdown",
+ "order": 180,
+ "what": "countdown of remaining days or hours to a stated deadline or event",
+ "use_when": "the story names a deadline and states how much time remains: days or hours left",
+ "avoid_when": "past dates (timeline, rail); dates without a remaining duration; estimated or computed days",
+ "pairs_with": ["calendar", "impact", "points", "stat"],
+ "slots": {
+  "value": {"kind": "num", "min": 1, "max": 999, "required": true},
+  "label": {"kind": "text", "max": 48, "required": true},
+  "unit": {"kind": "text", "max": 12},
+  "target": {"kind": "text", "max": 24},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": ["crime"],
+ "min_seconds": 3.0,
+ "min_words": 7,
+ "em": {"fields": ["label", "target", "headline"], "kinds": ["underline", "box", "highlight"]},
+ "schema": {
+  "type": "countdown",
+  "at": "...",
+  "kicker": "...",
+  "value": 14,
+  "unit": "დღე",
+  "target": "15 ნოემბერი",
+  "label": "რეგისტრაციის ბოლო ვადა"
+ },
+ "rules": [
+  "\"countdown\": remaining days or hours to a deadline; value, unit and target must be in the articles;"
+ ],
+ "example": {
+  "type": "countdown",
+  "at": "ვადის ამოწურვამდე 14 დღე რჩება",
+  "kicker": "მნიშვნელოვანი თარიღი",
+  "headline": "რეგისტრაციის ვადა",
+  "value": 14,
+  "unit": "დღე",
+  "target": "15 ნოემბერი",
+  "label": "რეგისტრაციის ბოლო ვადა",
+  "em": "რეგისტრაციის ბოლო ვადა"
+ }
+}
