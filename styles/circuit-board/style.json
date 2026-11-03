@@ -1,0 +1,20 @@
+{
+  "slug": "circuit-board",
+  "name_en": "Circuit Board",
+  "name_ka": "მიკროსქემა",
+  "category": "technical",
+  "engine": "hyperframes",
+  "palette": "own",
+  "fonts": "pack",
+  "programs": ["explainer", "story", "blog"],
+  "never_families": ["crime", "politics"],
+  "picks": {
+    "directors": ["brief", "data", "chronicle"],
+    "looks": ["kinetic", "cards"],
+    "motifs": ["grid", "plain"],
+    "transitions": ["line", "wipe"],
+    "music": ["tech", "economy"],
+    "sfx": ["blip", "click", "pop"]
+  },
+  "uses": "Detailed top-down printed circuit board with dark green solder mask, ENIG gold pads, routed copper traces, and flowing current pulses."
+}

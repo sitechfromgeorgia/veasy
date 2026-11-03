@@ -173,6 +173,39 @@ class TestStyles(unittest.TestCase):
         self.assertIn("news", sm["programs"])
         self.assertEqual(sm["palette"], "pack")
 
+    def test_shipped_styles_load_and_validate(self):
+        all_styles = styles.load_all()
+        self.assertGreaterEqual(len(all_styles), 18)
+        names = styles.names()
+        self.assertEqual(len(all_styles), len(names))
+        for s in all_styles:
+            self.assertIn(s["slug"], names)
+            self.assertTrue(s["style_md"].strip())
+            self.assertIn("1080×1920", s["style_md"])
+            self.assertIn("1380", s["style_md"])  # safe zone text limit
+            self.assertIn("1552", s["style_md"])  # safe zone captions limit
+
+    def test_first_wave_styles_present(self):
+        expected_first_wave = [
+            "swiss-motion", "pictogram-motion", "caption-news", "dataviz",
+            "transit-map", "satellite-briefing", "briefing-board", "whiteboard",
+            "blueprint", "iso-infographic", "countdown"
+        ]
+        shipped = set(styles.names())
+        for f in expected_first_wave:
+            self.assertIn(f, shipped)
+
+    def test_shipped_palette_own_restrictions(self):
+        own_slugs = [s["slug"] for s in styles.load_all() if s["palette"] == "own"]
+        self.assertIn("blueprint", own_slugs)
+        self.assertIn("pirosmani-naive", own_slugs)
+        tt = brand.load("tbilisi-today")
+        for slug in own_slugs:
+            s = styles.get(slug)
+            ok, reason = styles.brand_allows(tt, s, program="news")
+            self.assertFalse(ok)
+            self.assertIn("news programs never permit", reason)
+
 
 if __name__ == "__main__":
     unittest.main()

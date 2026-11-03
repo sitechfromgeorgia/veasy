@@ -1,0 +1,20 @@
+{
+  "slug": "pictogram-motion",
+  "name_en": "Pictogram Motion",
+  "name_ka": "პიქტოგრამული მოძრაობა",
+  "category": "infographic",
+  "engine": "both",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["news", "explainer", "blog"],
+  "never_families": [],
+  "picks": {
+    "directors": ["data", "brief", "type"],
+    "looks": ["cards", "kinetic"],
+    "motifs": ["icons", "grid", "dots"],
+    "transitions": ["panel", "slide", "cut"],
+    "music": ["society", "culture", "tech"],
+    "sfx": ["pop", "click"]
+  },
+  "uses": "Beat-locked visual catalog where every fact, metric, or entity is represented by a crisp geometric sign or icon on a modular card."
+}

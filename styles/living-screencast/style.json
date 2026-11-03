@@ -1,0 +1,20 @@
+{
+  "slug": "living-screencast",
+  "name_en": "Living Screencast",
+  "name_ka": "ცოცხალი ეკრანის ჩანაწერი",
+  "category": "technical",
+  "engine": "hyperframes",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["explainer", "law", "blog"],
+  "never_families": ["crime"],
+  "picks": {
+    "directors": ["brief", "witness", "data"],
+    "looks": ["cards", "editorial"],
+    "motifs": ["plain", "grid"],
+    "transitions": ["cut", "slide"],
+    "music": ["tech", "society"],
+    "sfx": ["click", "pop", "whoosh"]
+  },
+  "uses": "Software walkthrough where application windows and cursor navigation come alive with camera zooms, ripple clicks, and keyboard strokes."
+}

@@ -1,0 +1,20 @@
+{
+  "slug": "crayon-book",
+  "name_en": "Crayon Picture Book",
+  "name_ka": "ცვილის ფანქრის წიგნი",
+  "category": "artistic",
+  "engine": "hyperframes",
+  "palette": "own",
+  "fonts": "own",
+  "programs": ["story", "fiction"],
+  "never_families": ["crime", "politics", "economy"],
+  "picks": {
+    "directors": ["draw", "chronicle"],
+    "looks": ["editorial", "cards"],
+    "motifs": ["plain", "dots"],
+    "transitions": ["wipe", "cut"],
+    "music": ["culture", "society"],
+    "sfx": ["whoosh", "pop"]
+  },
+  "uses": "Charming children's illustrated storybook drawn live in wax crayon on textured cotton paper with hand-drawn Georgian lettering."
+}

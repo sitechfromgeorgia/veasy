@@ -1,0 +1,20 @@
+{
+  "slug": "briefing-board",
+  "name_en": "Engineering Briefing Board",
+  "name_ka": "საინჟინრო საინფორმაციო დაფა",
+  "category": "technical",
+  "engine": "hyperframes",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["explainer", "blog", "story"],
+  "never_families": ["crime"],
+  "picks": {
+    "directors": ["brief", "data", "chronicle"],
+    "looks": ["editorial", "cards"],
+    "motifs": ["grid", "plain"],
+    "transitions": ["cut", "slide"],
+    "music": ["tech", "economy", "society"],
+    "sfx": ["thud", "click", "pop"]
+  },
+  "uses": "Enamel briefing whiteboard featuring photo cutouts, dimensional callout lines, magnetic pins, and authoritative stamped verdict marks."
+}
