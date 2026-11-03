@@ -1,0 +1,53 @@
+<!-- block number-reveal: large metric callout with unit pill, progress track and explanatory copy -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .metric-wrap { position: absolute; left: 64px; top: 310px; display: flex; align-items: baseline; gap: 24px; }
+    #root .num { font-weight: 700; font-size: 200px; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    #root .unit-pill { font-weight: 600; font-size: 40px; line-height: 1; padding: 14px 26px; border-radius: 999px;
+      border: 2px solid var(--line-strong); background: var(--panel); color: var(--ink); white-space: nowrap; }
+    #root .track { position: absolute; left: 64px; top: 560px; width: 876px; height: 12px; display: flex; gap: 6px; }
+    #root .track i { flex: 1; border-radius: 3px; background: var(--line); }
+    #root .head { position: absolute; left: 64px; top: 556px; width: 20px; height: 20px; border-radius: 10px; background: var(--accent); }
+    #root .lab-main { position: absolute; left: 64px; top: 620px; width: 876px; font-weight: 700; font-size: 64px; line-height: 1.2; }
+    #root .lab-sub { position: absolute; left: 64px; top: 780px; width: 876px; font-weight: 500; font-size: 44px; line-height: 1.3; color: var(--muted); }
+  </style>
+  <div id="root" data-composition-id="{id}" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="{id}-metric" class="metric-wrap">
+        <div id="{id}-num" class="num"><span data-var-text="{slot_value}">…</span></div>
+        <div id="{id}-unit" class="unit-pill"><span data-var-text="{slot_unit}">…</span></div>
+      </div>
+      <div id="{id}-track" class="track"></div>
+      <div id="{id}-head" class="head"></div>
+      <div id="{id}-lab1" class="lab-main"><span data-var-text="{slot_label}">…</span></div>
+      <div id="{id}-lab2" class="lab-sub"><span data-var-text="{slot_detail}">…</span></div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const C = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+      const N = 24;
+      const track = document.getElementById("{id}-track");
+      if (track && track.children.length === 0) {
+        for (let i = 0; i < N; i++) track.appendChild(document.createElement("i"));
+      }
+      const tl = gsap.timeline({ paused: true });
+      // Number and unit pill entrance
+      tl.fromTo("#{id}-num", { opacity: 0, scale: 0.85, y: 30 }, { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: "back.out(1.5)" }, 0.1);
+      tl.fromTo("#{id}-unit", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.25);
+      // Progress track fills with ink
+      tl.fromTo("#{id}-head", { x: 0, opacity: 0 }, { x: 856, opacity: 1, duration: 0.7, ease: "power2.out" }, 0.2);
+      if (track) {
+        const segs = track.querySelectorAll("i");
+        segs.forEach((s, i) => {
+          tl.set(s, { backgroundColor: C("--ink") }, 0.2 + 0.7 * ((i + 1) / N));
+        });
+      }
+      // Explanatory labels
+      tl.fromTo("#{id}-lab1", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.45);
+      tl.fromTo("#{id}-lab2", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.7);
+      window.__timelines["{id}"] = tl;
+    })();
+  </script>
+</template>

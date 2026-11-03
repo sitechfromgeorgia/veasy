@@ -137,6 +137,7 @@ def options(brand_name=None):
         "rubrics": rubrics.options(),
         "programs": {n: programs.summary(p) for n, p in programs.load_all().items()},
         "sources": _sources_about(),
+        "compose_blocks": _film_engines(b)["compose"]["blocks"],
         "scenes": catalog.options(),  # every brush's card (brushes/<type>.json): slots, limits, when, an example
         "em": {"about": "a scene whose brush has em fields may carry \"em\": a phrase of its on-screen text that its "
                         "part of the narration says; it is marked on screen as the voice says it (marks.py)",
@@ -194,7 +195,7 @@ def _film_engines(b):
                        "values": ["always", "until:<n>"], "default": formats.DEFAULT_REVIEW},
             "compose": {"render": compose.RENDER, "chrome": compose.CHROME_VERSION, "locked": list(compose.LOCKED),
                         "lint": list(compose.LINT_RULES),
-                        "refused": list(compose.REFUSED), "templates": sorted(compose.templates())}}
+                        "refused": list(compose.REFUSED), "templates": sorted(compose.templates()), "blocks": compose.blocks_summary()}}
 
 
 def _sources_about():
@@ -295,50 +296,6 @@ def shape_problems(s):
         out += geo.area_problems(s["area"])
     if t in ("sign", "stat"):
         out += icons.scene_problems(s)
-    if t == "ranking":
-        for k, it in enumerate(items or []):
-            if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not it["label"].strip():
-                out.append(f"items[{k}]: needs {{label}}")
-            elif "value" in it and not _number(it["value"]):
-                out.append(f"items[{k}]: value must be a number")
-            elif "rank" in it and (not isinstance(it["rank"], int) or it["rank"] < 1):
-                out.append(f"items[{k}]: rank must be a positive integer")
-    if t == "versus":
-        for k, it in enumerate(items or []):
-            if not isinstance(it, dict) or not isinstance(it.get("title"), str) or not it["title"].strip():
-                out.append(f"items[{k}]: needs {{title}}")
-    if t == "countdown":
-        if not _number(s.get("value")) or s["value"] <= 0:
-            out.append("value: countdown needs a positive number")
-    if t == "calendar":
-        day = s.get("day")
-        if not isinstance(day, int) or not (1 <= day <= 31):
-            out.append("day: calendar day must be 1-31")
-    if t == "glossary":
-        if not isinstance(s.get("term"), str) or not s["term"].strip():
-            out.append("term: glossary needs a non-empty term")
-        if not isinstance(s.get("definition"), str) or not s["definition"].strip():
-            out.append("definition: glossary needs a non-empty definition")
-    if t == "checklist":
-        for k, it in enumerate(items or []):
-            if not isinstance(it, dict) or not isinstance(it.get("text"), str) or not it["text"].strip():
-                out.append(f"items[{k}]: checklist item needs {{text}}")
-    if t == "impact":
-        for field in ("target", "change", "when"):
-            if not isinstance(s.get(field), str) or not s[field].strip():
-                out.append(f"{field}: impact card needs non-empty {field}")
-    if t == "route":
-        stops = s.get("stops")
-        if not isinstance(stops, list) or len(stops) < 2 or any(not isinstance(p, str) or not p.strip() for p in stops):
-            out.append("stops: route needs at least 2 non-empty places")
-    if t == "budget":
-        for k, it in enumerate(items or []):
-            if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not _number(it.get("value")):
-                out.append(f"items[{k}]: budget item needs {{label, value}}")
-            elif it["value"] <= 0:
-                out.append(f"items[{k}]: budget value must be above zero")
-            elif "share" in it and (not _number(it["share"]) or not (0 < it["share"] <= 100)):
-                out.append(f"items[{k}]: share must be a percent 1-100")
     return out
 
 
@@ -570,8 +527,10 @@ def render(a):
 
 
 def compose_cmd(a):
-    """engine compose scaffold | check | render | promote | templates (compose.py)."""
+    """engine compose scaffold | check | render | promote | templates | blocks (compose.py)."""
     from tt_shorts import compose
+    if a.action == "blocks":
+        return out({"blocks": compose.blocks()})
     if a.action == "templates":
         return out({"templates": compose.templates()})
     if a.action == "promote":
@@ -590,13 +549,14 @@ def compose_cmd(a):
     fmt = formats.get(a.format or program_format(a.target), captions=a.captions, voice=a.voice, music=a.music,
                       platform=a.platform, theme=a.theme)  # its captions, theme and render keys, as at render
     if a.action == "scaffold":
-        r = compose.scaffold(a.target, a.brand, a.project, a.template, a.source_dir, a.engine, a.force,
+        r = compose.scaffold(a.target, a.brand, a.project, a.template, a.source_dir, blocks=a.blocks, engine=a.engine, force=a.force,
                              theme=fmt["theme"], fmt=fmt)
         t = r.get("timing") or {}
         res = {"project": str(r["project"]), "origin": r["origin"], "built": r["built"], "problems": r["problems"],
                "duration": t.get("duration"), "chapters": t.get("chapters"), "gaps": t.get("gaps"),
                "beats": [(x["id"], x["t"]) for x in t.get("beats", [])], "facts": len(r.get("facts") or {}),
                "yours": compose.agent_files(r["project"]),
+               "blocks": r.get("blocks"), "templates": r.get("templates"),
                "next": r.get("todo") or "edit the scenes (frame.md, facts.json, timing.json), then engine compose "
                                          "check <story>"}
         return out(res, 1 if r["problems"] else 0)
@@ -1081,11 +1041,12 @@ def main(argv=None):
     g = sub.add_parser("gc")
     g.add_argument("--dry-run", action="store_true")
     cp = sub.add_parser("compose", help="films composed for HyperFrames (compose.py)")
-    cp.add_argument("action", choices=["scaffold", "check", "render", "promote", "templates"])
+cp.add_argument("action", choices=["scaffold", "check", "render", "promote", "templates", "blocks"])
     cp.add_argument("target", nargs="?", help="the story JSON (promote: the project folder)")
     cp.add_argument("--brand", help="the pack to build for (default: the story's)")
     cp.add_argument("--project", help="the project folder (default: $VEASY_HOME/cache/compose/<brand>-<ref>)")
     cp.add_argument("--template", help="scaffold/render: start from templates/<id>/ (auto: the least used)")
+    cp.add_argument("--blocks", help="scaffold: comma-separated list of block ids to assemble")
     cp.add_argument("--from", dest="source_dir", help="scaffold: copy the agent's files from this folder")
     cp.add_argument("--force", action="store_true", help="scaffold: replace the agent's files; promote: replace")
     cp.add_argument("--engine", default=None, choices=["gemini", "edge", "silent"],

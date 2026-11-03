@@ -1,0 +1,54 @@
+<!-- block process: sequential multi-step workflow with vertical timeline spine and numbered milestones -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .proc-chip { position: absolute; left: 64px; top: 300px; display: inline-flex; align-items: center; gap: 12px;
+      font-weight: 600; font-size: 32px; line-height: 1; padding: 12px 26px; border-radius: 999px; border: 2px solid var(--line-strong); }
+    #root .proc-chip i { width: 14px; height: 14px; border-radius: 7px; background: var(--accent); }
+    #root .timeline-wrap { position: absolute; left: 64px; top: 400px; width: 876px; counter-reset: proc-step; }
+    #root .spine { position: absolute; left: 40px; top: 30px; width: 4px; height: 420px; background: var(--line-strong); transform-origin: 0 0; }
+    #root .step-row { position: relative; display: flex; align-items: center; gap: 32px; margin-bottom: 56px; }
+    #root .step-node { width: 84px; height: 84px; border-radius: 50%; background: var(--panel); border: 3px solid var(--line-strong);
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 34px; line-height: 1; flex-shrink: 0; z-index: 2; }
+    #root .step-node::before { counter-increment: proc-step; content: "0" counter(proc-step); }
+    #root .step-node.active { background: var(--ink); color: var(--canvas); border-color: var(--ink); }
+    #root .step-card { flex: 1; padding: 24px 30px; background: var(--panel); border: 2px solid var(--line); border-radius: 14px; }
+    #root .step-label { font-weight: 700; font-size: 44px; line-height: 1.2; white-space: nowrap; }
+  </style>
+  <div id="root" data-composition-id="{id}" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="{id}-chip" class="proc-chip"><i></i><span data-var-text="{slot_title}">…</span></div>
+      <div class="timeline-wrap">
+        <div id="{id}-spine" class="spine"></div>
+        <div id="{id}-s1" class="step-row">
+          <div class="step-node active"></div>
+          <div class="step-card"><div class="step-label"><span data-var-text="{slot_step_1}">…</span></div></div>
+        </div>
+        <div id="{id}-s2" class="step-row">
+          <div class="step-node"></div>
+          <div class="step-card"><div class="step-label"><span data-var-text="{slot_step_2}">…</span></div></div>
+        </div>
+        <div id="{id}-s3" class="step-row">
+          <div class="step-node"></div>
+          <div class="step-card"><div class="step-label"><span data-var-text="{slot_step_3}">…</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+      // Header chip enters
+      tl.fromTo("#{id}-chip", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.05);
+      // Spine draws down
+      tl.fromTo("#{id}-spine", { scaleY: 0 }, { scaleY: 1, duration: 0.8, ease: "power2.inOut" }, 0.15);
+      // Steps reveal sequentially
+      ["#{id}-s1", "#{id}-s2", "#{id}-s3"].forEach((sel, idx) => {
+        const at = 0.2 + idx * 0.28;
+        tl.fromTo(sel + " .step-node", { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2)" }, at);
+        tl.fromTo(sel + " .step-card", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "expo.out" }, at + 0.08);
+      });
+      window.__timelines["{id}"] = tl;
+    })();
+  </script>
+</template>

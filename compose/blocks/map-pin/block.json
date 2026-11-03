@@ -1,0 +1,32 @@
+{
+  "id": "map-pin",
+  "label": "რუკის წერტილი",
+  "about": "Geographic location or regional focus with map outline, pulsing pin beacon, and district info card.",
+  "slots": {
+    "place": {
+      "kind": "words",
+      "label": "ქალაქი ან რეგიონი",
+      "example": "თბილისი"
+    },
+    "area": {
+      "kind": "words",
+      "label": "რაიონი ან კონკრეტული ლოკაცია",
+      "example": "ვაზისუბანი და ვარკეთილი"
+    },
+    "status": {
+      "kind": "words",
+      "label": "მდგომარეობა ან მოვლენა",
+      "example": "გეგმური სარემონტო სამუშაოები"
+    },
+    "time": {
+      "kind": "words",
+      "label": "დროის მონაკვეთი",
+      "example": "10:00-დან 20:00-მდე"
+    }
+  },
+  "beats": [
+    {"id": "location", "show": "map-pin", "at": null},
+    {"id": "details", "show": "map-pin", "at": null}
+  ],
+  "recommended_seconds": [3.0, 6.0]
+}

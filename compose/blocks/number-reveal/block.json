@@ -1,0 +1,32 @@
+{
+  "id": "number-reveal",
+  "label": "ციფრის გამოჩენა",
+  "about": "Key metric or statistic with massive number callout, unit pill, segment progress track, and explanatory card.",
+  "slots": {
+    "value": {
+      "kind": "num",
+      "label": "რიცხვითი მნიშვნელობა",
+      "example": "6400"
+    },
+    "unit": {
+      "kind": "words",
+      "label": "ერთეული ან ზომა",
+      "example": "აბონენტს"
+    },
+    "label": {
+      "kind": "words",
+      "label": "მთავარი განმარტება",
+      "example": "მომსახურება დროებით შეუწყდება"
+    },
+    "detail": {
+      "kind": "words",
+      "label": "დამატებითი დეტალი ან წყარო",
+      "example": "სარემონტო სამუშაოების გამო"
+    }
+  },
+  "beats": [
+    {"id": "number", "show": "number-reveal", "at": null},
+    {"id": "detail", "show": "number-reveal", "at": null}
+  ],
+  "recommended_seconds": [3.0, 6.0]
+}

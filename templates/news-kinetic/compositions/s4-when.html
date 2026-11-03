@@ -1,0 +1,80 @@
+<!-- s4 when (11.31-19.194 s, chapter 02): the headline, then the night and the morning as a timeline the dot runs
+     down. Text: stories/24835.json timeline (headline, start, end, label). -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .head { position: absolute; left: 64px; top: 296px; font-weight: 700; font-size: 76px; line-height: 1.12; white-space: nowrap; }
+    #root .head span { display: inline-block; }
+    #root .inv { position: relative; display: inline-block; }
+    #root .inv .blk { position: absolute; left: -12px; right: -12px; top: 8px; bottom: 0; border-radius: 12px; background: var(--ink); transform-origin: 0 50%; }
+    #root .inv em { position: relative; font-style: normal; }
+    #root .badge { position: absolute; border-radius: 50%; background: var(--ticker); border: 2px solid var(--line-strong); }
+    #root .badge svg { position: absolute; left: 24%; top: 24%; width: 52%; height: 52%; }
+    #root .draw path, #root .draw circle { stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; }
+    #root .date { position: absolute; left: 300px; font-weight: 500; font-size: 40px; line-height: 1.2; color: var(--muted); white-space: nowrap; }
+    #root .time { position: absolute; left: 292px; font-weight: 700; font-size: 150px; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    #root .rail { position: absolute; left: 161px; top: 704px; width: 6px; height: 148px; border-radius: 3px; background: var(--line); opacity: 0; }
+    #root .rail i { position: absolute; inset: 0; border-radius: 3px; background: var(--ink); transform-origin: 50% 0; }
+    #root .now { position: absolute; left: 154px; top: 694px; width: 20px; height: 20px; border-radius: 10px; background: var(--accent); }
+    #root .lab { position: absolute; left: 64px; top: 1160px; display: flex; align-items: center; gap: 20px; font-weight: 600; font-size: 40px; line-height: 1.2; white-space: nowrap; }
+    #root .lab svg { width: 56px; height: 56px; }
+  </style>
+  <div id="root" data-composition-id="s4" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="s4-head" class="head"><span class="inv"><i class="blk"></i><em><span data-var-text="slot-s4-when-w1">ორშაბათი</span></em></span> <span><span data-var-text="slot-s4-when-w2">ღამიდან</span></span><br /><span><span data-var-text="slot-s4-when-w3">სამშაბათის</span></span> <span><span data-var-text="slot-s4-when-w4">დილამდე</span></span></div>
+
+      <div id="s4-a" class="badge" style="left: 64px; top: 504px; width: 200px; height: 200px">
+        <svg class="draw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path pathLength="1" d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>
+      </div>
+      <div id="s4-a-date" class="date" style="top: 512px"><span data-var-text="slot-s4-when-date-1">…</span></div>
+      <div id="s4-a-time" class="time" style="top: 566px"><span data-var-text="slot-s4-when-time-1">…</span></div>
+
+      <div id="s4-all-rail" class="rail"><i id="s4-rail"></i></div>
+      <div id="s4-now" class="now"></div>
+
+      <div id="s4-b" class="badge" style="left: 64px; top: 852px; width: 200px; height: 200px">
+        <svg class="draw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle pathLength="1" cx="12" cy="12" r="4"/><path pathLength="1" d="M12 2v2"/><path pathLength="1" d="M12 20v2"/><path pathLength="1" d="m4.93 4.93 1.41 1.41"/><path pathLength="1" d="m17.66 17.66 1.41 1.41"/><path pathLength="1" d="M2 12h2"/><path pathLength="1" d="M20 12h2"/><path pathLength="1" d="m6.34 17.66-1.41 1.41"/><path pathLength="1" d="m19.07 4.93-1.41 1.41"/></svg>
+      </div>
+      <div id="s4-b-date" class="date" style="top: 860px"><span data-var-text="slot-s4-when-date-2">…</span></div>
+      <div id="s4-b-time" class="time" style="top: 914px"><span data-var-text="slot-s4-when-time-2">…</span></div>
+
+      <div id="s4-lab" class="lab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(6 6) scale(.5)" stroke-width="3"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/></g><circle cx="12" cy="12" r="10"/><path d="M4.929 4.929 19.07 19.071"/></svg>
+        <span><span data-var-text="slot-s4-when-w5">გაზის მიწოდება შეჩერდება</span></span>
+      </div>
+    </div>
+  </div>
+  <script>
+    const C = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(); // the pack's tokens (assets/brand.css)
+    const tl = gsap.timeline({ paused: true });
+    // the headline under the falling meter bars, word by word
+    tl.fromTo("#s4-head > span", { opacity: 0, filter: "blur(8px)", y: 20 }, { opacity: 1, filter: "blur(0px)", y: 0, duration: 0.2, ease: "power2.out", stagger: 0.09 }, 0.1);
+    tl.fromTo(["#s4-a", "#s4-all-rail", "#s4-b"], { opacity: 0, y: 40 }, { opacity: 0.3, y: 0, duration: 0.5, ease: "expo.out", stagger: 0.08 }, 0.45);
+    // "ორშაბათს"
+    tl.fromTo("#s4-head .blk", { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: "expo.out" }, 1.45);
+    tl.fromTo("#s4-head em", { color: C("--ink") }, { color: C("--canvas"), duration: 0.08, ease: "none" }, 1.5);
+    // "2 ნოემბრის ღამის": the night node
+    tl.fromTo("#s4-a", { opacity: 0.3, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.7)", immediateRender: false }, 2.36);
+    tl.to("#s4-a path", { strokeDashoffset: 0, opacity: 1, duration: 0.6, ease: "power2.out" }, 2.42);
+    tl.fromTo("#s4-a-date", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.35, ease: "expo.out" }, 2.5);
+    tl.to("#s4-all-rail", { opacity: 1, duration: 0.3 }, 2.5);
+    // the timeline waits dim under the headline until each end is said
+    // "10 საათიდან": 22:00 lands
+    tl.fromTo("#s4-a-time", { opacity: 0, scale: 1.25, filter: "blur(12px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.3, ease: "expo.out", transformOrigin: "0 50%" }, 3.88);
+    tl.to("#s4-head .blk", { opacity: 0, duration: 0.2, ease: "power1.inOut" }, 3.88);
+    tl.to("#s4-head em", { color: C("--ink"), duration: 0.2, ease: "power1.inOut" }, 3.88);
+    // "3 ნოემბრის დილის": the dot runs down the rail to the morning node
+    tl.fromTo("#s4-rail", { scaleY: 0 }, { scaleY: 1, duration: 0.6, ease: "power2.inOut" }, 4.94);
+    tl.fromTo("#s4-now", { opacity: 0 }, { opacity: 1, duration: 0.1 }, 4.84);
+    tl.to("#s4-now", { y: 148, duration: 0.6, ease: "power2.inOut" }, 4.94);
+    tl.to("#s4-now", { opacity: 0, duration: 0.15 }, 5.55);
+    tl.fromTo("#s4-b", { opacity: 0.3, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.7)", immediateRender: false }, 5.4);
+    tl.to("#s4-b .draw > *", { strokeDashoffset: 0, opacity: 1, duration: 0.45, ease: "power2.out", stagger: 0.04 }, 5.45);
+    tl.fromTo("#s4-b-date", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.35, ease: "expo.out" }, 5.5);
+    // "10 საათამდე": 10:00 lands
+    tl.fromTo("#s4-b-time", { opacity: 0, scale: 1.25, filter: "blur(12px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.3, ease: "expo.out", transformOrigin: "0 50%" }, 6.45);
+    // the label
+    tl.fromTo("#s4-lab", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "expo.out" }, 6.55);
+    window.__timelines["s4"] = tl;
+  </script>
+</template>

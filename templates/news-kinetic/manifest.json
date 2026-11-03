@@ -1,0 +1,377 @@
+{
+ "id": "news-kinetic",
+ "label": "კინეტიკური ახალი ამბები",
+ "about": "Multi-scene kinetic news template with stat, date card, timeline, and place pin",
+ "engine": "hyperframes",
+ "chrome": 2,
+ "from": {
+  "story": 24835,
+  "brand": "tbilisi-today",
+  "program": "news"
+ },
+ "chapters": 3,
+ "beats": [
+  {
+   "id": "hook-places",
+   "show": "the hook on screen at frame 0: chip and the first line"
+  },
+  {
+   "id": "hook-line2",
+   "show": "second line"
+  },
+  {
+   "id": "hook-date",
+   "show": "date chip with a calendar badge"
+  },
+  {
+   "id": "hook-gas",
+   "show": "third line, the flame badge"
+  },
+  {
+   "id": "hook-stop",
+   "show": "the ban stroke closes across the flame"
+  },
+  {
+   "id": "source",
+   "show": "stacked cards: the source card slides in"
+  },
+  {
+   "id": "houses",
+   "show": "lower card: houses badge with the place chips"
+  },
+  {
+   "id": "number",
+   "show": "big number counts up, source chip under it"
+  },
+  {
+   "id": "subscribers",
+   "show": "the label line"
+  },
+  {
+   "id": "temporary",
+   "show": "the meter fills, 'დროებით' inverted"
+  },
+  {
+   "id": "when",
+   "show": "chapter 2: the headline"
+  },
+  {
+   "id": "monday",
+   "show": "monday chip lights"
+  },
+  {
+   "id": "from",
+   "show": "the night node: moon badge, date"
+  },
+  {
+   "id": "from-time",
+   "show": "22:00 lands"
+  },
+  {
+   "id": "to",
+   "show": "the track draws to the morning node: sun badge, date"
+  },
+  {
+   "id": "to-time",
+   "show": "10:00 lands"
+  },
+  {
+   "id": "why",
+   "show": "chapter 3: the headline, the pipeline node"
+  },
+  {
+   "id": "why-works",
+   "show": "arrow, the works node"
+  },
+  {
+   "id": "why-off",
+   "show": "arrow, the gas-off node"
+  },
+  {
+   "id": "where",
+   "show": "the map card: Georgia"
+  },
+  {
+   "id": "where-zoom",
+   "show": "camera to Tbilisi, the two pins"
+  },
+  {
+   "id": "link",
+   "show": "the link chip"
+  },
+  {
+   "id": "media",
+   "show": "headline, newspaper badge"
+  },
+  {
+   "id": "media-four",
+   "show": "the 4 and the outlets' chips, one by one"
+  },
+  {
+   "id": "media-say",
+   "show": "the label"
+  },
+  {
+   "id": "end",
+   "show": "the end card: mark, wordmark"
+  },
+  {
+   "id": "end-link",
+   "show": "the link and the QR"
+  },
+  {
+   "id": "cta",
+   "show": "the call to action button"
+  }
+ ],
+ "icons": [
+  "flame",
+  "ban",
+  "houses",
+  "calendar",
+  "moon",
+  "sun",
+  "clock",
+  "construction",
+  "map-pin",
+  "newspaper"
+ ],
+ "slots": {
+  "slot-s1-hook-date-1": {
+   "kind": "date",
+   "example": "2 ნოემბერი",
+   "max": 13
+  },
+  "slot-s1-hook-time-1": {
+   "kind": "time",
+   "example": "22:00",
+   "max": 6
+  },
+  "slot-s1-hook-w1": {
+   "kind": "words",
+   "example": "საზოგადოება · თბილისი",
+   "max": 27
+  },
+  "slot-s1-hook-w2": {
+   "kind": "words",
+   "example": "ვარკეთილსა",
+   "max": 13
+  },
+  "slot-s1-hook-w3": {
+   "kind": "words",
+   "example": "და",
+   "max": 4
+  },
+  "slot-s1-hook-w4": {
+   "kind": "words",
+   "example": "ვაზისუბანში",
+   "max": 14
+  },
+  "slot-s1-hook-w5": {
+   "kind": "words",
+   "example": "გაზი შეწყდება",
+   "max": 17
+  },
+  "slot-s2-source-quote-1": {
+   "kind": "quote",
+   "example": "„თბილისი ენერჯის“",
+   "max": 22
+  },
+  "slot-s2-source-w1": {
+   "kind": "words",
+   "example": "რამდენს ეხება",
+   "max": 17
+  },
+  "slot-s2-source-w2": {
+   "kind": "words",
+   "example": "ცნობით",
+   "max": 8
+  },
+  "slot-s2-source-w3": {
+   "kind": "words",
+   "example": "·",
+   "max": 4
+  },
+  "slot-s2-source-w4": {
+   "kind": "words",
+   "example": "ვარკეთილი",
+   "max": 12
+  },
+  "slot-s2-source-w5": {
+   "kind": "words",
+   "example": "ვაზისუბანი",
+   "max": 13
+  },
+  "slot-s2-source-w6": {
+   "kind": "words",
+   "example": "თბილისი",
+   "max": 9
+  },
+  "slot-s3-number-scene-1-value": {
+   "kind": "words",
+   "example": "6400",
+   "max": 5
+  },
+  "slot-s3-number-quote-1": {
+   "kind": "quote",
+   "example": "„თბილისი ენერჯის“",
+   "max": 22
+  },
+  "slot-s3-number-w1": {
+   "kind": "words",
+   "example": "ცნობით",
+   "max": 8
+  },
+  "slot-s3-number-w2": {
+   "kind": "words",
+   "example": "·",
+   "max": 4
+  },
+  "slot-s3-number-w3": {
+   "kind": "words",
+   "example": "აბონენტს",
+   "max": 10
+  },
+  "slot-s3-number-w4": {
+   "kind": "words",
+   "example": "დროებით",
+   "max": 9
+  },
+  "slot-s3-number-w5": {
+   "kind": "words",
+   "example": "შეუწყდება",
+   "max": 12
+  },
+  "slot-s3-number-w6": {
+   "kind": "words",
+   "example": "გაზის მიწოდება",
+   "max": 18
+  },
+  "slot-s4-when-date-1": {
+   "kind": "date",
+   "example": "2 ნოემბერი",
+   "max": 13
+  },
+  "slot-s4-when-time-1": {
+   "kind": "time",
+   "example": "22:00",
+   "max": 6
+  },
+  "slot-s4-when-date-2": {
+   "kind": "date",
+   "example": "3 ნოემბერი",
+   "max": 13
+  },
+  "slot-s4-when-time-2": {
+   "kind": "time",
+   "example": "10:00",
+   "max": 6
+  },
+  "slot-s4-when-w1": {
+   "kind": "words",
+   "example": "ორშაბათი",
+   "max": 10
+  },
+  "slot-s4-when-w2": {
+   "kind": "words",
+   "example": "ღამიდან",
+   "max": 9
+  },
+  "slot-s4-when-w3": {
+   "kind": "words",
+   "example": "სამშაბათის",
+   "max": 13
+  },
+  "slot-s4-when-w4": {
+   "kind": "words",
+   "example": "დილამდე",
+   "max": 9
+  },
+  "slot-s4-when-w5": {
+   "kind": "words",
+   "example": "გაზის მიწოდება შეჩერდება",
+   "max": 31
+  },
+  "slot-s5-why-w1": {
+   "kind": "words",
+   "example": "გაზსადენის",
+   "max": 13
+  },
+  "slot-s5-why-w2": {
+   "kind": "words",
+   "example": "რეკონსტრუქცია",
+   "max": 17
+  },
+  "slot-s5-why-w3": {
+   "kind": "words",
+   "example": "მიზეზი",
+   "max": 8
+  },
+  "slot-s5-why-w4": {
+   "kind": "words",
+   "example": "გაზსადენი",
+   "max": 12
+  },
+  "slot-s5-why-w5": {
+   "kind": "words",
+   "example": "სარეკონსტრუქციო",
+   "max": 20
+  },
+  "slot-s5-why-w6": {
+   "kind": "words",
+   "example": "სამუშაოები",
+   "max": 13
+  },
+  "slot-s5-why-w7": {
+   "kind": "words",
+   "example": "გაზი",
+   "max": 5
+  },
+  "slot-s5-why-w8": {
+   "kind": "words",
+   "example": "არ იქნება",
+   "max": 12
+  },
+  "slot-s6-where-w1": {
+   "kind": "words",
+   "example": "ვარკეთილი · ვაზისუბანი",
+   "max": 29
+  },
+  "slot-s6-where-w2": {
+   "kind": "words",
+   "example": "თბილისი · მისამართების სია ბმულზეა",
+   "max": 44
+  },
+  "slot-s7-media-w1": {
+   "kind": "words",
+   "example": "ერთი",
+   "max": 5
+  },
+  "slot-s7-media-w2": {
+   "kind": "words",
+   "example": "ამბავი,",
+   "max": 9
+  },
+  "slot-s7-media-w3": {
+   "kind": "words",
+   "example": "ოთხი",
+   "max": 5
+  },
+  "slot-s7-media-w4": {
+   "kind": "words",
+   "example": "მედია",
+   "max": 6
+  },
+  "slot-s7-media-w5": {
+   "kind": "words",
+   "example": "მედია",
+   "max": 6
+  },
+  "slot-s7-media-w6": {
+   "kind": "words",
+   "example": "აშუქებს",
+   "max": 9
+  }
+ },
+ "use": "engine compose scaffold <story> --template news-kinetic: fill slots.json (a fact slot: \"=<fact id>\" from facts.json; a words slot: the words) and beats.json's anchors"
+}

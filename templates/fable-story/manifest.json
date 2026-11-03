@@ -1,0 +1,159 @@
+{
+ "id": "fable-story",
+ "label": "ილუსტრირებული ზღაპარი",
+ "about": "Animated fable cartoon template with character gestures, trials, and moral takeaway",
+ "engine": "hyperframes",
+ "chrome": 2,
+ "from": {
+  "story": "bipi-draws",
+  "brand": "sitech",
+  "program": "story"
+ },
+ "chapters": 3,
+ "beats": [
+  {
+   "id": "hook",
+   "show": "the robot and the title, on screen at frame 0"
+  },
+  {
+   "id": "name",
+   "show": "its name chip pops, the antenna blinks"
+  },
+  {
+   "id": "morning",
+   "show": "the easel rises beside it"
+  },
+  {
+   "id": "learns",
+   "show": "the arm moves, a scribble draws, the second line inverts"
+  },
+  {
+   "id": "first",
+   "show": "chapter 2: the first sheet, the pencil starts"
+  },
+  {
+   "id": "square",
+   "show": "the circle comes out a square"
+  },
+  {
+   "id": "second",
+   "show": "the second sheet slides in"
+  },
+  {
+   "id": "wave",
+   "show": "it comes out a wave; the robot tilts its head"
+  },
+  {
+   "id": "notgiveup",
+   "show": "the robot nods: it doesn't give up"
+  },
+  {
+   "id": "everyday",
+   "show": "a row of days, each sheet with one more line"
+  },
+  {
+   "id": "oneline",
+   "show": "the newest line lands, in the accent"
+  },
+  {
+   "id": "morning2",
+   "show": "chapter 3: one big sheet"
+  },
+  {
+   "id": "sheet",
+   "show": "a round circle draws at last"
+  },
+  {
+   "id": "warm",
+   "show": "it fills warm"
+  },
+  {
+   "id": "sun",
+   "show": "rays grow: a sun rises; the robot smiles"
+  },
+  {
+   "id": "moral",
+   "show": "the moral in big type"
+  },
+  {
+   "id": "step",
+   "show": "the line climbs like stairs, the dot goes up"
+  },
+  {
+   "id": "end",
+   "show": "the end card"
+  },
+  {
+   "id": "end-link",
+   "show": "the link and the QR"
+  },
+  {
+   "id": "cta",
+   "show": "the call to action"
+  }
+ ],
+ "icons": [],
+ "slots": {
+  "slot-s1-bipi-scene-0-kicker": {
+   "kind": "words",
+   "example": "მოთხრობა",
+   "max": 10
+  },
+  "slot-s1-bipi-scene-0-lines-0": {
+   "kind": "words",
+   "example": "პატარა რობოტი",
+   "max": 17
+  },
+  "slot-s1-bipi-scene-0-lines-1": {
+   "kind": "words",
+   "example": "ხატვას სწავლობს",
+   "max": 20
+  },
+  "slot-s1-bipi-character-1": {
+   "kind": "name",
+   "example": "ბიპი",
+   "max": 5
+  },
+  "slot-s2-tries-scene-1-items-0": {
+   "kind": "words",
+   "example": "კვადრატი",
+   "max": 10
+  },
+  "slot-s2-tries-scene-1-items-1": {
+   "kind": "words",
+   "example": "ტალღა",
+   "max": 6
+  },
+  "slot-s2-tries-w1": {
+   "kind": "words",
+   "example": "პირველი წრე",
+   "max": 14
+  },
+  "slot-s3-days-character-1": {
+   "kind": "name",
+   "example": "ბიპი",
+   "max": 5
+  },
+  "slot-s3-days-scene-1-items-2": {
+   "kind": "words",
+   "example": "კიდევ ერთი ხაზი",
+   "max": 20
+  },
+  "slot-s3-days-w1": {
+   "kind": "words",
+   "example": "არ დანებდა",
+   "max": 13
+  },
+  "slot-s4-sun-scene-2-items-0": {
+   "kind": "words",
+   "example": "ფურცელზე თბილი მზე",
+   "max": 23
+  },
+  "slot-s5-moral-scene-2-items-1": {
+   "kind": "words",
+   "example": "ყოველი ხაზი ნაბიჯია",
+   "max": 25
+  }
+ },
+ "use": "engine compose scaffold <story> --template fable-story: fill slots.json (a fact slot: \"=<fact id>\" from facts.json; a words slot: the words) and beats.json's anchors"
+}
