@@ -87,6 +87,7 @@ MIGRATIONS = {  # columns added since the table was first made; an older veasy.d
     "novelty": "alter table variety add column novelty real",  # the guard: distance to the nearest recent video
     "rerolls": "alter table variety add column rerolls integer",  # the guard: the re-rolls it took
     "theme": "alter table variety add column theme text",  # the pack's theme the video was drawn in (themes)
+    "template": "alter table variety add column template text",  # a composed film's template (compose.py)
 }
 
 
@@ -324,16 +325,16 @@ def pick(brand, story, look, transition="auto", loops=(), icon=False, director=N
 
 
 def record(brand, story, look, style, scenes, novelty=None):
-    """Remember what a finished render used (engine.render_story calls this). novelty: choose()'s report.
-    style may carry "theme" (the pack's theme it was drawn in)."""
+    """Remember what a finished render used (engine.render_story and compose.render call this). novelty: choose()'s
+    report. A composed film's style carries its template (compose.pick_template: least used first)."""
     nov = novelty or {}
     with _db() as con:
         con.execute("insert into variety(ts, brand, story, look, hook, motif, enter, transition, music, scenes, director, "
-                    "novelty, rerolls, theme) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "novelty, rerolls, template, theme) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), brand, str(story), look,
                      style.get("hook"), style.get("motif"), style.get("enter"), style.get("transition"),
                      style.get("music"), json.dumps(list(scenes)), style.get("director"), nov.get("distance"),
-                     nov.get("rerolls"), style.get("theme")))
+                     nov.get("rerolls"), style.get("template"), style.get("theme")))
 
 
 def recent_sequences(brand, n=12):

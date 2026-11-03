@@ -31,6 +31,9 @@ Every command prints JSON on stdout (human notes go to stderr), so an agent can 
   python -m tt_shorts.engine rubrics list [--brand] | facts --source --ref | stamp <story> --rubric <id> [--sources]
                                                              # the rubrics: counters, which a cluster may be, a
                                                              # hand-written story's episode (rubrics.py)
+  python -m tt_shorts.engine compose scaffold|check|render stories/24835.json [--brand sitech] [--project DIR]
+                                    [--template ID|auto] [--from DIR]   # a film composed for HyperFrames (compose.py)
+  python -m tt_shorts.engine compose promote <project> --as <id> | templates   # an approved film -> a template
   python -m tt_shorts.engine voices [--story stories/24835.json] [--only warm,clear]   # tone samples by ear
   python -m tt_shorts.engine gc     [--dry-run]               # delete scratch, old renders, voices, logs (store.py)
   python -m tt_shorts.engine doctor                          # is this machine ready to render?
@@ -128,6 +131,7 @@ def options(brand_name=None):
         "music": ["family", "off", *meta.FAMILIES],
         "engines": {"gemini": "production voice (GEMINI_API_KEY + the alignment venv)",
                     "edge": "free preview stand-in (robotic; timing only)", "silent": "music and captions only"},
+        "film_engines": _film_engines(b),
         "formats": every,
         "directors": directors.options(),
         "rubrics": rubrics.options(),
@@ -169,6 +173,28 @@ def options(brand_name=None):
                            "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
                        for c in b["categories"]},
     }
+
+
+def _film_engines(b):
+    """What `options` says of the two film engines and the compose lane."""
+    from tt_shorts import compose
+    return {"about": "a video's film engine is \"engine\": the director's, else the program's, else the format's, else "
+                     "the pack's, else remotion (render --renderer overrides); both get the same voice, captions, "
+                     "brand pack, mix, checks, QA and queue",
+            "engines": {"remotion": "the typed brush kit (NewsShort, scenes from brushes/): high volume, every video "
+                                    "checked the same way",
+                        "hyperframes": f"HyperFrames {compose.HF_VERSION}: a film the agent composes in HTML/CSS/GSAP "
+                                       "(engine compose scaffold|check|render, skill veasy:compose)"},
+            "default": formats.DEFAULT_ENGINE, "this_pack": b.get("engine"),
+            "by_program": {n: p["engine"] for n, p in programs.load_all().items() if p.get("engine")},
+            "by_format": {n: f["engine"] for n, f in formats.load_all().items() if f.get("engine")},
+            "by_director": {n: d["engine"] for n, d in directors.load_all().items() if d.get("engine")},
+            "review": {"about": "a composed film that passed QA ends held for a person unless its format's or "
+                                "program's review lets it through (queue approve|reject)",
+                       "values": ["always", "until:<n>"], "default": formats.DEFAULT_REVIEW},
+            "compose": {"render": compose.RENDER, "chrome": compose.CHROME_VERSION, "locked": list(compose.LOCKED),
+                        "lint": list(compose.LINT_RULES),
+                        "refused": list(compose.REFUSED), "templates": sorted(compose.templates())}}
 
 
 def _sources_about():
@@ -474,9 +500,69 @@ def _kaeasy_required():
     return []
 
 
+def film_engine(story_path, fmt, director=None, override=None):
+    """remotion | hyperframes for one render (compose.engine_for: the director's, the program's, the format's, the
+    pack's, else remotion; --renderer overrides)."""
+    from tt_shorts import compose
+    story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
+    return compose.engine_for(story, fmt, director, override)[0]
+
+
+def render_any(story_path, fmt, engine="gemini", out_path=None, director=None, renderer=None):
+    """Render in the story's film engine: Remotion (render_story) or HyperFrames (compose.render, the project in
+    store.compose_dir, scaffolded first when there is none)."""
+    if film_engine(story_path, fmt, director, renderer) == "hyperframes":
+        from tt_shorts import compose
+        missing = _kaeasy_required()
+        if missing:
+            return {"problems": missing}
+        return compose.render(story_path, fmt, engine=engine, out_path=out_path)
+    return render_story(story_path, fmt, engine, out_path, director)
+
+
 def render(a):
-    result = render_story(a.story, _format(a), a.engine, a.out, a.director)
+    result = render_any(a.story, _format(a), a.engine, a.out, a.director, a.renderer)
     return out(result, 1 if result["problems"] else 0)
+
+
+def compose_cmd(a):
+    """engine compose scaffold | check | render | promote | templates (compose.py)."""
+    from tt_shorts import compose
+    if a.action == "templates":
+        return out({"templates": compose.templates()})
+    if a.action == "promote":
+        if not (a.target and a.as_id):
+            return out({"problems": ["compose promote <project> --as <id> [--label] [--about]"]}, 2)
+        dest, manifest = compose.promote(a.target, a.as_id, a.label, a.about, a.force)
+        return out({"template": str(dest), "manifest": manifest})
+    if not a.target:
+        return out({"problems": [f"compose {a.action} <story.json>"]}, 2)
+    sources = None
+    if a.sources:
+        sources = json.loads(pathlib.Path(a.sources).read_text(encoding="utf-8"))
+        if isinstance(sources, dict):
+            story = json.loads(pathlib.Path(a.target).read_text(encoding="utf-8"))
+            sources = sources.get(str(story.get("id"))) or []
+    if a.action == "scaffold":
+        r = compose.scaffold(a.target, a.brand, a.project, a.template, a.source_dir, a.engine, a.force)
+        t = r.get("timing") or {}
+        res = {"project": str(r["project"]), "origin": r["origin"], "built": r["built"], "problems": r["problems"],
+               "duration": t.get("duration"), "chapters": t.get("chapters"), "gaps": t.get("gaps"),
+               "beats": [(x["id"], x["t"]) for x in t.get("beats", [])], "facts": len(r.get("facts") or {}),
+               "yours": compose.agent_files(r["project"]),
+               "next": r.get("todo") or "edit the scenes (frame.md, facts.json, timing.json), then engine compose "
+                                         "check <story>"}
+        return out(res, 1 if r["problems"] else 0)
+    if a.action == "check":
+        r = compose.check(a.target, a.brand, a.project, a.engine, sources, hf=not a.no_hf, shots=a.shots)
+        return out(r, 1 if r["problems"] else 0)
+    if a.action == "render":
+        fmt = formats.get(a.format or program_format(a.target), captions=a.captions, voice=a.voice, music=a.music,
+                          platform=a.platform)
+        r = compose.render(a.target, fmt, a.brand, a.project, a.engine, a.out, sources, hf=not a.no_hf,
+                           template=a.template)
+        return out(r, 1 if r["problems"] else 0)
+    return out({"problems": [f"unknown compose action {a.action}"]}, 2)
 
 
 def still(a):
@@ -730,7 +816,7 @@ def queue_cmd(a):
     from tt_shorts import queue
     if a.action == "add":
         overrides = {k: getattr(a, k) for k in ("look", "captions", "transition", "outro", "voice", "music", "platform",
-                                                 "beats", "chapters", "director", "rubric", "part", "theme") if getattr(a, k)}
+                                                 "beats", "chapters", "director", "rubric", "part", "theme", "renderer") if getattr(a, k)}
         job, created = queue.add(a.brand, a.source if not a.story else None, a.ref, a.format, overrides, a.story,
                                  a.priority, program=a.program)
         return out({"job": job, "created": created})
@@ -740,7 +826,8 @@ def queue_cmd(a):
         return out(queue.run(a.max, a.engine))
     if not a.id:
         return out({"problems": [f"queue {a.action} needs a job id"]}, 2)
-    job = {"show": queue.get, "retry": queue.retry, "cancel": queue.cancel}[a.action](a.id)
+    job = {"show": queue.get, "retry": queue.retry, "cancel": queue.cancel, "approve": queue.approve,
+           "reject": queue.reject}[a.action](a.id)
     return out({"job": job} if job else {"problems": [f"no job {a.id}"]}, 0 if job else 1)
 
 
@@ -851,6 +938,9 @@ def main(argv=None):
         r.add_argument("--director", help="a director (see options: directors) instead of the story's own")
         r.add_argument("--theme", help="default (the pack's), auto (variety) or a theme's name (see options: brands)")
         r.add_argument("--out")
+        if name == "render":
+            r.add_argument("--renderer", choices=formats.ENGINES,
+                           help="the film engine instead of the story's (director, program, format, pack; remotion)")
         if name == "still":
             r.add_argument("--frames", help="comma-separated frames (default: the middle of every scene)")
     q = sub.add_parser("qa")
@@ -924,7 +1014,8 @@ def main(argv=None):
     le.add_argument("--days", type=int, default=7)
     le.add_argument("--limit", type=int, default=10)
     qp = sub.add_parser("queue")
-    qp.add_argument("action", choices=["add", "list", "run", "show", "retry", "cancel"])
+    qp.add_argument("action", choices=["add", "list", "run", "show", "retry", "cancel", "approve", "reject"])
+    qp.add_argument("--renderer", choices=formats.ENGINES, help="add: the film engine instead of the story's")
     qp.add_argument("id", nargs="?")
     qp.add_argument("--brand", help="a pack in brands/ (default: the story's own, else tbilisi-today)")
     qp.add_argument("--program", help="news (default; a story file's own program), explainer, law, blog...")
@@ -943,7 +1034,29 @@ def main(argv=None):
     qp.add_argument("--engine", default="gemini", choices=["gemini", "edge", "silent"])
     g = sub.add_parser("gc")
     g.add_argument("--dry-run", action="store_true")
+    cp = sub.add_parser("compose", help="films composed for HyperFrames (compose.py)")
+    cp.add_argument("action", choices=["scaffold", "check", "render", "promote", "templates"])
+    cp.add_argument("target", nargs="?", help="the story JSON (promote: the project folder)")
+    cp.add_argument("--brand", help="the pack to build for (default: the story's)")
+    cp.add_argument("--project", help="the project folder (default: $VEASY_HOME/cache/compose/<brand>-<ref>)")
+    cp.add_argument("--template", help="scaffold/render: start from templates/<id>/ (auto: the least used)")
+    cp.add_argument("--from", dest="source_dir", help="scaffold: copy the agent's files from this folder")
+    cp.add_argument("--force", action="store_true", help="scaffold: replace the agent's files; promote: replace")
+    cp.add_argument("--engine", default=None, choices=["gemini", "edge", "silent"],
+                    help="the voice (scaffold/check default silent, render default gemini)")
+    cp.add_argument("--sources", help="check/render: the member articles (default <story>.sources.json)")
+    cp.add_argument("--no-hf", action="store_true", help="check/render: skip `hyperframes check` (faster)")
+    cp.add_argument("--shots", help="check: save the page at each probed time (PNG) in this folder")
+    cp.add_argument("--format", help="render: a format (default: the story's program's)")
+    for k in ("captions", "voice", "music", "platform"):
+        cp.add_argument(f"--{k}")
+    cp.add_argument("--out", help="render: the mp4 (default renders/<brand>/<day>/<ref>-<format>-composed-<captions>)")
+    cp.add_argument("--as", dest="as_id", help="promote: the template id")
+    cp.add_argument("--label", help="promote: the template's name")
+    cp.add_argument("--about", help="promote: what it is for")
     a = ap.parse_args(argv)
+    if a.cmd == "compose" and a.engine is None:
+        a.engine = "gemini" if a.action == "render" else "silent"
     try:
         if a.cmd == "options":
             return out(options(a.brand))
@@ -963,7 +1076,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "compose": compose_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
 

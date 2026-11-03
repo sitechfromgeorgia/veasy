@@ -19,10 +19,10 @@
   </style>
   <div id="root" data-composition-id="s3" data-width="1080" data-height="1920">
     <div data-probe="scene">
-      <div id="s3-num" class="num">0</div>
+      <div id="s3-num" class="num" data-var-text="scene-1-value">…</div>
       <div id="s3-track" class="track"></div>
       <div id="s3-head" class="head"></div>
-      <div id="s3-chip" class="chip" style="left: 64px; top: 694px">„თბილისი ენერჯის“ ცნობით <b>· 1 ნოემბერი</b></div>
+      <div id="s3-chip" class="chip" style="left: 64px; top: 694px"><span data-var-text="quote-1">…</span> ცნობით <b>· <span data-var-text="date">…</span></b></div>
       <div id="s3-l1" class="lab" style="top: 800px; font-size: 96px">აბონენტს</div>
       <div id="s3-l2" class="lab" style="top: 928px; font-size: 64px"><span class="inv"><i class="blk"></i><em>დროებით</em></span> შეუწყდება</div>
       <div id="s3-l3" class="lab" style="top: 1012px; font-size: 64px; color: var(--muted)">გაზის მიწოდება</div>
@@ -31,7 +31,7 @@
   <script>
     const C = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(); // the pack's tokens (assets/brand.css)
     (function () {
-      const N = 40, END = 6400, COUNT = 0.78, AT = 0.1, FPS = 30;
+      const N = 40, END = Number(VEASY.fact("scene-1-value")), COUNT = 0.78, AT = 0.1, FPS = 30;
       const track = document.getElementById("s3-track");
       for (let i = 0; i < N; i++) track.appendChild(document.createElement("i"));
       const fmt = (v) => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");

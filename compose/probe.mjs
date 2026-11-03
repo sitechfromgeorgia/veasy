@@ -1,5 +1,7 @@
-// The layout probe on a HyperFrames page (Veasy v2 phase 0): the same measurements remotion/src/Probe.tsx takes in a
-// Remotion frame, taken from a composed film's DOM at chosen times, so tt_shorts/probe.py's rules judge both lanes.
+// The layout probe on a HyperFrames page (tt_shorts/compose.py): the same measurements remotion/src/Probe.tsx takes
+// in a Remotion frame, taken from a composed film's DOM at chosen times, so tt_shorts/probe.py's rules judge both
+// engines. Each text also says which composition drew it, the fact it is bound to and whether it is the data's, so
+// compose.check runs the story's rules on exactly the texts the story is answerable for.
 //
 //   node compose/probe.mjs < spec.json
 //   spec: {"project": "<dir with index.html>", "times": [0.7, 2.2], "labels": ["hook", ...], "browser": "<chrome or null>"}
@@ -172,7 +174,11 @@ function collect(t, label) {
       size: r1((parseFloat(cs.fontSize) * scale) / k), weight: cs.fontWeight, family: cs.fontFamily, color: svg ? cs.fill : cs.color, opacity: r1(opacity), svg,
       overflow: over.x || over.y ? over : null, clipOk: !!el.closest("[data-probe-clip]"), decor: !!el.closest("[data-probe-decor]"),
       ...(() => { const g = first ? groundAt(first.left + first.width / 2, first.top + first.height / 2, el) : [null];
-        return { ground: g[0], ground2: g[1] ?? null }; })() });
+        return { ground: g[0], ground2: g[1] ?? null }; })(),
+      // which composition drew it, the fact it is bound to (data-var-text), and whether it is the data's (chrome)
+      comp: el.closest("[data-composition-id]")?.getAttribute("data-composition-id") ?? null,
+      bound: el.closest("[data-var-text]")?.getAttribute("data-var-text") ?? null,
+      code: !!el.closest("[data-veasy-code]") });
   }
   const fonts = {};
   document.fonts.forEach((f) => { if (f.family.replace(/["']/g, "") === "Brand") fonts[String(f.weight)] = f.status; });

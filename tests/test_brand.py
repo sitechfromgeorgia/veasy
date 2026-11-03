@@ -131,6 +131,8 @@ class Packs(unittest.TestCase):
             # the keyword captions' highlight: a known style, and never the accent as text where the pack forbids it
             "badkeyword": {**good, "design": {**good["design"], "keyword": "glow"}},
             "tintedtext": {**good, "design": {**good["design"], "keyword": "tint"}},
+            # engine: the pack's film engine when nothing else sets one (compose.engine_for)
+            "badengine": {**good, "engine": "flash"},
         }
         with tempfile.TemporaryDirectory() as d:
             d = pathlib.Path(d)
@@ -342,6 +344,13 @@ class Props(unittest.TestCase):
                              [f"brand-{w}.woff2" for w in brand.FONT_WEIGHTS])
             self.assertTrue((work / "public" / "brand" / "header.svg").is_file())
             self.assertNotIn("_fonts", json.dumps(p["brand"]))  # no server paths in the props
+
+    def test_a_pack_may_name_its_film_engine(self):
+        from tt_shorts import compose
+        good = json.loads((ROOT / "brands" / "sitech" / "brand.json").read_text(encoding="utf-8"))
+        self.assertNotIn("engine", good)  # neither shipped pack sets one: remotion unless a program says otherwise
+        with mock.patch.dict(brand.load("sitech"), {"engine": "hyperframes"}):
+            self.assertEqual(compose.engine_for({"id": 1, "brand": "sitech"}), ("hyperframes", "brand sitech"))
 
 
 if __name__ == "__main__":
