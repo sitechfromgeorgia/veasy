@@ -1,0 +1,60 @@
+<!-- s3 the big number (8.2-11.31 s): 6 400 counts up (the registry's count-up component, adapted: one row of digits
+     per frame, set synchronously, so any seek shows the same value), its source chip, then what it means. Text:
+     stories/24835.json stat. -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .num { position: absolute; left: 56px; top: 300px; font-weight: 700; font-size: 300px; line-height: 1; white-space: nowrap;
+      font-variant-numeric: tabular-nums; transform-origin: 0 60%; }
+    #root .track { position: absolute; left: 64px; top: 640px; width: 952px; height: 14px; display: flex; gap: 6px; }
+    #root .track i { flex: 1; border-radius: 3px; background: var(--line); }
+    #root .head { position: absolute; left: 64px; top: 637px; width: 20px; height: 20px; border-radius: 10px; background: var(--accent); }
+    #root .chip { position: absolute; display: inline-flex; align-items: center; gap: 12px; font-weight: 600; font-size: 30px; line-height: 1;
+      padding: 13px 26px 15px; border-radius: 999px; border: 2px solid var(--line-strong); white-space: nowrap; }
+    #root .chip b { font-weight: 600; color: var(--muted); }
+    #root .lab { position: absolute; left: 64px; font-weight: 700; line-height: 1.15; white-space: nowrap; }
+    #root .inv { position: relative; display: inline-block; }
+    #root .inv .blk { position: absolute; left: -12px; right: -12px; top: 6px; bottom: 0; border-radius: 12px; background: var(--ink); transform-origin: 0 50%; }
+    #root .inv em { position: relative; font-style: normal; }
+  </style>
+  <div id="root" data-composition-id="s3" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="s3-num" class="num">0</div>
+      <div id="s3-track" class="track"></div>
+      <div id="s3-head" class="head"></div>
+      <div id="s3-chip" class="chip" style="left: 64px; top: 694px">„თბილისი ენერჯის“ ცნობით <b>· 1 ნოემბერი</b></div>
+      <div id="s3-l1" class="lab" style="top: 800px; font-size: 96px">აბონენტს</div>
+      <div id="s3-l2" class="lab" style="top: 928px; font-size: 64px"><span class="inv"><i class="blk"></i><em>დროებით</em></span> შეუწყდება</div>
+      <div id="s3-l3" class="lab" style="top: 1012px; font-size: 64px; color: var(--muted)">გაზის მიწოდება</div>
+    </div>
+  </div>
+  <script>
+    const C = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(); // the pack's tokens (assets/brand.css)
+    (function () {
+      const N = 40, END = 6400, COUNT = 0.78, AT = 0.1, FPS = 30;
+      const track = document.getElementById("s3-track");
+      for (let i = 0; i < N; i++) track.appendChild(document.createElement("i"));
+      const fmt = (v) => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      const tl = gsap.timeline({ paused: true });
+      const num = document.getElementById("s3-num");
+      const ease = gsap.parseEase("sine.inOut");
+      const last = Math.round(COUNT * FPS);
+      tl.fromTo(num, { opacity: 0, y: 40, filter: "blur(10px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.25, ease: "power3.out" }, AT);
+      for (let f = 0; f <= last; f++) tl.set(num, { textContent: fmt(END * ease(f / last)) }, AT + COUNT * (f / last));
+      tl.to(num, { scale: 1.05, duration: 0.14, ease: "power3.out" }, AT + COUNT);
+      tl.to(num, { scale: 1, duration: 0.18, ease: "power2.out" }, AT + COUNT + 0.14);
+      // the meter fills with the count, its head is the dot
+      const segs = track.querySelectorAll("i");
+      segs.forEach((s, i) => tl.set(s, { backgroundColor: C("--ink") }, AT + COUNT * ease((i + 1) / N)));
+      tl.fromTo("#s3-head", { x: 0, opacity: 0 }, { x: 932, opacity: 1, duration: COUNT, ease: "sine.inOut" }, AT);
+      // the source chip, then what the number is
+      tl.fromTo("#s3-chip", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.35, ease: "expo.out" }, 0.45);
+      tl.fromTo("#s3-l1", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.4, ease: "expo.out" }, 0.56);
+      tl.fromTo("#s3-l2", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.4, ease: "expo.out" }, 1.28);
+      tl.fromTo("#s3-l2 .blk", { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: "expo.out" }, 1.36);
+      tl.fromTo("#s3-l2 em", { color: C("--ink") }, { color: C("--canvas"), duration: 0.08, ease: "none" }, 1.4);
+      tl.fromTo("#s3-l3", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.4, ease: "expo.out" }, 1.98);
+      window.__timelines["s3"] = tl;
+    })();
+  </script>
+</template>

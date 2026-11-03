@@ -17,3 +17,5 @@ __pycache__/
 .dev.vars
 *.pem
 *.key
+# a composed film's source holds only the agent's files; tools/compose_scaffold.py builds it per pack under out/
+compose/*/.hyperframes/

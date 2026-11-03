@@ -1,0 +1,42 @@
+{
+ "about": "The beat sheet of the composed 24835 (Veasy v2 phase 0, docs/plan-v2.md § 6): chapters and beats anchored to the narration's words. tools/compose_scaffold.py resolves every anchor to the voice's timing into timing.json; the scenes (compositions/s*.html) land their motion on those times. Every text on screen comes from stories/24835.json.",
+ "story": "stories/24835.json",
+ "chapters": [
+  {"title": "რამდენს ეხება", "at": "ვარკეთილსა და"},
+  {"title": "როდის", "at": "გაზი არ იქნება"},
+  {"title": "სად და რატომ", "at": "მიზეზი გაზსადენის"}
+ ],
+ "end": {"at": "დეტალები იხილე"},
+ "beats": [
+  {"id": "hook-places", "at": "ვარკეთილსა და", "show": "the hook on screen at frame 0: chip and the first line"},
+  {"id": "hook-line2", "at": "ვაზისუბანში", "show": "second line"},
+  {"id": "hook-date", "at": "2 ნოემბერს", "show": "date chip with a calendar badge"},
+  {"id": "hook-gas", "at": "გაზი შეწყდება", "show": "third line, the flame badge"},
+  {"id": "hook-stop", "at": "შეწყდება", "show": "the ban stroke closes across the flame"},
+  {"id": "source", "at": "თბილისი ენერჯის", "show": "stacked cards: the source card slides in"},
+  {"id": "houses", "at": "ცნობით", "show": "lower card: houses badge with the place chips"},
+  {"id": "number", "at": "6400", "show": "big number counts up, source chip under it"},
+  {"id": "subscribers", "at": "აბონენტს", "show": "the label line"},
+  {"id": "temporary", "at": "დროებით", "show": "the meter fills, 'დროებით' inverted"},
+  {"id": "when", "at": "გაზი არ იქნება", "show": "chapter 2: the headline"},
+  {"id": "monday", "at": "ორშაბათს", "show": "monday chip lights"},
+  {"id": "from", "at": "2 ნოემბრის ღამის", "show": "the night node: moon badge, date"},
+  {"id": "from-time", "at": "10 საათიდან", "show": "22:00 lands"},
+  {"id": "to", "at": "3 ნოემბრის დილის", "show": "the track draws to the morning node: sun badge, date"},
+  {"id": "to-time", "at": "10 საათამდე", "show": "10:00 lands"},
+  {"id": "why", "at": "მიზეზი გაზსადენის", "show": "chapter 3: the headline, the pipeline node"},
+  {"id": "why-works", "at": "სარეკონსტრუქციო", "show": "arrow, the works node"},
+  {"id": "why-off", "at": "სამუშაოებია", "show": "arrow, the gas-off node"},
+  {"id": "where", "at": "მისამართების", "show": "the map card: Georgia"},
+  {"id": "where-zoom", "at": "სრული სია", "show": "camera to Tbilisi, the two pins"},
+  {"id": "link", "at": "ბმულზეა", "show": "the link chip"},
+  {"id": "media", "at": "ამ ამბავს", "show": "headline, newspaper badge"},
+  {"id": "media-four", "at": "ოთხი ქართული", "show": "the 4 and the outlets' chips, one by one"},
+  {"id": "media-say", "at": "აშუქებს", "show": "the label"},
+  {"id": "end", "at": "დეტალები იხილე", "show": "the end card: mark, wordmark"},
+  {"id": "end-link", "at": "tbilisi.today-ზე", "show": "the link and the QR"},
+  {"id": "cta", "at": "მოიწონე და", "show": "the call to action button"}
+ ],
+ "keywords": ["ვარკეთილსა", "ვაზისუბანში", "6400", "დროებით", "ორშაბათს", "გაზსადენის", "ოთხი", "tbilisi.today-ზე"],
+ "icons": ["flame", "ban", "houses", "calendar", "moon", "sun", "clock", "construction", "map-pin", "newspaper"]
+}
