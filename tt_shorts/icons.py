@@ -512,7 +512,7 @@ def options():
                      "incidents or deaths",
             "count": len(library()), "verbs": VERB_ABOUT, "motions": list(MOTIONS),
             "charts": ["isotype", "part_of_whole", "unit_chart"],
-            "isotype": list(ISOTYPE), "names": names(),
+            "isotype": list(ISOTYPE), "contact_sheet": "python -m tt_shorts.engine contact-sheet", "names": names(),
             "georgian_examples": {"გაზი": "flame", "დენი": "zap", "წყალი": "droplet", "მეტრო": "train-front",
                                   "ავტობუსი": "bus", "სკოლა": "school", "საავადმყოფო": "hospital",
                                   "სასამართლო": "scale", "ფასი": "tag", "ლარი": "banknote", "გზა": "route",
