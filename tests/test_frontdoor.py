@@ -31,56 +31,42 @@ class FrontDoor(unittest.TestCase):
         self.assertIn("looks", o)
         self.assertIn("formats", o)
 
-    def test_parse_intent_classifies_all_five_program_types(self):
-        # 1. News
-        news_req = "ვარკეთილში გაზის მილის დაზიანების გამო 6400 აბონენტს გაზმომარაგება შეუწყდა"
-        intent1 = make.parse_intent(news_req)
-        self.assertEqual(intent1["program"], "news")
-        self.assertEqual(intent1["brand"], "tbilisi-today")
-        self.assertTrue(intent1["facts_known"])
+    def test_a_sentence_names_no_facts(self):
+        # A bare sentence is never matched to a story by its words: that would film another story
+        for req in ("ვარკეთილში გაზის მილის დაზიანების გამო 6400 აბონენტს გაზმომარაგება შეუწყდა",
+                    "როგორ იცვლება ფასები და ინფლაცია საქართველოში", "ვიდეო ამ ამბავზე 24835"):
+            intent = make.parse_intent(req)
+            self.assertFalse(intent["facts_known"], req)
+            self.assertFalse(intent["write"], req)
+            self.assertIsNone(intent["story_path"], req)
 
-        # 2. Explainer
-        expl_req = "როგორ იცვლება ფასები და ინფლაცია საქართველოში ბოლო წლებში"
-        intent2 = make.parse_intent(expl_req)
-        self.assertEqual(intent2["program"], "explainer")
-        self.assertEqual(intent2["brand"], "tbilisi-today")
-        self.assertTrue(intent2["facts_known"])
+    def test_a_story_file_or_name_is_the_story(self):
+        for req in ("stories/24835.json", "ვიდეო stories/24835.json-ის მიხედვით", "bipi-draws"):
+            intent = make.parse_intent(req.replace("-ის მიხედვით", ""))
+            self.assertTrue(intent["facts_known"], req)
+            self.assertTrue(pathlib.Path(intent["story_path"]).is_file())
+        self.assertEqual(make.parse_intent("bipi-draws")["program"], "story")
 
-        # 3. Law
-        law_req = "საქართველოს კონსტიტუციის მე-17 მუხლი იცავს აზრის, სიტყვისა და ინფორმაციის თავისუფლებას"
-        intent3 = make.parse_intent(law_req)
-        self.assertEqual(intent3["program"], "law")
-        self.assertEqual(intent3["source"], "ordo")
-        self.assertEqual(intent3["ref"], "constitution:17")
-        self.assertTrue(intent3["facts_known"])
+    def test_a_source_ref_is_written_and_its_program_comes_from_the_source(self):
+        cluster = make.parse_intent("24835")  # a bare number is a cluster id, not the demo file of that name
+        self.assertTrue(cluster["write"])
+        self.assertFalse(cluster["facts_known"])
+        self.assertEqual(cluster["ref"], "24835")
+        url = make.parse_intent("ახსენი ეს სტატია https://example.com/a")
+        self.assertEqual((url["source"], url["ref"], url["program"]), ("url", "https://example.com/a", "explainer"))
+        law = make.parse_intent("კონსტიტუციის მე-17 მუხლი constitution:17", source="ordo")
+        self.assertEqual((law["ref"], law["program"]), ("constitution:17", "law"))
+        self.assertEqual(make.parse_intent("x 1", source="sitech")["program"], "blog")
 
-        # 4. SiTech Blog
-        blog_req = "SiTech-ის ბლოგი: როგორ იყენებენ ჰაკერები AI აგენტებს კიბერთავდასხმების ავტომატიზაციისთვის"
-        intent4 = make.parse_intent(blog_req)
-        self.assertEqual(intent4["program"], "blog")
-        self.assertEqual(intent4["brand"], "sitech")
-        self.assertTrue(intent4["facts_known"])
-
-        # 5. Children's story
-        story_req = "პატარა რობოტი ბიპი სწავლობს ხატვას და მზეს ხატავს"
-        intent5 = make.parse_intent(story_req)
-        self.assertEqual(intent5["program"], "story")
-        self.assertEqual(intent5["brand"], "sitech")
-        self.assertTrue(intent5["facts_known"])
-
-    def test_one_round_of_questions_asks_missing_facts_when_unknown(self):
-        intent = make.parse_intent("გააკეთე მოკლე ვიდეო ჩემს უცნობ პროექტზე")
-        intent["facts_known"] = False
-        resolved, questions, needs_input = make.ask_one_round(intent, interactive=False, yes=False)
-        self.assertTrue(needs_input)
-        self.assertEqual(len(questions), 3)
-        self.assertEqual(questions[0]["id"], "facts")
-        self.assertEqual(questions[1]["id"], "assets")
-        self.assertEqual(questions[2]["id"], "preview")
+    def test_unknown_facts_are_never_defaulted(self):
+        # Not even with --yes: the agent gets the question back
+        res = make.make_film("გააკეთე ვიდეო ინფლაციაზე", yes=True)
+        self.assertEqual(res["status"], "needs_input")
+        self.assertEqual(res["questions"][0]["id"], "facts")
 
     def test_preview_storyboard_runs_plan_and_generates_contact_sheet(self):
         res = make.make_film(
-            request="ვარკეთილში გაზის მილის დაზიანების გამო 6400 აბონენტს გაზმომარაგება შეუწყდა",
+            request="stories/24835.json",
             preview_storyboard=True,
             yes=True,
         )
@@ -93,7 +79,7 @@ class FrontDoor(unittest.TestCase):
 
     def test_style_override_is_respected(self):
         res = make.make_film(
-            request="ვარკეთილში გაზის მილის დაზიანების გამო 6400 აბონენტს გაზმომარაგება შეუწყდა",
+            request="stories/24835.json",
             style="swiss-motion",
             preview_storyboard=True,
             yes=True,
@@ -104,13 +90,19 @@ class FrontDoor(unittest.TestCase):
     def test_queue_mode_adds_to_job_queue(self):
         with tempfile.TemporaryDirectory() as home, mock.patch.dict(os.environ, {"VEASY_HOME": home}):
             res = make.make_film(
-                request="ვარკეთილში გაზის მილის დაზიანების გამო 6400 აბონენტს გაზმომარაგება შეუწყდა",
+                request="stories/24835.json",
                 queue=True,
                 yes=True,
             )
             self.assertEqual(res["status"], "queued")
             self.assertTrue(res.get("job_id"))
             self.assertTrue(res.get("created"))
+
+    def test_queue_mode_takes_a_source_ref_for_the_worker_to_write(self):
+        with tempfile.TemporaryDirectory() as home, mock.patch.dict(os.environ, {"VEASY_HOME": home}):
+            res = make.make_film(request="24835", queue=True, yes=True)
+            self.assertEqual(res["status"], "queued")
+            self.assertEqual(res["program"], "news")
 
 
 if __name__ == "__main__":

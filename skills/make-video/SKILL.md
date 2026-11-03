@@ -39,12 +39,12 @@ python -m tt_shorts.engine options           # leads with brands & styles (with 
 
 You don't need to specify formats, engines, looks, or directors. From your sentence, code derives:
 
-1. **Program & Source**:
-   - Law ("კონსტიტუცია", "მუხლი 17") → program `law`, source `ordo` (`matsne.gov.ge`).
-   - Tech blog ("SiTech", "კიბერ", "AI აგენტები") → program `blog`, source `sitech` (brand `sitech`).
-   - Children's fiction ("რობოტი ბიპი", "მზეს ხატავს") → program `story`, engine `hyperframes`.
-   - Explainer ("ინფლაცია", "ფასები", "ახსენი") → program `explainer`, format `explainer`.
-   - News ("ვარკეთილი", "გაზი", "6400") → program `news`, source `tbilisi-today`.
+1. **Story & Program**: the facts come only from what the request points at, never from its words:
+   - a story file or a story's name in `stories/` (`stories/24835.json`, `bipi-draws`) → that story;
+   - a source ref → the writer writes it first (as `engine write`), and the program comes from the source:
+     a bare number is a cluster id (`news`), a URL is `url` (`explainer`), `--source ordo` + `constitution:17` is
+     `law`, `--source sitech` + a post is `blog`. The ref is the last word of the request.
+   - a sentence with neither → `needs_input`, even with `--yes`. Answer with the source and call again.
    See `veasy:programs` for details.
 2. **Style**: if `--style` is omitted, `variety.pick_style` chooses the least-used style permitted for that brand and program.
 3. **Engine**: Remotion for high-volume data/news brushes; HyperFrames for composed fiction/fables. See `veasy:compose`.
@@ -57,12 +57,13 @@ You don't need to specify formats, engines, looks, or directors. From your sente
 
 Before rendering, Veasy asks **ONE single round of questions** strictly for what code cannot decide on its own:
 
-1. **Facts / Source**: asked *only* if your request doesn't match a known document, URL, or cluster ID.
+1. **Facts / Source**: asked *only* if your request names no story file, story name, URL or source ref.
 2. **Custom Assets**: whether you wish to include custom logos or images (default: no; see `veasy:media`).
 3. **Storyboard Preview**: whether to inspect the contact sheet first (`--preview-storyboard`) or render immediately.
 
 ### Automation & Non-interactive Flags
-- `--yes` (`-y`): skips questions, accepts code defaults, renders immediately.
+- `--yes` (`-y`): skips questions, accepts code defaults, renders immediately. It never invents the facts: without a
+  source the answer is still `needs_input`.
 - `--preview-storyboard`: stops after `engine plan` and returns contact sheet stills (`.plan.jpg`).
 - `--queue`: adds the job to Veasy's job queue instead of rendering in-process. See `veasy:queue`.
 - `--engine silent`: free preview voice (no paid TTS API).
@@ -71,24 +72,24 @@ Before rendering, Veasy asks **ONE single round of questions** strictly for what
 
 ## 4. Examples
 
-### News incident (default brand)
+### A news cluster (default brand): the writer writes it, then it renders
 ```bash
-python -m tt_shorts.engine make "ვარკეთილში გაზის მილის დაზიანების გამო 6400 აბონენტს გაზმომარაგება შეუწყდა" --yes
+python -m tt_shorts.engine make "24835" --yes
 ```
 
-### Explainer with specific style
+### A story that is already written, in a named style
 ```bash
-python -m tt_shorts.engine make "როგორ იცვლება ფასები და ინფლაცია საქართველოში ბოლო წლებში" --style swiss-motion --yes
+python -m tt_shorts.engine make "stories/explainer-inflation.json" --style swiss-motion --yes
 ```
 
-### Georgian Law
+### Georgian law: article 17 of the Constitution
 ```bash
-python -m tt_shorts.engine make "საქართველოს კონსტიტუციის მე-17 მუხლი იცავს აზრის, სიტყვისა და ინფორმაციის თავისუფლებას" --yes
+python -m tt_shorts.engine make "კონსტიტუციის მე-17 მუხლი constitution:17" --source ordo --yes
 ```
 
-### Composed Story for Children (HyperFrames)
+### Composed story for children (HyperFrames)
 ```bash
-python -m tt_shorts.engine make "პატარა რობოტი ბიპი სწავლობს ხატვას და მზეს ხატავს" --brand sitech --yes
+python -m tt_shorts.engine make "bipi-draws" --brand sitech --yes
 ```
 
 ---

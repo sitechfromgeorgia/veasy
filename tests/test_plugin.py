@@ -151,8 +151,11 @@ class Plugin(unittest.TestCase):
         self.assertIn("style", props)
         self.assertEqual(self.ctx.tools["veasy_make"][0]["parameters"]["required"], ["request"])
 
+        asked = json.loads(self.ctx.tools["veasy_make"][1]({"request": "ვარკეთილში გაზის მილი დაზიანდა", "yes": True}))
+        self.assertEqual(asked.get("status"), "needs_input", asked)  # a sentence names no facts; they're never guessed
+
         out = json.loads(self.ctx.tools["veasy_make"][1]({
-            "request": "ვარკეთილში გაზის მილის დაზიანების გამო 6400 აბონენტს გაზმომარაგება შეუწყდა",
+            "request": "stories/24835.json",
             "preview_storyboard": True,
             "yes": True,
         }))

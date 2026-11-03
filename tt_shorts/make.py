@@ -31,116 +31,61 @@ class MakeError(ValueError):
     pass
 
 
-def parse_intent(request: str, brand: str | None = None, style: str | None = None, source: str | None = None) -> dict:
-    """Classify the user's sentence into program, brand, source, ref, and candidate story."""
-    req = (request or "").strip()
-    
-    # 1. Direct file path check
-    req_path = pathlib.Path(req)
-    if req_path.is_file():
+def _program_for(source: str | None) -> str | None:
+    """The program a source belongs to, from the programs' data: news if news takes it, else the program that
+    lists it earliest (url -> explainer, ordo -> law, sitech -> blog). None leaves the choice to write_story."""
+    if not source:
+        return None
+    if source in programs.get(programs.DEFAULT)["sources"]:
+        return programs.DEFAULT
+    ranked = sorted((p["sources"].index(source), name) for name, p in programs.load_all().items()
+                    if source in p.get("sources", []))
+    return ranked[0][1] if ranked else None
+
+
+def _story_file(token: str) -> pathlib.Path | None:
+    """A story the request points at: a JSON path, or the name of a story in stories/. A bare number is a source
+    ref (a cluster id), never the demo file that happens to share it."""
+    token = token.strip().strip("\"'«»„“”.,;:()")
+    if not token:
+        return None
+    named = () if token.isdigit() else (STORIES_DIR / token, STORIES_DIR / f"{token}.json")
+    for cand in (pathlib.Path(token),) + named:
         try:
-            data = json.loads(req_path.read_text(encoding="utf-8"))
-            return {
-                "program": data.get("program") or "news",
-                "brand": brand or data.get("brand") or "tbilisi-today",
-                "source": source or "file",
-                "ref": str(req_path),
-                "story_path": str(req_path.resolve()),
-                "story_data": data,
-                "facts_known": True,
-            }
-        except Exception:
+            if cand.suffix == ".json" and cand.is_file():
+                return cand
+        except (OSError, ValueError):
             pass
+    return None
 
-    # 2. Check keyword patterns
-    prog = None
-    b_name = brand
-    src = source
+
+def parse_intent(request: str, brand: str | None = None, style: str | None = None, source: str | None = None) -> dict:
+    """Find what the request is about. Facts come only from a story file, a story id in stories/, or a source
+    reference (a URL, or a ref with --source: a cluster id, a file, an ordo article); a bare sentence names none,
+    so facts_known stays False and make asks for the source. Nothing is guessed from the sentence's words: a guess
+    would publish a film about another story."""
+    req = (request or "").strip()
+    found = None
+    for token in [req] + req.split():
+        found = _story_file(token)
+        if found:
+            break
+    if found:
+        data = json.loads(found.read_text(encoding="utf-8"))
+        return {"program": data.get("program") or programs.DEFAULT, "brand": brand or data.get("brand"),
+                "source": source or "file", "ref": str(found), "story_path": str(found.resolve()),
+                "story_data": data, "facts_known": True}
+
     ref = None
-    matched_story = None
-
-    # Law: Georgian Constitution, articles, laws
-    if re.search(r"კონსტიტუცი|მუხლ|კოდექს|საქართველოს\s+კანონ|ordo|law", req, re.IGNORECASE):
-        prog = "law"
-        b_name = b_name or "tbilisi-today"
-        src = src or "ordo"
-        m = re.search(r"(?:მე-)?(\d+)\s*მუხლ|მუხლი\s*(\d+)", req)
-        art = m.group(1) or m.group(2) if m else "17"
-        ref = f"constitution:{art}"
-        cand = STORIES_DIR / f"law-constitution-{art}.json"
-        if cand.is_file():
-            matched_story = cand
-
-    # SiTech blog: tech, cybersecurity, AI agents
-    elif re.search(r"sitech|კიბერ|ჰაკერ|ai\s*აგენტ|ბლოგ|cyber", req, re.IGNORECASE):
-        prog = "blog"
-        b_name = b_name or "sitech"
-        src = src or "sitech"
-        ref = "claude-and-grok-among-ai-agents-used-to-automate-attacks-on-lati"
-        cand = STORIES_DIR / "sitech-cybercartel.json"
-        if cand.is_file():
-            matched_story = cand
-
-    # Story: fiction, fable, robot Bipi, kids story
-    elif re.search(r"რობოტ|ბიპი|ზღაპარ|მოთხრობ|ბავშვ|ხატავს|მზე|fiction|fable", req, re.IGNORECASE):
-        prog = "story"
-        b_name = b_name or "sitech"
-        src = src or "text"
-        ref = "bipi-draws"
-        cand = STORIES_DIR / "bipi-draws.json"
-        if cand.is_file():
-            matched_story = cand
-
-    # Explainer: inflation, prices, economy, how-it-works
-    elif re.search(r"ინფლაცი|ფასებ|ახსენ|როგორ\s+იცვლებ|რატომ|განმარტ|ეკონომიკ|ფუნჯ", req, re.IGNORECASE):
-        prog = "explainer"
-        b_name = b_name or "tbilisi-today"
-        src = src or "text"
-        ref = "explainer-inflation"
-        cand = STORIES_DIR / "explainer-inflation.json"
-        if not cand.is_file():
-            cand = STORIES_DIR / "veasy-brushes.json"
-        if cand.is_file():
-            matched_story = cand
-
-    # News: incident, gas pipe, Varketili, 6400, or generic news
-    elif re.search(r"ვარკეთილ|გაზ|6400|აბონენტ|ამბავ|მოვლენ|news", req, re.IGNORECASE):
-        prog = "news"
-        b_name = b_name or "tbilisi-today"
-        src = src or "tbilisi-today"
-        ref = "24835"
-        cand = STORIES_DIR / "24835.json"
-        if cand.is_file():
-            matched_story = cand
-
-    # URL reference
-    elif req.startswith(("http://", "https://")):
-        prog = "explainer"
-        b_name = b_name or "tbilisi-today"
-        src = src or "url"
-        ref = req
-
-    # Default fallback
-    else:
-        prog = "news"
-        b_name = b_name or "tbilisi-today"
-        src = src or "tbilisi-today"
-        cand = STORIES_DIR / "24835.json"
-        if cand.is_file():
-            matched_story = cand
-
-    facts_known = matched_story is not None and matched_story.is_file()
-    story_data = json.loads(matched_story.read_text(encoding="utf-8")) if facts_known else None
-
-    return {
-        "program": prog,
-        "brand": b_name,
-        "source": src,
-        "ref": ref,
-        "story_path": str(matched_story.resolve()) if matched_story else None,
-        "story_data": story_data,
-        "facts_known": facts_known,
-    }
+    url = re.search(r"https?://\S+", req)
+    if url:
+        ref, source = url.group(0), source or "url"
+    elif source:
+        ref = req.split()[-1] if req else None  # `make "<what you want> <ref>" --source <src>`: the ref comes last
+    elif re.fullmatch(r"\d+", req):
+        ref = req  # a bare id is a ref in the news program's first source
+    return {"program": _program_for(source), "brand": brand, "source": source, "ref": ref,
+            "story_path": None, "story_data": None, "facts_known": False, "write": ref is not None}
 
 
 def ask_one_round(
@@ -165,12 +110,13 @@ def ask_one_round(
     questions_log = []
 
     # 1. Facts question (only if code cannot find facts)
-    if not intent.get("facts_known") and not answers.get("facts"):
+    missing = not intent.get("facts_known") and not intent.get("write") and not answers.get("facts")
+    if missing:
         q1 = {
             "id": "facts",
             "question": "სად არის ამბის წყარო ან ფაქტები? (მიუთითეთ ბმული, ტექსტის ფაილი ან კლასტერის ID)",
             "question_en": "Where is the source or reference for the story? (Provide URL, file, or cluster ID)",
-            "default": intent.get("ref") or "stories/24835.json",
+            "default": None,
         }
         questions.append(q1)
 
@@ -200,10 +146,9 @@ def ask_one_round(
             resolved[qid] = val
             questions_log.append({"question": q["question_en"], "answer": str(val), "source": "provided"})
 
-    # If facts are unknown and neither answered nor yes, agent/script must answer
-    if not intent.get("facts_known") and not answers.get("facts") and not yes:
-        if not (interactive and sys.stdin.isatty()):
-            return resolved, questions, True
+    # Unknown facts are never defaulted, not even with --yes: only a person at a terminal can answer here
+    if missing and not (interactive and sys.stdin.isatty()):
+        return resolved, questions, True
 
     # If --yes or non-interactive with known facts, resolve with defaults
     if yes or not interactive:
@@ -234,8 +179,7 @@ def ask_one_round(
             questions_log.append({"question": q["question_en"], "answer": final_val, "source": "interactive"})
         return resolved, questions_log, False
 
-    # If in agent mode and facts are truly missing
-    if not intent.get("facts_known") and not answers.get("facts"):
+    if missing and not resolved.get("facts"):
         return resolved, questions, True
 
     return resolved, questions_log, False
@@ -279,27 +223,43 @@ def make_film(
             "message": "Veasy needs 1 round of input to resolve missing facts.",
         }
 
-    # Step 3: Resolve story path
-    story_path = intent.get("story_path")
-    if not story_path and resolved_answers.get("facts"):
-        f_cand = pathlib.Path(str(resolved_answers["facts"]))
-        if f_cand.is_file():
-            story_path = str(f_cand.resolve())
-            intent["story_data"] = json.loads(f_cand.read_text(encoding="utf-8"))
-    
-    if not story_path:
-        # Fallback to default fixture for safety
-        def_cand = STORIES_DIR / "24835.json"
-        story_path = str(def_cand.resolve())
-        intent["story_data"] = json.loads(def_cand.read_text(encoding="utf-8"))
+    # Step 3: The story: the one named, else written from the source ref by the writer (as `engine write`)
+    if not intent.get("facts_known") and resolved_answers.get("facts"):
+        intent = parse_intent(str(resolved_answers["facts"]), brand=brand, style=style, source=source)
+    if not intent.get("facts_known") and not intent.get("write"):
+        return {"status": "needs_input", "request": request, "intent": intent,
+                "questions": [{"id": "facts", "question_en": "Where is the source? (a story file or id, a URL, "
+                                                             "or a ref with --source)"}],
+                "message": "Veasy found no story file and no source reference in the request."}
+    b_name = brand or (intent.get("story_data") or {}).get("brand") or brand_mod.DEFAULT
+    if intent.get("write") and queue:  # the worker writes it: a job takes a source + ref
+        job, created = queue_mod.add(brand=b_name, source=intent.get("source"), ref=intent.get("ref"),
+                                     program=intent.get("program"), fmt=overrides.get("format"),
+                                     overrides={k: v for k, v in (("director", overrides.get("director")),
+                                                                  ("look", overrides.get("look")),
+                                                                  ("style", style)) if v})
+        return {"status": "queued", "request": request, "job_id": job.get("id"), "created": created,
+                "brand": b_name, "program": intent.get("program") or programs.DEFAULT,
+                "questions_log": questions_log, "took": round(time.time() - t0, 2)}
+    if intent.get("write"):
+        from tt_shorts import engine as engine_mod
+        written = engine_mod.write_story(intent.get("source"), intent["ref"], brand=b_name,
+                                         program=intent.get("program"), director=overrides.get("director"),
+                                         style=style)
+        if written.get("problems"):
+            return {"status": "error", "stage": "write", "problems": written["problems"], "request": request,
+                    "story": written["story"]}
+        intent["story_path"] = written["story"]
+        intent["story_data"] = json.loads(pathlib.Path(written["story"]).read_text(encoding="utf-8"))
+    story_path = intent["story_path"]
 
     story_data = intent.get("story_data") or json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     story_id = str(story_data.get("id") or pathlib.Path(story_path).stem)
 
     # Step 4: Derive brand, program, format, style, director, look, theme, engine
-    b_name = brand or story_data.get("brand") or intent.get("brand") or "tbilisi-today"
+    b_name = brand or story_data.get("brand") or b_name
     b_pack = brand_mod.load(b_name)
-    prog_name = intent.get("program") or story_data.get("program") or "news"
+    prog_name = story_data.get("program") or intent.get("program") or programs.DEFAULT
     prog = programs.get(prog_name)
 
     from tt_shorts import compose

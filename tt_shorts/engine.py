@@ -1250,7 +1250,7 @@ def main(argv=None):
     cs.add_argument("--brand", default="all", help="all, sitech, or tbilisi-today")
     cs.add_argument("--theme", default="all", help="all, dark, or light")
     mk = sub.add_parser("make", help="one front door: request sentence, brand and style -> finished checked film")
-    mk.add_argument("request", help="what you want in a sentence (or a story JSON path, or source ref)")
+    mk.add_argument("request", help="what you want, ending with what it is about: a story file or name, a cluster id, a URL, or a ref for --source (a sentence alone is answered with needs_input)")
     mk.add_argument("--brand", help="who it's for (tbilisi-today, sitech; see options: brands)")
     mk.add_argument("--style", help="how it looks and sounds (see options: styles)")
     mk.add_argument("--source", help="where facts come from (tbilisi-today, ordo, sitech, url, pdf, text)")

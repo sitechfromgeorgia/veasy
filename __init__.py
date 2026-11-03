@@ -114,7 +114,7 @@ CHOICE_PROPS = {
 
 TOOLS = {
     "veasy_make": ({"type": "object", "properties": {
-                       "request": {"type": "string", "description": "What you want in a sentence (what the video is about)."},
+                       "request": {"type": "string", "description": "What you want, ending with what it is about: a story file or name, a cluster id, a URL, or a ref for --source. A sentence alone returns needs_input."},
                        "brand": BRAND,
                        "style": CHOICE_PROPS["style"],
                        "source": SOURCE,
@@ -128,8 +128,9 @@ TOOLS = {
                        "director": {"type": "string", "description": "Override director."},
                        "theme": {"type": "string", "description": "Override theme."}},
                     "required": ["request"]},
-                   "The front door to Veasy: say what you want in a sentence, name at most a brand and a style, "
-                   "and get a finished, checked film. Flags like --source, --length, --format or --look override.",
+                   "The front door to Veasy: point at a story or a source ref, name at most a brand and a style, and get a "
+                   "finished, checked film (a ref is written first). Facts are never guessed from the words: with "
+                   "no ref it returns needs_input. Flags like --source, --format or --look override.",
                    lambda a: _engine("make", [a["request"]] + _flags(
                        a, ("brand", "style", "source", "length", "format", "look", "director", "theme", "engine")) +
                        (["--yes"] if a.get("yes") else []) +
