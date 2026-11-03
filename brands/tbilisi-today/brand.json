@@ -19,6 +19,21 @@
  "logo": {
   "kind": "tmark"
  },
+ "design": {
+  "about": "brand v1.2 (https://tbilisi.today/brand) as rules for a film an agent composes; Lane A's components keep them by construction",
+  "accent": {
+   "allowed": ["dot", "active state", "button"],
+   "never": ["text", "a category", "a fill behind text", "an icon"]
+  },
+  "rules": [
+   "One font family; hierarchy comes from size, weight and color only: no caps, no letter-spacing, no italics, no shadows, no outlines.",
+   "No category colors and no tints: grounds are the canvas and the panel, depth is a color step and a 1-2 px line.",
+   "Cards have radius 14; chips, badges, dots and buttons are fully round; distances are multiples of 4.",
+   "The mark is never framed, recolored or distorted.",
+   "Numbers are written in digits; quotes are in „…“ with the speaker's name; no long dashes.",
+   "The source and the time are always on screen."
+  ]
+ },
  "wordmark": {
   "text": "tbilisi.today",
   "accent": "."

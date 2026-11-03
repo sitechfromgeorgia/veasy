@@ -1,0 +1,66 @@
+<!-- s1 hook (0-5.4 s): the places on screen at frame 0, the date card, the flame that the ban stroke closes on
+     "შეწყდება" (N10: the verb is said). Text: stories/24835.json hook. -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .chip { position: absolute; display: inline-flex; align-items: center; gap: 12px; font-weight: 600; font-size: 30px; line-height: 1;
+      padding: 13px 24px 15px; border-radius: 999px; border: 2px solid var(--line-strong); white-space: nowrap; }
+    #root .dot { width: 14px; height: 14px; border-radius: 7px; background: var(--accent); }
+    #root .hook { position: absolute; left: 64px; font-weight: 700; font-size: 112px; line-height: 1.12; white-space: nowrap; }
+    #root .inv { position: relative; display: inline-block; }
+    #root .inv .blk { position: absolute; left: -16px; right: -16px; top: 10px; bottom: 2px; border-radius: 14px; background: var(--ink); transform-origin: 0 50%; }
+    #root .inv em { position: relative; font-style: normal; }
+    #root .card { position: absolute; background: var(--panel); border: 2px solid var(--line); border-radius: 14px; }
+    #root .badge { position: absolute; border-radius: 50%; background: var(--ticker); border: 2px solid var(--line-strong); }
+    #root .badge svg { position: absolute; left: 22%; top: 22%; width: 56%; height: 56%; }
+    #root .draw path, #root .draw circle, #root .draw rect { stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; }
+    #root .big { font-weight: 700; font-size: 64px; line-height: 1.1; white-space: nowrap; }
+    #root .muted { font-weight: 500; font-size: 40px; line-height: 1.2; color: var(--muted); white-space: nowrap; }
+  </style>
+  <div id="root" data-composition-id="s1" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="s1-chip" class="chip" style="left: 64px; top: 300px"><span class="dot"></span>საზოგადოება · თბილისი</div>
+      <div id="s1-l1" class="hook" style="top: 372px"><span class="inv"><i class="blk"></i><em>ვარკეთილსა</em></span> და</div>
+      <div id="s1-l2" class="hook" style="top: 497px"><span class="inv"><i class="blk"></i><em>ვაზისუბანში</em></span></div>
+      <div id="s1-l3" class="hook" style="top: 622px">გაზი შეწყდება</div>
+
+      <div id="s1-date" class="card" style="left: 64px; top: 872px; width: 572px; height: 252px">
+        <div class="badge" style="left: 36px; top: 62px; width: 128px; height: 128px">
+          <svg class="draw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path pathLength="1" d="M8 2v3"/><path pathLength="1" d="M16 2v3"/><rect pathLength="1" x="3" y="3" width="18" height="18" rx="2"/><path pathLength="1" d="M3 9h18"/></svg>
+        </div>
+        <div class="big" style="position: absolute; left: 196px; top: 60px">2 ნოემბერი</div>
+        <div class="muted" style="position: absolute; left: 196px; top: 144px">22:00</div>
+      </div>
+
+      <div id="s1-flame" class="badge" style="left: 668px; top: 872px; width: 252px; height: 252px">
+        <svg class="draw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path pathLength="1" d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/></svg>
+        <svg id="s1-ban" class="draw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" style="left: 6%; top: 6%; width: 88%; height: 88%"><circle pathLength="1" cx="12" cy="12" r="11"/><path pathLength="1" d="M4.2 4.2 19.8 19.8"/></svg>
+      </div>
+    </div>
+  </div>
+  <script>
+    const C = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(); // the pack's tokens (assets/brand.css)
+    const tl = gsap.timeline({ paused: true });
+    // frame 0 already holds the chip and the first line; the place names invert as they are said
+    tl.fromTo("#s1-l1 .blk", { scaleX: 0 }, { scaleX: 1, duration: 0.32, ease: "expo.out" }, 0.3);
+    tl.fromTo("#s1-l1 em", { color: C("--ink") }, { color: C("--canvas"), duration: 0.1, ease: "none" }, 0.36);
+    tl.fromTo("#s1-l2 .blk", { scaleX: 0 }, { scaleX: 1, duration: 0.32, ease: "expo.out" }, 1.62);
+    tl.fromTo("#s1-l2 em", { color: C("--ink") }, { color: C("--canvas"), duration: 0.1, ease: "none" }, 1.68);
+    tl.to("#s1-l1 .blk", { opacity: 0, duration: 0.2, ease: "power1.inOut" }, 1.62);
+    tl.to("#s1-l1 em", { color: C("--ink"), duration: 0.2, ease: "power1.inOut" }, 1.62);
+    // "2 ნოემბერს": the date card rises, its calendar draws
+    tl.fromTo("#s1-date", { opacity: 0, y: 90 }, { opacity: 1, y: 0, duration: 0.55, ease: "expo.out" }, 2.4);
+    tl.to("#s1-date .draw > *", { strokeDashoffset: 0, opacity: 1, duration: 0.5, ease: "power2.out", stagger: 0.06 }, 2.5);
+    // "გაზი შეწყდება": the line, the flame draws, then the ban stroke closes across it
+    tl.fromTo("#s1-flame", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.6)" }, 3.38);
+    tl.to("#s1-flame > svg:first-child path", { strokeDashoffset: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 3.42);
+    tl.to("#s1-ban circle", { strokeDashoffset: 0, opacity: 1, duration: 0.36, ease: "power2.inOut" }, 3.86);
+    tl.to("#s1-ban path", { strokeDashoffset: 0, opacity: 1, duration: 0.2, ease: "power3.out" }, 4.16);
+    tl.to("#s1-l2 .blk", { opacity: 0, duration: 0.2, ease: "power1.inOut" }, 3.4);
+    tl.to("#s1-l2 em", { color: C("--ink"), duration: 0.2, ease: "power1.inOut" }, 3.4);
+    // out: everything lifts away as the source card comes up (s2)
+    tl.to(["#s1-chip", "#s1-l1", "#s1-l2", "#s1-l3", "#s1-date", "#s1-flame"],
+      { opacity: 0, y: -80, duration: 0.3, ease: "power3.in", stagger: 0.03 }, 4.92);
+    window.__timelines["s1"] = tl;
+  </script>
+</template>

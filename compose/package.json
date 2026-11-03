@@ -1,0 +1,12 @@
+{
+  "name": "veasy-compose",
+  "private": true,
+  "description": "Veasy v2 Lane B: films composed in HTML/CSS/GSAP and rendered by HyperFrames (docs/plan-v2.md)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "hyperframes": "0.9.8"
+  }
+}

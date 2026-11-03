@@ -179,6 +179,105 @@ pack allows it.
 | 4. Templates + rollout | promote an approved composed film to `templates/<id>`, variety rotation, the Hub agents (mark, then sizmara, then sitech), the host lane if wanted | two agent-made templates in rotation; mark makes a video from a chat request |
 | 5. Measure | retention per beat and per lane (ROADMAP D8), the bandit over lanes and directors | the choice of lane is driven by watch time |
 
+## Phase 0 result (2026-11-03): two engines, one Veasy
+
+Built on the Windows PC (i7-7700K, 4 cores/8 threads, 32 GB; nothing installed or run on the server): HyperFrames
+0.9.8 pinned in `compose/`, `tt_shorts/frame_md.py`, a composed 24835 (`compose/24835`: 7 scenes, 28 beats on the
+silent engine's words, a beat every 0.5-1.9 s), `tools/compose_scaffold.py` (builds it for any pack) and
+`tools/compose_probe.py` + `compose/probe.mjs` (the layout probe on a HyperFrames page).
+
+**One composition, two clients.** The agent's source types no color, font, logo or link: scenes use `var(--ink)`,
+`var(--accent)`... and the family "Brand". The scaffold builds it per pack (`--brand sitech`): `assets/brand.css`
+(the pack's tokens and font), `frame.md`, `timing.json`, and the locked chrome (logo, date, chapter bar, meter
+wipes, ticker, footer, end card) and captions. 24835 renders in tbilisi-today (night, white, red, the t-mark) and
+in sitech (coal, paper, orange, the SiTech logo) from the same files. A pack's design rules beyond its tokens are
+now its own: brand.json `design.accent` (where the accent may go) and `design.rules` (sentences). tbilisi-today
+states brand v1.2 there (the accent is never text: the probe checks it for that pack only); sitech states none,
+and its frame.md says which key would hold them.
+
+**Numbers** (36.9 s, 1080x1920, 30 fps, `--quality looks`):
+
+| | HyperFrames | Remotion (same story, cards look) |
+|---|---|---|
+| render, Chrome on the GPU, default 3 workers | 66.5-71.7 s = **1.8-1.95 s per video second** (cold first run 79 s) | 64.4 s, 7 workers = 1.75 s/s |
+| 6 workers | 60.6 s = 1.64 s/s | |
+| software GL (`--no-browser-gpu`, as on a GPU-less server), 4 workers | 82.1 s = **2.22 s/s** | |
+| file | 6.7-6.9 MB (1.56 Mbit/s, H.264) | 4.3 MB |
+| two renders | byte-identical mp4 in both packs; all 1107 decoded frames equal | |
+
+Determinism holds for one machine and one setting. Changing the worker count (3 vs 6) changed 831 of 1107 decoded
+frames by at most 27/255 in 0.002 % of the pixels; software and GPU GL differ by 0.57/255 on average. So: pin the
+workers and the GL mode on the server, and keep goldens per machine. FiraGO: all four weights load (no fallback),
+and the probe found no glyph missing from the woff2's cmap in 561 texts at 28 settled frames, Georgian included.
+
+**The probe works on a HyperFrames page unchanged.** `compose/probe.mjs` serves the built project with HyperFrames'
+own runtime and the vendored GSAP, seeks each beat's settled time with `__player.renderSeek` (the call the
+renderer makes), and measures every text exactly as `remotion/src/Probe.tsx` does; `probe.rules()` judges band,
+rail, captions, frame, overflow, glyph, font and size. 28 frames in 6.6 s; planted faults (text under the rail, a
+✓ outside FiraGO, Arial at 18 px, accent text) were all caught, a real one too (a 36 px label 23 px past its box).
+Every network request is refused and listed: none. Its screenshots match the render (mean difference 1-4/255).
+What a HyperFrames-side probe still needs: `data-probe-root` and `data-probe` regions (the chrome has them; frame.md
+asks scenes to mark theirs), the text color in the report (added, for a pack's accent rule), and a rule for what
+the DOM can't read: text drawn in `<canvas>`, WebGL or an image (forbid it in scenes, or OCR it).
+`npx hyperframes check` adds its own audits (contrast, unreadable lines, overlap); its type floor is 28 px, ours 24.
+
+**Registry.** Used: `count-up` (its frame-row counting, adapted for 6 400 with the pack's font; mounted as-is it
+brings its own colors and Inter) and the `svg-line-draw-loader` technique (icons draw themselves). Looked at, not
+used: `caption-pill-karaoke` (measures text in the browser and loads Google Fonts; our captions are laid out in
+Python), `waveform` (the equaliser is a WebGPU shader: no GPU on the server; the meter wipe is hand-built). Items
+load Google Fonts and CDN GSAP (3.14.2 next to the vendored 3.15.0), so an item an agent adds must be rewritten to
+Brand, the tokens and local scripts.
+
+**The decision: a whole film per engine, chosen per video.** Each film is rendered whole by one engine, then goes
+through the same Veasy: `props.mix_audio` took the HyperFrames mp4 unchanged (tried with a stand-in voice track:
+36.9 s, audio and video aligned), and QA, package and the queue follow. What is shared and engine-free: the story and
+its facts, programs and rule tiers, the brand pack (as props for Remotion, as `brand.css` + `frame.md` for
+HyperFrames), the voice and its word timings, the caption pages from `captions.py`, the media layer, the checks
+(news, Georgian, the probe's rules, motion, provenance), the mix, QA, package and the queue. What each engine is
+better at: Remotion, the typed brush kit and the volume (every video checked the same way, about 50 a day);
+HyperFrames, films an agent composes in HTML/GSAP, the registry, camera moves and 3D. The engine comes from the
+video's `"engine"` (a director's, else the program's, else the format's, else the pack's; default `remotion`).
+HyperFrames clips placed by Remotion's `OffthreadVideo` stay possible, but not as the way in: two renders for one
+film, the probe can't read text inside a clip (pixels only), captions and chrome would sit in a different engine
+from the scene text, and transparent clips need alpha video (VP9 or ProRes). A whole film keeps chrome, captions,
+scene text and the checks in one DOM.
+
+**Phase 2 must build:**
+1. `engine compose scaffold|check|render` in `tt_shorts/` from the two spike tools, with the `"engine"` key and
+   its precedence; the render pins workers, GL mode and `--quality`.
+2. Facts bound, not typed: scenes read the story's numbers, names and dates through HyperFrames variables
+   (`data-var-text`), and every text the probe collects goes through `news_check`, `ka_check` and kaeasy.
+3. Our lint: no typed colors, fonts, logos or links in a scene (a test checks it today), no `https` script or
+   font, no text in `<canvas>`, `data-probe` on every text, the locked files unchanged (hashed).
+4. The locked chrome as a versioned set (chrome, captions, end card, rubric chip) with goldens in every pack, and
+   one chrome spec both engines draw from (the same bands as `NewsShort`).
+5. The probe and `hyperframes check` as gates (a problem holds the job), and the review tier for composed films.
+6. The package from a HyperFrames film (cover, carousel stills per scene, teaser) and sound effects in the ffmpeg
+   mix.
+7. Registry hygiene: an allow-list, and `add` followed by a rewrite to Brand, tokens and local scripts.
+8. Locked-down CLI: `HYPERFRAMES_NO_TELEMETRY=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1 HYPERFRAMES_SKIP_SKILLS=1
+   HYPERFRAMES_NO_AUTO_INSTALL=1`; agents never run `publish`, `cloud`, `lambda`, `tts`, `media-use` or `feedback`.
+9. sitech's `design` rules (the owner's), and tints (decision 2) as a pack key if wanted.
+
+**Surprises.** HyperFrames sends telemetry to PostHog unless `HYPERFRAMES_NO_TELEMETRY=1` or `DO_NOT_TRACK=1`;
+`doctor` asks npm for the latest version even with the update check off; `add` fetches from GitHub and copies to the
+clipboard; every render prints an ad for HeyGen's desktop app; its skills tell an agent to report usage and send a
+`feedback` rating; `publish` uploads a project to HeyGen. A `<script src="https://cdn.jsdelivr.net/...gsap">`
+stays a CDN fetch at render (the compiler keeps https sources), so the scaffold copies GSAP from the pinned package.
+Local fonts are embedded by the compiler, so FiraGO needs nothing online. Licences: HyperFrames Apache-2.0, GSAP
+under its own no-charge licence (vendored by the package), FiraGO OFL, Lucide ISC, the map's Geostat/OCHA CC BY-IGO
+credit on screen. Windows was no obstacle (Docker mode isn't available here).
+
+**Both products' skills side by side.** Their names don't clash: Remotion's thirteen are all `remotion-*`
+(`remotion-best-practices`, `-captions`, `-create`, `-docs`, `-interactivity`, `-license`, `-maps`, `-markup`,
+`-multimedia`, `-render`, `-saas`, `-studio`, `-upgrade`); HyperFrames' are `hyperframes`, `hyperframes-cli`,
+`hyperframes-registry`, `media-use`, `figma`, `slideshow`, `remotion-to-hyperframes`, `reverse-any-video`. Both
+install with `npx skills add <repo>` into the agent's skills folder, and HyperFrames' `skills update` leaves skills
+another publisher installed alone (its docs; `HYPERFRAMES_SKIP_SKILLS=1` keeps a pinned set pinned). The overlap
+is in topics, not names: captions (`remotion-captions`, HyperFrames' captions reference, Veasy's `captions.py`) and
+media (`media-use`, Veasy's media layer), so `veasy:make-video` must say which wins. Not installed side by side
+here (it writes outside the repo); phase 2b tries it.
+
 ## 8. Decisions only the owner can make
 
 1. **Lane B's review period:** how many approved films before composed videos publish on their own.
