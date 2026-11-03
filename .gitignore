@@ -7,6 +7,7 @@ data/
 assets/music/*.m4a
 assets/music/*.wav
 remotion/node_modules
+compose/node_modules
 __pycache__/
 *.pyc
 .pytest_cache/
