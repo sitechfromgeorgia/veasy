@@ -44,6 +44,8 @@ STILL_MAX = 3.0
 HOLD_MAX = 8.0  # s: a scene type the video's director holds on (directors.py "holds": the data director's number)
 STILL_EXEMPT = ("end",)  # the end card holds still: the QR is scanned there
 MAX_KINDS = 3
+MAX_MOVES = 3  # elements animating at the same moment in a scene
+PACING_MIN = 1.5  # seconds: minimum scene duration to allow voice & reader comprehension
 # The direction each cut moves in when the video has no director's current (remotion/src/NewsShort.tsx: wipe and the
 # sweeps go right, slide and push go left); a plain cut, the dot's iris and the loop's cross-fade have none.
 DIRECTION = {
@@ -57,6 +59,9 @@ RULES = {
     "kinds": f"more than {MAX_KINDS} transition kinds in one video",
     "pingpong": "ping-pong cuts: kinds A-B-A in three cuts in a row, or two cuts in a row moving in opposite directions",
     "repeat": "two scenes of the same type in a row",
+    "moves": f"more than {MAX_MOVES} elements animating at once in a scene: stagger them to keep focus",
+    "background": "active video or motion behind text being read: quiet the background or use still image",
+    "pacing": f"cut comes after less than {PACING_MIN:g} s or cuts off the voice: faster than voice and reading pace",
 }
 HOLDS = ("read",)
 
@@ -255,6 +260,59 @@ def repeat(rows):
             for a, b in zip(rows, rows[1:]) if a["type"] == b["type"]]
 
 
+def moves(rows):
+    out = []
+    for r in rows:
+        if r["scene"] == 0 or r["type"] in STILL_EXEMPT:
+            continue
+        ins = [t["in"] for t in r["texts"]]
+        for t0 in ins:
+            simultaneous = sum(1 for t in ins if abs(t - t0) <= 0.05)
+            if simultaneous > MAX_MOVES:
+                out.append(_finding("moves", f"scene {r['scene']} ({r['type']}): {simultaneous} elements enter at "
+                                             f"the same time (at most {MAX_MOVES}): stagger them to keep focus",
+                                    r["scene"]))
+                break
+    return out
+
+
+def background(rows, p=None):
+    out = []
+    scenes = (p.get("scenes") or []) if p else []
+    for r in rows:
+        if r["scene"] >= len(scenes):
+            continue
+        s = scenes[r["scene"]]
+        med = s.get("media") or {}
+        is_video = med.get("kind") == "video" or med.get("video")
+        text_need = sum(t["need"] for t in r["texts"])
+        if is_video and text_need > 1.5:
+            out.append(_finding("background", f"scene {r['scene']} ({r['type']}): video motion behind "
+                                              f"{len(r['texts'])} texts being read ({text_need:.1f} s needed): "
+                                              f"quiet the background or use still image", r["scene"]))
+    return out
+
+
+def pacing(rows, p=None):
+    out = []
+    scenes = (p.get("scenes") or []) if p else []
+    for r in rows:
+        if r["type"] in STILL_EXEMPT:
+            continue
+        s = scenes[r["scene"]] if r["scene"] < len(scenes) else {}
+        narr = s.get("narration") or ""
+        voice_need = words(narr) * 0.28
+        if r["seconds"] < PACING_MIN:
+            out.append(_finding("pacing", f"scene {r['scene']} ({r['type']}): cut comes after only {r['seconds']:.1f} s "
+                                          f"(minimum {PACING_MIN:g} s): faster than voice and reading pace",
+                                r["scene"]))
+        elif narr and r["seconds"] < voice_need:
+            out.append(_finding("pacing", f"scene {r['scene']} ({r['type']}): cut comes at {r['seconds']:.1f} s, "
+                                          f"faster than voice ({voice_need:.1f} s needed for {words(narr)} words)",
+                                r["scene"]))
+    return out
+
+
 def _laid_out(p):
     """Props whose scenes all have from and duration (a scene without them runs from the previous one's end; the last
     to the end of the video), so partial props can be checked too."""
@@ -273,7 +331,8 @@ def check(p):
     holds are the findings that hold a render (HOLDS), warnings all the rest."""
     p = _laid_out(p)
     rows, cut_list = timeline(p), cuts(p)
-    found = read(rows) + still(rows, _holds(p)) + kinds(cut_list) + pingpong(cut_list) + repeat(rows)
+    found = (read(rows) + still(rows, _holds(p)) + kinds(cut_list) + pingpong(cut_list) + repeat(rows)
+             + moves(rows) + background(rows, p) + pacing(rows, p))
     text = lambda f: f"motion {f['rule']}: {f['detail']}"  # noqa: E731
     return {"timeline": rows, "cuts": cut_list, "findings": found,
             "holds": [text(f) for f in found if f["hold"]], "warnings": [text(f) for f in found if not f["hold"]]}

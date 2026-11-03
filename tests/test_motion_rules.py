@@ -153,6 +153,51 @@ class Repeat(unittest.TestCase):
         self.assertEqual(rules(video([HOOK, ("where", 3, {}), ("stat", 3, {}), ("where", 3, {}), END]), "repeat"), [])
 
 
+class NewRules(unittest.TestCase):
+    def test_too_many_moves_at_once(self):
+        # 4 texts entering at the same time in a non-opening scene
+        p = video([HOOK, ("points", 3.0, {"kicker": "ა", "headline": "ბ"}), END])
+        rows = m.timeline(p)
+        rows[1]["texts"] = [
+            {"text": "ა", "words": 1, "need": 0.8, "in": 0.2, "shown": 2.0},
+            {"text": "ბ", "words": 1, "need": 0.8, "in": 0.2, "shown": 2.0},
+            {"text": "გ", "words": 1, "need": 0.8, "in": 0.2, "shown": 2.0},
+            {"text": "დ", "words": 1, "need": 0.8, "in": 0.2, "shown": 2.0},
+        ]
+        with mock.patch.object(m, "timeline", return_value=rows):
+            found = rules(p, "moves")
+            self.assertEqual(len(found), 1)
+            self.assertFalse(found[0]["hold"])
+            self.assertIn("4 elements enter at the same time", found[0]["detail"])
+
+    def test_background_motion_behind_text(self):
+        # Video media behind text needing > 1.5 s reading
+        p = video([HOOK, ("stat", 4.0, {"value": 6400, "label": "გრძელი ტექსტი რომელიც იკითხება ეკრანზე დროულად",
+                                        "media": {"kind": "video", "src": "video.mp4"}}), END])
+        found = rules(p, "background")
+        self.assertEqual(len(found), 1)
+        self.assertFalse(found[0]["hold"])
+        self.assertIn("video motion behind", found[0]["detail"])
+        # Still photo does not trigger background motion warning
+        photo_p = video([HOOK, ("stat", 4.0, {"value": 6400, "label": "გრძელი ტექსტი",
+                                              "media": {"kind": "image", "src": "photo.jpg"}}), END])
+        self.assertEqual(rules(photo_p, "background"), [])
+
+    def test_cuts_faster_than_the_voice(self):
+        # A scene cut after only 1.0 s
+        p = video([HOOK, ("stat", 1.0, {"value": 10}), END])
+        found = rules(p, "pacing")
+        self.assertEqual(len(found), 1)
+        self.assertFalse(found[0]["hold"])
+        self.assertIn("cut comes after only 1.0 s", found[0]["detail"])
+        # A cut that is shorter than its narration phrase
+        long_narr = "ეს არის ძალიან გრძელი ტექსტი რომელიც წამყვანმა უნდა წაიკითხოს"
+        voice_fast = video([HOOK, ("stat", 1.8, {"value": 10, "narration": long_narr}), END])
+        found_voice = rules(voice_fast, "pacing")
+        self.assertEqual(len(found_voice), 1)
+        self.assertIn("faster than voice", found_voice[0]["detail"])
+
+
 class Holds(unittest.TestCase):
     def test_only_unreadable_text_holds(self):
         self.assertEqual(m.HOLDS, ("read",))
