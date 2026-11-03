@@ -1,0 +1,156 @@
+{
+ "id": 24835,
+ "lang": "ka",
+ "category": "society",
+ "date": "2026-11-01T14:22:16Z",
+ "sources": [
+  "ინტერპრესნიუსი",
+  "BPN",
+  "ფორმულა",
+  "ON.ge"
+ ],
+ "cta": "მოიწონე და გაუზიარე მეზობლებს",
+ "narration": "ვარკეთილსა და ვაზისუბანში 2 ნოემბერს გაზი შეწყდება. „თბილისი ენერჯის“ ცნობით, მიწოდება 6400 აბონენტს დროებით შეუწყდება. გაზი არ იქნება ორშაბათს, 2 ნოემბრის ღამის 10 საათიდან 3 ნოემბრის დილის 10 საათამდე. მიზეზი გაზსადენის სარეკონსტრუქციო სამუშაოებია. მისამართების სრული სია ბმულზეა. ამ ამბავს ოთხი ქართული მედია აშუქებს. დეტალები იხილე tbilisi.today-ზე. მოიწონე და გაუზიარე მეზობლებს.",
+ "scenes": [
+  {
+   "type": "hook",
+   "at": "ვარკეთილსა და",
+   "kicker": "საზოგადოება · თბილისი",
+   "lines": [
+    "ვარკეთილსა და",
+    "ვაზისუბანში",
+    "გაზი შეწყდება"
+   ],
+   "show": "gas stove burner",
+   "media": {
+    "asset": "bcff8952832aa627"
+   }
+  },
+  {
+   "type": "stat",
+   "at": "თბილისი ენერჯის ცნობით",
+   "kicker": "რამდენს ეხება",
+   "headline": "„თბილისი ენერჯის“ ცნობით",
+   "value": 6400,
+   "label": "აბონენტს დროებით შეუწყდება გაზის მიწოდება",
+   "show": "apartment buildings",
+   "media": {
+    "asset": "2f6efd0a8752d486"
+   }
+  },
+  {
+   "type": "timeline",
+   "at": "გაზი არ იქნება",
+   "kicker": "როდის",
+   "headline": "ორშაბათი ღამიდან სამშაბათის დილამდე",
+   "big": "22:00 → 10:00",
+   "start": "2 ნოემბერი, 22:00",
+   "end": "3 ნოემბერი, 10:00",
+   "label": "გაზის მიწოდება შეჩერდება",
+   "show": "city street lights",
+   "media": {
+    "asset": "424fd6ceba0a94e9"
+   }
+  },
+  {
+   "type": "where",
+   "at": "მიზეზი გაზსადენის",
+   "kicker": "სად და რატომ",
+   "headline": "გაზსადენის რეკონსტრუქცია",
+   "place": "ვარკეთილი · ვაზისუბანი",
+   "sub": "თბილისი · მისამართების სია ბმულზეა"
+  },
+  {
+   "type": "sources",
+   "at": "ამ ამბავს",
+   "kicker": "წყაროები",
+   "headline": "ერთი ამბავი, ოთხი მედია",
+   "show": "gas pipes",
+   "media": {
+    "asset": "d4ee0b8fc63241f2"
+   }
+  },
+  {
+   "type": "end",
+   "at": "დეტალები იხილე"
+  }
+ ],
+ "assets": [
+  {
+   "id": "bcff8952832aa627",
+   "kind": "photo",
+   "provider": "openverse",
+   "provider_id": "3ace2799-b583-4f9c-981e-088eaed4be94",
+   "url": "https://live.staticflickr.com/8429/7541231178_2bc5a61a0e_b.jpg",
+   "page": "https://www.flickr.com/photos/29507259@N02/7541231178",
+   "licence": "cc0",
+   "licence_version": "1.0",
+   "author": "D Coetzee",
+   "title": "Burning gas stovetop in darkened room - closeup",
+   "source": "Flickr",
+   "fetched": "2026-11-03T12:39:15+00:00",
+   "sha": "488ef6ab639ec08b0561a22bc98fbc0ea69f896c3bfe4588dec047933449fc4b",
+   "file": "cache/media/bcff8952832aa627/image.jpg",
+   "width": 1024,
+   "height": 680,
+   "query": "gas stove burner"
+  },
+  {
+   "id": "2f6efd0a8752d486",
+   "kind": "photo",
+   "provider": "commons",
+   "provider_id": "133719220",
+   "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/Apartment_Complex_1.png/1920px-Apartment_Complex_1.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+   "page": "https://commons.wikimedia.org/wiki/File:Apartment_Complex_1.png",
+   "licence": "cc0",
+   "licence_version": "1.0",
+   "author": "TylerMascola",
+   "title": "Apartment Complex 1",
+   "source": "Wikimedia Commons",
+   "fetched": "2026-11-03T12:39:38+00:00",
+   "sha": "728e3d52b234c69fc18f415f24e19578a645fd0abcd42ee20275cc9bd6ea206d",
+   "file": "cache/media/2f6efd0a8752d486/image.jpg",
+   "width": 1600,
+   "height": 1067,
+   "query": "apartment buildings"
+  },
+  {
+   "id": "424fd6ceba0a94e9",
+   "kind": "photo",
+   "provider": "openverse",
+   "provider_id": "6d94db3b-264f-4e04-9688-d3e3017cf0f4",
+   "url": "https://images.rawpixel.com/editor_1024/cHJpdmF0ZS9zdGF0aWMvaW1hZ2Uvd2Vic2l0ZS8yMDIyLTA0L2xyL2lzMTQ3NDItaW1hZ2Uta3d2d3RkdXcuanBn.jpg",
+   "page": "https://www.rawpixel.com/image/5917024/city-street-lights-free-public-domain-cc0-image",
+   "licence": "cc0",
+   "licence_version": "1.0",
+   "author": "",
+   "title": "City Street Lights",
+   "source": "rawpixel",
+   "fetched": "2026-11-03T12:40:52+00:00",
+   "sha": "d1cb4a8745522db7f94542f30cb2a7721022331f61f520d6bcca82b5a47a281d",
+   "file": "cache/media/424fd6ceba0a94e9/image.jpg",
+   "width": 5000,
+   "height": 3333,
+   "query": "city street lights"
+  },
+  {
+   "id": "d4ee0b8fc63241f2",
+   "kind": "photo",
+   "provider": "openverse",
+   "provider_id": "046e277a-df9d-4e08-807c-be38baab7701",
+   "url": "https://live.staticflickr.com/21/28173586_43a67d2064_b.jpg",
+   "page": "https://www.flickr.com/photos/61132483@N00/28173586",
+   "licence": "by",
+   "licence_version": "2.0",
+   "author": "Elsie esq.",
+   "title": "Gas pipes",
+   "source": "Flickr",
+   "fetched": "2026-11-03T12:41:11+00:00",
+   "sha": "c9b7d082edfe3848e4a1bc6e05bbac81cc11c06026f40f5886a848ab3ce93695",
+   "file": "cache/media/d4ee0b8fc63241f2/image.jpg",
+   "width": 1024,
+   "height": 768,
+   "query": "gas pipes"
+  }
+ ]
+}
