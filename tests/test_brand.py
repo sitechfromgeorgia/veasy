@@ -55,6 +55,12 @@ class Packs(unittest.TestCase):
         self.assertIn("#SiTech", st["package"]["hashtags"])
         self.assertNotIn("#tbilisitoday", st["package"]["hashtags"])  # a pack's tags stay its own
 
+    def test_design_rules_are_the_packs_own(self):  # frame.md says what a pack says, nothing more
+        tt, st = brand.load("tbilisi-today"), brand.load("sitech")
+        self.assertIn("text", tt["design"]["accent"]["never"])  # brand v1.2: the accent is never text
+        self.assertTrue(tt["design"]["rules"])
+        self.assertNotIn("design", st)  # SiTech's pack sets no such rules (yet)
+
     def test_base_months_reach_both_packs(self):
         for n in brand.names():
             self.assertEqual(meta.ka_date("2026-11-01T18:38:46Z", n)["date"], "1 ნოემბერი 2026")
@@ -88,6 +94,10 @@ class Packs(unittest.TestCase):
             "nourl": {**good, "package": {"more": "დეტალები საიტზე"}},
             "badtags": {**good, "package": {"hashtags": ["#ამბები", "საქართველო", "#ა ბ"]}},
             "fewtags": {**good, "package": {"hashtags": ["#ამბები", "#ამბები", "#x"]}},
+            # design: the pack's own rules for composed films (frame.md): lists of words, a known accent use
+            "baddesign": {**good, "design": ["no caps"]},
+            "badaccent": {**good, "design": {"accent": {"allowed": ["glow"], "never": ["text"]}}},
+            "badrules": {**good, "design": {"rules": "no caps"}},
         }
         with tempfile.TemporaryDirectory() as d:
             d = pathlib.Path(d)

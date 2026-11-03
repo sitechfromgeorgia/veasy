@@ -1,23 +1,25 @@
-"""A brand pack -> HyperFrames' `frame.md`: the design spec an agent composing a film (Lane B, docs/plan-v2.md) reads.
+"""A brand pack -> HyperFrames' `frame.md`: the design spec an agent reads before composing a film for that pack.
 
-HyperFrames reads the first of frame.md / design.md at a project's root: YAML frontmatter that is normative (colors,
-typography, spacing, components: "quote hex values, families and weights exactly") and prose that is intent (what
-the look is for, Do's and Don'ts). The format is the one of its frame presets (skills/hyperframes/assets/
-frame-presets/*/FRAME.md, `version: alpha`). This module writes it from the pack, so a composed film keeps the
-pack's palette, font and rules, and nothing about a client is typed twice:
+Veasy has two engines: Remotion (the typed brush kit) and HyperFrames (films composed in HTML/CSS/GSAP). HyperFrames
+reads the first of frame.md / design.md at a project's root: YAML frontmatter that is normative (colors, typography,
+spacing, components: "quote hex values, families and weights exactly") and prose that is intent (Do's and Don'ts).
+The format is the one of its frame presets (skills/hyperframes/assets/frame-presets/*/FRAME.md, `version: alpha`).
+
+Everything about a client comes from its pack; Veasy adds only what is the engine's for every pack:
 
     colors       the pack's palette, verbatim (brand.json "colors" + brand.COLOR_DEFAULTS)
-    fonts        one family, registered as "Brand" (the name the layout probe checks), from the pack's four woff2
+    fonts        the pack's one family, registered as "Brand" (the name the layout probe checks), its four woff2
     typography   Veasy's video ramp (sizes for 1080x1920), every role in "Brand"
-    layout       the frame's bands, read from remotion/src/brand.ts (probe.constants), so Lane A and Lane B share them
-    components   card, chip, ink chip, dot, button, badge, captions box: their colors are references into `colors`
-    accent       where the accent may go (the dot, an active state, the button) and where never (text)
-    locked       the chrome the agent places but never restyles (header, chapter bar, ticker, footer, captions)
+    layout       the frame's bands (the platforms' safe zone), read from remotion/src/brand.ts, shared by both engines
+    components   card, chip, ink chip, dot, button, badge, captions box: colors are references into `colors`
+    accent       only when the pack says where its accent may and may never go (brand.json "design.accent")
+    rules        only the pack's own sentences (brand.json "design.rules")
+    locked       the chrome the agent places but never restyles (header, chapter bar, ticker, footer, captions, end card)
 
 The frontmatter is written as YAML whose every value is JSON (strings always quoted), so `parse()` reads it back
 without a YAML library and any YAML reader agrees. `problems()` is what the test checks for every pack.
 
-    python -m tt_shorts.frame_md [--brand sitech] [--out compose/24835/frame.md]
+    python -m tt_shorts.frame_md [--brand sitech] [--out out/compose/24835-sitech/frame.md]
 """
 import argparse
 import json
@@ -35,15 +37,15 @@ TYPE = {  # role -> (px, weight, line height); px at 1080x1920
     "chip": (30, 600, 1.0),
     "meta": (28, 400, 1.4),
 }
-SECTIONS = ("Overview", "The Frame", "Colors", "Typography", "Depth & Surface", "Shapes", "Components",
-            "Locked Chrome", "Composition Rules", "Numerals & Claims", "Pre-Render Self-Audit", "Known Gaps")
+SECTIONS = ("Overview", "The Frame", "Colors", "Typography", "Components", "Locked Chrome", "Pack Rules",
+            "Composition Rules", "Numerals & Claims", "Pre-Render Self-Audit", "Known Gaps")
 COLOR = re.compile(r"^(#[0-9A-Fa-f]{6}|rgba\(\d{1,3},\d{1,3},\d{1,3},(0|1|0?\.\d+)\))$")
 REF = re.compile(r"\{([a-z-]+)\.([A-Za-z0-9-]+)\}")
-LOCKED = ("header", "chapter-bar", "ticker", "footer", "captions")
+LOCKED = ("header", "chapter-bar", "ticker", "footer", "captions", "end-card")
 
 
 def family_name(b):
-    """The real name of the pack's font (FiraGO), from its woff2's name table."""
+    """The real name of the pack's font, from its woff2's name table."""
     from fontTools.ttLib import TTFont
     return TTFont(b["_fonts"]["700"])["name"].getDebugName(1) or "Brand"
 
@@ -65,18 +67,18 @@ def layout(c=None):
 def front(b):
     """The normative part, as a dict (written in this order)."""
     c = probe.C
-    fam = family_name(b)
-    return {
+    design = b.get("design") or {}
+    out = {
         "version": "alpha",
         "name": f"{b['label']} · Veasy frame",
         "description": f"{b.get('about', '')} Generated from brands/{b['name']}/brand.json by tt_shorts/frame_md.py: "
                        "change the pack, not this file.",
         "unit": f"the frame: {c['W']}x{c['H']} (9:16), {probe.FPS} fps",
-        "principle": "tokens are fixed · composition is free · every fact comes from the story",
+        "principle": "tokens are the pack's · composition is free · every fact comes from the story",
         "pack": b["name"],
         "lang": b["lang"],
         "colors": dict(b["colors"]),
-        "fonts": {"family": "Brand", "face": fam, "weights": [int(w) for w in brand.FONT_WEIGHTS],
+        "fonts": {"family": "Brand", "face": family_name(b), "weights": [int(w) for w in brand.FONT_WEIGHTS],
                   "files": {w: f"assets/fonts/brand-{w}.woff2" for w in brand.FONT_WEIGHTS},
                   "css": "assets/brand.css"},
         "typography": {
@@ -90,30 +92,30 @@ def front(b):
         "layout": layout(c),
         "components": {
             "card": {"backgroundColor": "{colors.panel}", "border": "2px solid {colors.line}",
-                     "rounded": "{rounded.card}", "description": "Every panel: a color step and a 1-2px line, never a shadow."},
+                     "rounded": "{rounded.card}"},
             "chip": {"backgroundColor": "{colors.panel}", "border": "2px solid {colors.lineStrong}",
-                     "textColor": "{colors.ink}", "rounded": "{rounded.chip}", "typography": "{typography.chip}",
-                     "description": "A place, a date, a source: fully round."},
+                     "textColor": "{colors.ink}", "rounded": "{rounded.chip}", "typography": "{typography.chip}"},
             "chip-ink": {"backgroundColor": "{colors.ink}", "textColor": "{colors.canvas}", "rounded": "{rounded.chip}",
-                         "typography": "{typography.chip}",
-                         "description": "Inverted ink: the highlight the brand allows (a keyword, the chip being said)."},
+                         "typography": "{typography.chip}", "description": "Inverted ink: the item being said."},
             "dot": {"backgroundColor": "{colors.accent}", "rounded": "{rounded.chip}", "size": "16-24px",
-                    "description": "'now': the progress head, a live marker. The one accent a still frame may hold."},
+                    "description": "'now': the progress head, a live marker."},
             "button": {"backgroundColor": "{colors.accent}", "textColor": "{colors.onAccent}",
-                       "rounded": "{rounded.button}", "typography": "{typography.label}",
-                       "description": "The call to action on the end card, once per film."},
-            "badge": {"backgroundColor": "{colors.panel}", "border": "2px solid {colors.lineStrong}",
+                       "rounded": "{rounded.button}", "typography": "{typography.label}"},
+            "badge": {"backgroundColor": "{colors.ticker}", "border": "2px solid {colors.lineStrong}",
                       "iconColor": "{colors.ink}", "rounded": "{rounded.chip}",
-                      "description": "A big line icon (Lucide, stroke 2 on 24) in a circle: ink on panel, no tint."},
+                      "description": "A big line icon (Lucide, stroke 2 on 24) in a circle, in the pack's ink."},
             "captions-box": {"backgroundColor": "{colors.canvas}", "opacity": 0.8, "border": "2px solid {colors.line}",
                              "rounded": "{rounded.card}", "said": "{colors.ink}", "waiting": "{colors.waiting}",
                              "active": "underline {colors.accent}", "keyword": "{components.chip-ink}",
                              "typography": "{typography.caption}"},
         },
-        "accent": {"allowed": ["dot", "active state", "button"],
-                   "never": ["text", "a category", "a fill behind text", "an icon", "a chart series"]},
-        "locked": list(LOCKED),
     }
+    if design.get("accent"):
+        out["accent"] = design["accent"]
+    if design.get("rules"):
+        out["rules"] = list(design["rules"])
+    out["locked"] = list(LOCKED)
+    return out
 
 
 def _dump(d, indent=0):
@@ -128,66 +130,71 @@ def _dump(d, indent=0):
     return out
 
 
+def _accent_prose(f):
+    acc = f.get("accent")
+    if not acc:
+        return ("The pack sets no limit on where its accent goes (a pack says so in brand.json "
+                "`design.accent`). Veasy's own chrome uses it for the progress dot, the spoken word's underline and "
+                "the end card's button.")
+    allowed = ", ".join(acc.get("allowed", [])) or "nothing"
+    never = ", ".join(acc.get("never", []))
+    return (f"The pack's accent ({f['colors']['accent']}) belongs to: {allowed}. Never: {never}. "
+            "The layout probe reports any text drawn in the accent.")
+
+
 def prose(b):
-    """The intent: the pack's rules in words (the frontmatter holds the numbers)."""
+    """The intent, in words: the engine's frame and the pack's own rules (the frontmatter holds the numbers)."""
     f = front(b)
     lay, col = f["layout"], f["colors"]
-    face = f["fonts"]["face"]
+    rules = f.get("rules") or []
+    pack_rules = "\n".join(f"- {r}" for r in rules) if rules else (
+        "This pack states no design rules beyond its tokens. A pack writes them in brand.json `design.rules` "
+        "(sentences) and `design.accent` (where the accent may go).")
     return f"""# {b['label']} · Veasy frame (video, 1080x1920)
 
 ## Overview
 
-A news short for {b['label']}, composed scene by scene and still unmistakably the pack's own. {b.get('about', '')}
-The film is one dark canvas ({col['canvas']}), light ink ({col['ink']}), quiet greys ({col['muted']}, panel
-{col['panel']}) and one accent ({col['accent']}). Richness comes from layout, scale, icons, maps, numbers and a beat
-every 1.5-3 s, never from more colors.
+A short for {b['label']}, composed scene by scene from the story's facts and drawn only in this pack's tokens.
+{b.get('about', '')}
+Canvas {col['canvas']}, panel {col['panel']}, ink {col['ink']}, muted {col['muted']}, accent {col['accent']}.
+Richness comes from layout, scale, icons, maps, numbers and a beat every 1.5-3 s.
 
 ## The Frame
 
-- {lay['frame']['width']}x{lay['frame']['height']} at {lay['frame']['fps']} fps. Distances are multiples of 4; the side margin is {f['spacing']['side']}.
+- {lay['frame']['width']}x{lay['frame']['height']} at {lay['frame']['fps']} fps; the side margin is {f['spacing']['side']}.
 - Header {lay['header']['top']}-{lay['header']['bottom']} (locked chrome). Scene text lives only inside {lay['scene']['top']}-{lay['scene']['bottom']}.
 - Captions: a box {lay['captions']['width']} wide from x={lay['captions']['left']}, ending at y={lay['captions']['bottom']} (locked chrome).
 - {lay['ticker']['top']}-{lay['ticker']['bottom']} carries motion only (the platforms draw their UI there); the footer {lay['footer']['top']}-{lay['footer']['bottom']} holds the source and the link.
-- Below y={lay['rail']['below']}, nothing is drawn right of x={lay['rail']['x']} (the like/share rail).
+- Below y={lay['rail']['below']}, no text right of x={lay['rail']['x']} (the platforms' like/share rail).
 - Frame 0 is the thumbnail: the hook is already on screen, never black, never a logo alone.
 
 ## Colors
 
-Quote the tokens exactly. Hierarchy is ink, muted, waiting and the panel steps. The accent ({col['accent']}) belongs
-to the dot ("now"), an active state (the progress head, the spoken word's underline, the current chapter's head)
-and the end card's button, and to nothing else: never text, never a category, never a fill behind text, never an
-icon. There are no category colors and no tints. Grounds are solid: no full-screen linear gradients (they band).
+Quote the tokens exactly; use them through `assets/brand.css` (`var(--ink)`, `var(--accent)`...), never as typed
+hex, so the same scenes render in another pack. {_accent_prose(f)}
 
 ## Typography
 
-One family: "Brand" ({face}), weights 400/500/600/700, loaded from `assets/brand.css`. Hierarchy comes from size,
-weight and color only: no caps, no letter-spacing, no italics, no shadows, no outlines. Numbers are written in
-digits with a thin space for thousands (6 400). No text under its region's floor (`typography.floor`, px).
-
-## Depth & Surface
-
-Depth is a color step (canvas, panel) and a 2px line, never a shadow or a blur behind text. Cards may stack and
-overlap by layout, not by elevation.
-
-## Shapes
-
-Cards and panels have radius {f['rounded']['card']}; chips, badges, dots and buttons are fully round. The mark is
-never framed, recolored or distorted.
+One family: "Brand" ({f['fonts']['face']}), weights 400/500/600/700, from `assets/brand.css`. No text under its
+region's floor (`typography.floor`, px).
 
 ## Components
 
-- **card**: panel, line border, radius {f['rounded']['card']}: a source card, a map card, a step of a diagram.
-- **chip**: a place, a date, a source, round. **chip-ink**: the inverted chip, for the item being said.
-- **badge**: a big Lucide line icon in an ink stroke inside a panel circle (the reference's tinted circle, without the tint).
-- **dot**: the accent "now" marker, 16-24 px. **button**: the accent call to action, once, on the end card.
+- **card**: panel, line border, radius {f['rounded']['card']}. **chip**: round, line border. **chip-ink**: inverted ink.
+- **badge**: a big Lucide line icon in the pack's ink inside a circle.
+- **dot**: the accent "now" marker. **button**: the accent call to action (the end card has it).
 - **captions-box**: drawn by the locked captions component, not by a scene.
 
 ## Locked Chrome
 
-`compositions/chrome.html` and `compositions/captions.html` are written by Veasy from the story and its timing:
-the pack's mark and wordmark, the date, weekday · time · category, the chapter bar, the ticker, the source line, the
-link and the pack's footer line, and the captions laid out by captions.py. Place their hosts in `index.html`; never
-edit, restyle, cover or remove them. A scene draws only inside the scene band.
+`compositions/chrome.html` and `compositions/captions.html` are written by Veasy from the pack, the story and its
+timing: the pack's logo, the date, weekday · time · category, the chapter bar, the meter wipes, the ticker, the
+source line, the link and the pack's footer line, the end card (logo, QR, link, call to action), and the captions
+laid out by captions.py. Place their hosts in `index.html`; never edit, restyle, cover or remove them.
+
+## Pack Rules
+
+{pack_rules}
 
 ## Composition Rules
 
@@ -195,36 +202,32 @@ edit, restyle, cover or remove them. A scene draws only inside the scene band.
 
 - Give every phrase its own picture: a new element, a highlight or a move every 1.5-3 s, landing on the word that
   says it (`timing.json` holds the words and the beats).
-- Build pictures from the story's own facts: the number with its source chip, the place on the map, the time as a
+- Build pictures from the story's own facts: a number with its source chip, the place on the map, the time as a
   timeline, the cause as a diagram (icon -> icon).
-- Use icons from `assets/icons` (Lucide) in ink; one badge per idea.
-- Mark every text element's region with `data-probe` (scene, card) so the layout probe can read it.
+- Mark every text element's region with `data-probe="scene"` so the layout probe can read it.
 
 ### Don't
 
-- No text in the accent color, no second accent, no tints, no gradients behind text, no shadows.
+- No typed colors, fonts, logos or links in a scene: they are the pack's (`assets/brand.css`, the chrome).
 - No text past the scene band, under the captions or right of the rail below y={lay['rail']['below']}.
-- No publisher photos, no generated people, no imagery for crime, incidents or deaths.
-- No long dashes, no caps, no letter-spacing.
+- No media without its licence in the ledger; for the news program, no imagery for crime, incidents or deaths (N10).
 
 ## Numerals & Claims
 
-Every number, name, date and quote on screen comes from the story file, word for word or as the narration says it.
-The date, the time and the sources are code's (the chrome), never the scene's. Nothing is claimed that the story
-does not say; no opinion.
+Every number, name, date and quote on screen comes from the story file, as the story or the narration says it. The
+date, the time, the sources and the link are code's (the chrome), never the scene's. Nothing the story does not say.
 
 ## Pre-Render Self-Audit
 
-- Squint: one hero per beat, and the accent appears only as a dot, an active state or the button.
+- One hero per beat; something changes at least every 3 s; every text holds 0.5 s + 0.3 s a word.
 - Every text inside its band; the rail and the captions are clear.
 - `npx hyperframes check` passes; Veasy's probe reads every text in "Brand" with no missing glyph.
-- Something changes at least every 3 s; every text holds long enough to read (0.5 s + 0.3 s a word).
 
 ## Known Gaps
 
-- Media (stock, screenshots, illustrations) waits for the media layer (plan-v2 § 4); until then pictures are icons,
-  maps, numbers and type.
-- Tints for illustrations are an owner decision (plan-v2 § 8, decision 2): not in this pack.
+- Media (stock, screenshots, illustrations) waits for the media layer (plan-v2 § 4): pictures are icons, maps,
+  numbers and type until then.
+- Illustration tints are a pack decision (plan-v2 § 8, decision 2); a pack has no tint tokens yet.
 """
 
 
@@ -239,8 +242,8 @@ def parse(text):
     m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
     if not m:
         raise ValueError("no frontmatter between --- lines")
-    root, stack = {}, [(-1, None)]
-    stack[0] = (-1, root)
+    root = {}
+    stack = [(-1, root)]
     for n, line in enumerate(m.group(1).splitlines(), 2):
         if not line.strip():
             continue
@@ -279,7 +282,7 @@ def problems(text, b=None):
         return [str(e)]
     out = []
     for k in ("version", "name", "description", "colors", "fonts", "typography", "rounded", "spacing", "layout",
-              "components", "accent", "locked"):
+              "components", "locked"):
         if k not in fm:
             out.append(f"frontmatter misses {k}")
     out += [f"section missing: ## {s}" for s in SECTIONS if s not in sections]
@@ -289,19 +292,16 @@ def problems(text, b=None):
     for k, v in (fm.get("typography") or {}).items():
         if k != "floor" and (v.get("fontFamily") != "Brand" or v.get("weight") not in (400, 500, 600, 700)):
             out.append(f"typography.{k} is not in Brand at one of the pack's four weights")
+    never_text = "text" in (_get(fm, ["accent", "never"]) or [])
     for name, comp in (fm.get("components") or {}).items():
         for prop, val in comp.items():
             for grp, key in REF.findall(str(val)):
                 if _get(fm, [grp, key]) is None:
                     out.append(f"components.{name}.{prop} names {{{grp}.{key}}}, which is not defined")
-        if comp.get("textColor") == "{colors.accent}" or comp.get("iconColor") == "{colors.accent}":
-            out.append(f"components.{name} sets text or an icon in the accent")
-    if "text" not in (_get(fm, ["accent", "never"]) or []):
-        out.append("accent.never must name text")
+        if never_text and comp.get("textColor") == "{colors.accent}":
+            out.append(f"components.{name} sets text in the accent, which the pack forbids")
     if set(fm.get("locked") or []) != set(LOCKED):
         out.append(f"locked must be {', '.join(LOCKED)}")
-    if "—" in text or "–" in text:
-        out.append("long dashes (the brand has none)")
     lay = fm.get("layout") or {}
     c = probe.C
     want = {("scene", "top"): c["SCENE_TOP"], ("scene", "bottom"): c["SCENE_BOTTOM"],
@@ -311,10 +311,15 @@ def problems(text, b=None):
         if _get(lay, path) != v:
             out.append(f"layout.{'.'.join(path)} is {_get(lay, path)}, the frame says {v}")
     if b is not None:
+        design = b.get("design") or {}
         if fm.get("colors") != b["colors"]:
             out.append("colors differ from the pack's")
         if fm.get("pack") != b["name"]:
             out.append(f"pack is {fm.get('pack')!r}, not {b['name']!r}")
+        if fm.get("accent") != design.get("accent"):
+            out.append("accent differs from the pack's design.accent (frame.md states only the pack's own rule)")
+        if (fm.get("rules") or []) != (design.get("rules") or []):
+            out.append("rules differ from the pack's design.rules")
     return out
 
 

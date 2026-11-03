@@ -16,6 +16,9 @@ that isn't there fails loudly, before anything is rendered.
 
 logo.kind:
 say: the pack's spoken forms of its own names, merged under every story's "say" map (with_say).
+design (optional): the pack's own design rules for films an agent composes (tt_shorts/frame_md.py writes them into
+  frame.md; the composed film's probe checks the accent): "accent": {"allowed": [dot | active state | button],
+  "never": ["text", ...]} and "rules": [sentences]. Lane A's components keep them by construction.
 package: the words of `engine package`'s texts (package.py): "more" (a link line with {url}), "link_in_bio" (for
   Instagram, where a caption's link can't be clicked) and "hashtags" (3+, after the category's own tag).
 
@@ -40,6 +43,7 @@ STRINGS = ("outlets", "source_one", "source_many", "covered_by", "today", "previ
            "card_meta", "category_default", "at_least")
 FONT_WEIGHTS = ("400", "500", "600", "700")
 LOOKS = ("editorial", "kinetic", "cards")
+ACCENT_USES = ("dot", "active state", "button")  # design.accent.allowed: where a pack may put its accent
 HASHTAG = re.compile(r"^#[^\s#!.,:;?]+$")
 # The music moods tools/compose_music.py writes (assets/music/<family>-N.m4a): a family is one of these.
 FAMILIES = ("politics", "economy", "world", "crime", "sports", "culture", "tech", "society")
@@ -131,6 +135,19 @@ def validate(b, dirs):
     tags = pk.get("hashtags")
     if not isinstance(tags, list) or len(set(tags)) < 3 or not all(isinstance(t, str) and HASHTAG.match(t) for t in tags):
         raise BrandError(f"brand {name}: package.hashtags is a list of 3+ different hashtags like \"#ამბები\" (no spaces)")
+    design = b.get("design")
+    if design is not None:
+        if not isinstance(design, dict):
+            raise BrandError(f"brand {name}: design is {{\"accent\": {{\"allowed\": [...], \"never\": [...]}}, \"rules\": [...]}}")
+        acc = design.get("accent")
+        if acc is not None:
+            ok = isinstance(acc, dict) and all(isinstance(acc.get(k, []), list) for k in ("allowed", "never"))
+            if not ok or not set(acc.get("allowed", [])) <= set(ACCENT_USES):
+                raise BrandError(f"brand {name}: design.accent.allowed is a list of {', '.join(ACCENT_USES)}; "
+                                 "design.accent.never a list of words")
+        rules = design.get("rules", [])
+        if not isinstance(rules, list) or not all(isinstance(r, str) and r.strip() for r in rules):
+            raise BrandError(f"brand {name}: design.rules is a list of sentences")
     kind = b["logo"].get("kind")
     if kind not in ("tmark", "svg"):
         raise BrandError(f"brand {name}: logo.kind is tmark or svg")

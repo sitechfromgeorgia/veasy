@@ -1,5 +1,5 @@
 """frame.md (HyperFrames' design spec) from a brand pack: every shipped pack gives a valid file that says exactly what
-the pack says, and the checks catch the ways an edited file could break the brand."""
+the pack says (its tokens, and its own design rules only when it has them), and the checks catch broken files."""
 import pathlib
 import tempfile
 import unittest
@@ -25,18 +25,25 @@ class FrameMd(unittest.TestCase):
             self.assertEqual(sections, list(frame_md.SECTIONS))
             self.assertIn(b["label"], text)
 
+    def test_a_rule_appears_only_when_the_pack_has_it(self):
+        tt, st = (frame_md.parse(frame_md.render(brand.load(n)))[0] for n in ("tbilisi-today", "sitech"))
+        self.assertIn("text", tt["accent"]["never"])  # tbilisi.today brand v1.2: the accent is never text
+        self.assertTrue(tt["rules"])
+        self.assertNotIn("accent", st)  # SiTech's pack says nothing about its accent: neither does its frame.md
+        self.assertNotIn("rules", st)
+        self.assertIn("design.rules", frame_md.render(brand.load("sitech")))  # it names the key that would hold them
+        self.assertNotIn("tbilisi", frame_md.render(brand.load("sitech")).lower())
+
     def test_the_packs_differ_only_where_the_packs_do(self):
         a, s = (frame_md.parse(frame_md.render(brand.load(n)))[0] for n in ("tbilisi-today", "sitech"))
         self.assertNotEqual(a["colors"]["accent"], s["colors"]["accent"])
         self.assertEqual(a["typography"], s["typography"])
         self.assertEqual(a["layout"], s["layout"])
 
-    def test_the_accent_is_never_text(self):
-        b = brand.load()
-        text = frame_md.render(b)
-        bad = text.replace('"textColor": "{colors.ink}"', '"textColor": "{colors.accent}"', 1)
+    def test_a_pack_that_forbids_accent_text_is_held_to_it(self):
+        b = brand.load("tbilisi-today")
+        bad = frame_md.render(b).replace('"textColor": "{colors.ink}"', '"textColor": "{colors.accent}"', 1)
         self.assertTrue(any("accent" in p for p in frame_md.problems(bad, b)))
-        self.assertIn("text", frame_md.parse(text)[0]["accent"]["never"])
 
     def test_broken_files_are_caught(self):
         b = brand.load()
@@ -45,8 +52,7 @@ class FrameMd(unittest.TestCase):
         self.assertTrue(frame_md.problems(text.replace('"{colors.panel}"', '"{colors.paper}"', 1), b))
         self.assertTrue(frame_md.problems(text.replace('"#05080F"', '"black"', 1), b))
         self.assertTrue(frame_md.problems(text.replace('"bottom": 1380', '"bottom": 1500', 1), b))
-        self.assertTrue(frame_md.problems(text + "\nA long dash — here.\n", b))
-        self.assertTrue(frame_md.problems(text, brand.load("sitech")))  # another pack's palette
+        self.assertTrue(frame_md.problems(text, brand.load("sitech")))  # another pack's palette and rules
         self.assertEqual(frame_md.problems("no frontmatter"), ["no frontmatter between --- lines"])
 
     def test_write(self):
