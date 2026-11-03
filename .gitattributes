@@ -1,0 +1,2 @@
+# Text is stored with LF whatever the editor's OS (agents on Windows wrote CRLF into 87 files once).
+* text=auto eol=lf
