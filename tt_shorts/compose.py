@@ -181,10 +181,10 @@ def _anchor(words, phrase, what):
         raise ComposeError(f"{what}: anchor „{phrase}“ is not in the narration ({e})") from e
 
 
-def timing(story_path, sheet, engine="silent", music="off", tone=None):
+def timing(story_path, sheet, engine="silent", music="off", tone=None, theme="default"):
     """-> (timing dict, the Remotion props of the same story: voice, words, captions, pack; their work dir)."""
     from tt_shorts import props
-    work, p = props.build(str(story_path), "cards", engine, tone, music=music, transition="cut")
+    work, p = props.build(str(story_path), "cards", engine, tone, music=music, transition="cut", theme=theme)
     words = p["words"]
     keys = {speech.norm(k) for k in sheet.get("keywords", [])}
     dur = p["durationInFrames"] / FPS
@@ -205,7 +205,7 @@ def timing(story_path, sheet, engine="silent", music="off", tone=None):
     where = next((s for s in p["scenes"] if s.get("map")), None)
     return {
         "about": "Written by tt_shorts/compose.py from the story, the voice and beats.json: do not edit.",
-        "story": p["id"], "brand": p["brand"]["name"], "engine": engine, "fps": FPS,
+        "story": p["id"], "brand": p["brand"]["name"], "theme": p["theme"], "engine": engine, "fps": FPS,
         "frames": p["durationInFrames"], "duration": round(dur, 3), "width": W, "height": H,
         "words": [{"i": i, "text": w["text"], "start": w["start"], "end": w["end"],
                    "keyword": speech.norm(w["text"]) in keys} for i, w in enumerate(words)],
@@ -454,7 +454,7 @@ def tmark(size, b):
     from_ts = (ROOT / "remotion" / "src" / "brand.ts").read_text(encoding="utf-8")
     path = from_ts.split('T_PATH =\n  "', 1)[1].split('"', 1)[0]
     return (f'<svg width="{size}" height="{size}" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" '
-            f'fill="{c["markBg"]}"/><g transform="translate(0,512) scale(0.1,-0.1)"><path d="{path}" fill="#FFFFFF"/>'
+            f'fill="{c["markBg"]}"/><g transform="translate(0,512) scale(0.1,-0.1)"><path d="{path}" fill="{c["markInk"]}"/>'
             f'</g><circle cx="323" cy="295" r="34" fill="{c["accent"]}"/></svg>')
 
 
@@ -725,11 +725,12 @@ def brand_css(b):
     c = b["colors"]
     names = {"canvas": "canvas", "panel": "panel", "ink": "ink", "muted": "muted", "accent": "accent", "line": "line",
              "lineStrong": "line-strong", "grid": "grid", "ticker": "ticker", "waiting": "waiting", "markBg": "mark-bg",
-             "onAccent": "on-accent"}
+             "onAccent": "on-accent", "markInk": "mark-ink"}
     rgb = ",".join(str(int(c["canvas"][i:i + 2], 16)) for i in (1, 3, 5))
     ink = ",".join(str(int(c["ink"][i:i + 2], 16)) for i in (1, 3, 5))
-    tokens = "\n".join(f"  --{v}: {c[k]};" for k, v in names.items())
-    return (f"/* {b['label']}: written by tt_shorts/compose.py from brands/{b['name']}/brand.json */\n"
+    qr_dark, qr_light = packs.qr_colors(c)
+    tokens = "\n".join(f"  --{v}: {c[k]};" for k, v in names.items()) + f"\n  --qr-dark: {qr_dark};\n  --qr-light: {qr_light};"
+    return (f"/* {b['label']}, theme {b['theme']}: written by tt_shorts/compose.py from brands/{b['name']}/brand.json */\n"
             f"{font_faces('fonts')}\n:root {{\n{tokens}\n  --canvas-0: rgba({rgb},0);\n  --canvas-90: rgba({rgb},.9);\n"
             f"  --ink-10: rgba({ink},.1);\n  --ink-20: rgba({ink},.2);\n  --ink-40: rgba({ink},.4);\n}}\n")
 
@@ -880,7 +881,7 @@ def default_source(story):
 
 
 def scaffold(story_path, brand=None, project=None, template=None, source=None, engine="silent", force=False,
-             music="off", tone=None):
+             music="off", tone=None, theme="default"):
     """A HyperFrames project for one story and pack: the agent's files from a template (templates/<id>/, or "auto":
     the least used for the brand), from a source folder, the project's own (kept on a re-scaffold), the repo's
     compose/<id>/, else a plain starter; then everything Veasy owns (build). -> build()'s result + "origin"."""
@@ -914,7 +915,7 @@ def scaffold(story_path, brand=None, project=None, template=None, source=None, e
             starter(story, project)
             origin = "starter"
     try:
-        built = build(project, story, engine=engine, music=music, tone=tone)
+        built = build(project, story, engine=engine, music=music, tone=tone, theme=theme)
     except ComposeError as e:  # a template's beats have no anchors yet: the agent fills them, then scaffolds again
         return {"project": project, "origin": origin, "story": story, "brand": b, "built": False,
                 "problems": [f"build: {e}"], "todo": "fill beats.json's anchors (and slots.json for a template), "
@@ -924,12 +925,13 @@ def scaffold(story_path, brand=None, project=None, template=None, source=None, e
     return built
 
 
-def build(project, story, engine="silent", music="off", tone=None):
+def build(project, story, engine="silent", music="off", tone=None, theme="default"):
     """Write everything Veasy owns in a project (the agent's files stay) and bind index.html. story: a dict (with its
     pack) or a path. -> {"project", "timing", "props", "work", "facts", "story", "brand", "slots", "problems"}."""
     project = pathlib.Path(project).resolve()
     story = _story(story) if not isinstance(story, dict) else story
-    b = packs.of(story)
+    from tt_shorts import props
+    b = packs.themed(packs.of(story), props.theme_for(story, theme))  # the pack in the film's theme
     prog = programs.of(story) if "program" in story else programs.get()
     if not (project / "beats.json").exists():
         raise ComposeError(f"{project} has no beats.json (engine compose scaffold writes a first one)")
@@ -938,7 +940,7 @@ def build(project, story, engine="silent", music="off", tone=None):
         (project / d).mkdir(parents=True, exist_ok=True)
     story_path = project / "story.json"  # the story with the pack it is built for (props.build reads the pack there)
     story_path.write_text(json.dumps(story, ensure_ascii=False, indent=1), encoding="utf-8")
-    t, p, work = timing(story_path, sheet, engine, music, tone)
+    t, p, work = timing(story_path, sheet, engine, music, tone, b["theme"])
     fx = facts(story, b, p, t)
     slots, problems = slot_values(project, fx)
     code = ["story.json", "facts.json", "timing.json", "frame.md", "assets/brand.css", "assets/vendor/gsap.min.js",
@@ -955,7 +957,7 @@ def build(project, story, engine="silent", music="off", tone=None):
     for name in sheet.get("icons", []):
         (project / "assets" / "icons" / f"{name}.svg").write_text(icon_svg(name, b["colors"]["ink"]), encoding="utf-8")
         code.append(f"assets/icons/{name}.svg")
-    qr = meta.qr_svg(meta.links(story, "shorts", b)[1], b["colors"]["canvas"])  # an <img> needs the xmlns
+    qr = meta.qr_svg(meta.links(story, "shorts", b)[1], *packs.qr_colors(b["colors"]))  # an <img> needs the xmlns
     (project / "assets" / "qr.svg").write_text(qr.replace("<svg ", "<svg xmlns=\"http://www.w3.org/2000/svg\" ", 1),
                                               encoding="utf-8")
     where = next((s for s in p["scenes"] if s.get("map")), None)
@@ -994,7 +996,7 @@ def build(project, story, engine="silent", music="off", tone=None):
     code.append(VEASY_JS)
     lock = {"about": "The sha256 of every file Veasy wrote here (compose check: an edited one is a problem; engine "
                      "compose scaffold restores them).", "chrome": CHROME_VERSION, "hyperframes": HF_VERSION,
-            "brand": b["name"], "story": story["id"], "engine": engine,
+            "brand": b["name"], "theme": b["theme"], "story": story["id"], "engine": engine,
             "files": {f: sha(project / f) for f in sorted(set(code)) if (project / f).exists()}}
     (project / DONE_FILE).write_text(json.dumps(lock, indent=1), encoding="utf-8")
     return {"project": project, "timing": t, "props": p, "work": work, "facts": fx, "story": story, "brand": b,
@@ -1393,7 +1395,7 @@ def default_sources(story_path):
 
 
 def check(story_path, brand=None, project=None, engine="silent", sources=None, hf=True, shots=None, music="off",
-          tone=None, built=None):
+          tone=None, built=None, theme="default"):
     """Every check of a composed film -> {"problems", "warnings", ...}: the story's own checks (engine check), Veasy's
     files unchanged, our lint, the probe at every beat's settled frame (layout rules, the pack's accent rule, texts
     outside a region, network asked for), the story's rule tier + ka_check + kaeasy on every text the DOM shows,
@@ -1415,7 +1417,7 @@ def check(story_path, brand=None, project=None, engine="silent", sources=None, h
     if sources is None:
         sources = default_sources(story_path)
     try:
-        built = built or build(project, story, engine, music, tone)
+        built = built or build(project, story, engine, music, tone, theme)
     except ComposeError as e:
         res["problems"].append(f"build: {e}")
         return res
@@ -1432,7 +1434,7 @@ def check(story_path, brand=None, project=None, engine="silent", sources=None, h
     if t["gaps"]["over_3s"]:
         res["warnings"].append(f"motion: more than 3 s without a new beat before {', '.join(t['gaps']['over_3s'])}")
     try:
-        pr = run_probe(project, t, b, shots)
+        pr = run_probe(project, t, built["brand"], shots)  # its theme's colors
     except ComposeError as e:
         res["problems"].append(str(e))
         return res
@@ -1481,7 +1483,7 @@ def render(story_path, fmt, brand=None, project=None, engine="gemini", out_path=
                  force=bool(template))
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     tampered = lock_problems(project)
-    built = None if tampered else build(project, story, engine, fmt["music"], tone)
+    built = None if tampered else build(project, story, engine, fmt["music"], tone, fmt.get("theme", "default"))
     c = check(story_path, b["name"], project, engine, sources, hf, music=fmt["music"], tone=tone, built=built)
     hard = [x for x in c["problems"] if x.startswith(HARD)]
     base = {"film_engine": "hyperframes", "project": str(project), "brand": b["name"], "format": fmt["name"],

@@ -19,5 +19,5 @@ if __name__ == "__main__":
     a = ap.parse_args()
     project = pathlib.Path(a.project)
     timing = json.loads((project / "timing.json").read_text(encoding="utf-8"))
-    r = compose.run_probe(project, timing, brand.load(timing["brand"]), a.shots)
+    r = compose.run_probe(project, timing, brand.themed(brand.load(timing["brand"]), timing.get("theme")), a.shots)
     print(json.dumps({k: r[k] for k in ("frames", "texts", "problems", "blocked", "fonts")}, ensure_ascii=False, indent=1))

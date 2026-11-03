@@ -544,7 +544,8 @@ def compose_cmd(a):
             story = json.loads(pathlib.Path(a.target).read_text(encoding="utf-8"))
             sources = sources.get(str(story.get("id"))) or []
     if a.action == "scaffold":
-        r = compose.scaffold(a.target, a.brand, a.project, a.template, a.source_dir, a.engine, a.force)
+        r = compose.scaffold(a.target, a.brand, a.project, a.template, a.source_dir, a.engine, a.force,
+                             theme=a.theme or "default")
         t = r.get("timing") or {}
         res = {"project": str(r["project"]), "origin": r["origin"], "built": r["built"], "problems": r["problems"],
                "duration": t.get("duration"), "chapters": t.get("chapters"), "gaps": t.get("gaps"),
@@ -554,11 +555,12 @@ def compose_cmd(a):
                                          "check <story>"}
         return out(res, 1 if r["problems"] else 0)
     if a.action == "check":
-        r = compose.check(a.target, a.brand, a.project, a.engine, sources, hf=not a.no_hf, shots=a.shots)
+        r = compose.check(a.target, a.brand, a.project, a.engine, sources, hf=not a.no_hf, shots=a.shots,
+                          theme=a.theme or "default")
         return out(r, 1 if r["problems"] else 0)
     if a.action == "render":
         fmt = formats.get(a.format or program_format(a.target), captions=a.captions, voice=a.voice, music=a.music,
-                          platform=a.platform)
+                          platform=a.platform, theme=a.theme)
         r = compose.render(a.target, fmt, a.brand, a.project, a.engine, a.out, sources, hf=not a.no_hf,
                            template=a.template)
         return out(r, 1 if r["problems"] else 0)
@@ -1047,6 +1049,7 @@ def main(argv=None):
     cp.add_argument("--sources", help="check/render: the member articles (default <story>.sources.json)")
     cp.add_argument("--no-hf", action="store_true", help="check/render: skip `hyperframes check` (faster)")
     cp.add_argument("--shots", help="check: save the page at each probed time (PNG) in this folder")
+    cp.add_argument("--theme", help="the pack's theme: default, auto or a name (brand.json themes)")
     cp.add_argument("--format", help="render: a format (default: the story's program's)")
     for k in ("captions", "voice", "music", "platform"):
         cp.add_argument(f"--{k}")

@@ -71,7 +71,8 @@ Tool `veasy_compose` (action scaffold|check|render|promote|templates). Every com
 - **The pack draws.** Colors only `var(--canvas|panel|ink|muted|accent|line|line-strong|grid|ticker|...)`, tints
   `--ink-10/20/40`, `--canvas-0/90`; SVG colors through CSS classes (`.k { stroke: var(--ink) }`), not attributes.
   Face "Brand" only. No logo, link or domain in a scene: the chrome has them. The pack's design rules in frame.md
-  (tbilisi.today: the accent is never text).
+  (tbilisi.today: the accent is never text). A pack may have several themes (dark, light: `--theme`, a format's
+  `theme`); tokens only, and the same scenes draw in every theme (the probe's contrast rule checks each).
 - **The frame.** Scene text inside y 248-1380; below y 1100 nothing right of x 940; the captions end at 1552 and the
   band under them carries motion only. Sizes from the type ramp; nothing under 24 px.
 - **The chrome is locked.** index.html hosts `compositions/chrome.html` (z-index 30) and `captions.html` (40); scene
