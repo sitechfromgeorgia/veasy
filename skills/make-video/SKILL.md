@@ -59,9 +59,10 @@ no sensitive stories), K* and KE are Georgian rules (KE = kaeasy, SiTech's Georg
 ## 3. Plan before you render (free, ~5 s)
 
 ```bash
-python -m tt_shorts.engine plan <story.json> [--format news] [--look kinetic] [--director map]
-```
-Tool `veasy_plan`. A storyboard with no voice and no model call, and it uses up nothing (the variety picks are
+python -m tt_shorts.engine dry-run <story.json>   # tool veasy_dry_run: $0.00 cost calculation, words, render time
+python -m tt_shorts.engine plan <story.json>      # tool veasy_plan: contact sheet of stills + timings
+python -m tt_shorts.engine critique <story.json>  # tool veasy_critique: checklist score on safe zones, contrast, pacing
+``` A storyboard with no voice and no model call, and it uses up nothing (the variety picks are
 shown, not recorded):
 - per scene: start, end, narration words, caption pages, and every text on screen with the seconds it `need`s
   (0.5 s + 0.3 s a word) and the seconds it is `shown`; `load` above 1 means more text than time;

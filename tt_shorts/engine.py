@@ -161,6 +161,10 @@ def options(brand_name=None, section=None):
         "self_checks": {"plan": "engine plan <story> [--look]: a free storyboard before the voice is paid for: scene "
                                 "times, words and reading load, the variety picks (not recorded), the motion rules, "
                                 "the probe and a half-size contact sheet",
+                        "critique": "engine critique <story>: pre-flight visual critique checklist on plan stills "
+                                    "(safe zones, contrast, text load, pacing, motion)",
+                        "dry_run": "engine dry-run <story>: calculate TTS chars, dollar cost, duration and cache "
+                                   "status before rendering ($0.00)",
                         "probe": "engine probe <story> [--look all]: every text's real box per scene; part of every "
                                  "render (a problem holds the job)",
                         "selftest": "engine selftest [--update]: golden stills of the fixture stories in every look; "
@@ -920,6 +924,19 @@ def doctor(_a):
     return out({"checks": checks, "problems": blocking}, 1 if blocking else 0)
 
 
+def critique_cmd(a):
+    from tt_shorts import critique
+    res = critique.critique_story(a.story, fmt_name=a.format, look=getattr(a, "look", None),
+                                  director=getattr(a, "director", None))
+    return out(res, 1 if res.get("grade") == "FAIL" else 0)
+
+
+def dry_run_cmd(a):
+    from tt_shorts import dry_run as dr
+    res = dr.dry_run(a.story, fmt_name=a.format, voice_engine=a.engine, director=a.director)
+    return out(res, 1 if res.get("problems") else 0)
+
+
 # ---------------------------------------------------------------- cli
 
 
@@ -1083,6 +1100,16 @@ def main(argv=None):
     cp.add_argument("--as", dest="as_id", help="promote: the template id")
     cp.add_argument("--label", help="promote: the template's name")
     cp.add_argument("--about", help="promote: what it is for")
+    cr = sub.add_parser("critique", help="pre-flight visual and pacing critique checklist on plan stills")
+    cr.add_argument("story")
+    cr.add_argument("--format", help="a format (default: the story's program's, news for news)")
+    cr.add_argument("--look", choices=formats.LOOKS)
+    cr.add_argument("--director", help="force a director")
+    dr = sub.add_parser("dry-run", help="pre-flight cost and timing calculator before rendering")
+    dr.add_argument("story")
+    dr.add_argument("--format", help="a format (default: the story's program's, news for news)")
+    dr.add_argument("--engine", default="gemini", choices=["gemini", "edge", "silent"])
+    dr.add_argument("--director", help="force a director")
     a = ap.parse_args(argv)
     if a.cmd == "compose" and a.engine is None:
         a.engine = "gemini" if a.action == "render" else "silent"
@@ -1119,7 +1146,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "compose": compose_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
     except FileNotFoundError as e:

@@ -192,6 +192,27 @@ TOOLS = {
                    lambda a: _engine("plan", [a["story"]] + _flags(a, ("format", "look", "captions", "transition",
                                                                        "outro", "voice", "music", "platform",
                                                                        "beats", "chapters", "director", "out")))),
+    "veasy_critique": ({"type": "object", "properties": {
+                           "story": STORY,
+                           "format": CHOICE_PROPS["format"],
+                           "look": CHOICE_PROPS["look"],
+                           "director": CHOICE_PROPS["director"]},
+                        "required": ["story"]},
+                       "Automated pre-flight visual and pacing critique checklist on plan stills before rendering: "
+                       "evaluates safe zones, text reading load, static stretches, novelty, hook pacing, and brand contrast. "
+                       "Returns an overall grade (PASS, NEEDS_ATTENTION, FAIL), score (0-100), checklist items, and "
+                       "contact sheet path.",
+                       lambda a: _engine("critique", [a["story"]] + _flags(a, ("format", "look", "director")))),
+    "veasy_dry_run": ({"type": "object", "properties": {
+                          "story": STORY,
+                          "format": CHOICE_PROPS["format"],
+                          "engine": CHOICE_PROPS["engine"],
+                          "director": CHOICE_PROPS["director"]},
+                       "required": ["story"]},
+                      "A free pre-flight cost and timing calculator before rendering (costs $0.00, zero API calls): "
+                      "calculates word count, spoken seconds, estimated TTS cost, monthly budget status, and whether "
+                      "the voice and bundle are already cached.",
+                      lambda a: _engine("dry-run", [a["story"]] + _flags(a, ("format", "engine", "director")))),
     "veasy_write": ({"type": "object", "properties": {
                         "program": PROGRAM,
                         "source": SOURCE,

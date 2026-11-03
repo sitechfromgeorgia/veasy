@@ -122,6 +122,14 @@ class Plugin(unittest.TestCase):
                                                                 "ref": "https://x.ge/a", "format": "neon"}))
             self.assertTrue(out.get("problems") or out.get("error"))
 
+    def test_critique_and_dry_run_tools(self):
+        dr = json.loads(self.ctx.tools["veasy_dry_run"][1]({"story": "stories/24835.json"}))
+        self.assertIn("narration", dr)
+        self.assertIn("costs", dr)
+        cr = json.loads(self.ctx.tools["veasy_critique"][1]({"story": "stories/24835.json"}))
+        self.assertIn("grade", cr)
+        self.assertIn("checklist", cr)
+
     def test_check_tool_runs_the_checks(self):
         out = json.loads(self.ctx.tools["veasy_check"][1]({"story": "stories/24835.json",
                                                            "sources": "tests/fixtures/24835.sources.json"}))
