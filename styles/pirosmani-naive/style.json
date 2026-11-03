@@ -1,0 +1,20 @@
+{
+  "slug": "pirosmani-naive",
+  "name_en": "Pirosmani Naive",
+  "name_ka": "ფიროსმანის ნაივი",
+  "category": "artistic",
+  "engine": "hyperframes",
+  "palette": "own",
+  "fonts": "own",
+  "programs": ["story", "blog", "explainer"],
+  "never_families": ["crime"],
+  "picks": {
+    "directors": ["draw", "chronicle", "witness"],
+    "looks": ["editorial", "cards"],
+    "motifs": ["plain", "dots"],
+    "transitions": ["cut", "wipe"],
+    "music": ["culture", "society"],
+    "sfx": ["thud", "whoosh"]
+  },
+  "uses": "Deep black oilcloth canvas with luminous hand-painted figures, feasts, and honest silhouettes inspired by Niko Pirosmani's public domain masterworks."
+}

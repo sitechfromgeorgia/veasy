@@ -1,0 +1,20 @@
+{
+  "slug": "whiteboard",
+  "name_en": "Whiteboard Explainer",
+  "name_ka": "დაფის განმარტება",
+  "category": "tactile",
+  "engine": "hyperframes",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["explainer", "law", "story"],
+  "never_families": ["crime"],
+  "picks": {
+    "directors": ["draw", "brief", "data"],
+    "looks": ["editorial", "cards"],
+    "motifs": ["plain", "grid"],
+    "transitions": ["wipe", "cut"],
+    "music": ["society", "culture", "tech"],
+    "sfx": ["whoosh", "click"]
+  },
+  "uses": "Dry-erase explainer drawn live stroke by stroke with floating markers and animated rewinds, free of distracting artificial hand cutouts."
+}

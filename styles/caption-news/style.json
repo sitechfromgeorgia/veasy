@@ -1,0 +1,20 @@
+{
+  "slug": "caption-news",
+  "name_en": "Caption News",
+  "name_ka": "ტიტრების ამბები",
+  "category": "editorial",
+  "engine": "remotion",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["news", "digest"],
+  "never_families": [],
+  "picks": {
+    "directors": ["brief", "witness", "type"],
+    "looks": ["editorial", "kinetic"],
+    "motifs": ["plain", "rules"],
+    "transitions": ["cut", "wipe"],
+    "music": ["politics", "economy", "world", "crime"],
+    "sfx": ["thud", "click"]
+  },
+  "uses": "Fast social-feed news video built to be understood instantly with sound off, featuring heavyweight chunk captions and authoritative news cards."
+}

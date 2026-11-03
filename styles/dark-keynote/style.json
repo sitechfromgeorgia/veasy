@@ -1,0 +1,20 @@
+{
+  "slug": "dark-keynote",
+  "name_en": "Dark Tech Keynote",
+  "name_ka": "მუქი ტექნოლოგიური პრეზენტაცია",
+  "category": "technical",
+  "engine": "both",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["explainer", "blog", "story"],
+  "never_families": ["crime"],
+  "picks": {
+    "directors": ["brief", "data", "type"],
+    "looks": ["editorial", "cards"],
+    "motifs": ["grid", "plain"],
+    "transitions": ["slide", "cut", "line"],
+    "music": ["tech", "economy"],
+    "sfx": ["click", "pop", "blip"]
+  },
+  "uses": "Precision dark-mode product keynote featuring near-black gradient backgrounds, hairline UI grids, soft luminous glow accents, and generous negative space."
+}

@@ -1,0 +1,20 @@
+{
+  "slug": "iso-infographic",
+  "name_en": "Isometric Infographic",
+  "name_ka": "იზომეტრიული ინფოგრაფიკა",
+  "category": "infographic",
+  "engine": "hyperframes",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["explainer", "blog", "story"],
+  "never_families": ["crime"],
+  "picks": {
+    "directors": ["data", "brief"],
+    "looks": ["cards", "editorial"],
+    "motifs": ["grid", "dots"],
+    "transitions": ["slide", "cut"],
+    "music": ["tech", "economy", "society"],
+    "sfx": ["pop", "click", "thud"]
+  },
+  "uses": "True 30-degree isometric system diorama with layered three-tone blocks, cutaway strata, and modular isometric icon units."
+}

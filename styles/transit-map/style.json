@@ -1,0 +1,20 @@
+{
+  "slug": "transit-map",
+  "name_en": "Transit Map",
+  "name_ka": "სატრანზიტო რუკა",
+  "category": "cartographic",
+  "engine": "hyperframes",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["explainer", "news", "story"],
+  "never_families": ["crime"],
+  "picks": {
+    "directors": ["map", "chronicle"],
+    "looks": ["editorial", "cards"],
+    "motifs": ["grid", "plain"],
+    "transitions": ["line", "wipe"],
+    "music": ["society", "tech", "culture"],
+    "sfx": ["click", "whoosh"]
+  },
+  "uses": "Octilinear schematic route map growing along 8 directions with rounded fillets, interchange capsules, and animated station stops."
+}

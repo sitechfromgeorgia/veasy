@@ -1,0 +1,20 @@
+{
+  "slug": "countdown",
+  "name_en": "Countdown",
+  "name_ka": "ათვლა",
+  "category": "editorial",
+  "engine": "both",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["news", "explainer", "digest"],
+  "never_families": [],
+  "picks": {
+    "directors": ["brief", "chronicle", "type"],
+    "looks": ["kinetic", "editorial"],
+    "motifs": ["grid", "plain"],
+    "transitions": ["cut", "wipe"],
+    "music": ["sports", "politics", "tech"],
+    "sfx": ["tick", "thud"]
+  },
+  "uses": "Real-time split-screen multi-feed counting down whole seconds to a pivotal moment, merging dramatically into one unified frame at zero."
+}

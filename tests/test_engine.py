@@ -47,6 +47,12 @@ class Formats(unittest.TestCase):
         self.assertFalse(engine.options("tbilisi-today")["themes"]["pack"]["light"]["allowed"])
         self.assertIn("themes", o["brands"]["sitech"])
 
+    def test_style_is_a_format_choice(self):
+        self.assertIsNone(formats.get("news").get("style"))
+        self.assertEqual(formats.get("news", style="swiss-motion")["style"], "swiss-motion")
+        with self.assertRaises(formats.FormatError):
+            formats.get("news", style="unknown-style-slug")
+
     def test_a_render_refuses_a_preview_theme(self):  # tbilisi-today light: allowed false until the owner says yes
         story = ROOT / "stories" / "24835.json"
         with mock.patch.object(engine.props, "build", side_effect=AssertionError("no build for a preview theme")):
@@ -70,8 +76,10 @@ class Formats(unittest.TestCase):
 class Options(unittest.TestCase):
     def test_options_describe_every_choice(self):
         o = engine.options()
-        for key in ("looks", "captions", "voices", "music", "formats", "scenes", "categories"):
+        for key in ("looks", "captions", "voices", "music", "formats", "scenes", "categories", "styles"):
             self.assertIn(key, o)
+        self.assertIn("known", o["styles"])
+        self.assertIn("swiss-motion", o["styles"]["known"])
         self.assertEqual(set(o["categories"]), set(brand.load("tbilisi-today")["categories"]))
         self.assertEqual(set(o["brands"]), {"tbilisi-today", "sitech"})
         sitech = engine.options("sitech")

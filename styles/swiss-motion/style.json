@@ -1,0 +1,20 @@
+{
+  "slug": "swiss-motion",
+  "name_en": "Swiss Motion",
+  "name_ka": "შვეიცარიული მოძრაობა",
+  "category": "typographic",
+  "engine": "both",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["news", "explainer", "law", "digest"],
+  "never_families": [],
+  "picks": {
+    "directors": ["type", "data", "brief"],
+    "looks": ["editorial", "kinetic"],
+    "motifs": ["grid", "plain"],
+    "transitions": ["line", "wipe", "cut"],
+    "music": ["politics", "economy", "tech"],
+    "sfx": ["click", "tick"]
+  },
+  "uses": "International Typographic Style on a strict modular vertical grid where every element snaps into place without bounce or wobble."
+}

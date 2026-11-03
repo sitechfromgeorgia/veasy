@@ -29,20 +29,14 @@ def _python() -> str:
     env = os.environ.get("VEASY_PYTHON")
     if env:
         return env
-    for venv_dir in (ROOT / ".venv", ROOT.parent / "Veasy" / ".venv"):
-        for cand in (venv_dir / "Scripts" / "python.exe", venv_dir / "bin" / "python"):
-            if cand.exists():
-                return str(cand)
-    return sys.executable
+    venv = ROOT / ".venv" / "bin" / "python"
+    return str(venv) if venv.exists() else sys.executable
 
 
 def _engine(cmd: str, argv: list[str]) -> str:
     try:
-        env = dict(os.environ)
-        env["PYTHONUTF8"] = "1"
-        env["PYTHONIOENCODING"] = "utf-8"
         r = subprocess.run([_python(), "-m", "tt_shorts.engine", cmd, *argv], cwd=ROOT, capture_output=True,
-                           text=True, encoding="utf-8", env=env, timeout=TIMEOUTS.get(cmd, 300))
+                           text=True, timeout=TIMEOUTS.get(cmd, 300))
         out = (r.stdout or "").strip()
         try:
             data = json.loads(out) if out else {}
@@ -69,7 +63,7 @@ def _flags(args: dict, names: tuple[str, ...]) -> list[str]:
 
 
 CHOICES = ("format", "look", "captions", "transition", "outro", "voice", "music", "platform", "beats", "chapters",
-           "engine", "director", "out", "renderer")
+           "engine", "director", "out", "renderer", "style")
 RENDERER = {"type": "string", "enum": ["remotion", "hyperframes"],
             "description": "The film engine instead of the story's (director, program, format, pack; default remotion). "
                            "hyperframes renders the story's composed film (veasy_compose)."}
@@ -107,21 +101,17 @@ CHOICE_PROPS = {
                "description": "gemini is the real voice; edge and silent are free previews, never to publish."},
     "director": {"type": "string", "description": "A director (skill veasy:directors): data, map, type, draw, "
                  "chronicle, witness, brief, single. Default: the story's own (code assigns it before writing)."},
+    "style": {"type": "string", "description": "A named film style (skill veasy:styles; e.g. swiss-motion, pictogram-motion, countdown)."},
     "out": {"type": "string", "description": "Output path (optional)."},
     "renderer": RENDERER,
 }
 
 TOOLS = {
-    "veasy_options": ({"type": "object", "properties": {
-                          "brand": BRAND,
-                          "section": {"type": "string",
-                                      "description": "Optional section to inspect: summary (compact overview), "
-                                                     "formats, looks, captions, voices, themes, directors, programs, "
-                                                     "rubrics, scenes, icons, variety, media, brands, categories."}}},
+    "veasy_options": ({"type": "object", "properties": {"brand": BRAND}},
                       "Everything Veasy can do: brand packs, looks, caption designs, voices, music, formats, scene "
-                      "types and fields, icons and sign verbs, and one pack's defaults per category. Pass "
-                      "section='summary' for a compact overview, or name a section to inspect.",
-                      lambda a: _engine("options", _flags(a, ("brand", "section")))),
+                      "types and fields, the icons and sign verbs, and one pack's defaults per category. Read it "
+                      "before choosing.",
+                      lambda a: _engine("options", _flags(a, ("brand",)))),
     "veasy_check": ({"type": "object", "properties": {
                         "story": STORY,
                         "sources": {"type": "string", "description": "JSON file with the member articles' texts "
@@ -163,7 +153,7 @@ TOOLS = {
                         "look": {"type": "string", "description": "auto (the story's own look), all, or a "
                                  "comma-separated list of editorial, kinetic, cards. Default auto."},
                         **{k: CHOICE_PROPS[k] for k in ("format", "captions", "transition", "voice", "platform",
-                                                        "beats", "chapters")},
+                                                        "beats", "chapters", "style")},
                         "engine": {"type": "string", "enum": ["silent", "edge", "gemini"],
                                    "description": "silent (default, free, estimated timing) or a voice already "
                                                   "cached for this story (its real timing)."},
@@ -176,11 +166,11 @@ TOOLS = {
                     "Every render runs it too; problems must be empty.",
                     lambda a: _engine("probe", [a["story"]] + _flags(a, ("look", "format", "captions", "transition",
                                                                          "voice", "platform", "beats", "chapters",
-                                                                         "engine", "stills")))),
+                                                                         "engine", "stills", "style")))),
     "veasy_plan": ({"type": "object", "properties": {
                        "story": STORY,
                        **{k: CHOICE_PROPS[k] for k in ("format", "look", "captions", "transition", "outro", "voice",
-                                                       "music", "platform", "beats", "chapters", "director")},
+                                                       "music", "platform", "beats", "chapters", "director", "style")},
                        "out": {"type": "string", "description": "Where to write the contact sheet (default: beside "
                                "where the render will go, <render>.plan.jpg)."}},
                     "required": ["story"]},
@@ -191,39 +181,18 @@ TOOLS = {
                    "Run it before veasy_render; problems must be empty.",
                    lambda a: _engine("plan", [a["story"]] + _flags(a, ("format", "look", "captions", "transition",
                                                                        "outro", "voice", "music", "platform",
-                                                                       "beats", "chapters", "director", "out")))),
-    "veasy_critique": ({"type": "object", "properties": {
-                           "story": STORY,
-                           "format": CHOICE_PROPS["format"],
-                           "look": CHOICE_PROPS["look"],
-                           "director": CHOICE_PROPS["director"]},
-                        "required": ["story"]},
-                       "Automated pre-flight visual and pacing critique checklist on plan stills before rendering: "
-                       "evaluates safe zones, text reading load, static stretches, novelty, hook pacing, and brand contrast. "
-                       "Returns an overall grade (PASS, NEEDS_ATTENTION, FAIL), score (0-100), checklist items, and "
-                       "contact sheet path.",
-                       lambda a: _engine("critique", [a["story"]] + _flags(a, ("format", "look", "director")))),
-    "veasy_dry_run": ({"type": "object", "properties": {
-                          "story": STORY,
-                          "format": CHOICE_PROPS["format"],
-                          "engine": CHOICE_PROPS["engine"],
-                          "director": CHOICE_PROPS["director"]},
-                       "required": ["story"]},
-                      "A free pre-flight cost and timing calculator before rendering (costs $0.00, zero API calls): "
-                      "calculates word count, spoken seconds, estimated TTS cost, monthly budget status, and whether "
-                      "the voice and bundle are already cached.",
-                      lambda a: _engine("dry-run", [a["story"]] + _flags(a, ("format", "engine", "director")))),
+                                                                       "beats", "chapters", "director", "style", "out")))),
     "veasy_write": ({"type": "object", "properties": {
                         "program": PROGRAM,
                         "source": SOURCE,
                         "ref": {"type": "string", "description": "The story's reference in its source: a cluster id, "
                                 "a JSON file, a URL, a PDF, <law>:<article> (constitution:17), a sitech.ge slug."},
                         "cluster": {"type": "integer", "description": "Shorthand: a tbilisi.today cluster id."},
-                        "brand": BRAND, "rubric": RUBRIC}},
+                        "brand": BRAND, "rubric": RUBRIC, "style": CHOICE_PROPS["style"]}},
                     "Write a checked story JSON from a source (free model first; needs the writer key and, for "
                     "tbilisi-today, the D1 keys). Stored as stories/<brand>/<day>/<ref>.json under VEASY_HOME. "
                     "Returns the story path and any remaining problems.",
-                    lambda a: _engine("write", _flags(a, ("program", "source", "ref", "cluster", "brand", "rubric")))),
+                    lambda a: _engine("write", _flags(a, ("program", "source", "ref", "cluster", "brand", "rubric", "style")))),
     "veasy_rubrics": ({"type": "object", "properties": {
                           "action": {"type": "string", "enum": ["list", "facts", "stamp"]},
                           "story": {"type": "string", "description": "stamp: a hand-written story file (stamped in place)."},
@@ -252,7 +221,7 @@ TOOLS = {
                         "part": {"type": "integer", "description": "add: a continues job's part (ops/daily.py sets it)."},
                         **{k: CHOICE_PROPS[k] for k in ("format", "look", "captions", "transition", "outro",
                                                         "voice", "music", "platform", "beats", "chapters", "engine",
-                                                        "director")},
+                                                        "director", "style")},
                         "priority": {"type": "integer", "description": "add: higher runs first (default 0)."},
                         "state": {"type": "string", "enum": ["queued", "writing", "rendering", "done", "held",
                                                              "failed", "cancelled"], "description": "list: filter."},
@@ -264,7 +233,7 @@ TOOLS = {
                     lambda a: _engine("queue", [a["action"]] + ([str(a["id"])] if a.get("id") else []) + _flags(
                         a, ("program", "source", "ref", "story", "brand", "format", "look", "captions", "transition", "outro",
                             "voice", "music", "platform", "beats", "chapters", "engine", "director", "rubric", "part", "renderer",
-                            "priority", "state", "max")))),
+                            "style", "priority", "state", "max")))),
     "veasy_compose": ({"type": "object", "properties": {
                           "action": {"type": "string", "enum": ["scaffold", "check", "render", "promote", "templates"]},
                           "story": {"type": "string", "description": "scaffold/check/render: the story JSON."},
@@ -281,6 +250,7 @@ TOOLS = {
                           "engine": {"type": "string", "enum": ["gemini", "edge", "silent"],
                                      "description": "The voice (scaffold/check default silent; render default gemini)."},
                           "format": CHOICE_PROPS["format"],
+                          "style": CHOICE_PROPS["style"],
                           "as": {"type": "string", "description": "promote: the template id (lowercase, hyphens)."},
                           "label": {"type": "string", "description": "promote: the template's name."}},
                        "required": ["action"]},
@@ -292,23 +262,13 @@ TOOLS = {
                       lambda a: _engine("compose", [a["action"]] + (
                           [a["project"]] if a["action"] == "promote" and a.get("project") else
                           [a["story"]] if a.get("story") else []) + _flags(
-                          a, ("brand", "template", "sources", "engine", "format", "label")) +
+                          a, ("brand", "template", "sources", "engine", "format", "style", "label")) +
                           (["--project", a["project"]] if a.get("project") and a["action"] != "promote" else []) +
                           (["--from", a["from"]] if a.get("from") else []) + (["--as", a["as"]] if a.get("as") else []) +
                           (["--force"] if a.get("force") else []))),
     "veasy_doctor": ({"type": "object", "properties": {}},
                      "Is this machine ready to render? ffmpeg, Remotion, fonts, music, keys, kaeasy.",
                      lambda a: _engine("doctor", [])),
-    "veasy_brand": ({"type": "object", "properties": {
-                        "action": {"type": "string", "enum": ["new"]},
-                        "name": {"type": "string", "description": "The brand identifier (lowercase, hyphens)."},
-                        "from": {"type": "string", "description": "Path or URL to brand guidelines, design.md, frame.md or web page."},
-                        "no_sheets": {"type": "boolean", "description": "Skip rendering contact sheets (faster)."}},
-                     "required": ["action", "name", "from"]},
-                    "Brand pack operations (skill veasy:brands): draft a new brand pack from any brand book "
-                    "or website URL (engine brand new <name> --from <source>), validate WCAG contrast and schema, "
-                    "and render preview contact sheets in dark and light themes.",
-                    lambda a: _engine("brand", [a["action"], a["name"], "--from", a["from"]] + (["--no-sheets"] if a.get("no_sheets") else []))),
 }
 
 
