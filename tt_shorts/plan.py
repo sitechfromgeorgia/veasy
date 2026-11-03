@@ -23,7 +23,7 @@ import pathlib
 import shutil
 import time
 
-from tt_shorts import brand, meta, motion_rules, probe, props, speech, store, swipe, variety
+from tt_shorts import brand, formats, meta, motion_rules, probe, props, speech, store, swipe, variety
 
 HALF = (540, 960)
 COLUMNS = 4
@@ -107,7 +107,7 @@ def run(story_path, fmt, look=None, director=None, out=None, with_probe=True):
         work, p = props.build(str(story_path), look or fmt["look"], "silent", tone, speech.EDGE_VOICES["eka"],
                               fmt["platform"], caption_design=fmt["captions"], music=fmt["music"],
                               transition=fmt["transition"], outro=fmt["outro"], director=director,
-                              sfx=fmt.get("sfx", "off"))
+                              **formats.render_keys(fmt))
     except (ValueError, RuntimeError) as e:  # an anchor not in the narration, a scene too short: no storyboard yet
         return {"story": str(pathlib.Path(story_path).resolve()), "problems": [f"timing: {e}"], "warnings": [],
                 "took": round(time.time() - t0, 1)}

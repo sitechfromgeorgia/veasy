@@ -4,8 +4,14 @@ right; which version goes where we decide later with the agent").
 
 A format chooses only among what the engine can do:
   look      auto | editorial | kinetic | cards      (auto: by the story's category, the pack's look_by_family)
-  captions  page | roll                             (captions.py)
-  transition auto | cut | line | panel | wipe | slide | push | dot   (auto: the look's own; props.TRANSITIONS)
+  captions  page | roll | keyword                   (captions.py; keyword: a dark box, the spoken word lit, one
+                                                     keyword a page in the pack's design.keyword style)
+  transition auto | cut | line | panel | wipe | slide | push | dot | meter   (auto: the look's own;
+                                                     props.TRANSITIONS; meter: equaliser bars rise and fall)
+  beats     on | off                                (beats.py: a change inside every scene each 1.5-3 s, on the
+                                                     words; off: each scene's own stagger, as before)
+  chapters  auto | on | off                         (chapters.py: "01 / 03" and a segmented bar in the header;
+                                                     auto: for a video of chapters.AUTO_SECONDS or more)
   outro     card | overlay | loop                   (swipe.py: the end card, a QR/link/CTA chip over the last
                                                      scene, or a seamless loop back into the hook)
   voice     family | <a preset>                     (family: by category, the pack's voice_by_family; presets are
@@ -28,12 +34,16 @@ from tt_shorts import meta, swipe, voices
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIR = ROOT / "formats"
 LOOKS = ("auto", "editorial", "kinetic", "cards")
-CAPTIONS = ("page", "roll")
-TRANSITIONS = ("auto", "cut", "line", "panel", "wipe", "slide", "push", "dot")  # props.TRANSITIONS + auto
+CAPTIONS = ("page", "roll", "keyword")
+TRANSITIONS = ("auto", "cut", "line", "panel", "wipe", "slide", "push", "dot", "meter")  # props.TRANSITIONS + auto
+BEATS = ("on", "off")
+CHAPTERS = ("auto", "on", "off")
 OUTROS = swipe.OUTROS
 SFX = ("off", "on")
 DEFAULTS = {"look": "auto", "captions": "page", "transition": "auto", "outro": swipe.DEFAULT_OUTRO, "voice": "family",
-            "music": "family", "sfx": "off", "platform": "shorts", "min_seconds": 18, "max_seconds": 45}
+            "music": "family", "sfx": "off", "platform": "shorts", "min_seconds": 18, "max_seconds": 45,
+            "beats": "on", "chapters": "off"}
+RENDER_KEYS = ("sfx", "beats", "chapters")  # passed to props.build as they are (render_keys)
 BUILTIN = {
     "news": {"label": "ამბავი: სტანდარტული", "about": "The default news Short: look and voice by category, "
              "two-line captions that never move."},
@@ -62,6 +72,10 @@ def validate(name, f):
         bad("transition", f["transition"], TRANSITIONS)
     if f["outro"] not in OUTROS:
         bad("outro", f["outro"], OUTROS)
+    if f["beats"] not in BEATS:
+        bad("beats", f["beats"], BEATS)
+    if f["chapters"] not in CHAPTERS:
+        bad("chapters", f["chapters"], CHAPTERS)
     tones = ("family",) + tuple(sorted(voices.known()))
     if f["voice"] not in tones:
         bad("voice", f["voice"], tones)
@@ -94,3 +108,8 @@ def get(name="news", **overrides):
         raise FormatError(f"unknown format {name!r}; known: {', '.join(every)}")
     f = {**every[name], **{k: v for k, v in overrides.items() if v is not None}}
     return validate(name, f)
+
+
+def render_keys(fmt):
+    """The format keys props.build takes as they are: {beats, chapters}."""
+    return {k: fmt.get(k, DEFAULTS[k]) for k in RENDER_KEYS}

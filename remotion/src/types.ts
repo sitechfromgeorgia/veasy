@@ -8,14 +8,18 @@ export type Word = { text: string; start: number; end: number }; // seconds
 
 // tt_shorts/captions.py: the caption layout, computed once per video with the real font (seconds)
 export type CaptionWord = { text: string; from: number; to: number };
+// keyword: a page's one keyword, picked in Python (the em phrase, a number or a name): words from..to (inclusive)
+// of lines[line]; drawn in the pack's style (layout.keyword) from the moment its first word is said
+export type CaptionKey = { line: number; from: number; to: number; kind: "em" | "number" | "name" };
 export type CaptionLayout = {
-  design: "page" | "roll";
+  design: "page" | "roll" | "keyword";
   size: number;
   lineHeight: number;
   band: number;
   pad: number;
   lines: { start: number; words: CaptionWord[] }[];
-  pages: { start: number; end: number; lines: number[] }[];
+  pages: { start: number; end: number; lines: number[]; key?: CaptionKey }[];
+  keyword?: "underline" | "block" | "tint"; // the pack's design.keyword (tt_shorts/brand.py keyword_style)
 };
 
 // who and link {name, role} · pair {title, sub} · bars, trend and compare {label, value} · rail {when, label} ·
@@ -54,7 +58,7 @@ export type IconNode = [string, Record<string, string>];
 export type Verb = "rises" | "falls" | "stops" | "opens" | "closes" | "moves" | "splits" | "joins";
 
 // the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python
-export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot";
+export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter";
 
 // the ending (tt_shorts/swipe.py OUTROS): the end card, a QR/link/CTA chip over the last scene, or a seamless loop
 export type Outro = "card" | "overlay" | "loop";
@@ -195,4 +199,5 @@ export type ShortProps = {
   previewNote: string | null; // e.g. the temporary preview voice, shown small above the ticker
   rubric?: string | null; // tt_shorts/rubrics.py chip(): „დღის ციფრი · #12“, drawn in the hook (code's text)
   probe?: boolean; // tt_shorts/probe.py: report where every text block is (remotion/src/Probe.tsx)
+  chapters?: { from: number; to: number }[] | null; // tt_shorts/chapters.py: the "01 / 03" bar, frames; none: the rule
 };
