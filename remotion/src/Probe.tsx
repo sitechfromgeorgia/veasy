@@ -56,11 +56,14 @@ const layerOf = (e: Element, root: Element): RGBA | "image" | null => {
   return [c[0], c[1], c[2], c[3] * opacityOf(e, root)];
 };
 
-/** The text's ground: what is painted under the point (x, y) (every element there, top to bottom, siblings
- *  included: document.elementsFromPoint), composited over the canvas -> [r, g, b], or null under a picture. */
-const groundAt = (x: number, y: number, root: Element, canvas: RGBA): number[] | null => {
+/** The text's ground: what is painted under the point (x, y) below the text's own element `el` (every element
+ *  there, top to bottom, siblings included: document.elementsFromPoint; whatever covers the text, a wipe passing
+ *  over it, is not its ground), composited over the canvas -> [r, g, b], or null under a picture. */
+const groundAt = (x: number, y: number, el: Element, root: Element, canvas: RGBA): number[] | null => {
   const layers: RGBA[] = [];
-  for (const e of document.elementsFromPoint(x, y)) {
+  const stack = document.elementsFromPoint(x, y);
+  const own = stack.findIndex((e) => e === el || e.contains(el));
+  for (const e of own >= 0 ? stack.slice(own) : stack) {
     if (!root.contains(e)) continue;
     const c = layerOf(e, root);
     if (c === "image") return null;
@@ -125,7 +128,7 @@ const collect = (frame: number, scenes: { from: number; duration: number; type: 
     // under the middle of its first line (probe.py judges them)
     const ink = parseColor(svg ? cs.fill : cs.color);
     const color = ink ? [ink[0], ink[1], ink[2], r1(ink[3] * (svg ? parseFloat(cs.fillOpacity || "1") : 1) * opacity * 100) / 100] : null;
-    const ground = groundAt(first.left + first.width / 2, first.top + first.height / 2, root, canvas);
+    const ground = groundAt(first.left + first.width / 2, first.top + first.height / 2, el, root, canvas);
     // overflow: how far the text reaches past an ancestor whose content is larger than its box (scrollWidth >
     // clientWidth), across and down, up to its region; a drawing's text past its <svg>.
     const over = { x: 0, y: 0, xIn: "", yIn: "", clipped: false };

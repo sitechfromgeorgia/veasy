@@ -146,7 +146,7 @@ def run(story_path, fmt, look=None, director=None, out=None, with_probe=True):
         if len(judged["files"]) == len(rows):
             target = pathlib.Path(out) if out else store.plan_sheet_path(store.render_path(
                 brand.of(story)["name"], story["id"], fmt["name"], p["variant"], fmt["captions"]))
-            if p["theme"] != brand.of(story)["default_theme"]:  # beside the default theme's sheet, not over it
+            if not out and p["theme"] != brand.of(story)["default_theme"]:  # beside the default theme's sheet
                 target = target.with_name(target.name.replace(".plan.", f".{p['theme']}.plan."))
             result["sheet"] = str(sheet(judged["files"], rows, target).resolve())
     result["problems"] = problems

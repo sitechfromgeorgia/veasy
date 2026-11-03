@@ -100,9 +100,11 @@ function collect(t, label) {
     if (!c || c[3] <= 0) return null;
     return [c[0], c[1], c[2], c[3] * opacityOf(e)];
   };
-  const groundAt = (x, y) => {
+  const groundAt = (x, y, el) => {
     const layers = [];
-    for (const e of document.elementsFromPoint(x, y)) {
+    const stack = document.elementsFromPoint(x, y);
+    const own = stack.findIndex((e) => e === el || e.contains(el)); // what covers the text is not its ground
+    for (const e of own >= 0 ? stack.slice(own) : stack) {
       if (!root.contains(e)) continue;
       const c = layerOf(e);
       if (c === "image") return null;
@@ -166,7 +168,7 @@ function collect(t, label) {
     texts.push({ region: name, text, box: [r1((l - R.left) / k), r1((tp - R.top) / k), r1((r - l) / k), r1((b - tp) / k)],
       size: r1((parseFloat(cs.fontSize) * scale) / k), weight: cs.fontWeight, family: cs.fontFamily, color: svg ? cs.fill : cs.color, opacity: r1(opacity), svg,
       overflow: over.x || over.y ? over : null, clipOk: !!el.closest("[data-probe-clip]"), decor: !!el.closest("[data-probe-decor]"),
-      ground: first ? groundAt(first.left + first.width / 2, first.top + first.height / 2) : null });
+      ground: first ? groundAt(first.left + first.width / 2, first.top + first.height / 2, el) : null });
   }
   const fonts = {};
   document.fonts.forEach((f) => { if (f.family.replace(/["']/g, "") === "Brand") fonts[String(f.weight)] = f.status; });

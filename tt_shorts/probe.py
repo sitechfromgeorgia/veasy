@@ -17,7 +17,8 @@ bundle built once per version of remotion/src. rules() then checks the boxes aga
     size      no text shrunk below the region's minimum (a long line squeezed by fitSize, a drawing's tiny label)
     contrast  every text readable on what is really under it (a theme can put dark on dark or light on light): the
               text's color (its alpha times its opacity) against its ground, every element the page paints under the
-              middle of its first line (document.elementsFromPoint: backgrounds, SVG fills, siblings included),
+              middle of its first line below the text's own element (document.elementsFromPoint: backgrounds, SVG
+              fills, siblings included; what covers the text, a wipe passing over it, is not its ground),
               composited over the canvas. At least CONTRAST["text"] (3:1) for every fully shown text, and
               CONTRAST["small"] (4.5:1) for small regular text (under SMALL_PX and lighter than 600). A text over
               a picture (img, video, canvas) has no known ground and is not judged here, nor is an ornament
