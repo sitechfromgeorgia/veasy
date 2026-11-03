@@ -317,9 +317,25 @@ class Lint(unittest.TestCase):
         (self.p / "assets" / "art" / "a.svg").write_text('<svg><text>სიტყვა</text></svg>', encoding="utf-8")
         self.assertIn("art", self.rules(SCENE))
 
+    def test_timeline(self):
+        bad_scene = SCENE.replace('window.__timelines["s1"] = tl;', 'console.log("no timeline registered");')
+        self.assertIn("timeline", self.rules(bad_scene))
+
+    def test_prefix(self):
+        bad_scene = SCENE.replace('class="x">სიტყვა</div>', 'id="bad-id" class="x">სიტყვა</div>')
+        self.assertIn("prefix", self.rules(bad_scene))
+        good_scene = SCENE.replace('class="x">სიტყვა</div>', 'id="s1-good" class="x">სიტყვა</div>')
+        self.assertNotIn("prefix", self.rules(good_scene))
+
+    def test_template(self):
+        bad_scene = SCENE.replace("<template>", "").replace("</template>", "")
+        self.assertIn("template", self.rules(bad_scene))
+        bad_scene2 = SCENE.replace('data-composition-id="s1"', "")
+        self.assertIn("template", self.rules(bad_scene2))
+
     def test_every_rule_is_named(self):
         self.assertEqual(set(compose.LINT_RULES), {"color", "font", "link", "net", "canvas", "probe", "fact", "host",
-                                                  "locked", "art"})
+                                                   "locked", "art", "timeline", "prefix", "template"})
 
     def test_the_shipped_compositions_type_no_pack(self):  # every color, logo and link comes from the pack
         for name in COMPOSITIONS:
@@ -431,6 +447,41 @@ class HyperFrames(unittest.TestCase):
         self.assertEqual(compose.RENDER, {"workers": 4, "browser_gpu": False, "quality": "looks", "fps": 30})
         pkg = json.loads((ROOT / "compose" / "package.json").read_text(encoding="utf-8"))
         self.assertEqual(pkg["dependencies"]["hyperframes"], compose.HF_VERSION)
+
+
+class Blocks(unittest.TestCase):
+    def test_all_nine_blocks_load_and_validate(self):
+        from tt_shorts import blocks
+        all_blocks = blocks.list_all()
+        expected = {"kinetic-headline", "number-reveal", "map-pin", "comparison",
+                    "icon-grid", "quote", "process", "chapter-card", "end-card"}
+        self.assertEqual(set(all_blocks.keys()), expected)
+        for bid in expected:
+            m, tpl = blocks.get(bid)
+            self.assertEqual(m["id"], bid)
+            self.assertTrue(m.get("label"))
+            self.assertTrue(m.get("about"))
+            self.assertIn("slots", m)
+            self.assertIn("beats", m)
+            rendered = blocks.render_block(bid, "s0", {})
+            self.assertIn("<template>", rendered)
+            self.assertIn('data-composition-id="s0"', rendered)
+            self.assertIn('window.__timelines["s0"] = tl;', rendered)
+
+    def test_scaffold_with_blocks(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = pathlib.Path(d) / "proj"
+            r = compose.scaffold(ROOT / "stories" / "24835.json", brand="sitech", project=p,
+                                 blocks="kinetic-headline,number-reveal,end-card", force=True)
+            self.assertTrue(r["built"])
+            self.assertEqual(r["origin"], "blocks: kinetic-headline,number-reveal,end-card")
+            self.assertTrue((p / "compositions" / "s0.html").exists())
+            self.assertTrue((p / "compositions" / "s1.html").exists())
+            self.assertTrue((p / "compositions" / "s2.html").exists())
+            self.assertTrue((p / "index.html").exists())
+            self.assertTrue((p / "beats.json").exists())
+            lint_problems = compose.lint(p)
+            self.assertEqual(lint_problems, [])
 
 
 class SkillsInstall(unittest.TestCase):

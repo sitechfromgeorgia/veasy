@@ -153,6 +153,51 @@ class Repeat(unittest.TestCase):
         self.assertEqual(rules(video([HOOK, ("where", 3, {}), ("stat", 3, {}), ("where", 3, {}), END]), "repeat"), [])
 
 
+class NewRules(unittest.TestCase):
+    def test_too_many_moves_at_once(self):
+        # 4 texts entering at the same time in a non-opening scene
+        p = video([HOOK, ("points", 3.0, {"kicker": "ა", "headline": "ბ"}), END])
+        rows = m.timeline(p)
+        rows[1]["texts"] = [
+            {"text": "ა", "words": 1, "need": 0.8, "in": 0.2, "shown": 2.0},
+            {"text": "ბ", "words": 1, "need": 0.8, "in": 0.2, "shown": 2.0},
+            {"text": "გ", "words": 1, "need": 0.8, "in": 0.2, "shown": 2.0},
+            {"text": "დ", "words": 1, "need": 0.8, "in": 0.2, "shown": 2.0},
+        ]
+        with mock.patch.object(m, "timeline", return_value=rows):
+            found = rules(p, "moves")
+            self.assertEqual(len(found), 1)
+            self.assertFalse(found[0]["hold"])
+            self.assertIn("4 elements enter at the same time", found[0]["detail"])
+
+    def test_background_motion_behind_text(self):
+        # Video media behind text needing > 1.5 s reading
+        p = video([HOOK, ("stat", 4.0, {"value": 6400, "label": "გრძელი ტექსტი რომელიც იკითხება ეკრანზე დროულად",
+                                        "media": {"kind": "video", "src": "video.mp4"}}), END])
+        found = rules(p, "background")
+        self.assertEqual(len(found), 1)
+        self.assertFalse(found[0]["hold"])
+        self.assertIn("video motion behind", found[0]["detail"])
+        # Still photo does not trigger background motion warning
+        photo_p = video([HOOK, ("stat", 4.0, {"value": 6400, "label": "გრძელი ტექსტი",
+                                              "media": {"kind": "image", "src": "photo.jpg"}}), END])
+        self.assertEqual(rules(photo_p, "background"), [])
+
+    def test_cuts_faster_than_the_voice(self):
+        # A scene cut after only 1.0 s
+        p = video([HOOK, ("stat", 1.0, {"value": 10}), END])
+        found = rules(p, "pacing")
+        self.assertEqual(len(found), 1)
+        self.assertFalse(found[0]["hold"])
+        self.assertIn("cut comes after only 1.0 s", found[0]["detail"])
+        # A cut that is shorter than its narration phrase
+        long_narr = "ეს არის ძალიან გრძელი ტექსტი რომელიც წამყვანმა უნდა წაიკითხოს"
+        voice_fast = video([HOOK, ("stat", 1.8, {"value": 10, "narration": long_narr}), END])
+        found_voice = rules(voice_fast, "pacing")
+        self.assertEqual(len(found_voice), 1)
+        self.assertIn("faster than voice", found_voice[0]["detail"])
+
+
 class Holds(unittest.TestCase):
     def test_only_unreadable_text_holds(self):
         self.assertEqual(m.HOLDS, ("read",))
@@ -192,6 +237,69 @@ class Holds(unittest.TestCase):
                                         out_path=pathlib.Path(home) / "x.mp4")
         self.assertTrue(r["problems"] and r["problems"][0].startswith("motion read:"), r["problems"])
         self.assertEqual(r["motion"]["holds"], r["problems"])
+
+
+class TextsContract(unittest.TestCase):
+    def test_texts_reading_time_holds_when_too_short(self):
+        # 5 words: needs 0.5 + 5 * 0.3 = 2.0s
+        text = "ერთი ორი სამი ოთხი ხუთი"
+        # Visible from 0.0s to 0.8s (duration 0.8s < 2.0s)
+        samples = [
+            (0.0, [{"id": "card1", "text": text, "x0": 100, "y0": 400, "x1": 800, "y1": 600}]),
+            (0.4, [{"id": "card1", "text": text, "x0": 100, "y0": 400, "x1": 800, "y1": 600}]),
+            (0.8, [{"id": "card1", "text": text, "x0": 100, "y0": 400, "x1": 800, "y1": 600}]),
+            (1.2, []),
+        ]
+        res = m.check_texts_track(samples)
+        self.assertTrue(any("motion read:" in h for h in res["holds"]))
+        self.assertTrue(any("visible for 0.8 s" in h for h in res["holds"]))
+
+    def test_texts_reading_time_passes_when_sufficient(self):
+        # 2 words: needs 0.5 + 2 * 0.3 = 1.1s
+        text = "გაზი შეწყდება"
+        # Visible from 0.0s to 1.5s
+        samples = [
+            (0.0, [{"id": "h1", "text": text, "x0": 100, "y0": 400, "x1": 600, "y1": 500}]),
+            (0.5, [{"id": "h1", "text": text, "x0": 100, "y0": 400, "x1": 600, "y1": 500}]),
+            (1.0, [{"id": "h1", "text": text, "x0": 100, "y0": 400, "x1": 600, "y1": 500}]),
+            (1.5, [{"id": "h1", "text": text, "x0": 100, "y0": 400, "x1": 600, "y1": 500}]),
+            (2.0, []),
+        ]
+        res = m.check_texts_track(samples)
+        self.assertEqual(res["holds"], [])
+
+    def test_texts_safe_zone_violations_hold(self):
+        # Header violation: y0 < 248
+        samples_header = [
+            (0.0, [{"id": "t1", "text": "სათაური", "x0": 100, "y0": 150, "x1": 600, "y1": 300}]),
+        ]
+        res_h = m.check_texts_track(samples_header)
+        self.assertTrue(any("enters header zone at y=150.0" in h for h in res_h["holds"]))
+
+        # Captions violation: y1 > 1380
+        samples_cap = [
+            (0.0, [{"id": "t2", "text": "შინაარსი", "x0": 100, "y0": 1200, "x1": 600, "y1": 1420}]),
+        ]
+        res_c = m.check_texts_track(samples_cap)
+        self.assertTrue(any("enters captions zone at y=1420.0" in h for h in res_c["holds"]))
+
+        # Social rail violation: y1 > 1100 and x1 > 940
+        samples_rail = [
+            (0.0, [{"id": "t3", "text": "ღილაკი", "x0": 900, "y0": 1150, "x1": 980, "y1": 1250}]),
+        ]
+        res_r = m.check_texts_track(samples_rail)
+        self.assertTrue(any("enters social rail at x=980.0" in h for h in res_r["holds"]))
+
+    def test_tagged_header_and_captions_exempt_from_zone_violation(self):
+        samples_ok = [
+            (0.0, [
+                {"id": "header", "text": "tbilisi.today", "x0": 72, "y0": 80, "x1": 400, "y1": 160},
+                {"id": "captions", "text": "ეს არის ტიტრი", "x0": 72, "y0": 1400, "x1": 800, "y1": 1520},
+            ]),
+        ]
+        res = m.check_texts_track(samples_ok)
+        safe_holds = [h for h in res["holds"] if "safe_zone" in h]
+        self.assertEqual(safe_holds, [])
 
 
 def _fmt():

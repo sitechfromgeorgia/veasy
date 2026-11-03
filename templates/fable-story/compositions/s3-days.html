@@ -1,0 +1,73 @@
+<!-- s3: it doesn't give up. „ბიპი არ დანებდა“: the robot nods; „ყოველდღე“: a row of days, each sheet one line more
+     than the last; „ერთ ხაზს“: the newest line lands in the accent. Words: the character, scene-1-items-2. -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .head { position: absolute; left: 64px; top: 300px; font-weight: 700; font-size: 84px; line-height: 1.1; white-space: nowrap; }
+    #root .lab { position: absolute; left: 64px; top: 772px; font-weight: 700; font-size: 60px; line-height: 1.1; white-space: nowrap; }
+    #root .lab b { font-weight: 700; color: var(--muted); }
+    #root svg { position: absolute; overflow: visible; }
+    #root .k { stroke: var(--ink); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    #root .p { fill: var(--panel); }
+    #root .i { fill: var(--ink); }
+    #root .a { fill: var(--accent); }
+    #root .as { stroke: var(--accent); fill: none; stroke-linecap: round; }
+    #root .draw { stroke-dasharray: 1; stroke-dashoffset: 1; }
+    #root .sheet { fill: var(--panel); stroke: var(--line-strong); stroke-width: 3; }
+  </style>
+  <div id="root" data-composition-id="s3" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="s3-head" class="head"><span data-var-text="slot-s3-days-character-1">…</span> <span data-var-text="slot-s3-days-w1">არ დანებდა</span></div>
+      <div id="s3-lab" class="lab" data-var-text="slot-s3-days-scene-1-items-2">…</div>
+    </div>
+    <svg id="s3-days" viewBox="0 0 952 260" style="left: 64px; top: 460px; width: 952px; height: 260px"></svg>
+    <svg id="s3-bot" viewBox="0 0 200 240" style="left: 390px; top: 870px; width: 300px; height: 360px">
+      <line class="k" x1="100" y1="16" x2="100" y2="42" stroke-width="6" />
+      <circle id="s3-ant" class="a" cx="100" cy="14" r="11" />
+      <g id="s3-head-g"><rect class="p k" x="38" y="42" width="124" height="98" rx="30" stroke-width="6" />
+        <circle class="i" cx="78" cy="88" r="11" /><circle class="i" cx="122" cy="88" r="11" />
+        <path class="k" d="M84 114 Q100 124 116 114" stroke-width="6" /></g>
+      <rect class="p k" x="58" y="150" width="84" height="66" rx="18" stroke-width="6" />
+      <line class="k" x1="58" y1="172" x2="30" y2="150" stroke-width="6" />
+      <line class="k" x1="142" y1="172" x2="170" y2="150" stroke-width="6" />
+      <circle class="p k" cx="78" cy="228" r="11" stroke-width="5" /><circle class="p k" cx="122" cy="228" r="11" stroke-width="5" />
+    </svg>
+  </div>
+  <script>
+    (function () {
+      const A = (b) => VEASY.at(b, "s3");
+      const NS = "http://www.w3.org/2000/svg";
+      const days = document.getElementById("s3-days");
+      const W = 172, GAP = 23, N = 5;
+      const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+      for (let d = 0; d < N; d++) { // day d has d + 1 lines: a little more every day
+        const g = el("g", { id: `s3-d${d}` });
+        g.appendChild(el("rect", { class: "sheet", x: d * (W + GAP), y: 10, width: W, height: 240, rx: 12 }));
+        for (let l = 0; l <= d; l++) {
+          const y = 52 + l * 40, x0 = d * (W + GAP) + 24;
+          g.appendChild(el("path", { id: `s3-d${d}-l${l}`, class: (d === N - 1 && l === d ? "as" : "k") + " draw", pathLength: 1,
+            "stroke-width": 9, d: `M${x0} ${y} q ${(W - 48) / 4} -14 ${(W - 48) / 2} 0 t ${(W - 48) / 2} 0` }));
+        }
+        days.appendChild(g);
+      }
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#s3-head", { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.45, ease: "expo.out" }, 0.05);
+      tl.fromTo("#s3-bot", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.1);
+      // „არ დანებდა“: it nods twice
+      tl.fromTo("#s3-head-g", { y: 0 }, { y: 10, duration: 0.16, ease: "sine.inOut", yoyo: true, repeat: 3 }, A("notgiveup") + 0.8);
+      // „ყოველდღე“: the days, one after another, each drawing its lines
+      for (let d = 0; d < N; d++) {
+        const t = A("everyday") + d * 0.14;
+        tl.fromTo(`#s3-d${d}`, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35, ease: "expo.out" }, t);
+        for (let l = 0; l <= d; l++) {
+          if (d === N - 1 && l === d) continue; // the newest line lands on „ერთ ხაზს“
+          tl.to(`#s3-d${d}-l${l}`, { strokeDashoffset: 0, duration: 0.3, ease: "power1.out" }, t + 0.15 + l * 0.05);
+        }
+      }
+      tl.to(`#s3-d${N - 1}-l${N - 1}`, { strokeDashoffset: 0, duration: 0.45, ease: "power2.out" }, A("oneline"));
+      tl.fromTo("#s3-ant", { scale: 1 }, { scale: 1.6, duration: 0.14, yoyo: true, repeat: 1, transformOrigin: "50% 50%" }, A("oneline"));
+      tl.fromTo("#s3-lab", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.35, ease: "expo.out" }, A("oneline") + 0.1);
+      window.__timelines["s3"] = tl;
+    })();
+  </script>
+</template>

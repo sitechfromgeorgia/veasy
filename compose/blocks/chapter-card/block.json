@@ -1,0 +1,27 @@
+{
+  "id": "chapter-card",
+  "label": "თავის ბარათი",
+  "about": "Bold chapter title and thematic transition card with large backdrop index numeral and summary.",
+  "slots": {
+    "number": {
+      "kind": "words",
+      "label": "თავის ნომერი",
+      "example": "02"
+    },
+    "title": {
+      "kind": "words",
+      "label": "თავის სათაური",
+      "example": "ტექნოლოგიური პროცესი"
+    },
+    "summary": {
+      "kind": "words",
+      "label": "მოკლე შინაარსი",
+      "example": "სისტემის განვითარების ახალი ეტაპი"
+    }
+  },
+  "beats": [
+    {"id": "chapter", "show": "chapter-card", "at": null},
+    {"id": "summary", "show": "chapter-card", "at": null}
+  ],
+  "recommended_seconds": [3.0, 5.0]
+}

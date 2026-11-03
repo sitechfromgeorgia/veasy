@@ -1,0 +1,32 @@
+{
+  "id": "process",
+  "label": "პროცესი",
+  "about": "Step-by-step workflow or timeline sequence with numbered step badges, progress spine, and descriptions.",
+  "slots": {
+    "title": {
+      "kind": "words",
+      "label": "პროცესის სათაური",
+      "example": "განხორციელების ეტაპები"
+    },
+    "step_1": {
+      "kind": "words",
+      "label": "ეტაპი 1",
+      "example": "ტექნიკური შემოწმება"
+    },
+    "step_2": {
+      "kind": "words",
+      "label": "ეტაპი 2",
+      "example": "ქსელის მოდერნიზაცია"
+    },
+    "step_3": {
+      "kind": "words",
+      "label": "ეტაპი 3",
+      "example": "სისტემის ჩართვა"
+    }
+  },
+  "beats": [
+    {"id": "process", "show": "process", "at": null},
+    {"id": "steps", "show": "process", "at": null}
+  ],
+  "recommended_seconds": [3.0, 6.0]
+}

@@ -46,7 +46,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIR = ROOT / "formats"
 LOOKS = ("auto", "editorial", "kinetic", "cards")
 CAPTIONS = ("page", "roll", "keyword")
-TRANSITIONS = ("auto", "cut", "line", "panel", "wipe", "slide", "push", "dot", "meter")  # props.TRANSITIONS + auto
+TRANSITIONS = ("auto", "cut", "line", "panel", "wipe", "slide", "push", "dot", "meter", "fade", "shutter", "split", "corner", "iris", "blind")  # props.TRANSITIONS + auto
 BEATS = ("on", "off")
 CHAPTERS = ("auto", "on", "off")
 OUTROS = swipe.OUTROS
@@ -54,7 +54,7 @@ SFX = ("off", "on")
 THEME_MODES = ("default", "auto")  # or a theme's name (brand.json themes)
 ENGINES = ("remotion", "hyperframes")  # the two film engines (compose.py); remotion is the default
 DEFAULT_ENGINE = "remotion"
-OPTIONAL = ("engine", "review")  # keys a format may set or leave to the program, director or pack
+OPTIONAL = ("engine", "review", "style")  # keys a format may set or leave to the program, director or pack
 DEFAULT_REVIEW = "always"  # a composed film is held for a person unless its program or format says otherwise
 DEFAULTS = {"look": "auto", "captions": "page", "transition": "auto", "outro": swipe.DEFAULT_OUTRO, "voice": "family",
             "music": "family", "sfx": "off", "platform": "shorts", "min_seconds": 18, "max_seconds": 45,
@@ -109,6 +109,10 @@ def validate(name, f):
         engine_value(f["engine"], f"format {name!r}", FormatError)
     if "review" in f:
         review_policy(f["review"], f"format {name!r}", FormatError)
+    if "style" in f and f["style"] is not None:
+        from tt_shorts import styles
+        if f["style"] not in styles.names():
+            bad("style", f["style"], styles.names())
     unknown = set(f) - set(DEFAULTS) - {"label", "about", "name"} - set(OPTIONAL)
     if unknown:
         raise FormatError(f"format {name!r}: unknown keys {sorted(unknown)}")

@@ -151,8 +151,120 @@ def lend_time(starts, types, most=LEND):
     return starts
 
 
+GEORGIAN_NUMERALS = {
+    # Units
+    "ნული": 0, "ერთი": 1, "ორი": 2, "სამი": 3, "ოთხი": 4, "ხუთი": 5, "ექვსი": 6, "შვიდი": 7, "რვა": 8, "ცხრა": 9,
+    "ერთ": 1, "ორ": 2, "სამ": 3, "ოთხ": 4, "ხუთ": 5, "ექვს": 6, "შვიდ": 7,
+    # Teens (10-19)
+    "ათი": 10, "ათ": 10, "თერთმეტი": 11, "თორმეტი": 12, "ცამეტი": 13, "თოთხმეტი": 14, "თხუთმეტი": 15,
+    "თექვსმეტი": 16, "ჩვიდმეტი": 17, "თვრამეტი": 18, "ცხრამეტი": 19,
+    # Vigesimal base-20 compounds (20-99)
+    "ოცი": 20, "ოც": 20, "ორმოცი": 40, "ორმოც": 40, "სამოცი": 60, "სამოც": 60, "ოთხმოცი": 80, "ოთხმოც": 80,
+    # Hundreds
+    "ასი": 100, "ას": 100, "ორასი": 200, "ორას": 200, "სამასი": 300, "სამას": 300,
+    "ოთხასი": 400, "ოთხას": 400, "ხუთასი": 500, "ხუთას": 500, "ექვსასი": 600, "ექვსას": 600,
+    "შვიდასი": 700, "შვიდას": 700, "რვაასი": 800, "რვაას": 800, "ცხრაასი": 900, "ცხრაას": 900,
+}
+
+TWENTY_PREFIXES = {
+    "ოცდა": 20, "ორმოცდა": 40, "სამოცდა": 60, "ოთხმოცდა": 80,
+}
+
+MULTIPLIERS = {
+    "ათასი": 1000, "ათას": 1000,
+    "მილიონი": 1000000, "მილიონ": 1000000,
+    "მილიარდი": 1000000000, "მილიარდ": 1000000000,
+}
+
+
+def parse_georgian_numeral_word(w):
+    w = w.strip(".,;:!?„“\"()[]{}")
+    if not w:
+        return None
+    if w in GEORGIAN_NUMERALS:
+        return GEORGIAN_NUMERALS[w]
+    for pre, base in TWENTY_PREFIXES.items():
+        if w.startswith(pre):
+            rest = w[len(pre):]
+            if rest in GEORGIAN_NUMERALS:
+                return base + GEORGIAN_NUMERALS[rest]
+    return None
+
+
+def extract_numbers(text):
+    """Extract all numbers from text (both digits and Georgian number words).
+    Returns list of numeric values (ints or floats).
+    """
+    out = []
+    digit_rx = re.compile(r"(?<![\w])(\d+(?:[.,]\d+)?)(?![\w])")
+    for m in digit_rx.finditer(text):
+        val_str = m.group(1).replace(",", ".")
+        try:
+            val = float(val_str) if "." in val_str else int(val_str)
+            out.append(val)
+        except ValueError:
+            pass
+
+    words = re.findall(r"[ა-ჰ]+", text)
+    i = 0
+    while i < len(words):
+        w = words[i]
+        val = parse_georgian_numeral_word(w)
+        mult = MULTIPLIERS.get(w)
+        if val is not None:
+            current = val
+            j = i + 1
+            while j < len(words):
+                next_w = words[j]
+                next_val = parse_georgian_numeral_word(next_w)
+                next_mult = MULTIPLIERS.get(next_w)
+                if next_mult is not None:
+                    current = (current if current > 0 else 1) * next_mult
+                    j += 1
+                elif next_val is not None:
+                    current += next_val
+                    j += 1
+                else:
+                    break
+            out.append(current)
+            i = j
+        elif mult is not None:
+            out.append(mult)
+            i += 1
+        else:
+            i += 1
+
+    return out
+
+
+def numeral_problems(spoken, heard):
+    """Check that numbers in spoken text are heard with the exact same values.
+    Returns findings with score 0.0 when a number is missed or heard as another number.
+    """
+    sp_nums = extract_numbers(spoken)
+    hd_nums = extract_numbers(heard)
+    if not sp_nums:
+        return []
+
+    mismatches = []
+    remaining_hd = list(hd_nums)
+    for expected in sp_nums:
+        if expected in remaining_hd:
+            remaining_hd.remove(expected)
+        else:
+            mismatches.append({
+                "word": f"number {expected}",
+                "score": 0.0,
+                "number_mismatch": True,
+                "expected": expected,
+                "heard": hd_nums,
+            })
+    return mismatches
+
+
 def voice_qa(spoken, heard, min_ratio=0.5):
-    """Words of the spoken text that the aligner's transcript barely contains: the voice may have skipped them."""
+    """Words of the spoken text that the aligner's transcript barely contains: the voice may have skipped them,
+    or read numbers as different values (Lemo-Opuscar numeral check)."""
     import difflib
     geo = re.compile(r"[ა-ჰ]")
     words = spoken.split()
@@ -169,8 +281,10 @@ def voice_qa(spoken, heard, min_ratio=0.5):
     per = {}
     for k, i in enumerate(owner):
         per.setdefault(i, []).append(hit[k])
-    return [{"word": words[i].strip(".,;:!?„“\"()"), "score": round(sum(h) / len(h), 2)}
-            for i, h in per.items() if len(h) >= 4 and sum(h) / len(h) < min_ratio]
+    findings = [{"word": words[i].strip(".,;:!?„“\"()"), "score": round(sum(h) / len(h), 2)}
+                for i, h in per.items() if len(h) >= 4 and sum(h) / len(h) < min_ratio]
+    findings += numeral_problems(spoken, heard)
+    return findings
 
 
 def regroup(words, narration, say=None):

@@ -1,0 +1,32 @@
+{
+  "id": "icon-grid",
+  "label": "იკონების ბადე",
+  "about": "Multi-item badge list or feature breakdown with animated SVG icons and clear label cards.",
+  "slots": {
+    "header": {
+      "kind": "words",
+      "label": "ბადის სათაური",
+      "example": "მთავარი მიმართულებები"
+    },
+    "item_1": {
+      "kind": "words",
+      "label": "პირველი პუნქტი",
+      "example": "ენერგომომარაგება"
+    },
+    "item_2": {
+      "kind": "words",
+      "label": "მეორე პუნქტი",
+      "example": "სატრანსპორტო ქსელი"
+    },
+    "item_3": {
+      "kind": "words",
+      "label": "მესამე პუნქტი",
+      "example": "კავშირგაბმულობა"
+    }
+  },
+  "beats": [
+    {"id": "grid", "show": "icon-grid", "at": null},
+    {"id": "items", "show": "icon-grid", "at": null}
+  ],
+  "recommended_seconds": [3.0, 6.0]
+}

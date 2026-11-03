@@ -1,19 +1,96 @@
-{"id": "brief", "label": "მოკლედ",
+{
+ "id": "brief",
+ "label": "მოკლედ",
  "about": "The Briefing: what, where, when and how, as a short service card.",
- "device": "the feature as the hook", "form": "object-to-object chain",
+ "device": "the feature as the hook",
+ "form": "object-to-object chain",
  "brief": [
   "The film is a briefing: what happens, to whom, when and what people do about it.",
   "First 2 s: the hook says what changes for people, in plain words.",
   "Then the facts as a list or as steps: where, who, when (exact dates and times).",
   "One scene per question; no background the articles don't give.",
   "Use the place and time exactly as the articles state them.",
-  "The viewer leaves knowing whether it touches them and when."],
- "scenes": {"points": 3, "steps": 3, "timeline": 2, "where": 1, "stat": 1, "sign": 1, "sources": 1, "share": 1, "rail": 1},
- "count": [4, 5], "pacing": "brisk and even: one question per scene.",
- "hooks": ["blocks", "stack", "lead"], "motifs": ["grid", "dots", "icons"], "enters": ["rise", "slide", "scale"],
- "transitions": ["slide", "dot", "wipe"], "current": "right",
- "motion": {"damping": 22.8, "stiffness": 200, "enter_frames": 9, "stagger_frames": 4},
- "eligible": [{"families": ["society", "economy", "tech"], "dates": 1, "quantities": 1},
-              {"families": ["society", "economy", "tech"], "dates": 1, "places": 1},
-              {"families": ["society", "economy", "tech"], "times": 1, "places": 1}],
- "never": [{"deaths": true}]}
+  "The viewer leaves knowing whether it touches them and when."
+ ],
+ "scenes": {
+  "points": 3,
+  "steps": 3,
+  "timeline": 2,
+  "where": 1,
+  "stat": 1,
+  "sign": 1,
+  "sources": 1,
+  "share": 1,
+  "rail": 1,
+  "checklist": 2,
+  "impact": 2,
+  "countdown": 2,
+  "route": 2
+ },
+ "count": [
+  4,
+  5
+ ],
+ "pacing": "brisk and even: one question per scene.",
+ "hooks": [
+  "blocks",
+  "stack",
+  "lead"
+ ],
+ "motifs": [
+  "grid",
+  "dots",
+  "icons"
+ ],
+ "enters": [
+  "rise",
+  "slide",
+  "scale"
+ ],
+ "transitions": [
+  "slide",
+  "dot",
+  "wipe"
+ ],
+ "current": "right",
+ "motion": {
+  "damping": 22.8,
+  "stiffness": 200,
+  "enter_frames": 9,
+  "stagger_frames": 4
+ },
+ "eligible": [
+  {
+   "families": [
+    "society",
+    "economy",
+    "tech"
+   ],
+   "dates": 1,
+   "quantities": 1
+  },
+  {
+   "families": [
+    "society",
+    "economy",
+    "tech"
+   ],
+   "dates": 1,
+   "places": 1
+  },
+  {
+   "families": [
+    "society",
+    "economy",
+    "tech"
+   ],
+   "times": 1,
+   "places": 1
+  }
+ ],
+ "never": [
+  {
+   "deaths": true
+  }
+ ]
+}

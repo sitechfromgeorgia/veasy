@@ -17,16 +17,16 @@ It never touches the facts, the colors, the fonts, the safe zone or the news rul
 themes by name (`"themes": ["light"]`: `draw` does, a drawing on paper); with a format's `theme: auto` variety then
 picks among those the pack has and allows.
 
-| id | label | film | current |
-|---|---|---|---|
-| `data` | ციფრი | a number lands, the frame rebuilds | up |
-| `map` | რუკა | the real map carries it | left |
-| `type` | სიტყვა-დარტყმა | short type on the beat (light news only) | right |
-| `draw` | ესკიზი | the object drawn, then its pictogram | right |
-| `chronicle` | ქრონიკა | dated beats in order | left |
-| `witness` | ციტატა | the people quoted, verbatim (both sides) | up |
-| `brief` | მოკლედ | what, who, when as a service card | right |
-| `single` | ერთი კადრი | one fact, few beats | up |
+| id | label | film | current | spring (damp/stiff) | frames (enter/stagger) | personality |
+|---|---|---|---|---|---|---|
+| `data` | ციფრი | a number lands, the frame rebuilds | up | 22 / 180 | 10 / 4 | authoritative, settled hold on stat |
+| `map` | რუკა | the real map carries it | left | 21 / 160 | 12 / 5 | smooth panning flight |
+| `type` | სიტყვა-დარტყმა | short type on the beat (light news only) | right | 15 / 260 | 7 / 3 | punchy, snappy pop on words |
+| `draw` | ესკიზი | the object drawn, then its pictogram | right | 20 / 140 | 12 / 6 | organic hand-drawn ease |
+| `chronicle` | ქრონიკა | dated beats in order | left | 24 / 110 | 15 / 6 | stately, linear time travel |
+| `witness` | ციტატა | the people quoted, verbatim (both sides) | up | 22 / 130 | 13 / 5 | deliberate, measured reading pace |
+| `brief` | მოკლედ | what, who, when as a service card | right | 24 / 220 | 8 / 4 | crisp service card speed |
+| `single` | ერთი კადრი | one fact, few beats | up | 25 / 120 | 14 / 6 | grounded, cinematic stillness |
 
 `python -m tt_shorts.engine options` → `directors` lists them with their eligibility and gates. `planned` names
 brushes being built (none now: `rail`, `share` and `compare` exist since the brush kit); a director may list one

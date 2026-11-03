@@ -1,0 +1,51 @@
+<!-- block comparison: side-by-side comparative metrics with central divider and summary takeaway -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .topic-chip { position: absolute; left: 64px; top: 300px; display: inline-flex; align-items: center; gap: 12px;
+      font-weight: 600; font-size: 32px; line-height: 1; padding: 12px 26px; border-radius: 999px; border: 2px solid var(--line-strong); }
+    #root .topic-chip i { width: 14px; height: 14px; border-radius: 7px; background: var(--accent); }
+    #root .cols-wrap { position: absolute; left: 64px; top: 390px; width: 876px; display: flex; justify-content: space-between; align-items: stretch; }
+    #root .col-card { width: 420px; background: var(--panel); border: 2px solid var(--line); border-radius: 14px; padding: 36px 32px; display: flex; flex-direction: column; justify-content: space-between; }
+    #root .col-card.accented { border-color: var(--line-strong); }
+    #root .col-header { font-weight: 600; font-size: 34px; line-height: 1.2; color: var(--muted); }
+    #root .col-val { font-weight: 700; font-size: 64px; line-height: 1.1; margin-top: 24px; white-space: nowrap; }
+    #root .summary-card { position: absolute; left: 64px; top: 690px; width: 876px; background: var(--panel); border: 2px solid var(--line);
+      border-radius: 14px; padding: 32px 36px; }
+    #root .sum-badge { display: inline-block; font-weight: 700; font-size: 26px; line-height: 1; padding: 8px 18px;
+      border-radius: 999px; background: var(--ink); color: var(--canvas); margin-bottom: 12px; }
+    #root .sum-text { font-weight: 600; font-size: 42px; line-height: 1.25; }
+  </style>
+  <div id="root" data-composition-id="{id}" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="{id}-chip" class="topic-chip"><i></i><span data-var-text="{slot_topic}">…</span></div>
+      <div class="cols-wrap">
+        <div id="{id}-left" class="col-card">
+          <div class="col-header"><span data-var-text="{slot_left_label}">…</span></div>
+          <div class="col-val"><span data-var-text="{slot_left_val}">…</span></div>
+        </div>
+        <div id="{id}-right" class="col-card accented">
+          <div class="col-header"><span data-var-text="{slot_right_label}">…</span></div>
+          <div class="col-val"><span data-var-text="{slot_right_val}">…</span></div>
+        </div>
+      </div>
+      <div id="{id}-sum" class="summary-card">
+        <div class="sum-badge">შედეგი</div>
+        <div class="sum-text"><span data-var-text="{slot_summary}">…</span></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+      // Topic chip enters
+      tl.fromTo("#{id}-chip", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.05);
+      // Columns rise in sequence
+      tl.fromTo("#{id}-left", { opacity: 0, y: 35 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, 0.2);
+      tl.fromTo("#{id}-right", { opacity: 0, y: 35 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, 0.35);
+      // Summary card lifts into view
+      tl.fromTo("#{id}-sum", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, 0.65);
+      window.__timelines["{id}"] = tl;
+    })();
+  </script>
+</template>

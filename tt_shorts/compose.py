@@ -44,6 +44,7 @@ import subprocess
 import time
 
 from tt_shorts import brand as packs
+from tt_shorts import blocks as blk
 from tt_shorts import formats, frame_md, icons, kaeasy, meta, probe, programs, speech, store
 
 ROOT = speech.ROOT
@@ -890,24 +891,85 @@ def default_source(story):
     return d if (d / "index.html").exists() else None
 
 
-def scaffold(story_path, brand=None, project=None, template=None, source=None, engine="silent", force=False,
+def blocks():
+    """All available composition blocks from compose/blocks/ -> {id: manifest}."""
+    return blk.list_all()
+
+
+def blocks_summary():
+    """Summary of all blocks for options and agent prompts -> {id: {label, about, slots, beats, duration}}."""
+    return blk.options()
+
+
+def assemble_blocks(story, project, block_ids, slot_bindings=None):
+    """Assemble a multi-block HyperFrames project from reusable blocks (compose/blocks/<id>/).
+    block_ids: list of block ids or comma-separated string (e.g. 'kinetic-headline,number-reveal,end-card').
+    Creates compositions/s<i>.html for each block, index.html hosting them, and beats.json."""
+    project = pathlib.Path(project).resolve()
+    story = _story(story) if not isinstance(story, dict) else story
+    if isinstance(block_ids, str):
+        block_ids = [b.strip() for b in block_ids.split(",") if b.strip()]
+    if not block_ids:
+        raise ComposeError("no blocks specified; available: " + ", ".join(sorted(blk.list_all())))
+    available = blk.list_all()
+    for bid in block_ids:
+        if bid not in available:
+            raise ComposeError(f"unknown block {bid!r}; available: {', '.join(sorted(available))}")
+
+    (project / "compositions").mkdir(parents=True, exist_ok=True)
+    scenes = [s for s in story.get("scenes", []) if s.get("type") != "end"]
+    end = next((s for s in story.get("scenes", []) if s.get("type") == "end"), None)
+    end_at = end["at"] if end else "end"
+
+    hosts, beats, slots_combined = [], [], {}
+    for i, bid in enumerate(block_ids):
+        cid = f"s{i}"
+        manifest, _ = blk.get(bid)
+        rendered = blk.render_block(bid, cid, slot_bindings or {})
+        (project / "compositions" / f"{cid}.html").write_text(rendered, encoding="utf-8")
+        scene_at = scenes[i]["at"] if i < len(scenes) else end_at
+        beats.append({"id": cid, "at": scene_at, "show": bid})
+        nxt = f"s{i + 1}" if i + 1 < len(block_ids) else "end"
+        hosts.append(f'      <div id="{cid}" data-composition-id="{cid}" data-composition-src="compositions/{cid}.html" '
+                     f'data-beat="{cid}" data-until="{nxt}" data-until-shift="0.3" data-track-index="{1 + i % 2}" '
+                     f'data-track-kind="graphics" data-width="{W}" data-height="{H}" style="z-index: {10 + i}"></div>')
+        for sname, sinfo in manifest.get("slots", {}).items():
+            slots_combined[f"slot-{cid}-{sname}"] = sinfo
+
+    first_title = (scenes[0].get("kicker") or "").split(" · ")[0] if scenes else "Scene"
+    sheet = {"about": "The beat sheet (compose.py): assembled from blocks. Anchors tied to story beats.",
+             "chapters": [{"title": first_title, "at": scenes[0]["at"] if scenes else 0.0}],
+             "end": {"at": end_at},
+             "beats": beats, "keywords": [], "icons": []}
+    (project / "beats.json").write_text(json.dumps(sheet, ensure_ascii=False, indent=1), encoding="utf-8")
+    (project / "index.html").write_text(INDEX.replace("{hosts}", "\n".join(hosts)), encoding="utf-8")
+    if slots_combined:
+        (project / "slots.json").write_text(json.dumps(slots_combined, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def scaffold(story_path, brand=None, project=None, template=None, source=None, blocks=None, engine="silent", force=False,
              music="off", tone=None, theme="default", fmt=None):
-    """A HyperFrames project for one story and pack: the agent's files from a template (templates/<id>/, or "auto":
-    the least used for the brand), from a source folder, the project's own (kept on a re-scaffold), the repo's
-    compose/<id>/, else a plain starter; then everything Veasy owns (build). -> build()'s result + "origin"."""
+    """A HyperFrames project for one story and pack: the agent's files from blocks (compose/blocks/), a template
+    (templates/<id>/, or "auto": the least used for the brand), from a source folder, the project's own (kept on a
+    re-scaffold), the repo's compose/<id>/, else a plain starter; then everything Veasy owns (build). -> build()'s
+    result + "origin"."""
     story = _story(story_path, brand)
     b = packs.of(story)
     project = pathlib.Path(project or project_dir(story, b["name"])).resolve()
     has = (project / "index.html").exists()
-    if (template or source) and has and not force:
-        raise ComposeError(f"{project} already has the agent's files: pass --force to replace them with "
-                           f"{'template ' + template if template else source}")
+    if (template or source or blocks) and has and not force:
+        which = f"blocks {blocks}" if blocks else ('template ' + template if template else source)
+        raise ComposeError(f"{project} already has the agent's files: pass --force to replace them with {which}")
     if force and project.exists():
         shutil.rmtree(project)
         has = False
     (project / "compositions").mkdir(parents=True, exist_ok=True)
     origin = "kept"
-    if template:
+    if blocks:
+        assemble_blocks(story, project, blocks)
+        b_list = [x.strip() for x in blocks.split(",")] if isinstance(blocks, str) else blocks
+        origin = f"blocks: {','.join(b_list)}"
+    elif template:
         tid = pick_template(b["name"], story["id"]) if template == "auto" else template
         if not tid:
             raise ComposeError("no templates yet (engine compose promote <project> --as <id>)")
@@ -929,9 +991,12 @@ def scaffold(story_path, brand=None, project=None, template=None, source=None, e
     except ComposeError as e:  # a template's beats have no anchors yet: the agent fills them, then scaffolds again
         return {"project": project, "origin": origin, "story": story, "brand": b, "built": False,
                 "problems": [f"build: {e}"], "todo": "fill beats.json's anchors (and slots.json for a template), "
-                                                     "then run engine compose scaffold again"}
+                                                     "then run engine compose scaffold again",
+                "blocks": blocks_summary(), "templates": sorted(templates().keys())}
     built["origin"] = origin
     built["built"] = True
+    built["blocks"] = blocks_summary()
+    built["templates"] = sorted(templates().keys())
     return built
 
 
@@ -1084,7 +1149,8 @@ CANVAS = re.compile(r"<canvas\b|getContext\s*\(|\bfillText\s*\(|\bstrokeText\s*\
 SRC = re.compile(r"\b(src|href|xlink:href|data-var-src|poster)\s*=\s*[\"']([^\"']*)[\"']", re.I)
 CSS_URL = re.compile(r"url\(\s*['\"]?([^'\")]+)['\"]?\s*\)", re.I)
 FACT_TEXT = re.compile(r"\d|[„“”]")
-LINT_RULES = ("color", "font", "link", "net", "canvas", "probe", "fact", "host", "locked", "art")  # lint()'s names
+LINT_RULES = ("color", "font", "link", "net", "canvas", "probe", "fact", "host", "locked", "art",
+              "timeline", "prefix", "template")  # lint()'s names
 
 
 def _tags(text):
@@ -1148,9 +1214,12 @@ def lint(project, b=None):
       canvas  no <canvas>, 2D/WebGL context or drawn text: text the DOM can't read can't be checked
       probe   every text inside a data-probe region (the layout probe and the checks read regions)
       fact    no typed fact: a digit or a „quote“ in a text node is a fact; bind it (data-var-text)
-      host    index.html hosts compositions/chrome.html and captions.html, no scene host at or above their z-index
-      locked  Veasy's files unchanged (sha256, .veasy/lock.json), and no agent file in their place
-      art     an SVG of the agent's (assets/art/) holds no text and no typed color"""
+      host      index.html hosts compositions/chrome.html and captions.html, no scene host at or above their z-index
+      locked    Veasy's files unchanged (sha256, .veasy/lock.json), and no agent file in their place
+      art       an SVG of the agent's (assets/art/) holds no text and no typed color
+      timeline  sub-compositions must register their GSAP timeline on window.__timelines["<id>"]
+      prefix    all element IDs in a sub-composition must be prefixed with the composition id or 'root'
+      template  sub-compositions must be wrapped in <template> and declare data-composition-id"""
     project = pathlib.Path(project).resolve()
     out = []
     brand_words = []
@@ -1235,6 +1304,24 @@ def lint(project, b=None):
                         bad("link", f, f"„{w}“: the pack's link and name are the chrome's")
         if f.startswith("assets/art/") and f.endswith(".svg") and re.search(r"<text\b", text, re.I):
             bad("art", f, "text in an image: put words in the scene's DOM, inside a data-probe region")
+        is_subcomp = f.startswith("compositions/") and f.endswith(".html") and f not in LOCKED
+        if is_subcomp:
+            has_template = bool(re.search(r"<template\b", text, re.I) and re.search(r"</template\s*>", text, re.I))
+            if not has_template:
+                bad("template", f, "sub-composition must be wrapped in <template>...</template>")
+            cid_m = re.search(r'data-composition-id\s*=\s*[\"\']([\w-]+)[\"\']', text)
+            if not cid_m:
+                bad("template", f, "sub-composition root element must declare data-composition-id=\"<id>\"")
+            cid = cid_m.group(1) if cid_m else None
+            if re.search(r"<script\b", text, re.I):
+                tl_m = re.search(r"window\.__timelines\s*\[\s*[\"']([\w-]+)[\"']\s*\]\s*=", text)
+                if not tl_m:
+                    bad("timeline", f, f"sub-composition script must register its timeline on window.__timelines[\"{cid or 'id'}\"]")
+            if cid:
+                for mid in re.finditer(r'\bid\s*=\s*[\"\']([^\"\']+)[\"\']', text):
+                    el_id = mid.group(1)
+                    if el_id != "root" and el_id != cid and not el_id.startswith(f"{cid}-") and not el_id.startswith(f"{cid}_"):
+                        bad("prefix", f, f"element id {el_id!r} must be prefixed with '{cid}-' (or equal 'root') to prevent collisions")
         if is_index:
             for need in LOCKED:
                 if not re.search(rf"data-composition-src\s*=\s*[\"']{re.escape(need)}[\"']", text):

@@ -1,0 +1,20 @@
+{
+  "slug": "dataviz",
+  "name_en": "Data Storytelling",
+  "name_ka": "მონაცემთა თხრობა",
+  "category": "infographic",
+  "engine": "both",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["news", "explainer", "blog"],
+  "never_families": [],
+  "picks": {
+    "directors": ["data", "brief"],
+    "looks": ["editorial", "cards"],
+    "motifs": ["grid", "rules"],
+    "transitions": ["meter", "slide", "line"],
+    "music": ["economy", "tech", "society"],
+    "sfx": ["blip", "tick", "click"]
+  },
+  "uses": "Data visualization that tells an analytical story: charts drawn point by point with animated leader lines and callout badges."
+}

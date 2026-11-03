@@ -65,3 +65,12 @@ in every look with one fixed style, probes them, and compares each scene's still
 which scenes changed and where the stills are: look at them. A change you meant: `selftest --update` and commit the
 goldens with it. One you didn't: fix it. Any probe problem fails the selftest too. About half a minute; it is not
 part of the unit tests.
+
+
+## Pre-flight Visual Critique & Dry Run (before rendering)
+
+Before rendering or paying for a voice, run:
+1. `python -m tt_shorts.engine dry-run <story.json>` (tool `veasy_dry_run`):
+   Free calculation ($0.00) of character counts, spoken seconds, estimated TTS cost, monthly budget status, and whether the voice/bundle is cached.
+2. `python -m tt_shorts.engine critique <story.json>` (tool `veasy_critique`):
+   Runs an automated pre-flight visual checklist over the plan's stills: safe zones, text reading load, static stretches, novelty, hook pacing, and brand contrast. Returns score (0-100), grade (PASS / NEEDS_ATTENTION / FAIL), and contact sheet path (`.plan.jpg`).

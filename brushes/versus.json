@@ -1,0 +1,52 @@
+{
+ "type": "versus",
+ "order": 170,
+ "what": "two sides in direct comparison or face-off: left vs right with metrics or claims",
+ "use_when": "the story contrasts two entities, candidates, proposals or metrics from the articles",
+ "avoid_when": "proportional squares of one unit (compare); more than two sides (bars, ranking); long descriptive text (pair)",
+ "pairs_with": ["stat", "change", "bars", "quote"],
+ "slots": {
+  "items": {
+   "kind": "list",
+   "count": [2, 2],
+   "of": {
+    "title": {"kind": "text", "max": 24, "required": true},
+    "value": {"kind": "text", "max": 16},
+    "note": {"kind": "text", "max": 32}
+   },
+   "required": true
+  },
+  "between": {"kind": "text", "max": 16},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 3.2,
+ "min_words": 7,
+ "em": {"fields": ["items.title", "headline"], "kinds": ["underline", "box"]},
+ "schema": {
+  "type": "versus",
+  "at": "...",
+  "kicker": "...",
+  "items": [
+   {"title": "კანდიდატი ა", "value": "48%", "note": "პირველი ტური"},
+   {"title": "კანდიდატი ბ", "value": "45%", "note": "პირველი ტური"}
+  ],
+  "between": "VS"
+ },
+ "rules": [
+  "\"versus\": two entities in direct comparison; items has 2 elements, each with title and optional value and note from the articles;"
+ ],
+ "example": {
+  "type": "versus",
+  "at": "ორი კანდიდატის შედეგი",
+  "kicker": "არჩევნები 2026",
+  "headline": "დებატების შემდეგ",
+  "items": [
+   {"title": "პირველი კანდიდატი", "value": "48%", "note": "პირველი ტური"},
+   {"title": "მეორე კანდიდატი", "value": "45%", "note": "პირველი ტური"}
+  ],
+  "between": "VS",
+  "em": "პირველი კანდიდატი"
+ }
+}

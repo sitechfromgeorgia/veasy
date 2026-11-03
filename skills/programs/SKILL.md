@@ -23,6 +23,13 @@ python -m tt_shorts.engine options          # "programs" and "sources": what eac
 | `digest` | the morning digest: 2-3 checked stories, built by code (`veasy:rubrics`) | stories | news | digest | auto |
 | `story` | fiction: a fable, an animated tale, a cartoon, composed for HyperFrames (`veasy:compose`) | text | story | story | auto + review always |
 
+### Agent Prompt Routing Quick-Reference
+- **"an animated explainer about X" / "explain this PDF"**: Program `explainer`, format `explainer`, director `editorial`, engine `remotion`.
+- **"a 30 s story for kids" / "an animated tale / cartoon"**: Program `story`, format `story`, director `cards`/`kinetic`, engine `hyperframes` (fictional characters, rule S1).
+- **"a data video" / "stats animation" / "numbers report"**: Program `explainer` or `news`, format `explainer`, director `kinetic` with scenes `count`, `points`, `bars`.
+- **"explain article 17 of the Constitution"**: Program `law`, source `ordo`, format `explainer`, director `editorial`.
+- **"turn this sitech.ge post to video"**: Program `blog`, source `sitech`, brand `sitech`.
+
 - **story**: no articles, so nothing is compared with a document; the Georgian rules, the brand and the probe still
   run, and **S1**: no real person named as doing something. Every name must be one of the story's own
   `"characters"` (a list in the story); code flags a Latin-script name, a Georgian surname (-შვილი, -ძე), a `who`

@@ -1,0 +1,55 @@
+{
+ "type": "ranking",
+ "order": 160,
+ "what": "3-5 ranked items in order (rank 1, 2, 3...) with labels and optional values",
+ "use_when": "the story gives an ordered list or index from an article: top countries, cities, scores or positions",
+ "avoid_when": "only 2 items (versus, pair); items without rank or order (points); percentages of a whole (budget, share)",
+ "pairs_with": ["stat", "bars", "points", "sources"],
+ "slots": {
+  "items": {
+   "kind": "list",
+   "count": [3, 5],
+   "of": {
+    "label": {"kind": "text", "max": 28, "required": true},
+    "rank": {"kind": "num", "min": 1, "max": 99},
+    "value": {"kind": "num"}
+   },
+   "required": true
+  },
+  "unit": {"kind": "text", "max": 16},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": ["crime"],
+ "min_seconds": 3.5,
+ "min_words": 8,
+ "em": {"fields": ["items.label", "headline"], "kinds": ["underline", "box", "highlight"]},
+ "schema": {
+  "type": "ranking",
+  "at": "...",
+  "kicker": "...",
+  "headline": "...",
+  "items": [
+   {"rank": 1, "label": "დანია", "value": 89},
+   {"rank": 2, "label": "ფინეთი", "value": 87},
+   {"rank": 3, "label": "საქართველო", "value": 82}
+  ],
+  "unit": "ქულა"
+ },
+ "rules": [
+  "\"ranking\": 3-5 ranked items in order (rank 1, 2, 3...); every number and rank from the articles;"
+ ],
+ "example": {
+  "type": "ranking",
+  "at": "საქართველო რეიტინგში",
+  "kicker": "გლობალური ინდექსი",
+  "headline": "საუკეთესო ხუთეული",
+  "items": [
+   {"rank": 1, "label": "დანია", "value": 89},
+   {"rank": 2, "label": "ფინეთი", "value": 87},
+   {"rank": 3, "label": "საქართველო", "value": 82}
+  ],
+  "unit": "ქულა",
+  "em": "საქართველო"
+ }
+}

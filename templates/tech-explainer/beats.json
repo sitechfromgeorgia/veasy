@@ -1,0 +1,58 @@
+{
+ "about": "The beat sheet: explainer assembled from blocks",
+ "chapters": [
+  {
+   "title": "",
+   "at": null,
+   "example": "უსაფრთხოება"
+  }
+ ],
+ "end": {
+  "at": null
+ },
+ "beats": [
+  {
+   "id": "s0",
+   "show": "kinetic-headline",
+   "at": null
+  },
+  {
+   "id": "s0-sub",
+   "show": "kinetic-headline",
+   "at": null
+  },
+  {
+   "id": "s1",
+   "show": "number-reveal",
+   "at": null
+  },
+  {
+   "id": "s1-detail",
+   "show": "number-reveal",
+   "at": null
+  },
+  {
+   "id": "s2",
+   "show": "process",
+   "at": null
+  },
+  {
+   "id": "s2-step2",
+   "show": "process",
+   "at": null
+  },
+  {
+   "id": "s2-step3",
+   "show": "process",
+   "at": null
+  },
+  {
+   "id": "s3",
+   "show": "end-card",
+   "at": null
+  }
+ ],
+ "keywords": [],
+ "icons": [],
+ "story": null
+}

@@ -1,0 +1,20 @@
+{
+  "slug": "satellite-briefing",
+  "name_en": "Satellite Briefing",
+  "name_ka": "სატელიტური ბრიფინგი",
+  "category": "analyst",
+  "engine": "hyperframes",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["news", "explainer", "law"],
+  "never_families": [],
+  "picks": {
+    "directors": ["map", "witness", "brief"],
+    "looks": ["editorial", "kinetic"],
+    "motifs": ["grid", "plain"],
+    "transitions": ["wipe", "cut"],
+    "music": ["world", "politics", "tech"],
+    "sfx": ["click", "whoosh"]
+  },
+  "uses": "Intelligence-style satellite briefing: aerial ground graded to analyst charcoal with thin measurement hairlines, reticles, and geographic telemetry."
+}

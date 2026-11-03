@@ -40,17 +40,17 @@ class Picks(unittest.TestCase):
         self.assertEqual({p["music"] for p in picks}, {"politics-1.m4a", "politics-2.m4a", "politics-3.m4a"})
 
     def test_the_meter_wipe_is_one_more_cut(self):  # phase 3: added to the looks it fits, never instead of one
-        self.assertEqual(variety.TRANSITIONS["editorial"], ("line", "wipe", "dot", "slide", "meter"))
-        self.assertEqual(variety.TRANSITIONS["kinetic"], ("panel", "push", "wipe", "cut", "meter"))
-        for look in ("editorial", "kinetic"):
-            picks = self.run_day(10, look)
+        self.assertEqual(variety.TRANSITIONS["editorial"], ("line", "wipe", "dot", "slide", "meter", "fade", "shutter", "iris"))
+        self.assertEqual(variety.TRANSITIONS["kinetic"], ("panel", "push", "wipe", "cut", "meter", "split", "corner", "shutter", "blind"))
+        for look, n in (("editorial", 16), ("kinetic", 18)):
+            picks = self.run_day(n, look)
             counts = [sum(p["transition"] == t for p in picks) for t in variety.TRANSITIONS[look]]
-            self.assertEqual(counts, [2] * 5, look)  # every cut, evenly
+            self.assertEqual(counts, [2] * len(variety.TRANSITIONS[look]), look)  # every cut, evenly
             variety_db = pathlib.Path(self.home.name) / "veasy.db"
             variety_db.unlink()
 
     def test_the_icon_motif_needs_an_icon(self):  # a story without one moves through the other motifs, evenly
-        picks = self.run_day(15, icon=False)
+        picks = self.run_day(18, icon=False)
         motifs = [p["motif"] for p in picks]
         self.assertNotIn("icons", motifs)
         others = variety.options_for("motif")
@@ -126,7 +126,7 @@ class Picks(unittest.TestCase):
     def test_report_measures_sameness(self):
         self.run_day(8)
         r = variety.report("tbilisi-today")
-        self.assertEqual(r["hook"]["distinct"], 4)
+        self.assertEqual(r["hook"]["distinct"], 8)
         self.assertEqual(r["scenes"]["most_used_share"], 1.0)  # every test video had the same scene order
 
 
@@ -354,6 +354,32 @@ class DrawingQuality(unittest.TestCase):
             self.assertIn('"svg"', writer._prompt({"headline": "x"}, ["ა 1"]))
         with mock.patch.dict(os.environ, {writer.DRAW_ENV: "0"}):
             self.assertFalse(writer.drawing())
+
+    def test_variety_rotates_styles_least_used_first(self):
+        home = tempfile.TemporaryDirectory()
+        with mock.patch.dict(os.environ, {"VEASY_HOME": home.name}):
+            picked = []
+            for i in range(10):
+                s = variety.pick_style("tbilisi-today", 5000 + i, program="news")
+                variety.record("tbilisi-today", 5000 + i, "editorial", {"style": s}, ["hook", "end"])
+                picked.append(s)
+            # Distinct styles are rotated
+            self.assertGreater(len(set(picked)), 1)
+            # Re-render keeps its style
+            self.assertEqual(variety.pick_style("tbilisi-today", 5000, program="news"), picked[0])
+        home.cleanup()
+
+    def test_novelty_guard_sees_style(self):
+        fp1 = variety.fingerprint({"style": "swiss-motion", "hook": "stack", "motif": "grid", "enter": "rise",
+                                   "transition": "line", "music": None}, ["hook", "end"])
+        fp2 = variety.fingerprint({"style": "swiss-motion", "hook": "stack", "motif": "grid", "enter": "rise",
+                                   "transition": "line", "music": None}, ["hook", "end"])
+        fp3 = variety.fingerprint({"style": "dataviz", "hook": "stack", "motif": "grid", "enter": "rise",
+                                   "transition": "line", "music": None}, ["hook", "end"])
+        # Same style shares +1 similarity compared to different style
+        sim_same = variety.similarity(fp1, fp2)
+        sim_diff = variety.similarity(fp1, fp3)
+        self.assertEqual(round(sim_same - sim_diff, 1), 1.0)
 
 
 if __name__ == "__main__":

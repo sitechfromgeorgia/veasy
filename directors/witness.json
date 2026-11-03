@@ -1,6 +1,9 @@
-{"id": "witness", "label": "ციტატა",
+{
+ "id": "witness",
+ "label": "ციტატა",
  "about": "The Witness: the people who speak carry the story, in their own verbatim words.",
- "device": "a moment in someone's day", "form": "split screen to one",
+ "device": "a moment in someone's day",
+ "form": "split screen to one",
  "brief": [
   "The film is told by the people quoted in the articles, in their exact words.",
   "First 2 s: the hook says who speaks and about what.",
@@ -8,12 +11,56 @@
   "When the articles quote more than one side, show both, one quote scene each.",
   "Between quotes, one scene of context (who they are, or the two sides as a pair).",
   "Never paraphrase inside quote marks; never a quote without a speaker.",
-  "The viewer leaves knowing who said what."],
- "scenes": {"quote": 4, "who": 2, "pair": 1, "points": 1, "sources": 1, "marker": 1},
- "count": [4, 5], "pacing": "each quote held long enough to read (0.5 s + 0.3 s per word).",
- "hooks": ["lead", "stack"], "motifs": ["plain", "rules"], "enters": ["rise", "reveal"],
- "transitions": ["line", "wipe", "cut"], "current": "up",
- "motion": {"damping": 19.6, "stiffness": 120, "enter_frames": 12, "stagger_frames": 6},
- "eligible": [{"quotes": 1, "speakers": 1}],
+  "The viewer leaves knowing who said what."
+ ],
+ "scenes": {
+  "quote": 4,
+  "who": 2,
+  "pair": 1,
+  "points": 1,
+  "sources": 1,
+  "marker": 1,
+  "versus": 2,
+  "glossary": 2,
+  "impact": 2
+ },
+ "count": [
+  4,
+  5
+ ],
+ "pacing": "each quote held long enough to read (0.5 s + 0.3 s per word).",
+ "hooks": [
+  "lead",
+  "stack"
+ ],
+ "motifs": [
+  "plain",
+  "rules"
+ ],
+ "enters": [
+  "rise",
+  "reveal"
+ ],
+ "transitions": [
+  "line",
+  "wipe",
+  "cut"
+ ],
+ "current": "up",
+ "motion": {
+  "damping": 19.6,
+  "stiffness": 120,
+  "enter_frames": 12,
+  "stagger_frames": 6
+ },
+ "eligible": [
+  {
+   "quotes": 1,
+   "speakers": 1
+  }
+ ],
  "never": [],
- "gates": ["two_sides"]}
+ "gates": [
+  "two_sides"
+ ]
+}

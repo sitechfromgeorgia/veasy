@@ -1,0 +1,38 @@
+{
+ "type": "glossary",
+ "order": 200,
+ "what": "explanation of a key term, legal concept or technical word",
+ "use_when": "the story introduces or relies on a specialized term that viewers need defined: legal, economic or technical",
+ "avoid_when": "opinions, general commentary, or self-explanatory common words",
+ "pairs_with": ["points", "quote", "impact", "checklist"],
+ "slots": {
+  "term": {"kind": "text", "max": 24, "required": true},
+  "definition": {"kind": "text", "max": 80, "required": true},
+  "context": {"kind": "text", "max": 32},
+  "kicker": {"kind": "text", "max": 24}
+ },
+ "families_deny": [],
+ "min_seconds": 3.4,
+ "min_words": 8,
+ "em": {"fields": ["term", "definition"], "kinds": ["underline", "box", "highlight"]},
+ "schema": {
+  "type": "glossary",
+  "at": "...",
+  "kicker": "...",
+  "term": "ექსტრადიცია",
+  "context": "საერთაშორისო სამართალი",
+  "definition": "პირის გადაცემა ერთი სახელმწიფოს მიერ მეორისთვის პასუხისმგებლობის დასაკისრებლად."
+ },
+ "rules": [
+  "\"glossary\": define one factual or legal term; the definition must be concise and neutral, from the document;"
+ ],
+ "example": {
+  "type": "glossary",
+  "at": "ექსტრადიციის სამართლებრივი არსი",
+  "kicker": "განმარტება",
+  "term": "ექსტრადიცია",
+  "context": "საერთაშორისო სამართალი",
+  "definition": "პირის გადაცემა ერთი სახელმწიფოს მიერ მეორისთვის პასუხისმგებლობის დასაკისრებლად.",
+  "em": "ექსტრადიცია"
+ }
+}

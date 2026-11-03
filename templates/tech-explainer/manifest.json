@@ -1,0 +1,50 @@
+{
+ "id": "tech-explainer",
+ "label": "ტექნოლოგიური ექსპლეინერი",
+ "about": "Structured tech explainer with kinetic hook, big stat callout, step-by-step process timeline, and CTA card",
+ "engine": "hyperframes",
+ "chrome": 2,
+ "from": {
+  "story": "claude-and-grok-among-ai-agents-used-to-automate-attacks-on-lati",
+  "brand": "sitech",
+  "program": "news"
+ },
+ "chapters": 1,
+ "beats": [
+  {
+   "id": "s0",
+   "show": "kinetic-headline"
+  },
+  {
+   "id": "s0-sub",
+   "show": "kinetic-headline"
+  },
+  {
+   "id": "s1",
+   "show": "number-reveal"
+  },
+  {
+   "id": "s1-detail",
+   "show": "number-reveal"
+  },
+  {
+   "id": "s2",
+   "show": "process"
+  },
+  {
+   "id": "s2-step2",
+   "show": "process"
+  },
+  {
+   "id": "s2-step3",
+   "show": "process"
+  },
+  {
+   "id": "s3",
+   "show": "end-card"
+  }
+ ],
+ "icons": [],
+ "slots": {},
+ "use": "engine compose scaffold <story> --template tech-explainer: fill slots.json (a fact slot: \"=<fact id>\" from facts.json; a words slot: the words) and beats.json's anchors"
+}

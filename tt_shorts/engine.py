@@ -52,7 +52,7 @@ import sys
 
 from tt_shorts import brand as packs
 from tt_shorts import (assets, captions, catalog, chapters, directors, formats, geo, icons, ka_check, kaeasy,
-                       meta, motion_rules, news_check, programs, props, rubrics, sfx, speech, store, swipe,
+                       meta, motion_rules, news_check, programs, props, rubrics, sfx, speech, store, styles, swipe,
                        variety, voices)
 
 ROOT = speech.ROOT
@@ -77,14 +77,12 @@ def note(msg):
 # ---------------------------------------------------------------- options
 
 
-def options(brand_name=None):
+def options(brand_name=None, section=None):
     from tt_shorts import package
     every = formats.load_all()
     b = packs.load(brand_name)
     presets = voices.all_presets(b)
-    return {
-        "brand": b["name"],
-        "brands": {n: packs.summary(packs.load(n)) for n in packs.names()},
+    advanced = {
         "looks": {"auto": "by the story's category", **{v: d for v, d in (
             ("editorial", "calm, grid, rising type: hard news"),
             ("kinetic", "giant type, hard cuts, inverted blocks: light news"),
@@ -103,7 +101,13 @@ def options(brand_name=None):
                         "panel": "an ink panel wipes through", "wipe": "the new scene is revealed left to right",
                         "slide": "a short slide and fade", "push": "the old scene leaves left, the new one comes from the right",
                         "dot": "an iris opens from the header's progress dot",
-                        "meter": "equaliser bars in ink rise over the old scene and fall away from the new one"},
+                        "meter": "equaliser bars in ink rise over the old scene and fall away from the new one",
+                        "fade": "a clean opacity fade between scenes, dipping through canvas",
+                        "shutter": "horizontal ink shutter slats sweep across along the current",
+                        "split": "an ink split wipe reveals the new scene outward from the center",
+                        "corner": "a diagonal geometric wipe sweeps across from the corner",
+                        "iris": "a circular ink iris opens from the center of the scene band",
+                        "blind": "vertical ink louver blinds rotate and wipe across the scene"},
         "outros": dict(swipe.ABOUT),
         "themes": {"about": "a pack's palettes (brand.json themes; brands.<pack>.themes lists them): a format's or "
                             "--theme's default (the pack's default theme: nothing changes), auto (variety: the least "
@@ -137,6 +141,7 @@ def options(brand_name=None):
         "rubrics": rubrics.options(),
         "programs": {n: programs.summary(p) for n, p in programs.load_all().items()},
         "sources": _sources_about(),
+        "compose_blocks": _film_engines(b)["compose"]["blocks"],
         "scenes": catalog.options(),  # every brush's card (brushes/<type>.json): slots, limits, when, an example
         "em": {"about": "a scene whose brush has em fields may carry \"em\": a phrase of its on-screen text that its "
                         "part of the narration says; it is marked on screen as the voice says it (marks.py)",
@@ -161,6 +166,10 @@ def options(brand_name=None):
         "self_checks": {"plan": "engine plan <story> [--look]: a free storyboard before the voice is paid for: scene "
                                 "times, words and reading load, the variety picks (not recorded), the motion rules, "
                                 "the probe and a half-size contact sheet",
+                        "critique": "engine critique <story>: pre-flight visual critique checklist on plan stills "
+                                    "(safe zones, contrast, text load, pacing, motion)",
+                        "dry_run": "engine dry-run <story>: calculate TTS chars, dollar cost, duration and cache "
+                                   "status before rendering ($0.00)",
                         "probe": "engine probe <story> [--look all]: every text's real box per scene; part of every "
                                  "render (a problem holds the job)",
                         "selftest": "engine selftest [--update]: golden stills of the fixture stories in every look; "
@@ -168,11 +177,53 @@ def options(brand_name=None):
                         "learn": "engine learn [--brand]: the rules failing most lately; the writer reads them"},
         "motion_rules": {"about": "checks over a video's timeline (tt_shorts/motion_rules.py): warnings in plan; "
                                   f"only {', '.join(motion_rules.HOLDS)} holds a render", **motion_rules.RULES},
+        "styles": {"about": "named film styles as data (styles/<slug>): selects engine, palette mode, layout invariants, "
+                            "directing constraints, and motion pacing (tt_shorts/styles.py)",
+                   "known": {s["slug"]: styles.summary(s) for s in styles.load_all()}},
         "icons": icons.options(),
         "categories": {c: {"label": meta.category_label(c, b), "family": meta.family(c, b),
                            "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
                        for c in b["categories"]},
     }
+    brands_data = {n: {**packs.summary(packs.load(n)), "still": f"assets/stills/brand-{n}.jpg"} for n in packs.names()}
+    styles_data = {
+        "about": "named film styles as data (styles/<slug>): selects engine, palette mode, layout invariants, "
+                 "directing constraints, and motion pacing (tt_shorts/styles.py)",
+        "known": {s["slug"]: {**styles.summary(s), "still": f"assets/stills/style-{s['slug']}.jpg"} for s in styles.load_all()},
+    }
+    full = {
+        "brand": b["name"],
+        "brands": brands_data,
+        "styles": styles_data,
+        "advanced": advanced,
+        **advanced,
+    }
+    if section is None:
+        return full
+    if section == "summary":
+        return {
+            "brand": b["name"],
+            "section": "summary",
+            "brands": list(packs.names()),
+            "styles": list(styles.names()),
+            "formats": {n: f.get("about", "") for n, f in every.items()},
+            "looks": full["looks"],
+            "captions": list(full["captions"].keys()),
+            "voices": [name for name, p in presets.items() if name in voices.APPROVED or name in (b.get("voices") or {})],
+            "film_engines": list(full["film_engines"]["engines"].keys()),
+            "programs": list(programs.load_all().keys()),
+            "directors": list(directors.options().keys()),
+            "rubrics": list(rubrics.options().keys()),
+            "sections": sorted(list(full.keys()) + ["summary"]),
+            "hint": "Pass section='<name>' or --section <name> to inspect any section in detail.",
+        }
+    if section in full:
+        return {
+            "brand": b["name"],
+            "section": section,
+            section: full[section],
+        }
+    raise ValueError(f"unknown section {section!r}; known: summary, {', '.join(sorted(full.keys()))}")
 
 
 def _film_engines(b):
@@ -194,7 +245,7 @@ def _film_engines(b):
                        "values": ["always", "until:<n>"], "default": formats.DEFAULT_REVIEW},
             "compose": {"render": compose.RENDER, "chrome": compose.CHROME_VERSION, "locked": list(compose.LOCKED),
                         "lint": list(compose.LINT_RULES),
-                        "refused": list(compose.REFUSED), "templates": sorted(compose.templates())}}
+                        "refused": list(compose.REFUSED), "templates": sorted(compose.templates()), "blocks": compose.blocks_summary()}}
 
 
 def _sources_about():
@@ -295,6 +346,50 @@ def shape_problems(s):
         out += geo.area_problems(s["area"])
     if t in ("sign", "stat"):
         out += icons.scene_problems(s)
+    if t == "ranking":
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not it["label"].strip():
+                out.append(f"items[{k}]: needs {{label}}")
+            elif "value" in it and not _number(it["value"]):
+                out.append(f"items[{k}]: value must be a number")
+            elif "rank" in it and (not isinstance(it["rank"], int) or it["rank"] < 1):
+                out.append(f"items[{k}]: rank must be a positive integer")
+    if t == "versus":
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("title"), str) or not it["title"].strip():
+                out.append(f"items[{k}]: needs {{title}}")
+    if t == "countdown":
+        if not _number(s.get("value")) or s["value"] <= 0:
+            out.append("value: countdown needs a positive number")
+    if t == "calendar":
+        day = s.get("day")
+        if not isinstance(day, int) or not (1 <= day <= 31):
+            out.append("day: calendar day must be 1-31")
+    if t == "glossary":
+        if not isinstance(s.get("term"), str) or not s["term"].strip():
+            out.append("term: glossary needs a non-empty term")
+        if not isinstance(s.get("definition"), str) or not s["definition"].strip():
+            out.append("definition: glossary needs a non-empty definition")
+    if t == "checklist":
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("text"), str) or not it["text"].strip():
+                out.append(f"items[{k}]: checklist item needs {{text}}")
+    if t == "impact":
+        for field in ("target", "change", "when"):
+            if not isinstance(s.get(field), str) or not s[field].strip():
+                out.append(f"{field}: impact card needs non-empty {field}")
+    if t == "route":
+        stops = s.get("stops")
+        if not isinstance(stops, list) or len(stops) < 2 or any(not isinstance(p, str) or not p.strip() for p in stops):
+            out.append("stops: route needs at least 2 non-empty places")
+    if t == "budget":
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not _number(it.get("value")):
+                out.append(f"items[{k}]: budget item needs {{label, value}}")
+            elif it["value"] <= 0:
+                out.append(f"items[{k}]: budget value must be above zero")
+            elif "share" in it and (not _number(it["share"]) or not (0 < it["share"] <= 100)):
+                out.append(f"items[{k}]: share must be a percent 1-100")
     return out
 
 
@@ -368,6 +463,12 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
         return {"problems": missing}
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     did = director or story.get("director")
+    req_style = getattr(fmt, "get", lambda k: None)("style") or story.get("style")
+    if req_style:
+        chosen_style = styles.resolve_for_story(story, req_style)
+    else:
+        style_slug = variety.pick_style(brand_of(story), story["id"], story.get("program") or "news", story.get("family"))
+        chosen_style = styles.get(style_slug)
     theme = props.theme_for(story, fmt.get("theme"), directors.get(did) if did else None)
     held = packs.theme_problems(packs.of(story, theme))  # allowed: false (brand.json): not before the owner's yes
     if held:
@@ -383,10 +484,10 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
         brand_of(story), story["id"], fmt["name"], p["variant"], fmt["captions"])
     props.render_video(work, p, target)
     variety.record(brand_of(story), story["id"], p["variant"], {**p["style"], "transition": p["transition"],
-                                                                "music": p["music"], "theme": p.get("theme")},
+                                                                "music": p["music"], "theme": p.get("theme"), "style": chosen_style["slug"]},
                    [x["type"] for x in p["scenes"]], p.get("novelty"))
     result = {"file": str(target.resolve()), "seconds": round(secs, 1), "format": fmt["name"], "look": p["variant"],
-              "style": p["style"], "transition": p["transition"], "outro": p["outro"], "theme": p.get("theme"),
+              "style": p["style"], "style_slug": chosen_style["slug"], "transition": p["transition"], "outro": p["outro"], "theme": p.get("theme"),
               "mode": (p.get("brand") or {}).get("mode"), "captions": fmt["captions"], "voice": fmt["voice"], "engine": engine, "music": p["music"],
               "brand": brand_of(story), "story": str(pathlib.Path(story_path).resolve()),
               "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version(),
@@ -426,7 +527,7 @@ def _probe_render(work, p):
 def probe_cmd(a):
     from tt_shorts import probe
     fmt = formats.get(a.format, captions=a.captions, transition=a.transition, voice=a.voice, platform=a.platform,
-                      theme=a.theme, beats=a.beats, chapters=a.chapters)
+                      theme=a.theme, beats=a.beats, chapters=a.chapters, style=getattr(a, "style", None))
     result = probe.story(a.story, fmt, a.look, a.engine, a.stills)
     return out(result, 1 if result["problems"] else 0)
 
@@ -479,7 +580,7 @@ def _format(a):
     return formats.get(name, look=a.look, captions=a.captions, transition=a.transition, outro=a.outro, voice=a.voice,
                        music=a.music, platform=a.platform, sfx=getattr(a, "sfx", None),
                        theme=getattr(a, "theme", None), beats=getattr(a, "beats", None),
-                       chapters=getattr(a, "chapters", None))
+                       chapters=getattr(a, "chapters", None), style=getattr(a, "style", None))
 
 
 def program_format(story_path):
@@ -526,8 +627,10 @@ def render(a):
 
 
 def compose_cmd(a):
-    """engine compose scaffold | check | render | promote | templates (compose.py)."""
+    """engine compose scaffold | check | render | promote | templates | blocks (compose.py)."""
     from tt_shorts import compose
+    if a.action == "blocks":
+        return out({"blocks": compose.blocks()})
     if a.action == "templates":
         return out({"templates": compose.templates()})
     if a.action == "promote":
@@ -546,13 +649,14 @@ def compose_cmd(a):
     fmt = formats.get(a.format or program_format(a.target), captions=a.captions, voice=a.voice, music=a.music,
                       platform=a.platform, theme=a.theme)  # its captions, theme and render keys, as at render
     if a.action == "scaffold":
-        r = compose.scaffold(a.target, a.brand, a.project, a.template, a.source_dir, a.engine, a.force,
+        r = compose.scaffold(a.target, a.brand, a.project, a.template, a.source_dir, blocks=getattr(a, "blocks", None), engine=a.engine, force=a.force,
                              theme=fmt["theme"], fmt=fmt)
         t = r.get("timing") or {}
         res = {"project": str(r["project"]), "origin": r["origin"], "built": r["built"], "problems": r["problems"],
                "duration": t.get("duration"), "chapters": t.get("chapters"), "gaps": t.get("gaps"),
                "beats": [(x["id"], x["t"]) for x in t.get("beats", [])], "facts": len(r.get("facts") or {}),
                "yours": compose.agent_files(r["project"]),
+               "blocks": r.get("blocks"), "templates": r.get("templates"),
                "next": r.get("todo") or "edit the scenes (frame.md, facts.json, timing.json), then engine compose "
                                          "check <story>"}
         return out(res, 1 if r["problems"] else 0)
@@ -663,7 +767,7 @@ def package_cmd(a):
 # ---------------------------------------------------------------- write / voices / doctor
 
 
-def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, director=None, rubric=None):
+def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, director=None, rubric=None, style=None):
     """A source reference -> a written, checked story file (+ its sources beside it). Used by `write` and the queue.
     program: news (default: the news-cluster writer, as before programs) or another program (programs.py), which
     writes from its brief, under its scenes and rule tier. Every failed writer pass is remembered (failures.py).
@@ -730,6 +834,8 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
     story["source"] = {"name": source, "ref": str(ref)}
     if did:
         story["director"] = did  # code-owned: chosen before writing, kept on every re-render
+    if style:
+        story["style"] = styles.resolve_for_story(story, style)["slug"]
     programs.stamp(story, prog, data["cluster"])  # program, category, the document's facts and link: data
     name = programs.story_ref(prog, data["cluster"], ref)
     if r:  # the rubric and its episode: code's, reserved before the voice (idempotent per story)
@@ -764,7 +870,7 @@ def write(a):
     ref = a.ref if a.ref is not None else a.cluster
     if ref is None:
         return out({"problems": ["give --ref (or --cluster for tbilisi-today)"]}, 2)
-    result = write_story(a.source, ref, a.brand, a.out, a.program, a.director, a.rubric)
+    result = write_story(a.source, ref, a.brand, a.out, a.program, a.director, a.rubric, style=getattr(a, "style", None))
     return out(result, 1 if result["problems"] else 0)
 
 
@@ -818,7 +924,7 @@ def queue_cmd(a):
     from tt_shorts import queue
     if a.action == "add":
         overrides = {k: getattr(a, k) for k in ("look", "captions", "transition", "outro", "voice", "music", "platform",
-                                                 "beats", "chapters", "director", "rubric", "part", "theme", "renderer") if getattr(a, k)}
+                                                 "beats", "chapters", "director", "rubric", "part", "theme", "renderer", "style") if getattr(a, k)}
         job, created = queue.add(a.brand, a.source if not a.story else None, a.ref, a.format, overrides, a.story,
                                  a.priority, program=a.program)
         return out({"job": job, "created": created})
@@ -837,6 +943,45 @@ def gc_cmd(a):
     removed = store.gc(dry_run=a.dry_run)
     return out({"dry_run": a.dry_run, "removed": {k: len(v) for k, v in removed.items()}, "home": str(store.home())})
 
+
+
+def contact_sheet_cmd(a):
+    from tt_shorts import contact_sheet
+    res = contact_sheet.generate_contact_sheet_html(out_path=a.out, brand_filter=a.brand, theme_filter=a.theme)
+    return out(res, 0)
+
+
+def make_cmd(a):
+    from tt_shorts import make
+    res = make.make_film(
+        request=a.request,
+        brand=getattr(a, "brand", None),
+        style=getattr(a, "style", None),
+        source=getattr(a, "source", None),
+        length=getattr(a, "length", None),
+        yes=getattr(a, "yes", False),
+        queue=getattr(a, "queue", False),
+        engine_voice=getattr(a, "engine", "silent"),
+        preview_storyboard=getattr(a, "preview_storyboard", False),
+        out=getattr(a, "out", None),
+        interactive=True,
+        format=getattr(a, "format", None),
+        look=getattr(a, "look", None),
+        director=getattr(a, "director", None),
+        theme=getattr(a, "theme", None),
+        captions=getattr(a, "captions", None),
+        voice=getattr(a, "voice", None),
+        music=getattr(a, "music", None),
+        transition=getattr(a, "transition", None),
+        outro=getattr(a, "outro", None),
+    )
+    return out(res, 1 if res.get("status") == "error" else 0)
+
+
+def gallery_cmd(a):
+    from tt_shorts import gallery
+    res = gallery.build_gallery(getattr(a, "out", None))
+    return out(res, 0)
 
 def _source_tools():
     """What the document sources can use here (none of it blocks a news render)."""
@@ -895,6 +1040,29 @@ def doctor(_a):
     return out({"checks": checks, "problems": blocking}, 1 if blocking else 0)
 
 
+def brand_cmd(a):
+    from tt_shorts import brand_new
+    if a.action == "new":
+        if not a.name or not a.source:
+            return out({"problems": ["usage: engine brand new <name> --from <url|pdf|design.md|frame.md>"]}, 2)
+        res = brand_new.create_brand(a.name, a.source, render_sheets=not getattr(a, "no_sheets", False))
+        return out(res, 0 if res.get("validation") == "valid" else 1)
+    return out({"problems": [f"unknown brand action '{a.action}'; known: new"]}, 2)
+
+
+def critique_cmd(a):
+    from tt_shorts import critique
+    res = critique.critique_story(a.story, fmt_name=a.format, look=getattr(a, "look", None),
+                                  director=getattr(a, "director", None))
+    return out(res, 1 if res.get("grade") == "FAIL" else 0)
+
+
+def dry_run_cmd(a):
+    from tt_shorts import dry_run as dr
+    res = dr.dry_run(a.story, fmt_name=a.format, voice_engine=a.engine, director=a.director)
+    return out(res, 1 if res.get("problems") else 0)
+
+
 # ---------------------------------------------------------------- cli
 
 
@@ -920,6 +1088,7 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     o = sub.add_parser("options")
     o.add_argument("--brand", help="the pack whose categories, looks and voices to show (default tbilisi-today)")
+    o.add_argument("--section", help="filter to a section (summary, formats, looks, captions, voices, themes, directors, programs, rubrics, scenes, icons, etc.)")
     c = sub.add_parser("check")
     c.add_argument("story")
     c.add_argument("--sources", help="JSON list of the member articles' texts (enables the news rules N2/N3)")
@@ -953,6 +1122,7 @@ def main(argv=None):
     pk.add_argument("--only", help="comma-separated: srt,vtt,cover,carousel,teaser,texts,telegram (default all)")
     w = sub.add_parser("write")
     w.add_argument("--program", help="news (default), explainer, law, blog... (see options: programs)")
+    w.add_argument("--style", help="a named film style to set on the story")
     w.add_argument("--source", help="tbilisi-today (ref = cluster id), text (ref = JSON file), url, pdf, ordo, sitech "
                                     "(default: the program's first source)")
     w.add_argument("--ref", help="the story's reference in its source")
@@ -976,6 +1146,7 @@ def main(argv=None):
     sub.add_parser("doctor")
     pr = sub.add_parser("probe")
     pr.add_argument("story")
+    pr.add_argument("--style", help="a named film style")
     pr.add_argument("--look", default="auto", help="auto (the story's own), all, or a comma-separated list")
     pr.add_argument("--format", default="news")
     pr.add_argument("--captions", choices=formats.CAPTIONS)
@@ -990,6 +1161,7 @@ def main(argv=None):
     pl = sub.add_parser("plan")
     pl.add_argument("story")
     pl.add_argument("--format", help="a format (default: the story's program's, news for news)")
+    pl.add_argument("--style", help="a named film style")
     pl.add_argument("--look", choices=formats.LOOKS)
     pl.add_argument("--captions", choices=formats.CAPTIONS)
     pl.add_argument("--transition", choices=formats.TRANSITIONS)
@@ -1026,7 +1198,7 @@ def main(argv=None):
     qp.add_argument("--story", help="an already written story file (skips writing)")
     qp.add_argument("--format", help="default: the program's format (news: news)")
     for k in ("look", "captions", "transition", "outro", "voice", "music", "platform", "beats", "chapters", "director",
-              "rubric", "theme"):
+              "rubric", "theme", "style"):
         qp.add_argument(f"--{k}")
     qp.add_argument("--part", type=int, help="add: a continues job's part (ops/daily.py sets it from the stored state)")
     qp.add_argument("--priority", type=int, default=0)
@@ -1037,11 +1209,12 @@ def main(argv=None):
     g = sub.add_parser("gc")
     g.add_argument("--dry-run", action="store_true")
     cp = sub.add_parser("compose", help="films composed for HyperFrames (compose.py)")
-    cp.add_argument("action", choices=["scaffold", "check", "render", "promote", "templates"])
+    cp.add_argument("action", choices=["scaffold", "check", "render", "promote", "templates", "blocks"])
     cp.add_argument("target", nargs="?", help="the story JSON (promote: the project folder)")
     cp.add_argument("--brand", help="the pack to build for (default: the story's)")
     cp.add_argument("--project", help="the project folder (default: $VEASY_HOME/cache/compose/<brand>-<ref>)")
     cp.add_argument("--template", help="scaffold/render: start from templates/<id>/ (auto: the least used)")
+    cp.add_argument("--blocks", help="scaffold: comma-separated list of block ids to assemble")
     cp.add_argument("--from", dest="source_dir", help="scaffold: copy the agent's files from this folder")
     cp.add_argument("--force", action="store_true", help="scaffold: replace the agent's files; promote: replace")
     cp.add_argument("--engine", default=None, choices=["gemini", "edge", "silent"],
@@ -1051,21 +1224,76 @@ def main(argv=None):
     cp.add_argument("--shots", help="check: save the page at each probed time (PNG) in this folder")
     cp.add_argument("--theme", help="the pack's theme: default, auto or a name (brand.json themes)")
     cp.add_argument("--format", help="render: a format (default: the story's program's)")
-    for k in ("captions", "voice", "music", "platform"):
+    for k in ("captions", "voice", "music", "platform", "style"):
         cp.add_argument(f"--{k}")
     cp.add_argument("--out", help="render: the mp4 (default renders/<brand>/<day>/<ref>-<format>-composed-<captions>)")
     cp.add_argument("--as", dest="as_id", help="promote: the template id")
     cp.add_argument("--label", help="promote: the template's name")
     cp.add_argument("--about", help="promote: what it is for")
+    bp = sub.add_parser("brand", help="brand pack operations: new <name> --from <source>")
+    bp.add_argument("action", choices=["new"])
+    bp.add_argument("name", nargs="?", help="the brand identifier (e.g. alpha)")
+    bp.add_argument("--from", dest="source", required=True, help="path or URL to brand guidelines, frame.md, design.md or web page")
+    bp.add_argument("--no-sheets", action="store_true", help="skip rendering sample contact sheets")
+    cr = sub.add_parser("critique", help="pre-flight visual and pacing critique checklist on plan stills")
+    cr.add_argument("story")
+    cr.add_argument("--format", help="a format (default: the story's program's, news for news)")
+    cr.add_argument("--look", choices=formats.LOOKS)
+    cr.add_argument("--director", help="force a director")
+    dr = sub.add_parser("dry-run", help="pre-flight cost and timing calculator before rendering")
+    dr.add_argument("story")
+    dr.add_argument("--format", help="a format (default: the story's program's, news for news)")
+    dr.add_argument("--engine", default="gemini", choices=["gemini", "edge", "silent"])
+    dr.add_argument("--director", help="force a director")
+    cs = sub.add_parser("contact-sheet", help="render every icon and drawing in every theme as an interactive contact sheet")
+    cs.add_argument("--out", help="target HTML file (default out/contact-sheet.html)")
+    cs.add_argument("--brand", default="all", help="all, sitech, or tbilisi-today")
+    cs.add_argument("--theme", default="all", help="all, dark, or light")
+    mk = sub.add_parser("make", help="one front door: request sentence, brand and style -> finished checked film")
+    mk.add_argument("request", help="what you want in a sentence (or a story JSON path, or source ref)")
+    mk.add_argument("--brand", help="who it's for (tbilisi-today, sitech; see options: brands)")
+    mk.add_argument("--style", help="how it looks and sounds (see options: styles)")
+    mk.add_argument("--source", help="where facts come from (tbilisi-today, ordo, sitech, url, pdf, text)")
+    mk.add_argument("--length", help="short (15-30s), standard (30-45s), long (45-60s) or target seconds")
+    mk.add_argument("--yes", "-y", action="store_true", help="accept code's decisions and defaults; ask no interactive questions")
+    mk.add_argument("--queue", action="store_true", help="add to the job queue instead of rendering immediately")
+    mk.add_argument("--preview-storyboard", action="store_true", help="build contact sheet and stop at plan stage")
+    mk.add_argument("--engine", default="silent", choices=["gemini", "edge", "silent"], help="voice engine (default silent preview)")
+    mk.add_argument("--out", help="output path for the render (.mp4)")
+    mk.add_argument("--format", help="override format")
+    mk.add_argument("--look", choices=formats.LOOKS, help="override look")
+    mk.add_argument("--director", help="override director")
+    mk.add_argument("--theme", help="override theme")
+    mk.add_argument("--captions", choices=formats.CAPTIONS, help="override captions")
+    mk.add_argument("--voice", help="override voice preset or family")
+    mk.add_argument("--music", help="override music")
+    mk.add_argument("--transition", choices=formats.TRANSITIONS, help="override transition")
+    mk.add_argument("--outro", choices=formats.OUTROS, help="override outro")
+    gy = sub.add_parser("gallery", help="generate static HTML visual catalogue of all styles, looks, scenes and directors")
+    gy.add_argument("--out", help="target HTML file (default out/gallery.html)")
     a = ap.parse_args(argv)
     if a.cmd == "compose" and a.engine is None:
         a.engine = "gemini" if a.action == "render" else "silent"
     try:
         if a.cmd == "options":
-            return out(options(a.brand))
+            return out(options(a.brand, getattr(a, "section", None)))
         if a.cmd == "check":
-            story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
-            sources = json.loads(pathlib.Path(a.sources).read_text(encoding="utf-8")) if a.sources else None
+            sp = pathlib.Path(a.story)
+            if not sp.is_file():
+                return out({"story": a.story, "problems": [f"story file not found: {a.story}. Provide a valid path to story JSON (e.g. stories/24835.json)."]}, 1)
+            try:
+                story = json.loads(sp.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                return out({"story": a.story, "problems": [f"invalid JSON in story file {a.story}: {e}"]}, 1)
+            sources = None
+            if a.sources:
+                src_p = pathlib.Path(a.sources)
+                if not src_p.is_file():
+                    return out({"story": a.story, "problems": [f"sources file not found: {a.sources}."]}, 1)
+                try:
+                    sources = json.loads(src_p.read_text(encoding="utf-8"))
+                except json.JSONDecodeError as e:
+                    return out({"story": a.story, "problems": [f"invalid JSON in sources file {a.sources}: {e}"]}, 1)
             if isinstance(sources, dict):  # tests/fixtures/sources.json: {story id: [articles]}
                 if str(story.get("id")) not in sources:
                     return out({"problems": [f"{a.sources} has no articles for story {story.get('id')}"]}, 2)
@@ -1079,9 +1307,18 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "compose": compose_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
+    except FileNotFoundError as e:
+        fname = getattr(e, "filename", None) or str(e)
+        return out({"problems": [f"file not found: {fname}. Check that the path exists."]}, 1)
+    except json.JSONDecodeError as e:
+        return out({"problems": [f"invalid JSON: {e}"]}, 1)
+    except packs.BrandError as e:
+        return out({"problems": [str(e)]}, 2)
+    except Exception as e:
+        return out({"problems": [f"{type(e).__name__}: {e}"]}, 1)
 
 
 if __name__ == "__main__":

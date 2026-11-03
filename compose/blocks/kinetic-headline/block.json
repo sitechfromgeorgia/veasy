@@ -1,0 +1,32 @@
+{
+  "id": "kinetic-headline",
+  "label": "კინეტიკური სათაური",
+  "about": "Dynamic typographic hook or breaking announcement with staggered word slam, category chip and kinetic accent reveal.",
+  "slots": {
+    "kicker": {
+      "kind": "words",
+      "label": "კატეგორია ან თემა",
+      "example": "საზოგადოება · თბილისი"
+    },
+    "headline_1": {
+      "kind": "words",
+      "label": "სათაურის პირველი ხაზი",
+      "example": "ენერგოსისტემის განახლება"
+    },
+    "headline_2": {
+      "kind": "words",
+      "label": "სათაურის მეორე ხაზი",
+      "example": "მასშტაბური სამუშაოები"
+    },
+    "sub": {
+      "kind": "words",
+      "label": "ქვესათაური ან დეტალი",
+      "example": "მომსახურება ეტაპობრივად აღდგება"
+    }
+  },
+  "beats": [
+    {"id": "hook", "show": "kinetic-headline", "at": null},
+    {"id": "lead", "show": "kinetic-headline", "at": null}
+  ],
+  "recommended_seconds": [3.0, 6.0]
+}

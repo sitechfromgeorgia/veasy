@@ -50,6 +50,14 @@ class Cues(unittest.TestCase):
         self.assertNotIn("tick", [x["name"] for x in c])
         self.assertTrue(all(x["t"] < 600 / 30 for x in c))
 
+    def test_cues_for_new_transitions(self):
+        self.assertEqual(sfx.cues(timeline("iris"))[0]["name"], "pop")
+        self.assertEqual(sfx.cues(timeline("shutter"))[0]["name"], "click")
+        self.assertEqual(sfx.cues(timeline("blind"))[0]["name"], "click")
+        self.assertEqual(sfx.cues(timeline("split"))[0]["name"], "whoosh")
+        self.assertEqual(sfx.cues(timeline("corner"))[0]["name"], "whoosh")
+        self.assertNotIn("whoosh", [x["name"] for x in sfx.cues(timeline("fade"))])
+
 
 class Sounds(unittest.TestCase):
     def test_compose_is_deterministic_short_and_level(self):

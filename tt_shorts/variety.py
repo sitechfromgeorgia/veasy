@@ -57,16 +57,16 @@ import zlib
 from tt_shorts import store
 
 OPTIONS = {
-    "hook": ("stack", "lead", "blocks", "underline"),
-    "motif": ("grid", "diagonal", "dots", "rules", "plain", "icons"),
-    "enter": ("rise", "slide", "reveal", "scale"),
+    "hook": ("stack", "lead", "blocks", "underline", "split", "badge", "bracket", "rail"),
+    "motif": ("grid", "diagonal", "dots", "rules", "plain", "icons", "crosses", "mesh", "waves", "hash"),
+    "enter": ("rise", "slide", "reveal", "scale", "drop", "expand", "drift", "flip"),
 }
 NEEDS_ICON = {"motif": ("icons",)}  # options a story without a main icon can't use
 # the cuts that suit each look when the format leaves the transition to the engine ("auto")
 TRANSITIONS = {
-    "editorial": ("line", "wipe", "dot", "slide", "meter"),
-    "kinetic": ("panel", "push", "wipe", "cut", "meter"),
-    "cards": ("line", "slide", "dot", "wipe"),
+    "editorial": ("line", "wipe", "dot", "slide", "meter", "fade", "shutter", "iris"),
+    "kinetic": ("panel", "push", "wipe", "cut", "meter", "split", "corner", "shutter", "blind"),
+    "cards": ("line", "slide", "dot", "wipe", "fade", "split", "iris"),
 }
 RECENT = 20
 
@@ -88,6 +88,7 @@ MIGRATIONS = {  # columns added since the table was first made; an older veasy.d
     "rerolls": "alter table variety add column rerolls integer",  # the guard: the re-rolls it took
     "theme": "alter table variety add column theme text",  # the pack's theme the video was drawn in (themes)
     "template": "alter table variety add column template text",  # a composed film's template (compose.py)
+    "style": "alter table variety add column style text",  # named film style (styles.py)
 }
 
 
@@ -172,20 +173,23 @@ def _scenes(v):
 
 def fingerprint(style, scenes=None, director=None):
     """A planned or recorded video as the guard compares it: {director, scenes (a tuple of scene types; None when
-    not known), hook, motif, enter, transition, music}, plus "story" when style has one. style: pick()'s dict,
-    props.style or a history row (whose "scenes" is JSON)."""
+    not known), hook, motif, enter, transition, music}, plus "story" when style has one, and "style" (the named
+    film style) when specified. style: pick()'s dict, props.style or a history row (whose "scenes" is JSON)."""
     st = style or {}
     out = {"director": director if director is not None else st.get("director"),
            "scenes": _scenes(scenes if scenes is not None else st.get("scenes")),
            **{k: st.get(k) for k in ("hook", "motif", "enter", "transition", "music")}}
     if st.get("story") is not None:
         out["story"] = str(st["story"])
+    film_style = st.get("style_slug") or (st.get("style") if isinstance(st.get("style"), str) else None)
+    if film_style:
+        out["style"] = film_style
     return out
 
 
 def similarity(a, b):
     """How much two fingerprints share, 0-7 (WEIGHTS): each single field when equal, the scene orders as their
-    difflib ratio (nothing when either is unknown)."""
+    difflib ratio (nothing when either is unknown). When named film styles are present in both, they add +1.0."""
     out = 0.0
     for k in FIELDS:
         if k == "scenes":
@@ -193,6 +197,8 @@ def similarity(a, b):
                 out += WEIGHTS[k] * difflib.SequenceMatcher(None, list(a[k]), list(b[k]), autojunk=False).ratio()
         elif a.get(k) == b.get(k):
             out += WEIGHTS[k]
+    if a.get("style") is not None and b.get("style") is not None and a["style"] == b["style"]:
+        out += WEIGHTS.get("style", 1.0)
     return round(out, 3)
 
 
@@ -324,17 +330,34 @@ def pick(brand, story, look, transition="auto", loops=(), icon=False, director=N
     return choose(brand, story, look, transition, loops, icon, director, scenes)[0]
 
 
+def pick_style(brand_name, story, program="news", family=None, engine=None):
+    """The style of one video: rotates eligible styles a brand and program allow, least used first (ties by story id).
+    A re-render (this story already having a valid style in history) keeps its own."""
+    from tt_shorts import brand as brand_mod, styles
+    b = brand_mod.load(brand_name)
+    eligible = styles.for_story({"program": program, "family": family, "engine": engine}, brand_pack=b, program=program, engine=engine)
+    pool = [s["slug"] for s in eligible]
+    if not pool:
+        return "swiss-motion"
+    if len(pool) == 1:
+        return pool[0]
+    past = history(brand_name)
+    same = next((r.get("style") for r in past if r["story"] == str(story) and r.get("style") in pool), None)
+    return same or _least_used(pool, [r.get("style") for r in past], story, "style")
+
+
 def record(brand, story, look, style, scenes, novelty=None):
     """Remember what a finished render used (engine.render_story and compose.render call this). novelty: choose()'s
     report. A composed film's style carries its template (compose.pick_template: least used first)."""
     nov = novelty or {}
+    film_style = style.get("style_slug") or (style.get("style") if isinstance(style.get("style"), str) else None)
     with _db() as con:
         con.execute("insert into variety(ts, brand, story, look, hook, motif, enter, transition, music, scenes, director, "
-                    "novelty, rerolls, template, theme) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "novelty, rerolls, template, theme, style) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), brand, str(story), look,
                      style.get("hook"), style.get("motif"), style.get("enter"), style.get("transition"),
                      style.get("music"), json.dumps(list(scenes)), style.get("director"), nov.get("distance"),
-                     nov.get("rerolls"), style.get("template"), style.get("theme")))
+                     nov.get("rerolls"), style.get("template"), style.get("theme"), film_style))
 
 
 def recent_sequences(brand, n=12):

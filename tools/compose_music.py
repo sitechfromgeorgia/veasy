@@ -233,6 +233,18 @@ def compose(p):
                      0.085 * (2 / p.get("keys", 2)) ** 0.5, 0.42 + 0.05 * k)
         both(start, bass(notes[0] / 2, beat * 1.8), 0.24)
         both(start + 2 * beat, bass(notes[0] / 2, beat * 1.4), 0.2)
+        if p.get("pluck"):
+            from tools import pluck as P
+            p_inst = p["pluck"]
+            c_notes = [NOTES[root] + 12 * (octv + 1), NOTES[root] + 12 * (octv + 1) + 5, NOTES[root] + 12 * (octv + 1) + 7]
+            p_strum = P.strum(p_inst, c_notes, dur=beat * 1.8, vel=0.25)
+            for s in p.get("pluck_beats", [0, 2]):
+                both(start + s * beat, p_strum, 0.18, 0.5)
+        if p.get("sample"):
+            from tools import sampler as S
+            s_inst = p["sample"]
+            s_note = S.note(s_inst, f"{root}{octv}", dur=bar * 0.9, vel=0.2)
+            both(start, s_note, 0.15, 0.5)
         for q in p["kick"]:
             both(start + q * beat, kick(), 0.2)
         sub = p.get("tick", 16)  # the clock: sixteenths (or eighths), the beat accented

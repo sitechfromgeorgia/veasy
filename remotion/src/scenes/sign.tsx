@@ -5,7 +5,7 @@ import { Easing, interpolate, useCurrentFrame } from "remotion";
 import { CANVAS, FONT, INK, LINE_STRONG, MUTED, PANEL, RAIL_X, RED, SIDE, W } from "../brand";
 import { GlyphAt, svgId } from "../icons";
 import { marked } from "../marker";
-import type { IconNode, Scene, Verb } from "../types";
+import type { IconNode, IconMotion, Scene, Verb } from "../types";
 import { Frame, In, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
@@ -48,6 +48,8 @@ export const Sign: React.FC<P> = ({ s, inner = INNER }) => {
   const ground = v === "cards" ? PANEL : CANVAS;
   const nodes: IconNode[] = s.glyph ?? [];
   const verb: Verb = s.verb ?? "rises";
+  const motion: IconMotion = s.motion ?? "draw";
+  const morphNodes = s.morphGlyph;
   const width = railWidth(inner);
   const tight = inner < INNER - 40; // inside a card there is less height
   const H_ = tight ? 500 : 580;
@@ -66,8 +68,9 @@ export const Sign: React.FC<P> = ({ s, inner = INNER }) => {
   let ix = cx - size / 2, iy = cy - size / 2; // the icon's top-left
   let iconOpacity = 1, iconScale = 1;
   const parts: React.ReactNode[] = [];
+  const morphProgress = interpolate(frame, [4 * k, drawEnd * k], [0, 1], { ...clamp, easing: easeOut });
   const glyph = (dx = 0, dy = 0, clip?: string, key = "g") => (
-    <GlyphAt key={key} nodes={nodes} x={ix + dx} y={iy + dy} size={size} px={px} color={INK} progress={progress} clip={clip} id={key} />
+    <GlyphAt key={key} nodes={nodes} x={ix + dx} y={iy + dy} size={size} px={px} color={INK} progress={progress} clip={clip} id={key} motion={motion} morphNodes={morphNodes} morphProgress={morphProgress} />
   );
   let body: React.ReactNode = null;
 
@@ -191,26 +194,75 @@ export const Isotype: React.FC<{ s: Scene; width: number; height: number; delay:
   const frame = useCurrentFrame();
   const nodes = s.glyph ?? [];
   const n = Math.round(s.value ?? 0);
-  const { cols, rows, cell } = grid(n, width, height);
+  const total = s.total ? Math.round(s.total) : n;
+  const maxUnits = Math.max(n, total);
+  const motion: IconMotion = s.motion ?? "count";
+  const { cols, rows, cell } = grid(maxUnits, width, height);
   const size = Math.min(cell * 0.8, 200);
   const px = Math.max(5, size * 0.07);
   const inv = (y: number) => 1 - Math.cbrt(1 - y); // the frame at which CountUp (cubic out) reaches y
-  const shown = (i: number) => interpolate(frame, [delay + span * inv((i + 0.5) / n), delay + span * inv((i + 0.5) / n) + 8],
+  const shown = (i: number) => interpolate(frame, [delay + span * inv((Math.min(i, n - 1) + 0.5) / Math.max(1, n)), delay + span * inv((Math.min(i, n - 1) + 0.5) / Math.max(1, n)) + 8],
     [0, 1], { ...clamp, easing: easeOut });
-  const last = shown(n - 1) > 0.98;
+  const last = shown(Math.max(0, n - 1)) > 0.98;
   return (
     <svg width={cols * cell} height={rows * cell} style={{ display: "block", flex: "none", marginTop: 40, overflow: "visible" }}>
-      {Array.from({ length: n }, (_, i) => {
-        const p = shown(i), x = (i % cols) * cell + (cell - size) / 2, y = Math.floor(i / cols) * cell + (cell - size) / 2;
-        const sc = 0.7 + 0.3 * p;
+      {Array.from({ length: maxUnits }, (_, i) => {
+        const isLit = i < n;
+        const p = isLit ? shown(i) : 1;
+        const x = (i % cols) * cell + (cell - size) / 2, y = Math.floor(i / cols) * cell + (cell - size) / 2;
+        const sc = isLit ? 0.7 + 0.3 * p : 0.85;
+        const color = isLit ? INK : LINE_STRONG;
         return (
-          <g key={i} opacity={p > 0 ? 1 : 0} transform={`translate(${x + size / 2} ${y + size / 2}) scale(${sc}) translate(${-x - size / 2} ${-y - size / 2})`}>
-            <GlyphAt nodes={nodes} x={x} y={y} size={size} px={px} color={INK} progress={() => p} id={`c${i}`} />
+          <g key={i} opacity={isLit ? (p > 0 ? 1 : 0) : 0.35} transform={`translate(${x + size / 2} ${y + size / 2}) scale(${sc}) translate(${-x - size / 2} ${-y - size / 2})`}>
+            <GlyphAt nodes={nodes} x={x} y={y} size={size} px={px} color={color} progress={() => p} motion={isLit ? motion : "draw"} id={`c${i}`} />
           </g>
         );
       })}
-      <NowDot x={((n - 1) % cols) * cell + (cell + size) / 2} y={Math.floor((n - 1) / cols) * cell + (cell + size) / 2}
+      <NowDot x={((Math.max(0, n - 1)) % cols) * cell + (cell + size) / 2} y={Math.floor((Math.max(0, n - 1)) / cols) * cell + (cell + size) / 2}
         r={Math.max(10, size * 0.09)} on={last} />
     </svg>
+  );
+};
+
+/** Standalone pictogram unit chart for scenes displaying proportional quantities. */
+export const UnitChart: React.FC<{
+  nodes: IconNode[];
+  value: number;
+  total?: number;
+  width: number;
+  height: number;
+  motion?: IconMotion;
+  label?: string;
+}> = ({ nodes, value, total, width, height, motion = "count", label }) => {
+  const frame = useCurrentFrame();
+  const n = Math.max(1, Math.round(value));
+  const maxUnits = total ? Math.max(n, Math.round(total)) : n;
+  const { cols, rows, cell } = grid(maxUnits, width, height);
+  const size = Math.min(cell * 0.8, 160);
+  const px = Math.max(4, size * 0.07);
+  const shown = (i: number) => interpolate(frame, [6 + i * 2, 14 + i * 2], [0, 1], { ...clamp, easing: easeOut });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <svg width={cols * cell} height={rows * cell} style={{ display: "block", overflow: "visible" }}>
+        {Array.from({ length: maxUnits }, (_, i) => {
+          const isLit = i < n;
+          const p = shown(i);
+          const x = (i % cols) * cell + (cell - size) / 2;
+          const y = Math.floor(i / cols) * cell + (cell - size) / 2;
+          const color = isLit ? INK : LINE_STRONG;
+          return (
+            <g key={i} opacity={isLit ? (p > 0 ? 1 : 0) : 0.35}>
+              <GlyphAt nodes={nodes} x={x} y={y} size={size} px={px} color={color} progress={() => (isLit ? p : 1)} motion={isLit ? motion : "draw"} id={`u${i}`} />
+            </g>
+          );
+        })}
+      </svg>
+      {label && (
+        <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 32, color: MUTED, marginTop: 16 }}>
+          {label}
+        </div>
+      )}
+    </div>
   );
 };

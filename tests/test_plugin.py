@@ -11,7 +11,7 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SKILLS = ("make-video", "write-script", "qa", "formats", "queue", "brands", "package", "programs", "directors", "rubrics",
-          "media", "compose")
+          "media", "compose", "styles")
 
 
 def load_plugin():
@@ -67,7 +67,15 @@ class Plugin(unittest.TestCase):
 
     def test_claude_code_sees_the_same_skills(self):
         for name in SKILLS:
-            self.assertTrue((ROOT / ".claude" / "skills" / name / "SKILL.md").exists(), name)
+            entry = ROOT / ".claude" / "skills" / name
+            if entry.is_file() and not entry.is_symlink():
+                # On Windows with core.symlinks=false, git checks out symlinks as text files pointing to target
+                target = entry.read_text(encoding="utf-8").strip()
+                self.assertEqual(target.replace("\\", "/"), f"../../skills/{name}")
+                resolved = (entry.parent / target).resolve()
+                self.assertTrue((resolved / "SKILL.md").exists(), f"{name} -> {resolved}")
+            else:
+                self.assertTrue((ROOT / ".claude" / "skills" / name / "SKILL.md").exists(), name)
 
     def test_options_tool_returns_the_engine_json(self):
         out = json.loads(self.ctx.tools["veasy_options"][1]({}))
@@ -80,6 +88,15 @@ class Plugin(unittest.TestCase):
         self.assertIn("security", out["categories"])
         out = json.loads(self.ctx.tools["veasy_options"][1]({"brand": "nobody"}))
         self.assertTrue(out.get("problems") or out.get("error"))
+
+    def test_options_tool_takes_section(self):
+        out = json.loads(self.ctx.tools["veasy_options"][1]({"section": "summary"}))
+        self.assertEqual(out["section"], "summary")
+        self.assertIn("sections", out)
+        self.assertIn("formats", out)
+        fmts = json.loads(self.ctx.tools["veasy_options"][1]({"section": "formats"}))
+        self.assertEqual(fmts["section"], "formats")
+        self.assertIn("news", fmts["formats"])
 
     def test_queue_tool_lists_jobs(self):
         with tempfile.TemporaryDirectory() as home, mock.patch.dict(os.environ, {"VEASY_HOME": home}):
@@ -105,6 +122,14 @@ class Plugin(unittest.TestCase):
                                                                 "ref": "https://x.ge/a", "format": "neon"}))
             self.assertTrue(out.get("problems") or out.get("error"))
 
+    def test_critique_and_dry_run_tools(self):
+        dr = json.loads(self.ctx.tools["veasy_dry_run"][1]({"story": "stories/24835.json"}))
+        self.assertIn("narration", dr)
+        self.assertIn("costs", dr)
+        cr = json.loads(self.ctx.tools["veasy_critique"][1]({"story": "stories/24835.json"}))
+        self.assertIn("grade", cr)
+        self.assertIn("checklist", cr)
+
     def test_check_tool_runs_the_checks(self):
         out = json.loads(self.ctx.tools["veasy_check"][1]({"story": "stories/24835.json",
                                                            "sources": "tests/fixtures/24835.sources.json"}))
@@ -118,6 +143,23 @@ class Plugin(unittest.TestCase):
         out = json.loads(self.ctx.tools["veasy_package"][1]({"render": "out/no-such-render.json"}))
         self.assertTrue(out.get("problems") and "no render manifest" in out["problems"][0], out)
         self.assertIn("error", json.loads(self.ctx.tools["veasy_package"][1]({})))
+
+    def test_make_tool(self):
+        props = self.ctx.tools["veasy_make"][0]["parameters"]["properties"]
+        self.assertIn("request", props)
+        self.assertIn("brand", props)
+        self.assertIn("style", props)
+        self.assertEqual(self.ctx.tools["veasy_make"][0]["parameters"]["required"], ["request"])
+
+        out = json.loads(self.ctx.tools["veasy_make"][1]({
+            "request": "ვარკეთილში გაზის მილის დაზიანების გამო 6400 აბონენტს გაზმომარაგება შეუწყდა",
+            "preview_storyboard": True,
+            "yes": True,
+        }))
+        self.assertEqual(out.get("status"), "preview", out)
+        self.assertEqual(out.get("brand"), "tbilisi-today")
+        self.assertTrue(out.get("sheet"))
+        self.assertTrue(out.get("questions_log"))
 
     def test_hint_once_per_session(self):
         hint = self.ctx.hooks["pre_llm_call"]

@@ -1,0 +1,20 @@
+{
+  "slug": "one-line",
+  "name_en": "One-line Drawing",
+  "name_ka": "ერთი ხაზი",
+  "category": "artistic",
+  "engine": "hyperframes",
+  "palette": "pack",
+  "fonts": "pack",
+  "programs": ["story", "blog", "explainer"],
+  "never_families": ["crime"],
+  "picks": {
+    "directors": ["draw", "chronicle"],
+    "looks": ["editorial", "cards"],
+    "motifs": ["plain", "rules"],
+    "transitions": ["wipe", "cut"],
+    "music": ["culture", "society", "tech"],
+    "sfx": ["whoosh", "click"]
+  },
+  "uses": "Continuous fluid line drawing that never leaves the paper, where figures and conceptual diagrams morph seamlessly from one form to the next."
+}

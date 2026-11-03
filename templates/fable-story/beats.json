@@ -1,0 +1,135 @@
+{
+ "about": "The beat sheet of „ბიპი ხატავს“ (program story, a fable composed for HyperFrames by an agent from the veasy:compose skill). Chapters and beats are anchored to the narration's words; engine compose resolves them to the voice's times (timing.json, VEASY.beat) and the scenes land on them.",
+ "chapters": [
+  {
+   "title": "",
+   "at": null,
+   "example": "ბიპი"
+  },
+  {
+   "title": "",
+   "at": null,
+   "example": "ცდა"
+  },
+  {
+   "title": "",
+   "at": null,
+   "example": "მზე"
+  }
+ ],
+ "end": {
+  "at": null
+ },
+ "beats": [
+  {
+   "id": "hook",
+   "show": "the robot and the title, on screen at frame 0",
+   "at": null
+  },
+  {
+   "id": "name",
+   "show": "its name chip pops, the antenna blinks",
+   "sfx": "pop",
+   "at": null
+  },
+  {
+   "id": "morning",
+   "show": "the easel rises beside it",
+   "at": null
+  },
+  {
+   "id": "learns",
+   "show": "the arm moves, a scribble draws, the second line inverts",
+   "at": null
+  },
+  {
+   "id": "first",
+   "show": "chapter 2: the first sheet, the pencil starts",
+   "at": null
+  },
+  {
+   "id": "square",
+   "show": "the circle comes out a square",
+   "sfx": "click",
+   "at": null
+  },
+  {
+   "id": "second",
+   "show": "the second sheet slides in",
+   "at": null
+  },
+  {
+   "id": "wave",
+   "show": "it comes out a wave; the robot tilts its head",
+   "sfx": "blip",
+   "at": null
+  },
+  {
+   "id": "notgiveup",
+   "show": "the robot nods: it doesn't give up",
+   "at": null
+  },
+  {
+   "id": "everyday",
+   "show": "a row of days, each sheet with one more line",
+   "at": null
+  },
+  {
+   "id": "oneline",
+   "show": "the newest line lands, in the accent",
+   "sfx": "pop",
+   "at": null
+  },
+  {
+   "id": "morning2",
+   "show": "chapter 3: one big sheet",
+   "at": null
+  },
+  {
+   "id": "sheet",
+   "show": "a round circle draws at last",
+   "at": null
+  },
+  {
+   "id": "warm",
+   "show": "it fills warm",
+   "sfx": "thud",
+   "at": null
+  },
+  {
+   "id": "sun",
+   "show": "rays grow: a sun rises; the robot smiles",
+   "sfx": "pop",
+   "at": null
+  },
+  {
+   "id": "moral",
+   "show": "the moral in big type",
+   "at": null
+  },
+  {
+   "id": "step",
+   "show": "the line climbs like stairs, the dot goes up",
+   "sfx": "blip",
+   "at": null
+  },
+  {
+   "id": "end",
+   "show": "the end card",
+   "at": null
+  },
+  {
+   "id": "end-link",
+   "show": "the link and the QR",
+   "at": null
+  },
+  {
+   "id": "cta",
+   "show": "the call to action",
+   "at": null
+  }
+ ],
+ "keywords": [],
+ "icons": [],
+ "story": null
+}

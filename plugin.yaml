@@ -2,6 +2,7 @@ name: veasy
 version: 0.2.0
 description: "Veasy: a video engine for agents, on two film engines (Remotion and HyperFrames). Turns a story into a checked, voiced, captioned vertical video (Gemini TTS, composed music, an ffmpeg mix) for any brand pack: the typed brush kit, or a film the agent composes itself, in formats an agent can choose and extend, through a job queue. Georgian quality through kaeasy."
 provides_tools:
+  - veasy_make
   - veasy_options
   - veasy_check
   - veasy_render
@@ -15,6 +16,9 @@ provides_tools:
   - veasy_queue
   - veasy_compose
   - veasy_doctor
+  - veasy_critique
+  - veasy_dry_run
+  - veasy_brand
 provides_hooks:
   - pre_llm_call
 requires_env: []

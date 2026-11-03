@@ -44,9 +44,14 @@ STILL_MAX = 3.0
 HOLD_MAX = 8.0  # s: a scene type the video's director holds on (directors.py "holds": the data director's number)
 STILL_EXEMPT = ("end",)  # the end card holds still: the QR is scanned there
 MAX_KINDS = 3
+MAX_MOVES = 3  # elements animating at the same moment in a scene
+PACING_MIN = 1.5  # seconds: minimum scene duration to allow voice & reader comprehension
 # The direction each cut moves in when the video has no director's current (remotion/src/NewsShort.tsx: wipe and the
 # sweeps go right, slide and push go left); a plain cut, the dot's iris and the loop's cross-fade have none.
-DIRECTION = {"line": (1, 0), "panel": (1, 0), "wipe": (1, 0), "slide": (-1, 0), "push": (-1, 0)}
+DIRECTION = {
+    "line": (1, 0), "panel": (1, 0), "wipe": (1, 0), "slide": (-1, 0), "push": (-1, 0),
+    "shutter": (1, 0), "blind": (1, 0), "corner": (1, 0),
+}
 RULES = {
     "read": f"a text on screen too briefly: each needs {READ_BASE} s + {READ_PER_WORD} s per word (holds a render)",
     "still": f"more than {STILL_MAX:g} s with nothing changing in the scene band (the end card is exempt; a scene "
@@ -54,8 +59,12 @@ RULES = {
     "kinds": f"more than {MAX_KINDS} transition kinds in one video",
     "pingpong": "ping-pong cuts: kinds A-B-A in three cuts in a row, or two cuts in a row moving in opposite directions",
     "repeat": "two scenes of the same type in a row",
+    "moves": f"more than {MAX_MOVES} elements animating at once in a scene: stagger them to keep focus",
+    "background": "active video or motion behind text being read: quiet the background or use still image",
+    "pacing": f"cut comes after less than {PACING_MIN:g} s or cuts off the voice: faster than voice and reading pace",
 }
 HOLDS = ("read",)
+TEXTS_HOLDS = ("read", "safe_zone")
 
 
 def words(text):
@@ -172,8 +181,8 @@ def cuts(p):
 # ---------------------------------------------------------------- the rules: each -> [finding]
 
 
-def _finding(rule, detail, scene=None):
-    return {"rule": rule, "scene": scene, "detail": detail, "hold": rule in HOLDS}
+def _finding(rule, detail, scene=None, hold=None):
+    return {"rule": rule, "scene": scene, "detail": detail, "hold": hold if hold is not None else rule in HOLDS}
 
 
 def _quote(text, n=40):
@@ -252,6 +261,59 @@ def repeat(rows):
             for a, b in zip(rows, rows[1:]) if a["type"] == b["type"]]
 
 
+def moves(rows):
+    out = []
+    for r in rows:
+        if r["scene"] == 0 or r["type"] in STILL_EXEMPT:
+            continue
+        ins = [t["in"] for t in r["texts"]]
+        for t0 in ins:
+            simultaneous = sum(1 for t in ins if abs(t - t0) <= 0.05)
+            if simultaneous > MAX_MOVES:
+                out.append(_finding("moves", f"scene {r['scene']} ({r['type']}): {simultaneous} elements enter at "
+                                             f"the same time (at most {MAX_MOVES}): stagger them to keep focus",
+                                    r["scene"]))
+                break
+    return out
+
+
+def background(rows, p=None):
+    out = []
+    scenes = (p.get("scenes") or []) if p else []
+    for r in rows:
+        if r["scene"] >= len(scenes):
+            continue
+        s = scenes[r["scene"]]
+        med = s.get("media") or {}
+        is_video = med.get("kind") == "video" or med.get("video")
+        text_need = sum(t["need"] for t in r["texts"])
+        if is_video and text_need > 1.5:
+            out.append(_finding("background", f"scene {r['scene']} ({r['type']}): video motion behind "
+                                              f"{len(r['texts'])} texts being read ({text_need:.1f} s needed): "
+                                              f"quiet the background or use still image", r["scene"]))
+    return out
+
+
+def pacing(rows, p=None):
+    out = []
+    scenes = (p.get("scenes") or []) if p else []
+    for r in rows:
+        if r["type"] in STILL_EXEMPT:
+            continue
+        s = scenes[r["scene"]] if r["scene"] < len(scenes) else {}
+        narr = s.get("narration") or ""
+        voice_need = words(narr) * 0.28
+        if r["seconds"] < PACING_MIN:
+            out.append(_finding("pacing", f"scene {r['scene']} ({r['type']}): cut comes after only {r['seconds']:.1f} s "
+                                          f"(minimum {PACING_MIN:g} s): faster than voice and reading pace",
+                                r["scene"]))
+        elif narr and r["seconds"] < voice_need:
+            out.append(_finding("pacing", f"scene {r['scene']} ({r['type']}): cut comes at {r['seconds']:.1f} s, "
+                                          f"faster than voice ({voice_need:.1f} s needed for {words(narr)} words)",
+                                r["scene"]))
+    return out
+
+
 def _laid_out(p):
     """Props whose scenes all have from and duration (a scene without them runs from the previous one's end; the last
     to the end of the video), so partial props can be checked too."""
@@ -270,7 +332,8 @@ def check(p):
     holds are the findings that hold a render (HOLDS), warnings all the rest."""
     p = _laid_out(p)
     rows, cut_list = timeline(p), cuts(p)
-    found = read(rows) + still(rows, _holds(p)) + kinds(cut_list) + pingpong(cut_list) + repeat(rows)
+    found = (read(rows) + still(rows, _holds(p)) + kinds(cut_list) + pingpong(cut_list) + repeat(rows)
+             + moves(rows) + background(rows, p) + pacing(rows, p))
     text = lambda f: f"motion {f['rule']}: {f['detail']}"  # noqa: E731
     return {"timeline": rows, "cuts": cut_list, "findings": found,
             "holds": [text(f) for f in found if f["hold"]], "warnings": [text(f) for f in found if not f["hold"]]}
@@ -286,3 +349,125 @@ def load(row):
     than time)."""
     up = (row["leaves"] - row["from"]) / FPS
     return round(sum(t["need"] for t in row["texts"]) / up, 2) if up > 0 else math.inf
+
+
+# ---------------------------------------------------------------- TEXTS(t) contract for composed & canvas films
+
+
+def check_texts_track(samples, safe_zone=True):
+    """Check a series of window.TEXTS(t) samples from a composed or canvas film.
+
+    samples is a dict of {t_float: [ {id, text, x0, y0, x1, y1}, ... ]} or an iterable of (t, [items...])
+    where t is timestamp in seconds (float).
+
+    Verifies two core invariants:
+    1. Reading time: each continuously visible text element must remain on screen
+       for at least READ_BASE + READ_PER_WORD * words(text) (0.5 s + 0.3 s/word).
+    2. Safe zone geometry (when safe_zone=True):
+       - Scene text must not intrude above y = 248 (header zone), unless id or role is 'header' or 'chrome'
+       - Scene text must end above y = 1380 (captions zone), unless id or role is 'captions'
+       - Scene text must respect the social rail (x1 <= 940 when y1 > 1100)
+       - Content must stay within canvas bounds [0, 0, 1080, 1920]
+
+    Returns {"findings": found, "holds": holds, "warnings": warnings, "spans": spans}.
+    """
+    if isinstance(samples, dict):
+        ordered_samples = sorted(samples.items(), key=lambda kv: kv[0])
+    else:
+        ordered_samples = sorted(samples, key=lambda kv: kv[0])
+
+    spans = []
+    active = {}
+    found = []
+
+    for t, items in ordered_samples:
+        current_keys = set()
+        for it in (items or []):
+            tid = str(it.get("id") or it.get("text") or "text")
+            text = str(it.get("text") or "")
+            key = (tid, text)
+            current_keys.add(key)
+
+            x0 = it.get("x0", 0)
+            y0 = it.get("y0", 0)
+            x1 = it.get("x1", 1080)
+            y1 = it.get("y1", 1920)
+
+            if key not in active:
+                active[key] = {
+                    "id": tid,
+                    "text": text,
+                    "start_t": t,
+                    "end_t": t,
+                    "role": it.get("role") or it.get("type"),
+                    "x0": x0, "y0": y0, "x1": x1, "y1": y1,
+                }
+            else:
+                active[key]["end_t"] = t
+                active[key]["x0"] = min(active[key]["x0"], x0)
+                active[key]["y0"] = min(active[key]["y0"], y0)
+                active[key]["x1"] = max(active[key]["x1"], x1)
+                active[key]["y1"] = max(active[key]["y1"], y1)
+
+            if safe_zone:
+                role = str(it.get("role") or it.get("type") or tid).lower()
+                is_header = "header" in role or "chrome" in role or tid == "header"
+                is_captions = "caption" in role or tid == "captions"
+
+                if not is_header and y0 < 248 - 1e-3:
+                    found.append(_finding(
+                        "safe_zone",
+                        f"text {_quote(text)} (id: {tid}) enters header zone at y={y0:.1f} (min 248) at t={t:.2f}s",
+                        hold=True,
+                    ))
+                if not is_captions and y1 > 1380 + 1e-3:
+                    found.append(_finding(
+                        "safe_zone",
+                        f"text {_quote(text)} (id: {tid}) enters captions zone at y={y1:.1f} (max 1380) at t={t:.2f}s",
+                        hold=True,
+                    ))
+                if y1 > 1100 + 1e-3 and x1 > 940 + 1e-3:
+                    found.append(_finding(
+                        "safe_zone",
+                        f"text {_quote(text)} (id: {tid}) enters social rail at x={x1:.1f} (max 940 below y=1100) at t={t:.2f}s",
+                        hold=True,
+                    ))
+                if x0 < 0 or x1 > 1080 or y0 < 0 or y1 > 1920:
+                    found.append(_finding(
+                        "safe_zone",
+                        f"text {_quote(text)} (id: {tid}) exceeds canvas bounds at t={t:.2f}s",
+                        hold=True,
+                    ))
+
+        ended_keys = [k for k in active if k not in current_keys]
+        for k in ended_keys:
+            sp = active.pop(k)
+            dur = sp["end_t"] - sp["start_t"]
+            w = words(sp["text"])
+            req = need(sp["text"])
+            spans.append({**sp, "duration": round(dur, 2), "words": w, "need": round(req, 2)})
+            if dur + 1e-4 < req and w > 0:
+                found.append(_finding(
+                    "read",
+                    f"text {_quote(sp['text'])} (id: {sp['id']}) is visible for {dur:.1f} s, its {w} words need {req:.1f} s"
+                ))
+
+    for k, sp in active.items():
+        dur = sp["end_t"] - sp["start_t"]
+        w = words(sp["text"])
+        req = need(sp["text"])
+        spans.append({**sp, "duration": round(dur, 2), "words": w, "need": round(req, 2)})
+        if dur + 1e-4 < req and w > 0:
+            found.append(_finding(
+                "read",
+                f"text {_quote(sp['text'])} (id: {sp['id']}) is visible for {dur:.1f} s, its {w} words need {req:.1f} s"
+            ))
+
+    text_fn = lambda f: f"motion {f['rule']}: {f['detail']}"
+    return {
+        "findings": found,
+        "holds": [text_fn(f) for f in found if f["hold"]],
+        "warnings": [text_fn(f) for f in found if not f["hold"]],
+        "spans": spans,
+    }
+

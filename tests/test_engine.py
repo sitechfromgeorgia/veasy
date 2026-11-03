@@ -47,6 +47,12 @@ class Formats(unittest.TestCase):
         self.assertFalse(engine.options("tbilisi-today")["themes"]["pack"]["light"]["allowed"])
         self.assertIn("themes", o["brands"]["sitech"])
 
+    def test_style_is_a_format_choice(self):
+        self.assertIsNone(formats.get("news").get("style"))
+        self.assertEqual(formats.get("news", style="swiss-motion")["style"], "swiss-motion")
+        with self.assertRaises(formats.FormatError):
+            formats.get("news", style="unknown-style-slug")
+
     def test_a_render_refuses_a_preview_theme(self):  # tbilisi-today light: allowed false until the owner says yes
         story = ROOT / "stories" / "24835.json"
         with mock.patch.object(engine.props, "build", side_effect=AssertionError("no build for a preview theme")):
@@ -70,8 +76,10 @@ class Formats(unittest.TestCase):
 class Options(unittest.TestCase):
     def test_options_describe_every_choice(self):
         o = engine.options()
-        for key in ("looks", "captions", "voices", "music", "formats", "scenes", "categories"):
+        for key in ("looks", "captions", "voices", "music", "formats", "scenes", "categories", "styles"):
             self.assertIn(key, o)
+        self.assertIn("known", o["styles"])
+        self.assertIn("swiss-motion", o["styles"]["known"])
         self.assertEqual(set(o["categories"]), set(brand.load("tbilisi-today")["categories"]))
         self.assertEqual(set(o["brands"]), {"tbilisi-today", "sitech"})
         sitech = engine.options("sitech")
@@ -79,6 +87,35 @@ class Options(unittest.TestCase):
         self.assertNotIn("sitech", o["voices"])
         self.assertTrue(all(o["voices"][n]["approved"] for n in voices.APPROVED))
         json.dumps(o, ensure_ascii=False)  # an agent reads it as JSON
+
+    def test_options_section_filtering(self):
+        summary = engine.options(section="summary")
+        self.assertEqual(summary["section"], "summary")
+        self.assertIn("sections", summary)
+        self.assertIn("formats", summary)
+        self.assertIn("directors", summary)
+
+        fmts = engine.options(section="formats")
+        self.assertEqual(fmts["section"], "formats")
+        self.assertIn("news", fmts["formats"])
+        self.assertEqual(set(fmts.keys()), {"brand", "section", "formats"})
+
+        with self.assertRaises(ValueError) as ctx:
+            engine.options(section="nonexistent")
+        self.assertIn("unknown section 'nonexistent'", str(ctx.exception))
+
+    def test_check_missing_file_returns_structured_problem(self):
+        import io, sys
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        try:
+            sys.stdout = captured
+            code = engine.main(["check", "missing-story-file.json"])
+        finally:
+            sys.stdout = old_stdout
+        self.assertEqual(code, 1)
+        res = json.loads(captured.getvalue())
+        self.assertTrue(any("story file not found" in p for p in res["problems"]))
 
     def test_engine_scene_types_match_the_remotion_scenes(self):
         tsx = (ROOT / "remotion" / "src" / "scenes" / "index.tsx").read_text(encoding="utf-8")
