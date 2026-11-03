@@ -244,7 +244,7 @@ def run_jobs(jobs, timeout=900):
     spec = {"cache": str(store.bundle_dir()), "browser": props_mod.chrome(), "jobs": jobs}
     try:
         r = subprocess.run(["node", "probe.mjs"], cwd=REMOTION, input=json.dumps(spec), capture_output=True,
-                           text=True, timeout=timeout)
+                           text=True, encoding="utf-8", timeout=timeout)
     except subprocess.TimeoutExpired:
         raise ProbeError(f"the probe timed out after {timeout}s")
     except OSError as e:

@@ -77,12 +77,12 @@ def note(msg):
 # ---------------------------------------------------------------- options
 
 
-def options(brand_name=None):
+def options(brand_name=None, section=None):
     from tt_shorts import package
     every = formats.load_all()
     b = packs.load(brand_name)
     presets = voices.all_presets(b)
-    return {
+    full = {
         "brand": b["name"],
         "brands": {n: packs.summary(packs.load(n)) for n in packs.names()},
         "looks": {"auto": "by the story's category", **{v: d for v, d in (
@@ -161,6 +161,10 @@ def options(brand_name=None):
         "self_checks": {"plan": "engine plan <story> [--look]: a free storyboard before the voice is paid for: scene "
                                 "times, words and reading load, the variety picks (not recorded), the motion rules, "
                                 "the probe and a half-size contact sheet",
+                        "critique": "engine critique <story>: pre-flight visual critique checklist on plan stills "
+                                    "(safe zones, contrast, text load, pacing, motion)",
+                        "dry_run": "engine dry-run <story>: calculate TTS chars, dollar cost, duration and cache "
+                                   "status before rendering ($0.00)",
                         "probe": "engine probe <story> [--look all]: every text's real box per scene; part of every "
                                  "render (a problem holds the job)",
                         "selftest": "engine selftest [--update]: golden stills of the fixture stories in every look; "
@@ -173,6 +177,31 @@ def options(brand_name=None):
                            "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
                        for c in b["categories"]},
     }
+    if section is None:
+        return full
+    if section == "summary":
+        return {
+            "brand": b["name"],
+            "section": "summary",
+            "brands": list(packs.names()),
+            "formats": {n: f.get("about", "") for n, f in every.items()},
+            "looks": full["looks"],
+            "captions": list(full["captions"].keys()),
+            "voices": [name for name, p in presets.items() if name in voices.APPROVED or name in (b.get("voices") or {})],
+            "film_engines": list(full["film_engines"]["engines"].keys()),
+            "programs": list(programs.load_all().keys()),
+            "directors": list(directors.options().keys()),
+            "rubrics": list(rubrics.options().keys()),
+            "sections": sorted(list(full.keys()) + ["summary"]),
+            "hint": "Pass section='<name>' or --section <name> to inspect any section in detail.",
+        }
+    if section in full:
+        return {
+            "brand": b["name"],
+            "section": section,
+            section: full[section],
+        }
+    raise ValueError(f"unknown section {section!r}; known: summary, {', '.join(sorted(full.keys()))}")
 
 
 def _film_engines(b):
@@ -895,6 +924,29 @@ def doctor(_a):
     return out({"checks": checks, "problems": blocking}, 1 if blocking else 0)
 
 
+def brand_cmd(a):
+    from tt_shorts import brand_new
+    if a.action == "new":
+        if not a.name or not a.source:
+            return out({"problems": ["usage: engine brand new <name> --from <url|pdf|design.md|frame.md>"]}, 2)
+        res = brand_new.create_brand(a.name, a.source, render_sheets=not getattr(a, "no_sheets", False))
+        return out(res, 0 if res.get("validation") == "valid" else 1)
+    return out({"problems": [f"unknown brand action '{a.action}'; known: new"]}, 2)
+
+
+def critique_cmd(a):
+    from tt_shorts import critique
+    res = critique.critique_story(a.story, fmt_name=a.format, look=getattr(a, "look", None),
+                                  director=getattr(a, "director", None))
+    return out(res, 1 if res.get("grade") == "FAIL" else 0)
+
+
+def dry_run_cmd(a):
+    from tt_shorts import dry_run as dr
+    res = dr.dry_run(a.story, fmt_name=a.format, voice_engine=a.engine, director=a.director)
+    return out(res, 1 if res.get("problems") else 0)
+
+
 # ---------------------------------------------------------------- cli
 
 
@@ -920,6 +972,7 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     o = sub.add_parser("options")
     o.add_argument("--brand", help="the pack whose categories, looks and voices to show (default tbilisi-today)")
+    o.add_argument("--section", help="filter to a section (summary, formats, looks, captions, voices, themes, directors, programs, rubrics, scenes, icons, etc.)")
     c = sub.add_parser("check")
     c.add_argument("story")
     c.add_argument("--sources", help="JSON list of the member articles' texts (enables the news rules N2/N3)")
@@ -1057,15 +1110,44 @@ def main(argv=None):
     cp.add_argument("--as", dest="as_id", help="promote: the template id")
     cp.add_argument("--label", help="promote: the template's name")
     cp.add_argument("--about", help="promote: what it is for")
+    bp = sub.add_parser("brand", help="brand pack operations: new <name> --from <source>")
+    bp.add_argument("action", choices=["new"])
+    bp.add_argument("name", nargs="?", help="the brand identifier (e.g. alpha)")
+    bp.add_argument("--from", dest="source", required=True, help="path or URL to brand guidelines, frame.md, design.md or web page")
+    bp.add_argument("--no-sheets", action="store_true", help="skip rendering sample contact sheets")
+    cr = sub.add_parser("critique", help="pre-flight visual and pacing critique checklist on plan stills")
+    cr.add_argument("story")
+    cr.add_argument("--format", help="a format (default: the story's program's, news for news)")
+    cr.add_argument("--look", choices=formats.LOOKS)
+    cr.add_argument("--director", help="force a director")
+    dr = sub.add_parser("dry-run", help="pre-flight cost and timing calculator before rendering")
+    dr.add_argument("story")
+    dr.add_argument("--format", help="a format (default: the story's program's, news for news)")
+    dr.add_argument("--engine", default="gemini", choices=["gemini", "edge", "silent"])
+    dr.add_argument("--director", help="force a director")
     a = ap.parse_args(argv)
     if a.cmd == "compose" and a.engine is None:
         a.engine = "gemini" if a.action == "render" else "silent"
     try:
         if a.cmd == "options":
-            return out(options(a.brand))
+            return out(options(a.brand, getattr(a, "section", None)))
         if a.cmd == "check":
-            story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
-            sources = json.loads(pathlib.Path(a.sources).read_text(encoding="utf-8")) if a.sources else None
+            sp = pathlib.Path(a.story)
+            if not sp.is_file():
+                return out({"story": a.story, "problems": [f"story file not found: {a.story}. Provide a valid path to story JSON (e.g. stories/24835.json)."]}, 1)
+            try:
+                story = json.loads(sp.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                return out({"story": a.story, "problems": [f"invalid JSON in story file {a.story}: {e}"]}, 1)
+            sources = None
+            if a.sources:
+                src_p = pathlib.Path(a.sources)
+                if not src_p.is_file():
+                    return out({"story": a.story, "problems": [f"sources file not found: {a.sources}."]}, 1)
+                try:
+                    sources = json.loads(src_p.read_text(encoding="utf-8"))
+                except json.JSONDecodeError as e:
+                    return out({"story": a.story, "problems": [f"invalid JSON in sources file {a.sources}: {e}"]}, 1)
             if isinstance(sources, dict):  # tests/fixtures/sources.json: {story id: [articles]}
                 if str(story.get("id")) not in sources:
                     return out({"problems": [f"{a.sources} has no articles for story {story.get('id')}"]}, 2)
@@ -1079,9 +1161,18 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "compose": compose_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
+    except FileNotFoundError as e:
+        fname = getattr(e, "filename", None) or str(e)
+        return out({"problems": [f"file not found: {fname}. Check that the path exists."]}, 1)
+    except json.JSONDecodeError as e:
+        return out({"problems": [f"invalid JSON: {e}"]}, 1)
+    except packs.BrandError as e:
+        return out({"problems": [str(e)]}, 2)
+    except Exception as e:
+        return out({"problems": [f"{type(e).__name__}: {e}"]}, 1)
 
 
 if __name__ == "__main__":

@@ -15,7 +15,18 @@ python -m tt_shorts.engine options       # every brand pack, look, caption desig
 Which client the video is for is the story's `"brand"` (default tbilisi-today; see `veasy:brands`). Several videos,
 a daily batch or retries: use the queue (`veasy:queue`); it runs these same steps per job.
 
-## 0. Which way: the kit or a composed film
+## 0. Which way: routing requests to program, format, and engine
+
+| Request / Goal | Program | Format | Director / Look | Engine | Route |
+|---|---|---|---|---|---|
+| "a news story on cluster 24886" | `news` | `news` | `auto` / `cards` | `remotion` | Standard facts workflow (§ 1-5) |
+| "an animated explainer about X" | `explainer` | `explainer` | `editorial` | `remotion` | `veasy:programs` (`url`, `pdf`, `text`) |
+| "a 30 s story for kids / fable" | `story` | `story` | `cards` / `kinetic` | `hyperframes` | `veasy:compose` (fictional characters, S1) |
+| "a data video / stats report" | `explainer` | `explainer` | `kinetic` | `remotion` | `veasy:formats` (`count`, `points`, `bars`) |
+| "article 17 of the Constitution" | `law` | `explainer` | `editorial` | `remotion` | `veasy:programs` (`ordo`, `matsne`) |
+| "turn this sitech.ge post to video" | `blog` | `news` | `editorial` | `remotion` | `veasy:brands` (brand `sitech`) |
+| "morning digest of top stories" | `digest` | `digest` | `editorial` | `remotion` | `veasy:rubrics` (checked stories) |
+| "custom brand / promo film" | `story` | `story` | custom | `hyperframes` | `veasy:compose` (HyperFrames lane) |
 
 Veasy has two film engines, both first-class, and any video can be made:
 - **News and data** (a cluster, a document, a law, a blog post, the digest): Veasy's programs (`veasy:programs`)
@@ -59,9 +70,10 @@ no sensitive stories), K* and KE are Georgian rules (KE = kaeasy, SiTech's Georg
 ## 3. Plan before you render (free, ~5 s)
 
 ```bash
-python -m tt_shorts.engine plan <story.json> [--format news] [--look kinetic] [--director map]
-```
-Tool `veasy_plan`. A storyboard with no voice and no model call, and it uses up nothing (the variety picks are
+python -m tt_shorts.engine dry-run <story.json>   # tool veasy_dry_run: $0.00 cost calculation, words, render time
+python -m tt_shorts.engine plan <story.json>      # tool veasy_plan: contact sheet of stills + timings
+python -m tt_shorts.engine critique <story.json>  # tool veasy_critique: checklist score on safe zones, contrast, pacing
+``` A storyboard with no voice and no model call, and it uses up nothing (the variety picks are
 shown, not recorded):
 - per scene: start, end, narration words, caption pages, and every text on screen with the seconds it `need`s
   (0.5 s + 0.3 s a word) and the seconds it is `shown`; `load` above 1 means more text than time;

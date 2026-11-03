@@ -9,7 +9,9 @@ A format is a named set of choices; the engine renders any story in any format. 
 decided with the owner; this skill only explains the mechanics.
 
 ```bash
-python -m tt_shorts.engine options   # looks, captions, voices (with the owner-approved ones), music, formats, scenes
+python -m tt_shorts.engine options                           # full options (all choices, scenes, brushes, icons)
+python -m tt_shorts.engine options --section summary         # compact 1 KB overview: brands, formats, looks, voices, sections
+python -m tt_shorts.engine options --section formats         # inspect only formats
 ```
 (`options` also lists `areas`: the codes a `where` scene may name, `ge:<region>`. That is a story field, not a
 format choice. The map itself needs no format key; see `veasy:write-script`.)

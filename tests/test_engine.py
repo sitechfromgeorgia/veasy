@@ -80,6 +80,35 @@ class Options(unittest.TestCase):
         self.assertTrue(all(o["voices"][n]["approved"] for n in voices.APPROVED))
         json.dumps(o, ensure_ascii=False)  # an agent reads it as JSON
 
+    def test_options_section_filtering(self):
+        summary = engine.options(section="summary")
+        self.assertEqual(summary["section"], "summary")
+        self.assertIn("sections", summary)
+        self.assertIn("formats", summary)
+        self.assertIn("directors", summary)
+
+        fmts = engine.options(section="formats")
+        self.assertEqual(fmts["section"], "formats")
+        self.assertIn("news", fmts["formats"])
+        self.assertEqual(set(fmts.keys()), {"brand", "section", "formats"})
+
+        with self.assertRaises(ValueError) as ctx:
+            engine.options(section="nonexistent")
+        self.assertIn("unknown section 'nonexistent'", str(ctx.exception))
+
+    def test_check_missing_file_returns_structured_problem(self):
+        import io, sys
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        try:
+            sys.stdout = captured
+            code = engine.main(["check", "missing-story-file.json"])
+        finally:
+            sys.stdout = old_stdout
+        self.assertEqual(code, 1)
+        res = json.loads(captured.getvalue())
+        self.assertTrue(any("story file not found" in p for p in res["problems"]))
+
     def test_engine_scene_types_match_the_remotion_scenes(self):
         tsx = (ROOT / "remotion" / "src" / "scenes" / "index.tsx").read_text(encoding="utf-8")
         record = re.search(r"export const SCENES[^{]*\{([^}]*)\}", tsx).group(1)
