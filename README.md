@@ -220,7 +220,8 @@ time slot and an episode number, drawn as a chip in the hook („დღის �
 The media layer is engine-free: Python resolves every picture into a local file and a ledger entry before the
 voice is made, and an engine (Remotion today, HyperFrames next) only draws local files.
 - **A hint, not a picture.** The writer may give a scene a `show` hint (a short English query, "gas pipeline
-  repair"; or `screenshot`). `engine media <story>` (and `write`, `plan`) searches the pack's providers in order,
+  repair"; or `screenshot`). `engine media <story>` (and `write`, `plan`) searches the pack's providers in order (none by default: a pack opts
+  in with `media.providers`),
   picks one per story (seeded by the story, among the best four of the freest licence found: the same picture on
   every re-run; searches are cached), fetches it into `cache/media/` (a photo upright, at most 1920 px) and writes
   the story's code-owned `assets` ledger (`{kind, provider, url, licence, author, title, fetched, sha, file}`) and

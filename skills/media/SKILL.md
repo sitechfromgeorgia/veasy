@@ -23,6 +23,8 @@ files. The writer only suggests; code finds, checks, labels and credits.
 3. Check: `engine check <story> --sources <articles>`, then `engine plan` / `engine probe --look all` to see it.
 
 How a picture is chosen:
+- Pictures are opt-in per pack: `media.providers` is empty in the base (`_ka`), so no story gets a picture until
+  a pack lists its providers (2026-11-03: stock relevance is still middling and nobody reviews the daily run).
 - Providers in the pack's order (`media.providers`): Openverse and Wikimedia Commons (no key), Pexels and
   Pixabay only when `PEXELS_API_KEY` / `PIXABAY_API_KEY` is set (otherwise skipped, never an error).
 - Licences that allow commercial use only: CC0 and public domain first, Pexels and Pixabay, then CC BY, then

@@ -41,7 +41,7 @@ class Packs(unittest.TestCase):
             self.assertIn("{author}", b["strings"]["media_credit"])
             self.assertEqual(b["media"]["own"], [own])  # the pack's own site
             self.assertIn("matsne.gov.ge", b["media"]["official"])  # the base's official sites, merged
-            self.assertEqual(b["media"]["providers"][:2], ["openverse", "commons"])
+            self.assertEqual(b["media"]["providers"], [])  # pictures are opt-in per pack (2026-11-03): none by default
             self.assertIn("illustrative", brand.for_remotion(b)["strings"])
 
     def test_a_base_is_not_a_brand(self):

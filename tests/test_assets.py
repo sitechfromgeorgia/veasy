@@ -189,8 +189,16 @@ class Resolve(Home):
 
     def resolve(self, s, **kw):
         a, b, c = self.fake()
+        kw.setdefault("providers", ["openverse", "commons"])  # a pack that opted in (the shipped packs haven't)
         with a, b, c:
             return assets.resolve(s, **kw)
+
+    def test_the_shipped_packs_resolve_nothing_until_they_opt_in(self):
+        a, b, c = self.fake()
+        with a, b, c:
+            new, report = assets.resolve(story())
+        self.assertNotIn("assets", new)
+        self.assertFalse(any(sc.get("media") for sc in new["scenes"]))
 
     def test_a_hint_becomes_a_ledger_entry_and_a_local_file(self):
         new, report = self.resolve(story())
