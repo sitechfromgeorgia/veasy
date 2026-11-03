@@ -38,8 +38,6 @@ import json
 import pathlib
 import re
 
-import re
-
 from tt_shorts import meta, swipe, voices
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -65,6 +63,14 @@ BUILTIN = {
              "two-line captions that never move."},
     "news-roll": {"label": "ამბავი: მოძრავი ტიტრები", "captions": "roll",
                   "about": "The same, with the three-line teleprompter captions."},
+    "longform": {"label": "სიუჟეტი: ორი-ოთხი წუთი", "captions": "roll", "look": "editorial",
+              "voice": "anchor", "music": "politics", "platform": "youtube",
+              "min_seconds": 90, "max_seconds": 300,
+              "about": "A two-to-four-minute story with chapters, a map and numbers."},
+    "film": {"label": "ფილმი: გრძელი რგოლი", "captions": "roll", "look": "editorial",
+             "voice": "anchor", "music": "politics", "platform": "youtube",
+             "min_seconds": 150, "max_seconds": 600,
+             "about": "A documentary cut, three to ten minutes, vertical for now."},
     "showcase": {"label": "შოუქეისი: გრძელი რგოლი", "captions": "roll", "look": "editorial",
                  "voice": "anchor", "music": "tech", "platform": "youtube",
                  "min_seconds": 120, "max_seconds": 360,
@@ -103,8 +109,8 @@ def validate(name, f):
     themes = themes_known()
     if f["theme"] not in THEME_MODES and f["theme"] not in themes:
         bad("theme", f["theme"], THEME_MODES + tuple(themes))
-    if not (0 < f["min_seconds"] < f["max_seconds"] <= 360):
-        raise FormatError(f"format {name!r}: need 0 < min_seconds < max_seconds <= 360")
+    if not (0 < f["min_seconds"] < f["max_seconds"] <= 900):
+        raise FormatError(f"format {name!r}: need 0 < min_seconds < max_seconds <= 900")
     if "engine" in f:
         engine_value(f["engine"], f"format {name!r}", FormatError)
     if "review" in f:
