@@ -138,6 +138,13 @@ class Isotype(unittest.TestCase):
         self.assertFalse(icons.isotype(self.stat(icon="nothing")))
         self.assertFalse(icons.isotype({"type": "stat", "value": 12, "label": "ა"}))
 
+    def test_part_of_whole_isotype(self):
+        self.assertTrue(icons.isotype(self.stat(value=7, total=10)))
+        self.assertTrue(icons.isotype(self.stat(value=2, total=2)))
+        self.assertFalse(icons.isotype(self.stat(value=15, total=10)))  # value > total
+        self.assertFalse(icons.isotype(self.stat(value=7, total=35)))  # total > 30
+        self.assertFalse(icons.isotype(self.stat(value=7, total="10")))
+
 
 class Scene(unittest.TestCase):
     def test_shape_problems(self):
@@ -172,10 +179,29 @@ class Scene(unittest.TestCase):
         s["scenes"][1]["icon"] = "ხატულა"
         self.assertTrue(any("scene 1 (sign): icon" in x for x in icons.story_problems(s)))
 
+    def test_motions_and_morph(self):
+        p = engine.shape_problems
+        self.assertEqual(p({"type": "sign", "icon": "გაზი", "verb": "stops", "motion": "pop", "label": "ა"}), [])
+        self.assertEqual(p({"type": "sign", "icon": "გაზი", "verb": "stops", "motion": "pulse", "label": "ა"}), [])
+        self.assertEqual(p({"type": "sign", "icon": "გაზი", "verb": "stops", "motion": "sketch", "label": "ა"}), [])
+        self.assertEqual(p({"type": "sign", "icon": "გაზი", "verb": "stops", "motion": "morph", "morph_from": "zap", "label": "ა"}), [])
+        self.assertTrue(any("motion:" in x for x in p({"type": "sign", "icon": "გაზი", "verb": "stops", "motion": "flying"})))
+        self.assertTrue(any("morph_from:" in x for x in p({"type": "sign", "icon": "გაზი", "verb": "stops", "morph_from": "badicon"})))
+        self.assertTrue(any("total:" in x for x in p({"type": "stat", "value": 12, "icon": "bus", "total": 5})))
+
+    def test_attach_preserves_motion_and_morph(self):
+        scenes = [{"type": "sign", "icon": "flame", "verb": "stops", "motion": "pop", "morph_from": "zap"}]
+        attached = icons.attach(scenes, {"category": "society"})
+        self.assertEqual(attached[0]["motion"], "pop")
+        self.assertEqual(attached[0]["morphGlyph"], icons.nodes("zap"))
+        self.assertEqual(attached[0]["glyph"], icons.nodes("flame"))
+
     def test_options_list_the_icons(self):
         o = engine.options()["icons"]
         self.assertEqual(o["count"], len(icons.library()))
         self.assertEqual(set(o["verbs"]), set(icons.VERBS))
+        self.assertEqual(set(o["motions"]), set(icons.MOTIONS))
+        self.assertIn("isotype", o["charts"])
         self.assertIn("flame", o["names"])
 
 

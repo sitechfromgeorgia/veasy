@@ -25,6 +25,8 @@ import re
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 LIBRARY = ROOT / "assets" / "icons" / "lucide.json"
 ISOTYPE = (2, 30)  # a stat value in this range is drawn as that many icons; outside it, the bar
+MOTIONS = ("draw", "pop", "pulse", "count", "morph", "sketch")
+DEFAULT_MOTION = "draw"
 
 # icon -> Georgian stems (nominative minus its ending, so every case and postposition matches)
 _BY_ICON = {
@@ -410,7 +412,8 @@ def said(verb, text):
 
 
 def isotype(scene):
-    """A stat whose value is drawn as that many icons: an icon, a whole number of 2-30 things, not a percent."""
+    """A stat whose value is drawn as that many icons: an icon, a whole number of 2-30 things, not a percent.
+    Supports part-of-whole when total is present (e.g. 7 out of 10)."""
     v = scene.get("value")
     if scene.get("type") != "stat" or not resolve(scene.get("icon")):
         return False
@@ -418,6 +421,12 @@ def isotype(scene):
         return False
     if "%" in f"{scene.get('prefix') or ''}{scene.get('suffix') or ''}":
         return False
+    total = scene.get("total")
+    if total is not None:
+        if isinstance(total, bool) or not isinstance(total, (int, float)) or not math.isfinite(total) or float(total) != int(total):
+            return False
+        if not (ISOTYPE[0] <= int(total) <= ISOTYPE[1]) or int(v) > int(total):
+            return False
     return ISOTYPE[0] <= int(v) <= ISOTYPE[1]
 
 
@@ -431,6 +440,15 @@ def scene_problems(s):
                        f"(engine options -> icons)")
     if t == "sign" and s.get("verb") not in VERBS:
         out.append(f"verb: {s.get('verb')!r}, use one of {', '.join(VERBS)}")
+    if s.get("motion") is not None and s.get("motion") not in MOTIONS:
+        out.append(f"motion: {s.get('motion')!r}, use one of {', '.join(MOTIONS)}")
+    if s.get("morph_from") is not None and not resolve(s.get("morph_from")):
+        out.append(f"morph_from: {s.get('morph_from')!r} is neither an icon name nor a Georgian word the map knows")
+    if s.get("total") is not None:
+        tot = s.get("total")
+        val = s.get("value", 0)
+        if isinstance(tot, bool) or not isinstance(tot, (int, float)) or not math.isfinite(tot) or tot < val:
+            out.append("total: must be a number >= value")
     return out
 
 
@@ -474,7 +492,13 @@ def attach(scenes, story):
     for s in scenes:
         if s.get("type") in ("sign", "stat") and resolve(s.get("icon")):
             name = resolve(s["icon"])
-            s = {**s, "icon": name, "glyph": nodes(name)}
+            motion = s.get("motion") if s.get("motion") in MOTIONS else DEFAULT_MOTION
+            patch = {"icon": name, "glyph": nodes(name), "motion": motion}
+            if s.get("morph_from") and resolve(s.get("morph_from")):
+                patch["morphGlyph"] = nodes(resolve(s["morph_from"]))
+            if s.get("total") is not None:
+                patch["total"] = s["total"]
+            s = {**s, **patch}
             if s["type"] == "stat":
                 s["isotype"] = isotype(s)
         out.append(s)
@@ -486,7 +510,9 @@ def options():
     return {"about": "Lucide stroke icons (ISC), named in English or by a Georgian word (the stem map); used by the "
                      "sign scene, a stat's icon (2-30 drawn as that many) and the story's motif. N10: none for crime, "
                      "incidents or deaths",
-            "count": len(library()), "verbs": VERB_ABOUT, "isotype": list(ISOTYPE), "names": names(),
+            "count": len(library()), "verbs": VERB_ABOUT, "motions": list(MOTIONS),
+            "charts": ["isotype", "part_of_whole", "unit_chart"],
+            "isotype": list(ISOTYPE), "names": names(),
             "georgian_examples": {"გაზი": "flame", "დენი": "zap", "წყალი": "droplet", "მეტრო": "train-front",
                                   "ავტობუსი": "bus", "სკოლა": "school", "საავადმყოფო": "hospital",
                                   "სასამართლო": "scale", "ფასი": "tag", "ლარი": "banknote", "გზა": "route",

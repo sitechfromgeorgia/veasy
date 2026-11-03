@@ -56,6 +56,8 @@ export type ArtNode = {
 export type IconNode = [string, Record<string, string>];
 // what a sign scene shows happening to its icon (icons.VERBS)
 export type Verb = "rises" | "falls" | "stops" | "opens" | "closes" | "moves" | "splits" | "joins";
+// icon motion vocabulary (icons.MOTIONS)
+export type IconMotion = "draw" | "pop" | "pulse" | "count" | "morph" | "sketch";
 
 // the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python
 export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter";
@@ -136,6 +138,9 @@ export type Scene = SceneBase & {
   icon?: string; // sign, stat: the icon's library name (resolved in Python)
   verb?: Verb; // sign
   glyph?: IconNode[]; // sign, stat: the icon's shapes
+  motion?: IconMotion; // sign, stat: draw | pop | pulse | count | morph | sketch
+  morphGlyph?: IconNode[]; // sign: starting glyph for morph motion
+  chart?: "isotype" | "part_of_whole" | "unit";
   isotype?: boolean; // stat: the value is drawn as that many icons (2-30 whole things)
   text?: string;
   by?: string;
