@@ -52,7 +52,7 @@ import sys
 
 from tt_shorts import brand as packs
 from tt_shorts import (assets, captions, catalog, chapters, directors, formats, geo, icons, ka_check, kaeasy,
-                       meta, motion_rules, news_check, programs, props, rubrics, sfx, speech, store, swipe,
+                       meta, motion_rules, news_check, programs, props, rubrics, sfx, speech, store, styles, swipe,
                        variety, voices)
 
 ROOT = speech.ROOT
@@ -168,6 +168,9 @@ def options(brand_name=None):
                         "learn": "engine learn [--brand]: the rules failing most lately; the writer reads them"},
         "motion_rules": {"about": "checks over a video's timeline (tt_shorts/motion_rules.py): warnings in plan; "
                                   f"only {', '.join(motion_rules.HOLDS)} holds a render", **motion_rules.RULES},
+        "styles": {"about": "named film styles as data (styles/<slug>): selects engine, palette mode, layout invariants, "
+                            "directing constraints, and motion pacing (tt_shorts/styles.py)",
+                   "known": {s["slug"]: styles.summary(s) for s in styles.load_all()}},
         "icons": icons.options(),
         "categories": {c: {"label": meta.category_label(c, b), "family": meta.family(c, b),
                            "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
@@ -368,6 +371,12 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
         return {"problems": missing}
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     did = director or story.get("director")
+    req_style = getattr(fmt, "get", lambda k: None)("style") or story.get("style")
+    if req_style:
+        chosen_style = styles.resolve_for_story(story, req_style)
+    else:
+        style_slug = variety.pick_style(brand_of(story), story["id"], story.get("program") or "news", story.get("family"))
+        chosen_style = styles.get(style_slug)
     theme = props.theme_for(story, fmt.get("theme"), directors.get(did) if did else None)
     held = packs.theme_problems(packs.of(story, theme))  # allowed: false (brand.json): not before the owner's yes
     if held:
@@ -383,10 +392,11 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
         brand_of(story), story["id"], fmt["name"], p["variant"], fmt["captions"])
     props.render_video(work, p, target)
     variety.record(brand_of(story), story["id"], p["variant"], {**p["style"], "transition": p["transition"],
-                                                                "music": p["music"], "theme": p.get("theme")},
+                                                                "music": p["music"], "theme": p.get("theme"),
+                                                                "style": chosen_style["slug"]},
                    [x["type"] for x in p["scenes"]], p.get("novelty"))
     result = {"file": str(target.resolve()), "seconds": round(secs, 1), "format": fmt["name"], "look": p["variant"],
-              "style": p["style"], "transition": p["transition"], "outro": p["outro"], "theme": p.get("theme"),
+              "style": p["style"], "style_slug": chosen_style["slug"], "transition": p["transition"], "outro": p["outro"], "theme": p.get("theme"),
               "mode": (p.get("brand") or {}).get("mode"), "captions": fmt["captions"], "voice": fmt["voice"], "engine": engine, "music": p["music"],
               "brand": brand_of(story), "story": str(pathlib.Path(story_path).resolve()),
               "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version(),
@@ -426,7 +436,7 @@ def _probe_render(work, p):
 def probe_cmd(a):
     from tt_shorts import probe
     fmt = formats.get(a.format, captions=a.captions, transition=a.transition, voice=a.voice, platform=a.platform,
-                      theme=a.theme, beats=a.beats, chapters=a.chapters)
+                      theme=a.theme, beats=a.beats, chapters=a.chapters, style=getattr(a, "style", None))
     result = probe.story(a.story, fmt, a.look, a.engine, a.stills)
     return out(result, 1 if result["problems"] else 0)
 
@@ -479,7 +489,7 @@ def _format(a):
     return formats.get(name, look=a.look, captions=a.captions, transition=a.transition, outro=a.outro, voice=a.voice,
                        music=a.music, platform=a.platform, sfx=getattr(a, "sfx", None),
                        theme=getattr(a, "theme", None), beats=getattr(a, "beats", None),
-                       chapters=getattr(a, "chapters", None))
+                       chapters=getattr(a, "chapters", None), style=getattr(a, "style", None))
 
 
 def program_format(story_path):
@@ -663,7 +673,7 @@ def package_cmd(a):
 # ---------------------------------------------------------------- write / voices / doctor
 
 
-def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, director=None, rubric=None):
+def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, director=None, rubric=None, style=None):
     """A source reference -> a written, checked story file (+ its sources beside it). Used by `write` and the queue.
     program: news (default: the news-cluster writer, as before programs) or another program (programs.py), which
     writes from its brief, under its scenes and rule tier. Every failed writer pass is remembered (failures.py).
@@ -730,6 +740,8 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
     story["source"] = {"name": source, "ref": str(ref)}
     if did:
         story["director"] = did  # code-owned: chosen before writing, kept on every re-render
+    if style:
+        story["style"] = styles.resolve_for_story(story, style)["slug"]
     programs.stamp(story, prog, data["cluster"])  # program, category, the document's facts and link: data
     name = programs.story_ref(prog, data["cluster"], ref)
     if r:  # the rubric and its episode: code's, reserved before the voice (idempotent per story)
@@ -764,7 +776,8 @@ def write(a):
     ref = a.ref if a.ref is not None else a.cluster
     if ref is None:
         return out({"problems": ["give --ref (or --cluster for tbilisi-today)"]}, 2)
-    result = write_story(a.source, ref, a.brand, a.out, a.program, a.director, a.rubric)
+    result = write_story(a.source, ref, a.brand, a.out, a.program, a.director, a.rubric,
+                         style=getattr(a, "style", None))
     return out(result, 1 if result["problems"] else 0)
 
 
@@ -818,7 +831,8 @@ def queue_cmd(a):
     from tt_shorts import queue
     if a.action == "add":
         overrides = {k: getattr(a, k) for k in ("look", "captions", "transition", "outro", "voice", "music", "platform",
-                                                 "beats", "chapters", "director", "rubric", "part", "theme", "renderer") if getattr(a, k)}
+                                                 "beats", "chapters", "director", "rubric", "part", "theme", "renderer",
+                                                 "style") if getattr(a, k)}
         job, created = queue.add(a.brand, a.source if not a.story else None, a.ref, a.format, overrides, a.story,
                                  a.priority, program=a.program)
         return out({"job": job, "created": created})
@@ -927,6 +941,7 @@ def main(argv=None):
         r = sub.add_parser(name)
         r.add_argument("story")
         r.add_argument("--format", help="a format (default: the story's program's, news for news)")
+        r.add_argument("--style", help="a named film style (see options: styles)")
         r.add_argument("--look", choices=formats.LOOKS)
         r.add_argument("--captions", choices=formats.CAPTIONS)
         r.add_argument("--transition", choices=formats.TRANSITIONS, help="the cut between scenes (auto: the look's own)")
@@ -953,6 +968,7 @@ def main(argv=None):
     pk.add_argument("--only", help="comma-separated: srt,vtt,cover,carousel,teaser,texts,telegram (default all)")
     w = sub.add_parser("write")
     w.add_argument("--program", help="news (default), explainer, law, blog... (see options: programs)")
+    w.add_argument("--style", help="a named film style to set on the story")
     w.add_argument("--source", help="tbilisi-today (ref = cluster id), text (ref = JSON file), url, pdf, ordo, sitech "
                                     "(default: the program's first source)")
     w.add_argument("--ref", help="the story's reference in its source")
@@ -976,6 +992,7 @@ def main(argv=None):
     sub.add_parser("doctor")
     pr = sub.add_parser("probe")
     pr.add_argument("story")
+    pr.add_argument("--style", help="a named film style")
     pr.add_argument("--look", default="auto", help="auto (the story's own), all, or a comma-separated list")
     pr.add_argument("--format", default="news")
     pr.add_argument("--captions", choices=formats.CAPTIONS)
@@ -990,6 +1007,7 @@ def main(argv=None):
     pl = sub.add_parser("plan")
     pl.add_argument("story")
     pl.add_argument("--format", help="a format (default: the story's program's, news for news)")
+    pl.add_argument("--style", help="a named film style")
     pl.add_argument("--look", choices=formats.LOOKS)
     pl.add_argument("--captions", choices=formats.CAPTIONS)
     pl.add_argument("--transition", choices=formats.TRANSITIONS)
@@ -1026,7 +1044,7 @@ def main(argv=None):
     qp.add_argument("--story", help="an already written story file (skips writing)")
     qp.add_argument("--format", help="default: the program's format (news: news)")
     for k in ("look", "captions", "transition", "outro", "voice", "music", "platform", "beats", "chapters", "director",
-              "rubric", "theme"):
+              "rubric", "theme", "style"):
         qp.add_argument(f"--{k}")
     qp.add_argument("--part", type=int, help="add: a continues job's part (ops/daily.py sets it from the stored state)")
     qp.add_argument("--priority", type=int, default=0)
@@ -1051,7 +1069,7 @@ def main(argv=None):
     cp.add_argument("--shots", help="check: save the page at each probed time (PNG) in this folder")
     cp.add_argument("--theme", help="the pack's theme: default, auto or a name (brand.json themes)")
     cp.add_argument("--format", help="render: a format (default: the story's program's)")
-    for k in ("captions", "voice", "music", "platform"):
+    for k in ("captions", "voice", "music", "platform", "style"):
         cp.add_argument(f"--{k}")
     cp.add_argument("--out", help="render: the mp4 (default renders/<brand>/<day>/<ref>-<format>-composed-<captions>)")
     cp.add_argument("--as", dest="as_id", help="promote: the template id")
