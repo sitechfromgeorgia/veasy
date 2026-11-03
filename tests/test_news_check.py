@@ -99,5 +99,66 @@ class Pictograms(unittest.TestCase):  # N10
         self.assertIn("N10", rules(news_check.problems(s, SRC)))
 
 
+def asset(kind="photo", url="https://live.staticflickr.com/1/2.jpg", **more):
+    return {"id": f"{kind[:4]}0000000000a1"[:16], "kind": kind, "provider": "screenshot" if kind == "screenshot" else
+            "openverse", "url": url, "licence": "screenshot" if kind == "screenshot" else "cc0", "author": "x",
+            "title": "gas pipes", "fetched": "2026-11-03T10:00:00+00:00", "sha": "0" * 64,
+            "file": "cache/media/abc/image.jpg", **more}
+
+
+def pictured(narration, kind="photo", category="society", **more):
+    a = asset(kind, **more)
+    return {"category": category, "narration": narration, "assets": [a],
+            "scenes": [{"type": "hook", "at": narration.split()[0], "lines": ["x"]},
+                       {"type": "stat", "at": narration.split(". ")[1].split()[0], "value": 6400, "label": "ა",
+                        "show": "gas pipes", "media": {"asset": a["id"]}}]}
+
+
+class Imagery(unittest.TestCase):  # N13
+    def test_a_labelled_illustration_is_fine(self):
+        s = pictured("2 ნოემბერს გაზი შეწყდება. მიწოდება 6400 აბონენტს შეუწყდება.")
+        self.assertEqual(news_check.imagery(s), [])
+        self.assertEqual(news_check.problems(s, SRC), [])
+        self.assertNotIn("gas pipes", news_check.screen_text(s))  # the hint and the media are not screen text (N2)
+
+    def test_no_imagery_for_the_crime_family_or_deaths(self):
+        for category in ("crime", "incidents"):
+            p = news_check.imagery(pictured("2 ნოემბერს გაზი შეწყდება. მიწოდება შეუწყდება.", category=category))
+            self.assertTrue(any("N13" in x and "crime family" in x for x in p), category)
+        p = news_check.imagery(pictured("2 ნოემბერს აფეთქდა. ორი ადამიანი დაიღუპა."))
+        self.assertTrue(any("deaths" in x for x in p), p)
+
+    def test_a_screenshot_of_an_official_page_is_allowed_in_crime_too(self):
+        ok = pictured("2 ნოემბერს გაზი შეწყდება. მიწოდება შეუწყდება.", "screenshot",
+                      url="https://matsne.gov.ge/ka/document/view/30346", category="crime")
+        self.assertEqual(news_check.imagery(ok), [])
+        sub = pictured("2 ნოემბერს გაზი შეწყდება. მიწოდება შეუწყდება.", "screenshot", url="https://mof.gov.ge/x")
+        self.assertEqual(news_check.imagery(sub), [])  # a subdomain of an allowed domain
+
+    def test_a_screenshot_only_from_the_allow_list(self):
+        for url in ("https://interpressnews.ge/ka/article/1", "https://gov.ge.evil.com/x", "https://notmatsne.gov.ge.io/"):
+            p = news_check.imagery(pictured("2 ნოემბერს გაზი შეწყდება. მიწოდება შეუწყდება.", "screenshot", url=url))
+            self.assertEqual(rules(p), ["N13"], url)
+        moved = pictured("2 ნოემბერს გაზი შეწყდება. მიწოდება შეუწყდება.", "screenshot",
+                         url="https://matsne.gov.ge/x", landed="https://example.com/")
+        self.assertEqual(rules(news_check.imagery(moved)), ["N13"])  # a redirect off the list
+
+    def test_the_pack_s_own_site_is_on_the_list(self):
+        s = pictured("2 ნოემბერს გაზი შეწყდება. მიწოდება შეუწყდება.", "screenshot",
+                     url="https://tbilisi.today/stories/24835")
+        self.assertEqual(news_check.imagery(s), [])
+        self.assertEqual(rules(news_check.imagery({**s, "brand": "sitech"})), ["N13"])  # not sitech's own site
+
+    def test_an_illustration_is_never_the_event(self):
+        p = news_check.imagery(pictured("2 ნოემბერს გაზი შეწყდება. ფოტოზე ჩანს დაზიანებული მილი."))
+        self.assertTrue(any("ფოტოზე" in x for x in p), p)
+        p = news_check.imagery(pictured("2 ნოემბერს გაზი შეწყდება. კადრებში ჩანს სამუშაოები."))
+        self.assertEqual(rules(p), ["N13"])
+
+    def test_ai_imagery_is_off(self):
+        p = news_check.imagery(pictured("2 ნოემბერს გაზი შეწყდება. მიწოდება შეუწყდება.", "ai"))
+        self.assertTrue(any("AI imagery is off" in x for x in p), p)
+
+
 if __name__ == "__main__":
     unittest.main()

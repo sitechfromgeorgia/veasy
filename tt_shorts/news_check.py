@@ -22,6 +22,12 @@ to the writer, like ka_check's K rules. `sources` is the list of member article 
       its facts is literally in at least n of the member articles (rubrics.claims: the same number and word, date,
       time, place or quote), its part of the narration says „მინიმუმ“, and no outlet is named in it or called by
       a side anywhere in the video (SIDES). A digest's chapter cards show only the stories' own checked lines.
+  N13 imagery (assets.py, the story's code-owned `assets` ledger): an illustrative picture (stock photo or clip,
+      illustration, AI) is drawn with the pack's „საილუსტრაციო“ label, which code adds and nothing can turn off;
+      no illustrative imagery at all for the crime family or a story about deaths (as N10 for pictograms); AI
+      imagery is off until the owner decides; a screenshot only from the allow-list (the pack's official and own
+      sites, the program's), never a publisher's page; and no asset is presented as the event: the scene it sits
+      behind never says „ფოტოზე“, „კადრებში“, „ვიდეოში“... (CLAIMS). imagery() needs no articles.
 """
 import re
 
@@ -39,11 +45,15 @@ SENSITIVE = ("გაუპატიურ", "სექსუალურ ძა�
 DEATHS = ("გარდაიცვალ", "გარდაცვალ", "გარდაცვლ", "დაიღუპ", "დაღუპ", "იღუპებ", "სიკვდილ", "ცხედ", "მკვლელობ",
           "მოკლეს", "მოკლულ", "მოიკლ", "დაიხრჩო", "მსხვერპლ")
 # an icon's name and a sign's verb are drawn, not read; em points at a text already on screen; style is a stat's motion
-NOT_SCREEN = ("type", "at", "icon", "verb", "em", "style", "n", "of", "total")  # counts code makes (agree,
+NOT_SCREEN = ("type", "at", "icon", "verb", "em", "style", "n", "of", "total", "show", "media")  # counts code makes (agree,
 # chapter) are not claims of the articles
 # N12: words that label an outlet by its side; a video never sorts outlets (stems: Georgian adds case endings)
 SIDES = ("პროსამთავრობო", "სამთავრობო მედი", "ოპოზიციურ", "პროსახელისუფლებო", "სახელისუფლებო მედი", "პრორუსულ",
          "პროდასავლურ")
+# N13: words that present a picture as the event ("in the photo", "the footage shows"); a scene with an illustrative
+# picture behind it never says them (stems: Georgian adds case endings)
+CLAIMS = ("ფოტოზე", "ფოტოში", "ფოტოებზე", "ფოტოებში", "სურათზე", "კადრებ", "კადრზე", "კადრში", "ვიდეოზე",
+          "ვიდეოში", "ვიდეოჩანაწერ", "ჩანაწერში", "გადაღებულ")
 NUM = re.compile(r"\d+")
 
 
@@ -115,6 +125,50 @@ def no_pictograms(story):
         return f"the crime family (category {story.get('category')})"
     hits = deaths(f"{story.get('narration', '')} {screen_text(story)}")
     return f"deaths ({', '.join(hits)})" if hits else None
+
+
+def no_imagery(story):
+    """N13: why a story may carry no illustrative imagery (the crime family, deaths), or None: N10's reasons."""
+    return no_pictograms(story)
+
+
+def imagery(story):
+    """N13 problems: the ledger's pictures are labelled, allowed for the story, allow-listed and never the event."""
+    from tt_shorts import assets, brand
+    ledger = {e.get("id"): e for e in story.get("assets") or [] if isinstance(e, dict)}
+    scenes = story.get("scenes") or []
+    used = [(i, ledger.get(s["media"].get("asset"))) for i, s in enumerate(scenes)
+            if isinstance(s, dict) and isinstance(s.get("media"), dict)]
+    used = [(i, e) for i, e in used if e]
+    if not used:
+        return []
+    out = []
+    try:
+        pack = brand.of(story)
+    except brand.BrandError:
+        pack = brand.load()
+    why = no_imagery(story)
+    allow = assets.allow_list(story, pack)
+    for i, e in used:
+        kind = e.get("kind")
+        if kind in assets.ILLUSTRATIVE and why:
+            out.append(f"N13: scene {i} carries an illustrative {kind} in a story about {why}: no imagery there "
+                       "(drop its show hint)")
+        if kind == "ai":
+            out.append(f"N13: scene {i}: AI imagery is off until the owner decides (docs/plan-v2.md § 8.3)")
+        if kind == "screenshot":
+            from tt_shorts.media import screenshot
+            for url in dict.fromkeys(u for u in (e.get("url"), e.get("landed")) if u):
+                if not screenshot.allowed(url, allow):
+                    out.append(f"N13: scene {i}: a screenshot of {screenshot.host(url)}, which is not on the "
+                               f"allow-list ({', '.join(allow) or 'empty'}): only official or the pack's own pages")
+        if kind in assets.ILLUSTRATIVE:
+            said = f"{scene_part(story, i)} {screen_text({'scenes': [scenes[i]]})}".lower()
+            hits = [w for w in CLAIMS if w in said]
+            if hits:
+                out.append(f"N13: scene {i} shows an illustrative picture but says „{hits[0]}…“: an illustration is "
+                           "never presented as the event")
+    return out
 
 
 def _norm(s):
@@ -189,7 +243,7 @@ def problems(story, sources):
     hits = sensitive(sources + [narration])
     if hits:
         out.append(f"N5: sensitive story ({', '.join(hits)}): skip it")
-    return out + stated(story, sources) + agreed(story, sources) + pictograms(story) + spoken(story)
+    return out + stated(story, sources) + agreed(story, sources) + pictograms(story) + spoken(story) + imagery(story)
 
 
 # ---------------------------------------------------------------- the brushes' own facts (N2) and marks (N11)

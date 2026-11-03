@@ -2,6 +2,7 @@ import React, { createContext, useContext } from "react";
 import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, FONT, INK, LINE_STRONG, MARK_BG, RED, T_PATH } from "./brand";
 import { marked } from "./marker";
+import { MediaCredit, SceneMedia } from "./media";
 import type { Motion, Scene, ShortProps, Style, Variant } from "./types";
 
 type Ctx = { v: Variant; props: ShortProps };
@@ -187,15 +188,20 @@ export const CountUp: React.FC<{ to: number; delay?: number; frames?: number }> 
 
 export const group = (n: number) => n.toLocaleString("en-US").replace(/,/g, " ");
 
-/** Scene frame: kicker and headline on top, the body fills the rest of the scene band. */
+/** Scene frame: kicker and headline on top, the body fills the rest of the scene band. A scene with a picture
+ *  (media.tsx, tt_shorts/assets.py) gets it behind everything, and its label and credit in a row at the bottom. */
 export const Frame: React.FC<{ s: Scene; children: React.ReactNode; head?: boolean }> = ({ s, children, head = true }) => (
-  <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
-    {head && (
-      <div>
-        <Kicker text={s.kicker} />
-        <Headline text={s.headline} s={s} />
-      </div>
-    )}
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>{children}</div>
-  </div>
+  <>
+    {s.media && <SceneMedia s={s} />}
+    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
+      {head && (
+        <div>
+          <Kicker text={s.kicker} />
+          <Headline text={s.headline} s={s} />
+        </div>
+      )}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>{children}</div>
+      {s.media && <MediaCredit s={s} />}
+    </div>
+  </>
 );

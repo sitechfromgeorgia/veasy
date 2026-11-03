@@ -90,6 +90,13 @@ export type GeoMap = {
   credit: string; // the boundary data's licence credit, shown small
 };
 
+// tt_shorts/assets.py for_props(): a scene's picture, resolved in Python into a local file (public/media/) with the
+// pack's label for an illustration („საილუსტრაციო", news rule N13; null for a screenshot) and its credit line.
+// kind: how to draw it; what: the ledger's kind (photo, video, screenshot...); frames: a clip's own length.
+export type MediaProps = {
+  kind: "image" | "video"; what: string; src: string; label: string | null; credit: string | null; frames?: number;
+};
+
 export type SceneBase = { type: string; from: number; duration: number; kicker?: string; headline?: string };
 
 export type Scene = SceneBase & {
@@ -125,6 +132,7 @@ export type Scene = SceneBase & {
   n?: number; // agree: at least this many outlets state each fact · chapter: this story's number
   of?: number; // chapter: how many stories the digest has
   total?: number; // agree: the member articles code counted across
+  media?: MediaProps; // set by tt_shorts/props.py from the story's assets ledger (never the writer's)
 };
 
 // tt_shorts/brand.py for_remotion(): the brand pack, without file paths
@@ -142,6 +150,8 @@ export type BrandProps = {
     outlets: string; source_one: string; source_many: string; covered_by: string[]; today: string;
     preview_edge: string; preview_silent: string; card_meta: string; category_default: string;
     at_least: string; // "მინიმუმ {n}": the agree scene's count
+    illustrative?: string; // „საილუსტრაციო": the label of an illustrative picture (media.tsx gets it resolved)
+    media_credit?: string; // the credit's template (resolved in Python: assets.credit)
   };
 };
 

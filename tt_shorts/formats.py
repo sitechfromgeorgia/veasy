@@ -11,6 +11,9 @@ A format chooses only among what the engine can do:
   voice     family | <a preset>                     (family: by category, the pack's voice_by_family; presets are
                                                      voices.PRESETS plus the packs' own, e.g. sitech)
   music     family | <a family in brand.FAMILIES> | off
+  sfx       off | on                                (sfx.py: short sound effects on the timeline's events, a
+                                                     whoosh on a cut, a pop when a mark lands, ticks while a number
+                                                     counts; one constant level under the voice, no ducking)
   platform  the utm_source of the QR link           (shorts, youtube, instagram, tiktok, ...)
   min_seconds / max_seconds   the length window a render must land in
 
@@ -28,8 +31,9 @@ LOOKS = ("auto", "editorial", "kinetic", "cards")
 CAPTIONS = ("page", "roll")
 TRANSITIONS = ("auto", "cut", "line", "panel", "wipe", "slide", "push", "dot")  # props.TRANSITIONS + auto
 OUTROS = swipe.OUTROS
+SFX = ("off", "on")
 DEFAULTS = {"look": "auto", "captions": "page", "transition": "auto", "outro": swipe.DEFAULT_OUTRO, "voice": "family",
-            "music": "family", "platform": "shorts", "min_seconds": 18, "max_seconds": 45}
+            "music": "family", "sfx": "off", "platform": "shorts", "min_seconds": 18, "max_seconds": 45}
 BUILTIN = {
     "news": {"label": "ამბავი: სტანდარტული", "about": "The default news Short: look and voice by category, "
              "two-line captions that never move."},
@@ -64,6 +68,8 @@ def validate(name, f):
     musics = ("family", "off") + tuple(meta.FAMILIES)
     if f["music"] not in musics:
         bad("music", f["music"], musics)
+    if f["sfx"] not in SFX:
+        bad("sfx", f["sfx"], SFX)
     if not (0 < f["min_seconds"] < f["max_seconds"] <= 360):
         raise FormatError(f"format {name!r}: need 0 < min_seconds < max_seconds <= 360")
     unknown = set(f) - set(DEFAULTS) - {"label", "about", "name"}

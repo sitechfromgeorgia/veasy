@@ -13,6 +13,8 @@ into the project folder and writes beside it:
     assets/vendor/gsap.min.js    GSAP 3.15.0 from the pinned HyperFrames package (git-ignored; no CDN at render)
     assets/icons/<name>.svg      the Lucide icons the beat sheet names, in the pack's ink
     assets/qr.svg                the story's QR code
+    assets/media/<id>.<ext>      the story's pictures from its assets ledger (tt_shorts/assets.py), local files only,
+    assets/media.json            with each one's label and credit, which scene it belongs to, and the ledger itself
     compositions/chrome.html     locked chrome: the pack's mark, date, weekday · time · category, the chapter bar,
                                  the meter wipes at the chapter cuts, the ticker, the source line, link and footer,
                                  the end card (the pack's logo, the QR, the link, the call to action on its button)
@@ -31,7 +33,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from tt_shorts import brand, frame_md, icons, meta, props, speech  # noqa: E402
+from tt_shorts import assets, brand, frame_md, icons, meta, props, speech  # noqa: E402
 
 FPS = speech.FPS
 W, H, SIDE = 1080, 1920, 64
@@ -415,6 +417,13 @@ def scaffold(source, pack=None, out=None):
                                             round((focus[1] - country[1]) / country[3] * MAP_H, 1),
                                             round(focus[2] / country[2] * MAP_W, 1),
                                             round(focus[3] / country[3] * MAP_H, 1)]})
+    # the story's pictures (tt_shorts/assets.py): the same ledger files Lane A draws, copied in, with their label and
+    # credit; a composed scene may use only these (frame.md: no media without its licence in the ledger)
+    drawn = assets.for_props(story, b, project / "assets", FPS)
+    (project / "assets" / "media.json").write_text(json.dumps({
+        "pictures": {k: {**v, "src": f"assets/{v['src']}"} for k, v in drawn.items()},
+        "scenes": {i: s["media"]["asset"] for i, s in enumerate(story.get("scenes") or []) if s.get("media")},
+        "ledger": story.get("assets") or []}, ensure_ascii=False, indent=1), encoding="utf-8")
     (project / "frame.md").write_text(frame_md.render(b), encoding="utf-8")
     (project / "timing.json").write_text(json.dumps(t, ensure_ascii=False, indent=1), encoding="utf-8")
     (project / "compositions" / "chrome.html").write_text(chrome(t, b, project), encoding="utf-8")

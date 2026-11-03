@@ -90,6 +90,14 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   no ducking (the owner heard the ducked bed pump). The mix happens in ffmpeg (`props.mix_audio`), not in Remotion.
 - **Voices:** shared presets in `voices.py`; a pack's own in its `voices` (SiTech's `Charon` lives only in
   `brands/sitech`). edge-tts is a preview stand-in only.
+- **Media** (`tt_shorts/assets.py`, one module per provider in `tt_shorts/media/`): engine-free. Python resolves a
+  scene's `show` hint (the writer's only say) into a local file and the story's code-owned `assets` ledger; an
+  engine draws only local files, never a URL. Only licences allowing commercial use (`assets.LICENCES`); a new
+  provider is one module with a test in `tests/test_assets.py` (no network in tests). No AI generation until the
+  owner decides (`media/ai.py` stays disabled). N13 (`news_check.imagery`): the pack's „საილუსტრაციო" label, no
+  imagery for crime/incidents/deaths, screenshots only from the pack's/program's allow-list.
+- **Sound effects** (`tt_shorts/sfx.py`, `tools/compose_sfx.py`, format key `sfx`, default off): cues come from the
+  timeline, one constant level, mixed in ffmpeg like the music; no ducking, no risers.
 - **Icons** (`tt_shorts/icons.py`):
   - `assets/icons/lucide.json` is built only by `tools/build_icons.py`; Lucide's `LICENSE` (ISC) stays beside it.
   - A new Georgian stem goes in `icons._BY_ICON`, and a look-alike word in `_BLOCK`; either needs a case in

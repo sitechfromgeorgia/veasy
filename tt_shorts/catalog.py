@@ -34,7 +34,11 @@ A brush file (keys in this order; tests/test_catalog.py checks every file):
   rules         lines for the writer, shown only when this type is on the menu ("  " starts a continuation)
   example       a real scene, as a story would carry it
 
-Keys every scene may carry beside its slots: type, at (its first narration words) and em (marks.py).
+Keys every scene may carry beside its slots: type, at (its first narration words), em (marks.py) and show (the
+writer's hint for a picture behind the scene: a short English query, "gas pipeline repair", or "screenshot" for the
+story's own official page). A hint is all the writer gives: code resolves it (assets.py) into the scene's `media`
+and the story's `assets` ledger, both code-owned like date and sources. A type in NO_MEDIA never carries a picture
+(the map is the where scene's picture; the end card and a digest's chapter card are the pack's chrome).
 This module imports nothing from the engine or the writer (they import it), so it can't make an import cycle.
 """
 import functools
@@ -48,7 +52,8 @@ KEYS = ("type", "order", "what", "use_when", "avoid_when", "pairs_with", "slots"
         "min_words", "em", "schema", "rules", "example")
 KINDS = ("text", "num", "enum", "list", "obj", "icon", "verb", "svg", "area")
 MARKS = ("underline", "box", "circle", "highlight", "bracket")  # @remotion/rough-notation's, as code picks them
-UNIVERSAL = ("type", "at", "em")
+UNIVERSAL = ("type", "at", "em", "show")
+NO_MEDIA = ("where", "end", "chapter")  # assets.py: these types never carry a picture
 MIN_SECONDS_DEFAULT = 2.5
 MIN_WORDS_DEFAULT = 6
 
@@ -74,6 +79,10 @@ RULE_LIMITS = ("- on-screen texts are short: a kicker at most 24 characters, a h
 RULE_EM = ('- "em" (optional, at most one per scene, on 1-3 scenes of the video): the 1-4 words that matter most, '
            "copied exactly from that scene's on-screen text (for a stat or a share: its value) and said in that "
            "scene's part of the narration; code marks them on screen as the voice says them;")
+RULE_SHOW = ('- "show" (optional, on 2-4 scenes, never the hook of a crime, incident or death story): a picture '
+             "behind that scene, as a short English search query of 1-5 plain words for an ordinary thing or place "
+             "(\"gas pipeline repair\", \"apartment blocks at night\"); never a person's name, a logo, a brand, text "
+             "or the event itself; code finds a licensed photo, labels it illustrative and credits it;")
 RULES_TAIL = """- never a sign, a stat icon or a motif for crime, incidents or deaths;
 - the last scene must start at least 4 narration words before the end, so it does not flash by."""
 
@@ -346,6 +355,8 @@ def schema(types=None):
     rules = [r for b in menu for r in _rules(b)]
     if any(b["em"]["fields"] for b in menu):
         rules.append(RULE_EM)
+    if any(b["type"] not in NO_MEDIA and b["schema"] is not None for b in menu):
+        rules.append(RULE_SHOW)
     return "\n".join([HEAD, lines, " ]", "}", RULES_HEAD, *rules, RULE_LIMITS, RULES_TAIL]) + "\n"
 
 

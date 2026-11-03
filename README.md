@@ -35,7 +35,7 @@ What the agent gets:
   - Each runs the engine in its own venv and returns its JSON.
   - A render takes a minute or two; the agent needs none of the render libraries.
 - **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:package`, `veasy:formats`, `veasy:queue`,
-  `veasy:brands`, `veasy:programs`, `veasy:directors`, `veasy:rubrics`.
+  `veasy:brands`, `veasy:programs`, `veasy:directors`, `veasy:rubrics`, `veasy:media`.
 - **A one-line hint** on the first turn; turn it off with `VEASY_HINT=0`.
 
 Frames are rendered with [Remotion](https://github.com/remotion-dev/remotion) (React; `remotion/`). Python
@@ -114,11 +114,13 @@ renders/<brand>/<day>/<ref>-<format>-<look>-<captions>.mp4   + .json (what was r
 cache/voices/<sha16>/                        one voice per (engine, voice, style, spoken text): re-renders are free
 cache/work/<job>/                            render scratch, deleted after a good render
 cache/bundles/<sha16>/                       the Remotion bundle per version of remotion/src (probe, selftest)
+cache/media/<sha16>/                         the media layer: one search's candidates, or one fetched picture + its
+                                             ledger entry (assets.py)
 logs/<day>.jsonl                             one JSON line per event (queued, written, rendered, failed, gc)
 ```
 Names are lowercase ASCII with hyphens (Georgian and spaces become hyphens); `day` is the server's date. A job is
 `<brand>-<ref>-<format>`, e.g. `tbilisi-today-24725-news`. Retention (`engine gc`, safe for cron): scratch 2 days,
-bundles 14, renders 30, voices and logs 90; stories are kept, they are the record of what was published.
+bundles 14, renders 30, voices, media and logs 90; stories are kept, they are the record of what was published.
 
 ## The queue (`tt_shorts/queue.py`)
 
@@ -213,6 +215,42 @@ time slot and an episode number, drawn as a chip in the hook („დღის �
 - `write --rubric`, `queue add --rubric`, `engine rubrics list|facts|stamp`, `ops/daily.py --rubrics`.
   `stories/rubric-24835-number.json` and `stories/digest-2026-11-01.json` (24835 + 24725) are the demos.
 
+## Pictures and sound effects (`tt_shorts/assets.py`, `tt_shorts/media/`, `tt_shorts/sfx.py`)
+
+The media layer is engine-free: Python resolves every picture into a local file and a ledger entry before the
+voice is made, and an engine (Remotion today, HyperFrames next) only draws local files.
+- **A hint, not a picture.** The writer may give a scene a `show` hint (a short English query, "gas pipeline
+  repair"; or `screenshot`). `engine media <story>` (and `write`, `plan`) searches the pack's providers in order,
+  picks one per story (seeded by the story, among the best four of the freest licence found: the same picture on
+  every re-run; searches are cached), fetches it into `cache/media/` (a photo upright, at most 1920 px) and writes
+  the story's code-owned `assets` ledger (`{kind, provider, url, licence, author, title, fetched, sha, file}`) and
+  the scene's `media`. A provider that fails leaves that scene without a picture, never fails the story.
+- **Providers** (one module each in `tt_shorts/media/`, `search(query, kind, n)` and `fetch(candidate)`):
+  Openverse and Wikimedia Commons (no key; per-file licences, only cc0, pdm, CC BY and CC BY-SA, BY-SA picked
+  last; Commons files with restrictions are dropped), Pexels and Pixabay (photos and clips, only when
+  `PEXELS_API_KEY` / `PIXABAY_API_KEY` is set). Titles of events (fire, crash, police...), of text (maps, charts,
+  logos, posters) and portraits are skipped, and a picture's title or tags must name a word of the query.
+  `media/ai.py` is the interface for AI imagery, disabled until the owner decides.
+- **Screenshots** (`media/screenshot.py`): the chrome-headless-shell Remotion already installs, driven by a tiny
+  Node script over the DevTools protocol (`media/shot.mjs`; no Playwright, no new dependency), at 1080x1920, with
+  a box around a given phrase. Only pages on the allow-list: the pack's `media.official` and `media.own` and a
+  program's `screenshots` (law: matsne.gov.ge), checked before the page opens and after redirects.
+- **On screen** (`remotion/src/media.tsx`, used by every scene's `Frame`): editorial and kinetic draw it full-bleed
+  across the frame's width under a scrim of the pack's canvas (ink keeps about 7:1 contrast), fading into the
+  canvas at both edges, with a slow push-in; cards draw it as the card's image under the card's panel color. The
+  pack's „საილუსტრაციო" label and the credit (author · licence · source, set in the pack's font's glyphs only) sit
+  in a quiet row at the scene's bottom, left of the rail. A clip plays muted (`OffthreadVideo`).
+- **N13** (`news_check.imagery`): the label on every illustrative picture; no illustrative imagery for crime,
+  incidents or deaths; no AI imagery; screenshots only from the allow-list; the scene never presents the picture as
+  the event („ფოტოზე", „კადრებში"...). `engine check` also refuses a ledger entry without an allowed licence, or a
+  CC BY one without its author.
+- **Sound effects** (format key `sfx: on|off`, default off): `tools/compose_sfx.py` synthesizes click, pop,
+  whoosh, tick, thud and blip (deterministic, one loudness, none longer than 0.34 s, no risers; composed on first
+  use into `assets/sfx/`, not in git). `sfx.cues(props)` places them from the timeline: a whoosh on every cut (a
+  click on a plain `cut`), a pop when a mark or the outro chip lands, ticks while a stat counts and a thud as it
+  settles, a blip as each bar grows. `props.mix_audio` lays them as one track under the voice at one constant
+  level (no ducking). `stories/24835-media.json` is the demo (four pictures from Openverse and Commons).
+
 ## Icons and pictograms (`tt_shorts/icons.py`)
 
 A visual vocabulary without photos: 250 Lucide line icons (`assets/icons/lucide.json`, ISC; rebuilt by
@@ -292,7 +330,8 @@ Below y=1100, no text goes right of x=940 (the like/share rail).
 | Remotion composition `NewsShort`, 22 scene types (`brushes/`), 3 looks, voice-synced marks | done (`remotion/src`) |
 | Voice: Gemini presets (`voices.py`); edge-tts ka-GE as a timing stand-in only (it sounds robotic) | Gemini samples need `GEMINI_API_KEY` |
 | Audio mix (ffmpeg): voice levelled on its own, music at one constant level, with no ducking | done |
-| News rules N1-N12 (`ka_style.md` § N, `news_check.py`) | done |
+| News rules N1-N13 (`ka_style.md` § N, `news_check.py`) | done |
+| Media layer: Openverse, Commons, Pexels, Pixabay, screenshots, the ledger, pictures behind scenes, SFX (`assets.py`, `sfx.py`) | done (2026-11-03); AI imagery waits for the owner |
 | Icons: `sign` scene, isotype counts on `stat`, the icon motif (`icons.py`, 250 Lucide icons) | done (2026-11-02) |
 | Music: a news bed per category family, written from scratch (clock tick, e-piano, pad), with an even level (≤1 dB bar to bar) | done (`tools/compose_music.py`) |
 | Brand packs (`brands/`: tbilisi-today, sitech), storage layout, job queue, sources (tbilisi-today, text) | done (2026-11-02) |
@@ -428,3 +467,5 @@ decides whether it is shown). `stories/veasy-demo.json`, `stories/veasy-scenes.j
   - The region lines are Geostat's, via OCHA, CC BY-IGO 3.0. The scene shows the credit small under the map.
   - The rest is public domain (geoBoundaries ADM2, Natural Earth) or CC0 (Wikidata).
 - The icons are Lucide (ISC; the Feather-derived ones MIT): `assets/icons/LICENSE`, no on-screen credit needed.
+- Pictures carry their own licence in the story's `assets` ledger (CC0, public domain, CC BY, CC BY-SA, Pexels,
+  Pixabay) and their credit on screen; the sound effects are synthesized in code and are ours.

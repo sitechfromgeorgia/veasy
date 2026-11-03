@@ -109,7 +109,7 @@ made later by code from the text and from your "say" map (K20).
 - "შენ რას იფიქრებ, გამოგადგება?" → "შენ რას ფიქრობ, გამოგადგება?" (K1)
 
 ## N. News (tbilisi.today)
-Every video goes out without a human review, so these rules are hard. `news_check.py` checks N1-N5 and N10-N12
+Every video goes out without a human review, so these rules are hard. `news_check.py` checks N1-N5 and N10-N13
 [checked].
 - N1 Report, don't judge. No "take" scene, no closing opinion, no evaluative words
   (❌ სკანდალური, შოკისმომგვრელი, ისტორიული, უპრეცედენტო). A judgement is said only as somebody's words, with the
@@ -140,3 +140,10 @@ Every video goes out without a human review, so these rules are hard. `news_chec
   გამოცემა“) shows only facts that are literally in at least N member articles; code finds them and counts them, and
   its part of the narration says „მინიმუმ“ (✅ „მინიმუმ ოთხი გამოცემა წერს“, ❌ „ყველა მედია წერს“). It never names
   the outlets, and no video calls an outlet by a side (❌ პროსამთავრობო, ოპოზიციური მედია). [checked]
+- N13 A picture only illustrates. A scene may get a picture behind it from a `"show"` hint: a short English query
+  for an ordinary thing or place (✅ "gas pipeline repair", ❌ a person's name, a logo, "the explosion in Rustavi").
+  Code finds a licensed photo, credits it and labels it „საილუსტრაციო“ (the pack's word); the label can't be turned
+  off. No pictures at all for crime and incidents or for a story about deaths. AI imagery is off until the owner
+  decides. A screenshot comes only from the allow-list (the pack's official and own sites, e.g. matsne.gov.ge),
+  never from a publisher's article page. The scene a picture sits behind never presents it as the event
+  (❌ „ფოტოზე ჩანს“, „კადრებში“, „ვიდეოში“). [checked]
