@@ -543,9 +543,11 @@ def compose_cmd(a):
         if isinstance(sources, dict):
             story = json.loads(pathlib.Path(a.target).read_text(encoding="utf-8"))
             sources = sources.get(str(story.get("id"))) or []
+    fmt = formats.get(a.format or program_format(a.target), captions=a.captions, voice=a.voice, music=a.music,
+                      platform=a.platform, theme=a.theme)  # its captions, theme and render keys, as at render
     if a.action == "scaffold":
         r = compose.scaffold(a.target, a.brand, a.project, a.template, a.source_dir, a.engine, a.force,
-                             theme=a.theme or "default")
+                             theme=fmt["theme"], fmt=fmt)
         t = r.get("timing") or {}
         res = {"project": str(r["project"]), "origin": r["origin"], "built": r["built"], "problems": r["problems"],
                "duration": t.get("duration"), "chapters": t.get("chapters"), "gaps": t.get("gaps"),
@@ -556,11 +558,9 @@ def compose_cmd(a):
         return out(res, 1 if r["problems"] else 0)
     if a.action == "check":
         r = compose.check(a.target, a.brand, a.project, a.engine, sources, hf=not a.no_hf, shots=a.shots,
-                          theme=a.theme or "default")
+                          theme=fmt["theme"], fmt=fmt)
         return out(r, 1 if r["problems"] else 0)
     if a.action == "render":
-        fmt = formats.get(a.format or program_format(a.target), captions=a.captions, voice=a.voice, music=a.music,
-                          platform=a.platform, theme=a.theme)
         r = compose.render(a.target, fmt, a.brand, a.project, a.engine, a.out, sources, hf=not a.no_hf,
                            template=a.template)
         return out(r, 1 if r["problems"] else 0)

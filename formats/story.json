@@ -1,7 +1,8 @@
 {
  "label": "მოთხრობა",
- "about": "A short animated tale (program story): 20-45 s, the two-line captions, a calm music bed and short sound accents on the wipes and the beats that name one, composed for HyperFrames.",
+ "about": "A short animated tale (program story): 20-45 s, the keyword captions (one word a page in the pack's style), a calm music bed and short sound accents on the wipes and the beats that name one, composed for HyperFrames.",
  "music": "culture",
+ "captions": "keyword",
  "min_seconds": 18,
  "max_seconds": 45,
  "engine": "hyperframes",

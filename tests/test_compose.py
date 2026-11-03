@@ -80,6 +80,28 @@ class MediaAndSound(unittest.TestCase):
             self.assertEqual(m["scenes"], {"0": "a1"})
 
 
+class KeywordCaptions(unittest.TestCase):
+    """The locked captions draw captions.py's keyword design from its layout data: the page's key, the pack's style."""
+
+    def cap(self, style):
+        words = [{"text": w, "from": i * 0.5, "to": i * 0.5 + 0.4} for i, w in enumerate(["გაზი", "6400", "აბონენტს"])]
+        return {"design": "keyword", "size": 60, "lineHeight": 1.22, "band": 768, "pad": 26, "keyword": style,
+                "lines": [{"start": 0, "words": words}],
+                "pages": [{"start": 0, "end": 2, "lines": [0], "key": {"line": 0, "from": 1, "to": 1, "kind": "number"}}]}
+
+    def test_the_page_key_in_the_pack_style(self):
+        b = brand.load("tbilisi-today")
+        t = {"words": [{"text": w, "start": i * 0.5, "keyword": False} for i, w in enumerate(["გაზი", "6400", "აბონენტს"])]}
+        html = compose.captions_html(self.cap("block"), t, b)
+        self.assertEqual(html.count('class="w k"'), 1)
+        self.assertIn('tl.set("#cap-w1 em", { color: "' + b["colors"]["canvas"], html)  # the block inverts the word
+        html = compose.captions_html(self.cap("underline"), t, b)
+        self.assertNotIn('tl.set("#cap-w1 .u", { scaleX: 0 }', html)  # its underline stays once said
+        self.assertIn('tl.set("#cap-w0 .u", { scaleX: 0 }', html)
+        html = compose.captions_html(self.cap("tint"), t, b)
+        self.assertIn('tl.set("#cap-w1 em", { color: "' + b["colors"]["accent"], html)
+
+
 class EngineKey(unittest.TestCase):
     def test_precedence_director_program_format_pack_default(self):
         story = {"id": 1, "brand": "sitech"}

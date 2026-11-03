@@ -181,10 +181,13 @@ def _anchor(words, phrase, what):
         raise ComposeError(f"{what}: anchor „{phrase}“ is not in the narration ({e})") from e
 
 
-def timing(story_path, sheet, engine="silent", music="off", tone=None, theme="default"):
+def timing(story_path, sheet, engine="silent", music="off", tone=None, theme="default", fmt=None):
     """-> (timing dict, the Remotion props of the same story: voice, words, captions, pack; their work dir)."""
     from tt_shorts import props
-    work, p = props.build(str(story_path), "cards", engine, tone, music=music, transition="cut", theme=theme)
+    # the format's caption design and render keys (formats.render_keys) as Lane A gets them: the captions, the
+    # voice and the words are the same for both engines
+    work, p = props.build(str(story_path), "cards", engine, tone, music=music, transition="cut", theme=theme,
+                          caption_design=(fmt or {}).get("captions"), **(formats.render_keys(fmt) if fmt else {}))
     words = p["words"]
     keys = {speech.norm(k) for k in sheet.get("keywords", [])}
     dur = p["durationInFrames"] / FPS
@@ -605,7 +608,9 @@ def captions_html(cap, t, b):
     """props.captions (captions.py) as HyperFrames DOM + timeline: Captions.tsx's page design, frame for frame."""
     c = b["colors"]
     words = t["words"]
-    key = {(w["text"], round(w["start"], 3)) for w in words if w["keyword"]}
+    style = cap.get("keyword")  # design "keyword": each page's key and the pack's style come with the layout
+    key = set() if style else {(w["text"], round(w["start"], 3)) for w in words if w["keyword"]}
+    style = style or "block"  # the beat sheet's keywords (page and roll) are drawn as an ink block
     size, lh, band, pad = cap["size"], cap["lineHeight"], cap["band"], cap["pad"]
     row = size * lh
     box_h = row * 2 + 28
@@ -617,20 +622,25 @@ def captions_html(cap, t, b):
         for li in p["lines"]:
             ws = cap["lines"][li]["words"]
             spans = []
+            pk = p.get("key")
             for j, w in enumerate(ws):
                 wid = f"cap-w{n}"
                 n += 1
-                is_key = (w["text"], round(w["from"], 3)) in key
+                is_key = (w["text"], round(w["from"], 3)) in key or bool(
+                    pk and pk["line"] == li and pk["from"] <= j <= pk["to"])  # the layout's line index
                 spans.append(f'<span id="{wid}" class="w{" k" if is_key else ""}"{"" if j < len(ws) - 1 else " style=\"margin-right:0\""}>'
                              f'{"<i class=\"kb\"></i>" if is_key else ""}<em>{esc(w["text"])}</em><i class="u"></i></span>')
                 nxt = [x["from"] for x in allw if x["from"] > w["from"]]  # the next word anywhere, not only on this line
                 until = min([w["to"] + 0.35] + nxt[:1]) if j + 1 == len(ws) else ws[j + 1]["from"]
                 js.append(f'tl.set("#{wid}", {{ color: "{c["ink"]}" }}, {max(0, w["from"] - 0.04):.3f});')
-                if is_key:
+                if is_key and style == "block":
                     js.append(f'tl.fromTo("#{wid} .kb", {{ scaleX: 0.6, opacity: 0 }}, {{ scaleX: 1, opacity: 1, duration: 0.12, ease: "power3.out" }}, {max(0, w["from"] - 0.04):.3f});')
                     js.append(f'tl.set("#{wid} em", {{ color: "{c["canvas"]}" }}, {max(0, w["from"] - 0.04):.3f});')
+                elif is_key and style == "tint":  # the accent as the keyword's color (a pack that allows it)
+                    js.append(f'tl.set("#{wid} em", {{ color: "{c["accent"]}" }}, {max(0, w["from"] - 0.04):.3f});')
                 js.append(f'tl.fromTo("#{wid} .u", {{ scaleX: 0 }}, {{ scaleX: 1, duration: 0.12, ease: "power3.out" }}, {max(0, w["from"] - 0.04):.3f});')
-                js.append(f'tl.set("#{wid} .u", {{ scaleX: 0 }}, {until:.3f});')
+                if not (is_key and style == "underline"):  # an underline keyword keeps its line once said
+                    js.append(f'tl.set("#{wid} .u", {{ scaleX: 0 }}, {until:.3f});')
             lines.append(f'<div class="line">{"".join(spans)}</div>')
         pid = f"cap-p{k}"
         pages.append(f'<div id="{pid}" class="page"><div class="inner">{"".join(lines)}</div></div>')
@@ -881,7 +891,7 @@ def default_source(story):
 
 
 def scaffold(story_path, brand=None, project=None, template=None, source=None, engine="silent", force=False,
-             music="off", tone=None, theme="default"):
+             music="off", tone=None, theme="default", fmt=None):
     """A HyperFrames project for one story and pack: the agent's files from a template (templates/<id>/, or "auto":
     the least used for the brand), from a source folder, the project's own (kept on a re-scaffold), the repo's
     compose/<id>/, else a plain starter; then everything Veasy owns (build). -> build()'s result + "origin"."""
@@ -915,7 +925,7 @@ def scaffold(story_path, brand=None, project=None, template=None, source=None, e
             starter(story, project)
             origin = "starter"
     try:
-        built = build(project, story, engine=engine, music=music, tone=tone, theme=theme)
+        built = build(project, story, engine=engine, music=music, tone=tone, theme=theme, fmt=fmt)
     except ComposeError as e:  # a template's beats have no anchors yet: the agent fills them, then scaffolds again
         return {"project": project, "origin": origin, "story": story, "brand": b, "built": False,
                 "problems": [f"build: {e}"], "todo": "fill beats.json's anchors (and slots.json for a template), "
@@ -925,7 +935,7 @@ def scaffold(story_path, brand=None, project=None, template=None, source=None, e
     return built
 
 
-def build(project, story, engine="silent", music="off", tone=None, theme="default"):
+def build(project, story, engine="silent", music="off", tone=None, theme="default", fmt=None):
     """Write everything Veasy owns in a project (the agent's files stay) and bind index.html. story: a dict (with its
     pack) or a path. -> {"project", "timing", "props", "work", "facts", "story", "brand", "slots", "problems"}."""
     project = pathlib.Path(project).resolve()
@@ -940,7 +950,7 @@ def build(project, story, engine="silent", music="off", tone=None, theme="defaul
         (project / d).mkdir(parents=True, exist_ok=True)
     story_path = project / "story.json"  # the story with the pack it is built for (props.build reads the pack there)
     story_path.write_text(json.dumps(story, ensure_ascii=False, indent=1), encoding="utf-8")
-    t, p, work = timing(story_path, sheet, engine, music, tone, b["theme"])
+    t, p, work = timing(story_path, sheet, engine, music, tone, b["theme"], fmt)
     fx = facts(story, b, p, t)
     slots, problems = slot_values(project, fx)
     code = ["story.json", "facts.json", "timing.json", "frame.md", "assets/brand.css", "assets/vendor/gsap.min.js",
@@ -1395,7 +1405,7 @@ def default_sources(story_path):
 
 
 def check(story_path, brand=None, project=None, engine="silent", sources=None, hf=True, shots=None, music="off",
-          tone=None, built=None, theme="default"):
+          tone=None, built=None, theme="default", fmt=None):
     """Every check of a composed film -> {"problems", "warnings", ...}: the story's own checks (engine check), Veasy's
     files unchanged, our lint, the probe at every beat's settled frame (layout rules, the pack's accent rule, texts
     outside a region, network asked for), the story's rule tier + ka_check + kaeasy on every text the DOM shows,
@@ -1417,7 +1427,7 @@ def check(story_path, brand=None, project=None, engine="silent", sources=None, h
     if sources is None:
         sources = default_sources(story_path)
     try:
-        built = built or build(project, story, engine, music, tone, theme)
+        built = built or build(project, story, engine, music, tone, theme, fmt)
     except ComposeError as e:
         res["problems"].append(f"build: {e}")
         return res
@@ -1479,11 +1489,11 @@ def render(story_path, fmt, brand=None, project=None, engine="gemini", out_path=
     b = packs.of(story)
     project = pathlib.Path(project or project_dir(story, b["name"])).resolve()
     if not (project / "index.html").exists() or template:
-        scaffold(story_path, b["name"], project, template=template, engine=engine, music=fmt["music"],
+        scaffold(story_path, b["name"], project, template=template, engine=engine, music=fmt["music"], fmt=fmt,
                  force=bool(template))
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     tampered = lock_problems(project)
-    built = None if tampered else build(project, story, engine, fmt["music"], tone, fmt.get("theme", "default"))
+    built = None if tampered else build(project, story, engine, fmt["music"], tone, fmt.get("theme", "default"), fmt)
     c = check(story_path, b["name"], project, engine, sources, hf, music=fmt["music"], tone=tone, built=built)
     hard = [x for x in c["problems"] if x.startswith(HARD)]
     base = {"film_engine": "hyperframes", "project": str(project), "brand": b["name"], "format": fmt["name"],

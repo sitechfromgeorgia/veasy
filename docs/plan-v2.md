@@ -317,11 +317,22 @@ Built on the same PC; nothing installed globally or run on the server.
   every name one of the story's `characters`; Latin names, Georgian surnames, real offices flagged; a bare first
   name is its known gap) and `programs/story.json` (+ brief, `chrome: film`). `veasy:make-video` routes: news and
   data to the kit, free-form films to compose; captions are captions.py's, media the media layer's.
+- **With phases 1 and 3 and the themes**: pictures come through `assets.for_props` (`assets/media.json`), sound
+  effects through `props.mix_audio`'s `props["sfx"]` (a whoosh on every meter wipe, and the sound a beat names, when
+  the format says `sfx: on`); the format's caption design, theme and render keys go to `props.build` as for Lane A
+  (`formats.render_keys`, `brand.themed`), and the locked captions draw the keyword design from captions.py's
+  layout (the page's `key`, the pack's style). The `story` format: keyword captions, culture bed, sfx on.
+- **Found on the way**: a big `data-composition-variables` on `<html>` pushed `<meta charset>` past the 1024 bytes a
+  browser scans, and Georgian came out as mojibake on some loads: index.html gets a BOM and the probe sends the
+  charset. `sfx.ensure()` printed to stdout on first use (an engine command's JSON); it reports to stderr now.
+  24835's outlet chips were mid-highlight at their beat's settled frame (the contrast rule caught it): they are timed
+  from the beat now.
 
-**Numbers** (this PC, software GL, 4 workers): 24835 composed, 36.9 s: render 79.7 s (2.16 s per video second),
-`compose check` 25-31 s (the probe 28 frames in ~7 s, `hyperframes check` ~20 s), clean with the articles. The
-fable `bipi-draws` (sitech, 25.5 s, 5 scenes, 20 beats): render 49.2 s (1.93 s/s), check clean, QA clean
-(-17.9 LUFS with the culture bed).
+**Numbers** (this PC, software GL, 4 workers; final runs after the rebase): 24835 composed (tbilisi-today, 36.9 s):
+render 69.9 s (1.9 s per video second), `compose check` 20 s (the probe's 28 frames ~7 s, `hyperframes check` the
+rest), clean with the articles, QA clean. The fable `bipi-draws` (25.4 s, 5 scenes, 20 beats, keyword captions, 10
+sound cues): sitech render 40.9 s (1.6 s/s), check 11 s, clean; the same files in tbilisi-today 40.8 s, clean; QA
+clean in both (-17.2 / -17.8 LUFS). The golden stills of Lane A: 51 unchanged.
 
 ## 8. Decisions only the owner can make
 

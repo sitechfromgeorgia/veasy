@@ -16,7 +16,8 @@ video uses is its `"engine"`: the director's, else the program's, else the forma
 `ops/install.sh --skills --profile <name>` installs, pinned, Remotion's skills (`remotion-*`) and HyperFrames'
 (`hyperframes`, `hyperframes-cli`). Read `hyperframes` for the composition format, motion and craft. Where they
 overlap with Veasy, **Veasy wins**:
-- **captions**: never write captions; the locked `captions.html` is captions.py's layout. No caption blocks.
+- **captions**: never write captions; the locked `captions.html` is captions.py's layout in the format's design
+  (page, roll, or keyword: one keyword a page in the pack's style). No caption blocks of HyperFrames' own.
 - **media**: only the story's pictures from Veasy's media layer (`veasy:media`: its `assets` ledger and a scene's
   `media`), copied to `assets/media/<id>.<ext>` and listed in `assets/media.json` with each one's label and credit
   (show both with the picture). Never `media-use`, never HeyGen, never a download or a CDN.
