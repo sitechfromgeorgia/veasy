@@ -250,12 +250,18 @@ def _clamp_texts(story: dict) -> None:
 
 
 
+def _repair_enabled() -> bool:
+    return os.environ.get("TT_REPAIR_SCENES", "") == "1"
+
+
 def _repair_scenes(story: dict, articles: list[str]) -> None:
     """Drop a scene the facts cannot carry instead of failing the whole job.
 
     A quote the sources do not contain, a sign whose word the narration never says,
     a stat whose number is not spoken in its own part: these are writer slips, and the
     honest repair is to remove the card, not to publish an unsupported one."""
+    if not _repair_enabled():
+        return
     scenes = story.get("scenes") or []
     narration = story.get("narration") or ""
     if not scenes or not narration:
