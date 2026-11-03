@@ -48,18 +48,45 @@ export const Mark: React.FC<{ s: Scene; field: string; children: React.ReactNode
   }
 };
 
-/** A text with the scene's marked phrase wrapped in its mark, when `field` is the marked field and the text still
- *  holds the phrase where Python found it; otherwise the text as it is. */
-export const marked = (s: Scene, field: string, text: string | undefined, opts: Opts = {}): React.ReactNode => {
-  const m = markOf(s, field);
-  if (!m || text == null) return text;
-  const end = m.start + m.phrase.length;
-  if (text.slice(m.start, end) !== m.phrase) return text;
+const DIM = 0.42; // a word not yet lit: the text's own color at this opacity (the captions' waiting words, alike)
+
+/** Part of a text whose words light up on the beats (tt_shorts/beats.py s.beats.lit: one frame per word of the
+ *  whole field; `first` is this part's first word's index). Only opacity changes, so the line never reflows. */
+const Lit: React.FC<{ text: string; frames: number[]; first: number }> = ({ text, frames, first }) => {
+  const frame = useCurrentFrame();
+  let k = first;
   return (
     <>
-      {text.slice(0, m.start)}
-      <Mark s={s} field={field} {...opts}>{m.phrase}</Mark>
-      {text.slice(end)}
+      {text.split(/(\s+)/).map((tok, i) => {
+        if (!tok || /^\s+$/.test(tok)) return tok;
+        const at = frames[Math.min(frames.length - 1, k++)] ?? 0;
+        const o = interpolate(frame - at, [0, 6], [DIM, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+        return <span key={i} style={{ opacity: o }}>{tok}</span>;
+      })}
+    </>
+  );
+};
+
+const wordsIn = (t: string) => t.split(/\s+/).filter(Boolean).length;
+
+/** A text with the scene's marked phrase wrapped in its mark, when `field` is the marked field and the text still
+ *  holds the phrase where Python found it, and its words lit on the beats when the scene's beat track lights this
+ *  field; otherwise the text as it is. */
+export const marked = (s: Scene, field: string, text: string | undefined, opts: Opts = {}): React.ReactNode => {
+  if (text == null) return text;
+  const lit = s.beats?.lit?.[field];
+  const part = (t: string, first: number) => (lit && t ? <Lit text={t} frames={lit} first={first} /> : t);
+  const m = markOf(s, field);
+  const end = m ? m.start + m.phrase.length : 0;
+  if (!m || text.slice(m.start, end) !== m.phrase) return lit ? part(text, 0) : text;
+  const before = text.slice(0, m.start);
+  // a word the mark starts inside belongs to the part before it
+  const n = wordsIn(before) - (before && !/\s$/.test(before) ? 1 : 0);
+  return (
+    <>
+      {part(before, 0)}
+      <Mark s={s} field={field} {...opts}>{part(m.phrase, n)}</Mark>
+      {part(text.slice(end), n + wordsIn(m.phrase))}
     </>
   );
 };

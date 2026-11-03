@@ -20,8 +20,8 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import (art, assets, brand, captions, directors, geo, icons, meta, rubrics, sfx as effects, speech, store,
-                       swipe, variety, voices)
+from tt_shorts import (art, assets, beats as beat_track, brand, captions, directors, geo, icons, meta,
+                       rubrics, sfx as effects, speech, store, swipe, variety, voices)
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -90,7 +90,7 @@ def choose(story, variant, transition="auto", music="family", director=None, sty
 
 def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts",
           caption_design=None, music="family", transition="auto", style=None, outro=swipe.DEFAULT_OUTRO, director=None,
-          sfx="off"):
+          sfx="off", beats="on", chapters="off"):
     """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off".
     transition: "auto" (variety picks one that suits the look) or one of TRANSITIONS.
     style: {hook, motif, enter, transition, music} to force; by default variety.choose() picks the least used, and its
@@ -98,7 +98,9 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     outro: card | overlay | loop (swipe.py: the end card, a chip over the last scene, or a seamless loop).
     director: a directors.py id to use instead of the story's own "director" (render --director); with one, the
     variety picks stay inside its subsets and props.style carries its motion numbers and current.
-    sfx: off | on (format key): the sound effects' cues from the timeline (sfx.py), mixed by mix_audio."""
+    sfx: off | on (format key): the sound effects' cues from the timeline (sfx.py), mixed by mix_audio.
+    beats: on | off (beats.py: a change inside each scene every 1.5-3 s, on the words); chapters: auto | on | off
+    (chapters.py: the "01 / 03" bar; auto: for a video of chapters.AUTO_SECONDS or more)."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     story = brand.with_say(story)  # the pack's own names (SiTech -> საი-თეჩი) are spoken right
     sid = story["id"]
@@ -162,6 +164,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "voiceQa": story.get("qa", {}).get("voice", []),
     }
     geo.attach(props["scenes"], meta.family(category, b))  # a Georgian place: only what its map scene draws
+    if beats != "off":  # a visible change every 1.5-3 s inside each scene, landed on the words (beats.py)
+        beat_track.attach(props["scenes"], words)
     props["sfx"] = effects.cues(props) if sfx == "on" else []  # the accents' times (sfx.py); ffmpeg mixes them
     (work / "props.json").write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
     return work, props

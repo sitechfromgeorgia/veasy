@@ -97,7 +97,18 @@ export type MediaProps = {
   kind: "image" | "video"; what: string; src: string; label: string | null; credit: string | null; frames?: number;
 };
 
-export type SceneBase = { type: string; from: number; duration: number; kicker?: string; headline?: string };
+// tt_shorts/beats.py: a scene's beat track, frames relative to the scene's start. reveal: when an element comes in
+// ("items.2", "label", "sub"), instead of the component's own stagger; lit: per text field, the frame each of its
+// words lights up (dimmed until then); steps: the frames the scene's stepped device moves on (the hook's rule, a
+// stat's cells, a timeline's run, a where's camera or pin). frames: every change (for the checks).
+export type Beats = {
+  frames: number[]; reveal: Record<string, number>; lit: Record<string, number[]>; steps: number[];
+  texts: [string, number][];
+};
+
+export type SceneBase = {
+  type: string; from: number; duration: number; kicker?: string; headline?: string; beats?: Beats;
+};
 
 export type Scene = SceneBase & {
   lines?: string[];

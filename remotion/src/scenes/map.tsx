@@ -8,7 +8,7 @@ import { Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "re
 import { CANVAS, FONT, INK, LINE_STRONG, MUTED, RAIL_X, RED, SIDE, W } from "../brand";
 import { marked } from "../marker";
 import type { Scene } from "../types";
-import { fitSize, Frame, In, useTheme } from "../ui";
+import { beat, fitSize, Frame, In, stepped, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -48,8 +48,11 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number }> = ({ s, inner = IN
   const zoomTo = Math.max(zoomFrom + 14, Math.min(zoomFrom + (kinetic ? 24 : 34), s.duration - 34));
   const draw = interpolate(frame, [0, drawEnd], [0, 1], { ...clamp, easing: smooth });
   const lines = interpolate(frame, [drawEnd - 8, drawEnd + 6], [0, 1], clamp);
-  const t = m.level === "country" ? 0 : interpolate(frame, [zoomFrom, zoomTo], [0, 1], { ...clamp, easing: smooth });
-  const tint = interpolate(frame, [zoomFrom + 4, zoomTo], [0, 1], clamp);
+  // with a beat track the camera goes in in stages, one a beat (tt_shorts/beats.py), and the pins drop after the last
+  const steps = s.beats?.steps ?? [];
+  const t = m.level === "country" ? 0 : stepped(s, frame, interpolate(frame, [zoomFrom, zoomTo], [0, 1], { ...clamp, easing: smooth }), 20);
+  const tint = stepped(s, frame, interpolate(frame, [zoomFrom + 4, zoomTo], [0, 1], clamp), 20);
+  const landed = steps.length && m.level !== "country" ? steps[steps.length - 1] + 8 : zoomTo;
 
   // the camera: the scale moves geometrically, the centre linearly, so the zoom feels even
   const a = fit(m.start, boxW, boxH);
@@ -62,7 +65,7 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number }> = ({ s, inner = IN
 
   const several = m.pins.length > 1;
   const pins = m.pins.map((p, i) => {
-    const drop = spring({ frame: frame - (zoomTo - 6 + i * 5), fps, config: { damping: 12, stiffness: 170, mass: 0.8 } });
+    const drop = spring({ frame: frame - (landed - 6 + i * 5), fps, config: { damping: 12, stiffness: 170, mass: 0.8 } });
     const [x, y] = screen(p);
     return { x, y, drop };
   });
@@ -101,8 +104,9 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number }> = ({ s, inner = IN
           {pins.map(({ x, y, drop }, i) => (
             <g key={i} opacity={Math.min(1, drop * 2)}>
               {i === 0 && [0, 1].map((j) => {
-                const r = ((frame - zoomTo - j * 16) % 32) / 32; // rings spread from the first pin once it lands
-                return frame >= zoomTo + j * 16 ? (
+                // rings spread from the first pin once it lands (their phase as before beats: the settled frame)
+                const r = ((frame - zoomTo - j * 16) % 32) / 32;
+                return frame >= zoomTo + j * 16 && frame >= landed + j * 16 ? (
                   <ellipse key={j} cx={x} cy={y} rx={12 + r * 70} ry={(12 + r * 70) * 0.45} fill="none" stroke={INK}
                     strokeWidth={3} opacity={(1 - r) * 0.5} />
                 ) : null;
@@ -136,7 +140,7 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number }> = ({ s, inner = IN
         </div>
       </In>
       {s.sub && (
-        <In delay={14}>
+        <In delay={14} at={beat(s, "sub")}>
           <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 40, lineHeight: 1.3, color: MUTED, marginTop: 12,
             maxWidth: textW }}>{marked(s, "sub", s.sub, { px: 44 })}</div>
         </In>

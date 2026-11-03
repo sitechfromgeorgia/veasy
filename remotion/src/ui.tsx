@@ -24,6 +24,21 @@ export const useIn = (delay = 0, damping?: number, stiffness?: number) => {
     config: { damping: damping ?? m?.damping ?? 20, stiffness: stiffness ?? m?.stiffness ?? 170, mass: 0.8 } });
 };
 
+/** The frame a beat brings an element in (tt_shorts/beats.py: s.beats.reveal, on the words), or undefined: the
+ *  component's own stagger. Pass it as In's `at`. */
+export const beat = (s: Scene, key: string): number | undefined => s.beats?.reveal?.[key];
+
+/** A stepped device's progress, 0..1 (tt_shorts/beats.py: s.beats.steps). `base` is the device's own 0..1 motion
+ *  and the first of N+1 equal stages; each step eases in the next one. Without steps it is `base` itself, and it
+ *  always ends at 1 (the settled frame looks as it did before beats). */
+export const stepped = (s: Scene, frame: number, base: number, frames = 12) => {
+  const steps = s.beats?.steps ?? [];
+  if (!steps.length) return base;
+  const more = steps.reduce((a, f) => a + interpolate(frame - f, [0, frames], [0, 1],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: (x) => 1 - Math.pow(1 - x, 3) }), 0);
+  return (base + more) / (steps.length + 1);
+};
+
 /** This video's style (tt_shorts/variety.py), or the look's own when the props carry none. */
 export const useStyle = (): Style => {
   const { v, props } = useTheme();
@@ -44,13 +59,15 @@ const settle = (enter: Style["enter"], t: number, [fx, fy]: [number, number]): R
 
 /** How things come on screen: they rise, slide in from the left, come up from behind a mask, or scale up.
  *  Kinetic keeps its harder spring whichever motion the video has. In the opening they only settle (`Opening`). */
-export const In: React.FC<{ delay?: number; style?: React.CSSProperties; children: React.ReactNode }> = ({ delay = 0, style, children }) => {
+export const In: React.FC<{ delay?: number; at?: number; style?: React.CSSProperties; children: React.ReactNode }> = (
+  { delay = 0, at, style, children }) => {
   const { v } = useTheme();
   const st = useStyle();
   const { enter } = st;
   const opening = useOpening();
   const m = useMotion(); // a director's spring and stagger replace the look's own (kinetic: 16/220)
-  const d = m ? Math.round((delay * m.stagger_frames) / 5) : delay;
+  // `at`: a beat's own frame (tt_shorts/beats.py, on the words), never rescaled by a director's stagger
+  const d = at ?? (m ? Math.round((delay * m.stagger_frames) / 5) : delay);
   const t = useIn(opening ? Math.round(d / 2) : d, m ? m.damping : v === "kinetic" ? 16 : 20,
     m ? m.stiffness : v === "kinetic" ? 220 : 170);
   const [fx, fy] = flowOf(st, [1, 0]); // a slide moves along the current (today: from the left)

@@ -6,7 +6,8 @@ the scenes' own texts, the transition and the director's current), so they cost 
     read      every text on screen stays up at least READ_BASE + READ_PER_WORD per word (0.5 s + 0.3 s a word),
               counted per text: from the moment it has come in to the moment its scene starts to leave
     still     no more than STILL_MAX (3 s) with nothing changing in the scene band: after a scene's last entrance
-              has settled, the next cut comes within 3 s (the end card is exempt: its QR must hold still)
+              has settled, the next cut comes within 3 s (the end card is exempt: its QR must hold still); with a
+              beat track (beats.py), its beats count as changes and no gap between two of them may be longer
     kinds     no more than MAX_KINDS (3) kinds of transition in one video
     pingpong  no ping-pong cuts: (a) three cuts in a row of kinds A, B, A (A != B), the eye is thrown back to a cut
               it just left; (b) two cuts in a row that move in opposite directions (their direction vectors point
@@ -22,7 +23,8 @@ viewer can't recover from; the others are style. A text's time on screen is a mo
     - a drawing's labels come in at their own --d delay, scaled the way remotion/src/scenes/more.tsx Draw scales it
       (the drawing is complete by about 55% of the scene), and the draw scene's label after the drawing;
     - a scene leaves EXIT frames before the next one starts (none for a plain cut); the last scene stays to the end;
-    - the call to action is read on the end card, or on the outro chip from its first frame (swipe.py).
+    - the call to action is read on the end card, or on the outro chip from its first frame (swipe.py);
+    - a text a beat brings in when it is said (beats.py "texts") is in from that beat.
 Captions are not counted here: captions.py has its own rules (pages of at least 1 s).
 """
 import math
@@ -93,10 +95,12 @@ def scene_texts(scene, first=False):
         labels = [n for n in _walk(scene["art"]) if n.get("text")]
         out += [(n["text"], n["shown"] * k + 0.25) for n in labels]
         late = last * k + 6 / FPS
+    later = {t: f / FPS for t, f in (scene.get("beats") or {}).get("texts", [])}  # beats.py: in when it is said
     for i, t in enumerate(plain):
         at = 0.0 if first else min(ENTER_BASE + STAGGER * i, REVEAL_CAP * dur)
         if scene.get("art") and scene.get("label") == t:
             at = max(at, late)
+        at = max(at, later.get(t, 0.0))
         out.append((t, at))
     return out
 
@@ -130,8 +134,13 @@ def timeline(p):
             built = max(built, (10 + (n - 1) * step) / FPS + SETTLE)
         if s.get("mark"):  # a voice-synced mark draws in the scene band until it lands (marks.py)
             built = max(built, (s["mark"]["at"] + s["mark"]["frames"]) / FPS)
+        beat = (s.get("beats") or {}).get("frames") or []  # beats.py: a change on the words every 1.5-3 s
+        if beat:
+            built = max(built, beat[-1] / FPS + SETTLE)
+        inner = max([(b - a) / FPS - SETTLE for a, b in zip(beat, beat[1:])] or [0.0])
         rows.append({"scene": i, "type": s.get("type"), "from": s["from"], "to": end, "leaves": leaves,
-                     "seconds": round(s["duration"] / FPS, 2), "texts": texts, "settled": round(built, 2)})
+                     "seconds": round(s["duration"] / FPS, 2), "texts": texts, "settled": round(built, 2),
+                     "beats": len(beat), "gap": round(inner, 2)})
     if p.get("outroFrom") is not None and p.get("cta") and not any(r["type"] == "end" for r in rows):
         shown = (total - p["outroFrom"]) / FPS
         rows[-1]["texts"].append({"text": p["cta"], "words": words(p["cta"]), "need": round(need(p["cta"]), 2),
@@ -189,7 +198,7 @@ def still(rows, holds=()):
     for r in rows:
         if r["type"] in STILL_EXEMPT:
             continue
-        quiet = (r["leaves"] - r["from"]) / FPS - r["settled"]
+        quiet = max((r["leaves"] - r["from"]) / FPS - r["settled"], r.get("gap", 0.0))  # the tail, or between beats
         most = HOLD_MAX if r["type"] in holds else STILL_MAX
         if quiet > most + 1e-6:
             out.append(_finding("still", f"scene {r['scene']} ({r['type']}): nothing changes for {quiet:.1f} s after "
