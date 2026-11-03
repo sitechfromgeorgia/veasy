@@ -29,14 +29,20 @@ def _python() -> str:
     env = os.environ.get("VEASY_PYTHON")
     if env:
         return env
-    venv = ROOT / ".venv" / "bin" / "python"
-    return str(venv) if venv.exists() else sys.executable
+    for venv_dir in (ROOT / ".venv", ROOT.parent / "Veasy" / ".venv"):
+        for cand in (venv_dir / "Scripts" / "python.exe", venv_dir / "bin" / "python"):
+            if cand.exists():
+                return str(cand)
+    return sys.executable
 
 
 def _engine(cmd: str, argv: list[str]) -> str:
     try:
+        env = dict(os.environ)
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
         r = subprocess.run([_python(), "-m", "tt_shorts.engine", cmd, *argv], cwd=ROOT, capture_output=True,
-                           text=True, timeout=TIMEOUTS.get(cmd, 300))
+                           text=True, encoding="utf-8", env=env, timeout=TIMEOUTS.get(cmd, 300))
         out = (r.stdout or "").strip()
         try:
             data = json.loads(out) if out else {}

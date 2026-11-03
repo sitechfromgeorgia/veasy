@@ -67,7 +67,15 @@ class Plugin(unittest.TestCase):
 
     def test_claude_code_sees_the_same_skills(self):
         for name in SKILLS:
-            self.assertTrue((ROOT / ".claude" / "skills" / name / "SKILL.md").exists(), name)
+            entry = ROOT / ".claude" / "skills" / name
+            if entry.is_file() and not entry.is_symlink():
+                # On Windows with core.symlinks=false, git checks out symlinks as text files pointing to target
+                target = entry.read_text(encoding="utf-8").strip()
+                self.assertEqual(target.replace("\\", "/"), f"../../skills/{name}")
+                resolved = (entry.parent / target).resolve()
+                self.assertTrue((resolved / "SKILL.md").exists(), f"{name} -> {resolved}")
+            else:
+                self.assertTrue((ROOT / ".claude" / "skills" / name / "SKILL.md").exists(), name)
 
     def test_options_tool_returns_the_engine_json(self):
         out = json.loads(self.ctx.tools["veasy_options"][1]({}))
