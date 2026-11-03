@@ -20,7 +20,7 @@ format choice. The map itself needs no format key; see `veasy:write-script`.)
 |---|---|---|
 | `look` | `auto` (by category), `editorial`, `kinetic`, `cards` | `auto` |
 | `captions` | `page` (fixed two-line block), `roll` (three-line teleprompter), `keyword` (the page's lines in a dark box, the spoken word lit, and per page one keyword code picks: the scene's em phrase, else a number, else a name from the story, drawn in the pack's `design.keyword` style: tbilisi.today an accent underline, SiTech its orange) | `page` |
-| `transition` | `auto` (varied per video among those that suit the look), `cut`, `line`, `panel`, `wipe`, `slide`, `push`, `dot` (an iris from the header's progress dot), `meter` (equaliser bars in ink rise over the old scene and fall away from the new one) | `auto` |
+| `transition` | `auto` (varied per video among those that suit the look), `cut`, `line`, `panel`, `wipe`, `slide`, `push`, `dot` (an iris from the header's progress dot), `meter` (equaliser bars in ink rise over the old scene and fall away from the new one), `fade` (clean opacity fade between scenes), `shutter` (horizontal ink shutter slats sweep along current), `split` (ink split wipe reveals outward from center), `corner` (diagonal geometric wipe from corner), `iris` (circular ink iris from scene center), `blind` (vertical ink louver blinds rotate across scene) | `auto` |
 | `beats` | `on` (a change inside every scene each 1.5-3 s on the words: items and labels come in when said, quotes and points light up a phrase a beat, the hook's rule, a stat's cells, a timeline's run and a map's camera step on), `off` (each scene's own stagger) | `on` |
 | `chapters` | `off`, `on` ("01 / 03" and a segmented bar where the progress rule was; chapters of 3+ scenes by code, the hook in chapter 1, a digest's chapter cards opening its stories; none when a video can't make two), `auto` (on from 40 s) | `off` |
 | `outro` | `card` (the end card: logo, QR, link, CTA), `overlay` (no end card: a QR/link/CTA chip slides in over the last scene), `loop` (the chip, then the last 0.5 s cross-fade into the hook's first frame: a seamless replay) | `card` |
@@ -57,10 +57,8 @@ only colors (and a logo drawn for that ground), never the layout, the motion or 
 
 ## Variety comes on its own
 
-Inside a format, every video gets its own hook layout (stack, lead, blocks, underline), background motif (grid,
-diagonal, dots, rules, plain, and `icons`: the story's main icon tiled faintly, only for a story that has one and
-never for crime or deaths), entrance (rise, slide, reveal, scale), transition (when `auto`; `meter` in editorial and
-kinetic) and music loop
+Inside a format, every video gets its own hook layout (stack, lead, blocks, underline, split, badge, bracket, rail), background motif (grid,
+diagonal, dots, rules, plain, icons, crosses, mesh, waves, hash), entrance (rise, slide, reveal, scale, drop, expand, drift, flip), transition (when `auto`; varied per look among line, wipe, panel, push, cut, dot, meter, fade, shutter, split, corner, iris, blind) and music loop
 (four per family): the least used lately for the brand (`options` → `variety`). So a format doesn't need to vary
 these by hand; fix one in a format only when a show must always look one way (e.g. `"transition": "cut"`).
 Each story's **director** (`veasy:directors`) narrows these choices and sets the motion and its direction. A

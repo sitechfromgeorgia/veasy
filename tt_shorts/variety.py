@@ -64,9 +64,9 @@ OPTIONS = {
 NEEDS_ICON = {"motif": ("icons",)}  # options a story without a main icon can't use
 # the cuts that suit each look when the format leaves the transition to the engine ("auto")
 TRANSITIONS = {
-    "editorial": ("line", "wipe", "dot", "slide", "meter"),
-    "kinetic": ("panel", "push", "wipe", "cut", "meter"),
-    "cards": ("line", "slide", "dot", "wipe"),
+    "editorial": ("line", "wipe", "dot", "slide", "meter", "fade", "shutter", "iris"),
+    "kinetic": ("panel", "push", "wipe", "cut", "meter", "split", "corner", "shutter", "blind"),
+    "cards": ("line", "slide", "dot", "wipe", "fade", "split", "iris"),
 }
 RECENT = 20
 

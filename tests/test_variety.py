@@ -40,12 +40,12 @@ class Picks(unittest.TestCase):
         self.assertEqual({p["music"] for p in picks}, {"politics-1.m4a", "politics-2.m4a", "politics-3.m4a"})
 
     def test_the_meter_wipe_is_one_more_cut(self):  # phase 3: added to the looks it fits, never instead of one
-        self.assertEqual(variety.TRANSITIONS["editorial"], ("line", "wipe", "dot", "slide", "meter"))
-        self.assertEqual(variety.TRANSITIONS["kinetic"], ("panel", "push", "wipe", "cut", "meter"))
-        for look in ("editorial", "kinetic"):
-            picks = self.run_day(10, look)
+        self.assertEqual(variety.TRANSITIONS["editorial"], ("line", "wipe", "dot", "slide", "meter", "fade", "shutter", "iris"))
+        self.assertEqual(variety.TRANSITIONS["kinetic"], ("panel", "push", "wipe", "cut", "meter", "split", "corner", "shutter", "blind"))
+        for look, n in (("editorial", 16), ("kinetic", 18)):
+            picks = self.run_day(n, look)
             counts = [sum(p["transition"] == t for p in picks) for t in variety.TRANSITIONS[look]]
-            self.assertEqual(counts, [2] * 5, look)  # every cut, evenly
+            self.assertEqual(counts, [2] * len(variety.TRANSITIONS[look]), look)  # every cut, evenly
             variety_db = pathlib.Path(self.home.name) / "veasy.db"
             variety_db.unlink()
 

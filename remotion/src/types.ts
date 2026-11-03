@@ -58,7 +58,7 @@ export type IconNode = [string, Record<string, string>];
 export type Verb = "rises" | "falls" | "stops" | "opens" | "closes" | "moves" | "splits" | "joins";
 
 // the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python
-export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter";
+export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter" | "fade" | "shutter" | "split" | "corner" | "iris" | "blind";
 
 // the ending (tt_shorts/swipe.py OUTROS): the end card, a QR/link/CTA chip over the last scene, or a seamless loop
 export type Outro = "card" | "overlay" | "loop";
