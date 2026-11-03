@@ -89,6 +89,15 @@ class Plugin(unittest.TestCase):
         out = json.loads(self.ctx.tools["veasy_options"][1]({"brand": "nobody"}))
         self.assertTrue(out.get("problems") or out.get("error"))
 
+    def test_options_tool_takes_section(self):
+        out = json.loads(self.ctx.tools["veasy_options"][1]({"section": "summary"}))
+        self.assertEqual(out["section"], "summary")
+        self.assertIn("sections", out)
+        self.assertIn("formats", out)
+        fmts = json.loads(self.ctx.tools["veasy_options"][1]({"section": "formats"}))
+        self.assertEqual(fmts["section"], "formats")
+        self.assertIn("news", fmts["formats"])
+
     def test_queue_tool_lists_jobs(self):
         with tempfile.TemporaryDirectory() as home, mock.patch.dict(os.environ, {"VEASY_HOME": home}):
             out = json.loads(self.ctx.tools["veasy_queue"][1]({"action": "add", "story": "stories/24725.json"}))

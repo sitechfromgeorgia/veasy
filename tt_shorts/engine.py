@@ -77,12 +77,12 @@ def note(msg):
 # ---------------------------------------------------------------- options
 
 
-def options(brand_name=None):
+def options(brand_name=None, section=None):
     from tt_shorts import package
     every = formats.load_all()
     b = packs.load(brand_name)
     presets = voices.all_presets(b)
-    return {
+    full = {
         "brand": b["name"],
         "brands": {n: packs.summary(packs.load(n)) for n in packs.names()},
         "looks": {"auto": "by the story's category", **{v: d for v, d in (
@@ -173,6 +173,31 @@ def options(brand_name=None):
                            "look": meta.variant_for(c, b), "voice": b["voice_by_family"][meta.family(c, b)]}
                        for c in b["categories"]},
     }
+    if section is None:
+        return full
+    if section == "summary":
+        return {
+            "brand": b["name"],
+            "section": "summary",
+            "brands": list(packs.names()),
+            "formats": {n: f.get("about", "") for n, f in every.items()},
+            "looks": full["looks"],
+            "captions": list(full["captions"].keys()),
+            "voices": [name for name, p in presets.items() if name in voices.APPROVED or name in (b.get("voices") or {})],
+            "film_engines": list(full["film_engines"]["engines"].keys()),
+            "programs": list(programs.load_all().keys()),
+            "directors": list(directors.options().keys()),
+            "rubrics": list(rubrics.options().keys()),
+            "sections": sorted(list(full.keys()) + ["summary"]),
+            "hint": "Pass section='<name>' or --section <name> to inspect any section in detail.",
+        }
+    if section in full:
+        return {
+            "brand": b["name"],
+            "section": section,
+            section: full[section],
+        }
+    raise ValueError(f"unknown section {section!r}; known: summary, {', '.join(sorted(full.keys()))}")
 
 
 def _film_engines(b):
@@ -920,6 +945,7 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     o = sub.add_parser("options")
     o.add_argument("--brand", help="the pack whose categories, looks and voices to show (default tbilisi-today)")
+    o.add_argument("--section", help="filter to a section (summary, formats, looks, captions, voices, themes, directors, programs, rubrics, scenes, icons, etc.)")
     c = sub.add_parser("check")
     c.add_argument("story")
     c.add_argument("--sources", help="JSON list of the member articles' texts (enables the news rules N2/N3)")
@@ -1062,10 +1088,24 @@ def main(argv=None):
         a.engine = "gemini" if a.action == "render" else "silent"
     try:
         if a.cmd == "options":
-            return out(options(a.brand))
+            return out(options(a.brand, getattr(a, "section", None)))
         if a.cmd == "check":
-            story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
-            sources = json.loads(pathlib.Path(a.sources).read_text(encoding="utf-8")) if a.sources else None
+            sp = pathlib.Path(a.story)
+            if not sp.is_file():
+                return out({"story": a.story, "problems": [f"story file not found: {a.story}. Provide a valid path to story JSON (e.g. stories/24835.json)."]}, 1)
+            try:
+                story = json.loads(sp.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                return out({"story": a.story, "problems": [f"invalid JSON in story file {a.story}: {e}"]}, 1)
+            sources = None
+            if a.sources:
+                src_p = pathlib.Path(a.sources)
+                if not src_p.is_file():
+                    return out({"story": a.story, "problems": [f"sources file not found: {a.sources}."]}, 1)
+                try:
+                    sources = json.loads(src_p.read_text(encoding="utf-8"))
+                except json.JSONDecodeError as e:
+                    return out({"story": a.story, "problems": [f"invalid JSON in sources file {a.sources}: {e}"]}, 1)
             if isinstance(sources, dict):  # tests/fixtures/sources.json: {story id: [articles]}
                 if str(story.get("id")) not in sources:
                     return out({"problems": [f"{a.sources} has no articles for story {story.get('id')}"]}, 2)
@@ -1082,6 +1122,15 @@ def main(argv=None):
                 "rubrics": rubrics_cmd, "compose": compose_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
+    except FileNotFoundError as e:
+        fname = getattr(e, "filename", None) or str(e)
+        return out({"problems": [f"file not found: {fname}. Check that the path exists."]}, 1)
+    except json.JSONDecodeError as e:
+        return out({"problems": [f"invalid JSON: {e}"]}, 1)
+    except packs.BrandError as e:
+        return out({"problems": [str(e)]}, 2)
+    except Exception as e:
+        return out({"problems": [f"{type(e).__name__}: {e}"]}, 1)
 
 
 if __name__ == "__main__":

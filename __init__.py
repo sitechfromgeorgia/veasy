@@ -112,11 +112,16 @@ CHOICE_PROPS = {
 }
 
 TOOLS = {
-    "veasy_options": ({"type": "object", "properties": {"brand": BRAND}},
+    "veasy_options": ({"type": "object", "properties": {
+                          "brand": BRAND,
+                          "section": {"type": "string",
+                                      "description": "Optional section to inspect: summary (compact overview), "
+                                                     "formats, looks, captions, voices, themes, directors, programs, "
+                                                     "rubrics, scenes, icons, variety, media, brands, categories."}}},
                       "Everything Veasy can do: brand packs, looks, caption designs, voices, music, formats, scene "
-                      "types and fields, the icons and sign verbs, and one pack's defaults per category. Read it "
-                      "before choosing.",
-                      lambda a: _engine("options", _flags(a, ("brand",)))),
+                      "types and fields, icons and sign verbs, and one pack's defaults per category. Pass "
+                      "section='summary' for a compact overview, or name a section to inspect.",
+                      lambda a: _engine("options", _flags(a, ("brand", "section")))),
     "veasy_check": ({"type": "object", "properties": {
                         "story": STORY,
                         "sources": {"type": "string", "description": "JSON file with the member articles' texts "
