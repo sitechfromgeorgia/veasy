@@ -57,7 +57,7 @@ import zlib
 from tt_shorts import store
 
 OPTIONS = {
-    "hook": ("stack", "lead", "blocks", "underline"),
+    "hook": ("stack", "lead", "blocks", "underline", "split", "badge", "bracket", "rail"),
     "motif": ("grid", "diagonal", "dots", "rules", "plain", "icons", "crosses", "mesh", "waves", "hash"),
     "enter": ("rise", "slide", "reveal", "scale"),
 }

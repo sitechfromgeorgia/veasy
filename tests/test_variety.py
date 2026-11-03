@@ -126,7 +126,7 @@ class Picks(unittest.TestCase):
     def test_report_measures_sameness(self):
         self.run_day(8)
         r = variety.report("tbilisi-today")
-        self.assertEqual(r["hook"]["distinct"], 4)
+        self.assertEqual(r["hook"]["distinct"], 8)
         self.assertEqual(r["scenes"]["most_used_share"], 1.0)  # every test video had the same scene order
 
 
