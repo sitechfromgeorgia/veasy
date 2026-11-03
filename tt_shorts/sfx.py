@@ -16,8 +16,10 @@ is ffmpeg's, so a HyperFrames film gets the same sound from the same props.
 
     cues(props) -> [{"t": seconds, "name": "whoosh"}, ...]   sorted, at least MIN_GAP apart
 """
+import contextlib
 import pathlib
 import runpy
+import sys
 import wave
 
 import numpy as np
@@ -44,8 +46,9 @@ def files_ready():
 
 def ensure():
     """The sound files, composed once when they are missing (tools/compose_sfx.py, under a second)."""
-    if not files_ready():
-        runpy.run_path(str(ROOT / "tools" / "compose_sfx.py"), run_name="veasy_sfx")["main"](DIR)
+    if not files_ready():  # its report goes to stderr: an engine command's stdout is its JSON
+        with contextlib.redirect_stdout(sys.stderr):
+            runpy.run_path(str(ROOT / "tools" / "compose_sfx.py"), run_name="veasy_sfx")["main"](DIR)
     return DIR
 
 

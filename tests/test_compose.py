@@ -52,6 +52,34 @@ class Timing(unittest.TestCase):
         self.assertEqual(compose.settled(t), [("a", 0.45), ("b", 1.2), ("c", 4.7)])
 
 
+class MediaAndSound(unittest.TestCase):
+    """The media layer's hooks: the story's pictures through assets.for_props, the sound effects through
+    props.mix_audio's props["sfx"], timed by the film's own wipes and beats."""
+
+    def test_cues_come_from_the_wipes_and_the_beats_when_the_format_says_on(self):
+        t = {**timing(), "wipes": [2.0, 6.0], "beats": [{"id": "a", "t": 0.0}, {"id": "b", "t": 3.0, "sfx": "pop"},
+                                                          {"id": "c", "t": 3.02, "sfx": "pop"},
+                                                          {"id": "d", "t": 4.0, "sfx": "nonsense"}]}
+        self.assertEqual(compose.sfx_cues(t, "off"), [])
+        cues = compose.sfx_cues(t, "on")
+        self.assertEqual([c["name"] for c in cues], ["whoosh", "pop", "whoosh"])  # 3.02 is too close, nonsense no sound
+        self.assertAlmostEqual(cues[0]["t"], 1.9)
+
+    def test_pictures_come_through_the_ledger(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = pathlib.Path(d)
+            (p / "assets").mkdir()
+            drawn = {"a1": {"kind": "image", "src": "media/a1.jpg", "label": "საილუსტრაციო", "credit": "Pexels"}}
+            story = {"scenes": [{"type": "hook", "media": {"asset": "a1"}}], "assets": [{"id": "a1"}]}
+            with mock.patch("tt_shorts.assets.for_props", return_value=drawn) as fp:
+                files = compose.media(story, brand.load("sitech"), p)
+            fp.assert_called_once()
+            self.assertEqual(files, ["assets/media.json", "assets/media/a1.jpg"])
+            m = json.loads((p / "assets" / "media.json").read_text(encoding="utf-8"))
+            self.assertEqual(m["pictures"]["a1"]["src"], "assets/media/a1.jpg")
+            self.assertEqual(m["scenes"], {"0": "a1"})
+
+
 class EngineKey(unittest.TestCase):
     def test_precedence_director_program_format_pack_default(self):
         story = {"id": 1, "brand": "sitech"}
@@ -208,6 +236,8 @@ class Lint(unittest.TestCase):
         return {x.split(":")[0].split()[1] for x in compose.lint(self.p, brand.load("sitech"))}
 
     def test_a_clean_scene_passes(self):
+        self.assertEqual(compose.lint(self.p, brand.load("sitech")), [])
+        (self.p / "index.html").write_text("﻿" + INDEX, encoding="utf-8")  # bind_index's BOM is no text
         self.assertEqual(compose.lint(self.p, brand.load("sitech")), [])
 
     def test_color(self):

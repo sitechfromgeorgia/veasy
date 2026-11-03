@@ -35,7 +35,6 @@ HyperFrames runs only through hyperframes() here: telemetry, update checks, skil
 (ENV), and the subcommands that upload, call HeyGen or fetch code refused (REFUSED). Renders are pinned (RENDER).
 """
 import hashlib
-import inspect
 import json
 import os
 import pathlib
@@ -218,7 +217,7 @@ def timing(story_path, sheet, engine="silent", music="off", tone=None):
         "facts": {"date": p["date"], "category": p["category"], "sources": p["sources"], "sourcesLine": p["sourcesLine"],
                   "url": p["url"], "cta": p["cta"], "previewNote": p["previewNote"]},
         "map": {k: where["map"][k] for k in ("viewBox", "focus", "pins", "level", "credit")} if where else None,
-        "sfx": [{"t": b["t"], "sfx": b["sfx"]} for b in beats if b.get("sfx")],  # the media layer's cues (phase 1)
+        "sfx": [{"t": b["t"], "name": b["sfx"]} for b in beats if b.get("sfx")],  # beats that name a sound effect
     }, p, work
 
 
@@ -975,7 +974,7 @@ def build(project, story, engine="silent", music="off", tone=None):
                                             round((focus[1] - country[1]) / country[3] * MAP_H, 1),
                                             round(focus[2] / country[2] * MAP_W, 1),
                                             round(focus[3] / country[3] * MAP_H, 1)]})
-    code += media(story, project)
+    code += media(story, b, project)
     (project / "frame.md").write_text(frame_md.render(b), encoding="utf-8")
     (project / "timing.json").write_text(json.dumps(t, ensure_ascii=False, indent=1), encoding="utf-8")
     (project / "facts.json").write_text(json.dumps({
@@ -1002,22 +1001,33 @@ def build(project, story, engine="silent", music="off", tone=None):
             "slots": slots, "hosts": hosts, "problems": problems, "program": prog}
 
 
-def media(story, project):
-    """The story's asset ledger (the media layer, phase 1: story["assets"], each {file, kind, provider, licence,
-    ...}) copied into assets/media/. -> the copied paths (Veasy's files: hashed in the lock)."""
-    out = []
-    for a in story.get("assets") or []:
-        src = a.get("file") if isinstance(a, dict) else None
-        if not src:
-            continue
-        for base in (ROOT, store.home()):
-            f = pathlib.Path(src) if pathlib.Path(src).is_absolute() else base / src
-            if f.is_file():
-                (project / "assets" / "media").mkdir(parents=True, exist_ok=True)
-                shutil.copy(f, project / "assets" / "media" / f.name)
-                out.append(f"assets/media/{f.name}")
-                break
-    return out
+def media(story, b, project):
+    """The story's pictures (the media layer, tt_shorts/assets.py): the same ledger files Lane A draws, copied into
+    assets/media/<id>.<ext> by assets.for_props, and assets/media.json with each one's label and credit, the scene it
+    belongs to and the ledger. A scene may use only these (lint net: nothing else). -> the written paths (Veasy's
+    files: hashed in the lock)."""
+    from tt_shorts import assets
+    drawn = assets.for_props(story, b, project / "assets", FPS)
+    (project / "assets" / "media.json").write_text(json.dumps({
+        "pictures": {k: {**v, "src": f"assets/{v['src']}"} for k, v in drawn.items()},
+        "scenes": {i: s["media"]["asset"] for i, s in enumerate(story.get("scenes") or []) if s.get("media")},
+        "ledger": story.get("assets") or []}, ensure_ascii=False, indent=1), encoding="utf-8")
+    return ["assets/media.json"] + [f"assets/{v['src']}" for v in drawn.values()]
+
+
+def sfx_cues(t, setting="off"):
+    """The sound effects of a composed film (format key sfx, sfx.py's sounds; the mix is props.mix_audio's): a whoosh
+    on every meter wipe, and every beat that names one ("sfx": "pop"). [] when the format says off."""
+    from tt_shorts import sfx
+    if setting != "on":
+        return []
+    out = [{"t": max(0.0, w - sfx.WHOOSH_LEAD), "name": "whoosh"} for w in t["wipes"]]
+    out += [{"t": b["t"], "name": b["sfx"]} for b in t["beats"] if b.get("sfx") in sfx.NAMES]
+    kept = []
+    for c in sorted(out, key=lambda c: c["t"]):
+        if c["t"] < t["duration"] - 0.05 and (not kept or c["t"] - kept[-1]["t"] >= sfx.MIN_GAP):
+            kept.append({"t": round(c["t"], 3), "name": c["name"]})
+    return kept
 
 
 def lock_problems(project):
@@ -1143,7 +1153,7 @@ def lint(project, b=None):
         path = project / f
         if not f.endswith((".html", ".svg")):
             continue
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = path.read_text(encoding="utf-8", errors="replace").lstrip("﻿")  # bind_index's BOM
         is_index = f == "index.html"
         toks = _tags(text)
         code = "".join(tok for kind, tok, _ in toks if kind != "comment")
@@ -1449,14 +1459,13 @@ HARD = ("lint net", "lint canvas", "lint locked", "lint host", "build:", "no com
         "probe failed")  # a film that would fetch, hide its text or lose its chrome is never rendered
 
 
-def _mix(work, p, raw, out, cues):
-    """props.mix_audio, with the beats' sound-effect cues when the mix takes them (the media layer, phase 1)."""
+def _mix(work, p, raw, out, t, setting="off"):
+    """props.mix_audio on the HyperFrames picture: the voice, the music bed and the film's own sound effects
+    (props "sfx": sfx_cues from its wipes and beats, in place of Lane A's scene timeline)."""
     from tt_shorts import props
-    params = inspect.signature(props.mix_audio).parameters
-    for name in ("sfx", "cues"):
-        if name in params and cues:
-            return props.mix_audio(work, p, raw, out, **{name: cues})
-    return props.mix_audio(work, p, raw, out)
+    p = {**p, "sfx": sfx_cues(t, setting)}
+    props.mix_audio(work, p, raw, out)
+    return p["sfx"]
 
 
 def render(story_path, fmt, brand=None, project=None, engine="gemini", out_path=None, sources=None, hf=True,
@@ -1494,7 +1503,7 @@ def render(story_path, fmt, brand=None, project=None, engine="gemini", out_path=
         return {**base, "rendered": False, "problems": [f"hyperframes render failed ({r.returncode}): "
                                                         f"{(r.stderr or r.stdout)[-600:]}"]}
     render_s = round(time.time() - t0, 1)
-    _mix(work, p, raw, target, t.get("sfx"))
+    cues = _mix(work, p, raw, target, t, fmt.get("sfx", "off"))
     secs = p["durationInFrames"] / FPS
     kind, n, why = review_for(story, fmt)
     result = {**base, "file": str(target.resolve()), "seconds": round(secs, 1), "look": "composed",
@@ -1506,7 +1515,7 @@ def render(story_path, fmt, brand=None, project=None, engine="gemini", out_path=
               "motion": {"holds": [], "warnings": [w for w in c["warnings"] if w.startswith("motion")]},
               "novelty": None, "warnings": c["warnings"], "render_seconds": render_s,
               "render_settings": {**RENDER, "hyperframes": HF_VERSION, "chrome": CHROME_VERSION},
-              "review": {"policy": kind, "n": n, "from": why}, "rendered": True}
+              "review": {"policy": kind, "n": n, "from": why}, "sfx": cues, "rendered": True}
     problems = list(c["problems"])
     if not fmt["min_seconds"] <= secs <= fmt["max_seconds"]:
         problems.append(f"length {secs:.1f}s is outside the format's {fmt['min_seconds']}-{fmt['max_seconds']}s")

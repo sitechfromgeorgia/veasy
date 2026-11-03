@@ -17,13 +17,16 @@ video uses is its `"engine"`: the director's, else the program's, else the forma
 (`hyperframes`, `hyperframes-cli`). Read `hyperframes` for the composition format, motion and craft. Where they
 overlap with Veasy, **Veasy wins**:
 - **captions**: never write captions; the locked `captions.html` is captions.py's layout. No caption blocks.
-- **media**: only files from Veasy's media layer (the story's `assets` ledger, copied to `assets/media/`). Never
-  `media-use`, never HeyGen, never a download or a CDN.
+- **media**: only the story's pictures from Veasy's media layer (`veasy:media`: its `assets` ledger and a scene's
+  `media`), copied to `assets/media/<id>.<ext>` and listed in `assets/media.json` with each one's label and credit
+  (show both with the picture). Never `media-use`, never HeyGen, never a download or a CDN.
 - **the CLI**: run HyperFrames only through `engine compose`. `hyperframes publish|cloud|lambda|tts|media-use|
   feedback|add|skills|auth` are refused; skip the skills' advice to report usage or send feedback.
 - **registry blocks**: `add` is refused (it fetches code and brings its own fonts, colors and CDN scripts). To use a
   block's idea, read it and rewrite it into your scene with `var(--token)` colors, the "Brand" face, local scripts.
-- **sound**: no `<audio>` in a film; the mix is Veasy's (music bed at one level, sound effects from beat cues).
+- **sound**: no `<audio>` in a film; the mix is Veasy's (`props.mix_audio`: the voice, the music bed at one level,
+  and, when the format says `sfx: on`, a whoosh on every meter wipe plus the sound a beat names: `"sfx": "pop"`,
+  one of click, pop, whoosh, tick, thud, blip).
 
 ## The workflow
 
