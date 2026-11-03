@@ -1,0 +1,70 @@
+<!-- s2: the tries. „პირველი წრე“: a sheet and a dashed circle, the one it means; „კვადრატივით“: what comes out is
+     a square; „მეორე“: a second sheet; „ტალღასავით“: a wave, and the robot tilts its head. Words: scene-1-items. -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .head { position: absolute; left: 64px; top: 300px; font-weight: 700; font-size: 80px; line-height: 1.1; white-space: nowrap; }
+    #root .lab { position: absolute; top: 912px; font-weight: 700; font-size: 60px; line-height: 1.1; white-space: nowrap; }
+    #root .lab s { text-decoration: none; }
+    #root svg { position: absolute; overflow: visible; }
+    #root .k { stroke: var(--ink); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    #root .m { stroke: var(--muted); fill: none; stroke-linecap: round; stroke-dasharray: 0.02 0.03; }
+    #root .p { fill: var(--panel); }
+    #root .i { fill: var(--ink); }
+    #root .a { fill: var(--accent); }
+    #root .as { stroke: var(--accent); fill: none; stroke-linecap: round; }
+    #root .draw { stroke-dasharray: 1; stroke-dashoffset: 1; }
+    #root .sheet { fill: var(--panel); stroke: var(--line-strong); stroke-width: 3; }
+  </style>
+  <div id="root" data-composition-id="s2" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="s2-head" class="head">პირველი წრე</div>
+      <div id="s2-lab1" class="lab" style="left: 64px" data-var-text="scene-1-items-0">…</div>
+      <div id="s2-lab2" class="lab" style="left: 560px" data-var-text="scene-1-items-1">…</div>
+    </div>
+    <svg id="s2-sheet1" viewBox="0 0 440 440" style="left: 64px; top: 440px; width: 440px; height: 440px">
+      <rect class="sheet" x="2" y="2" width="436" height="436" rx="16" />
+      <circle id="s2-want" class="m" cx="220" cy="220" r="140" stroke-width="5" pathLength="1" />
+      <path id="s2-square" class="k draw" pathLength="1" stroke-width="10" d="M90 96 L350 88 L356 344 L84 352 Z" />
+    </svg>
+    <svg id="s2-sheet2" viewBox="0 0 440 440" style="left: 560px; top: 440px; width: 440px; height: 440px">
+      <rect class="sheet" x="2" y="2" width="436" height="436" rx="16" />
+      <circle class="m" cx="220" cy="220" r="140" stroke-width="5" pathLength="1" />
+      <path id="s2-wave" class="k draw" pathLength="1" stroke-width="10"
+        d="M60 230 C 100 140, 140 140, 170 230 S 240 320, 270 230 S 340 140, 380 230" />
+    </svg>
+    <svg id="s2-bot" viewBox="0 0 200 240" style="left: 420px; top: 990px; width: 240px; height: 288px">
+      <line class="k" x1="100" y1="16" x2="100" y2="42" stroke-width="7" />
+      <circle class="a" cx="100" cy="14" r="11" />
+      <g id="s2-head-g"><rect class="p k" x="38" y="42" width="124" height="98" rx="30" stroke-width="7" />
+        <circle class="i" cx="78" cy="88" r="11" /><circle class="i" cx="122" cy="88" r="11" />
+        <path id="s2-mouth" class="k" d="M86 118 L114 118" stroke-width="7" /></g>
+      <rect class="p k" x="58" y="150" width="84" height="66" rx="18" stroke-width="7" />
+      <circle class="p k" cx="78" cy="228" r="11" stroke-width="6" /><circle class="p k" cx="122" cy="228" r="11" stroke-width="6" />
+    </svg>
+  </div>
+  <script>
+    (function () {
+      const A = (b) => VEASY.at(b, "s2");
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#s2-head", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.12);
+      tl.fromTo("#s2-sheet1", { opacity: 0, y: 60, rotation: -3 }, { opacity: 1, y: 0, rotation: -2, duration: 0.5, ease: "expo.out" }, 0.2);
+      tl.fromTo("#s2-want", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 0.5);
+      tl.fromTo("#s2-bot", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.3);
+      // „კვადრატივით“: the circle it meant comes out a square
+      tl.to("#s2-square", { strokeDashoffset: 0, duration: 0.7, ease: "power1.inOut" }, A("square") - 0.15);
+      tl.fromTo("#s2-lab1", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.35, ease: "expo.out" }, A("square") + 0.1);
+      // „მეორე“: the second sheet; „ტალღასავით“: a wave
+      tl.fromTo("#s2-sheet2", { opacity: 0, x: 120, rotation: 4 }, { opacity: 1, x: 0, rotation: 2, duration: 0.5, ease: "expo.out" }, A("second"));
+      tl.to("#s2-wave", { strokeDashoffset: 0, duration: 0.7, ease: "power1.inOut" }, A("wave") - 0.15);
+      tl.fromTo("#s2-lab2", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.35, ease: "expo.out" }, A("wave") + 0.1);
+      tl.to("#s2-head-g", { rotation: -14, duration: 0.35, ease: "back.out(2)", svgOrigin: "100 140" }, A("wave") + 0.2);
+      tl.to("#s2-mouth", { attr: { d: "M86 122 Q100 110 114 122" }, duration: 0.2 }, A("wave") + 0.2);
+      // out, as the robot decides to go on (s3 comes in over it)
+      tl.to("#s2-head-g", { rotation: 0, duration: 0.25, ease: "power2.out", svgOrigin: "100 140" }, A("notgiveup") - 0.1);
+      tl.to(["#s2-head", "#s2-sheet1", "#s2-sheet2", "#s2-lab1", "#s2-lab2", "#s2-bot"],
+        { opacity: 0, y: -60, duration: 0.3, ease: "power3.in", stagger: 0.03 }, A("notgiveup"));
+      window.__timelines["s2"] = tl;
+    })();
+  </script>
+</template>

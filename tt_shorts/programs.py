@@ -18,6 +18,12 @@ prompt, the news rules N1-N5. Every other program is a JSON file in programs/<na
                 already passed their checks (tt_shorts/digest.py), no model call
   screenshots   optional: domains a proof screenshot may also come from (assets.py, news rule N13), beside the
                 pack's media.official and media.own (law: matsne.gov.ge)
+  engine        optional: remotion | hyperframes, the film engine (a director's wins; else this; else the
+                format's, the pack's, remotion: compose.engine_for)
+  review        optional: always | until:<n>, for composed (hyperframes) films: held for a person always, or until
+                the brand has n approved in a row (queue.py; default always)
+  chrome        optional: news | film, the locked chrome of a composed film (compose.py): news has the date, the
+                source line and the ticker; film (fiction, product films) only the logo, chapter bar and the link
 
 A new program is a JSON file and a brief, no code; `python -m tt_shorts.engine options` lists them and fails loudly
 on a program the engine can't do. A story carries its program as "program" (set by the pipeline, like "brand").
@@ -37,8 +43,9 @@ TIERS = claims_check.TIERS
 PUBLISH = ("auto", "review")
 LINKS = ("brand", "source")
 KEYS = ("label", "about", "sources", "brief", "scenes", "rules", "format", "publish", "category", "link", "writer",
-        "screenshots")
+        "screenshots", "engine", "review", "chrome")
 WRITERS = ("model", "digest")
+CHROMES = ("news", "film")
 REQUIRED = ("label", "sources", "rules", "format", "publish")
 MAX_SOURCE = 7000  # characters of the source the writer reads (a news cluster: 3 x 2 600)
 
@@ -100,9 +107,16 @@ def validate(name, p):
     cat = p.get("category")
     if cat is not None and not re.fullmatch(r"[a-z][a-z-]*", str(cat)):
         bad(f"category {cat!r} must be a lowercase key")
+    if "engine" in p:
+        formats.engine_value(p["engine"], f"program {name!r}", ProgramError)
+    if "review" in p:
+        formats.review_policy(p["review"], f"program {name!r}", ProgramError)
+    chrome = p.get("chrome", "news")
+    if chrome not in CHROMES:
+        bad(f"chrome={chrome!r} is not one of {', '.join(CHROMES)}")
     return {**p, "name": name, "scenes": scenes, "link": link, "brief": brief, "category": cat,
             "about": p.get("about", ""), "writer": writer,
-            "screenshots": shots}
+            "screenshots": shots, "chrome": chrome}
 
 
 def load_all():
@@ -137,8 +151,9 @@ def of(story):
 
 def summary(p):
     """What `engine options` shows of a program."""
-    return {k: p[k] for k in ("label", "about", "sources", "rules", "scenes", "format", "publish", "category", "link",
-                              "writer")}
+    return {**{k: p[k] for k in ("label", "about", "sources", "rules", "scenes", "format", "publish", "category",
+                                 "link", "writer", "chrome")},
+            **{k: p[k] for k in ("engine", "review") if k in p}}
 
 
 def check_source(p, source):
@@ -245,6 +260,8 @@ def rule_problems(story, sources, doc=None):
     tier = of(story)["rules"]
     if tier == "news":
         return news_check.problems(story, sources) if sources else []
+    if tier == "story":  # fiction: nothing to compare with a document; no real person in it (claims_check S1)
+        return claims_check.problems(story, [], tier, allow=_allow_names(story))
     return claims_check.problems(story, sources or [], tier, doc=doc, allow=_allow_names(story))
 
 

@@ -1,0 +1,33 @@
+{
+ "about": "The beat sheet of „ბიპი ხატავს“ (program story, a fable composed for HyperFrames by an agent from the veasy:compose skill). Chapters and beats are anchored to the narration's words; engine compose resolves them to the voice's times (timing.json, VEASY.beat) and the scenes land on them.",
+ "chapters": [
+  {"title": "ბიპი", "at": "პატარა რობოტი"},
+  {"title": "ცდა", "at": "პირველი წრე"},
+  {"title": "მზე", "at": "ერთ დილას"}
+ ],
+ "end": {"at": "მეტი ზღაპრისთვის"},
+ "beats": [
+  {"id": "hook", "at": "პატარა რობოტი", "show": "the robot and the title, on screen at frame 0"},
+  {"id": "name", "at": "ბიპი", "show": "its name chip pops, the antenna blinks"},
+  {"id": "morning", "at": "ყოველ დილით", "show": "the easel rises beside it"},
+  {"id": "learns", "at": "ხატვას", "show": "the arm moves, a scribble draws, the second line inverts"},
+  {"id": "first", "at": "პირველი წრე", "show": "chapter 2: the first sheet, the pencil starts"},
+  {"id": "square", "at": "კვადრატივით", "show": "the circle comes out a square"},
+  {"id": "second", "at": "მეორე", "show": "the second sheet slides in"},
+  {"id": "wave", "at": "ტალღასავით", "show": "it comes out a wave; the robot tilts its head"},
+  {"id": "notgiveup", "at": "ბიპი არ", "show": "the robot nods: it doesn't give up"},
+  {"id": "everyday", "at": "ყოველდღე", "show": "a row of days, each sheet with one more line"},
+  {"id": "oneline", "at": "ერთ ხაზს", "show": "the newest line lands, in the accent"},
+  {"id": "morning2", "at": "ერთ დილას", "show": "chapter 3: one big sheet"},
+  {"id": "sheet", "at": "ფურცელზე", "show": "a round circle draws at last"},
+  {"id": "warm", "at": "თბილი", "show": "it fills warm"},
+  {"id": "sun", "at": "მზე ამოვიდა", "show": "rays grow: a sun rises; the robot smiles"},
+  {"id": "moral", "at": "ყოველი ხაზი", "show": "the moral in big type"},
+  {"id": "step", "at": "ნაბიჯია", "show": "the line climbs like stairs, the dot goes up"},
+  {"id": "end", "at": "მეტი ზღაპრისთვის", "show": "the end card"},
+  {"id": "end-link", "at": "გამოიწერე", "show": "the link and the QR"},
+  {"id": "cta", "at": "SiTech", "show": "the call to action"}
+ ],
+ "keywords": ["ბიპი", "კვადრატივით", "ტალღასავით", "ყოველდღე", "მზე", "ნაბიჯია"],
+ "icons": []
+}

@@ -1,0 +1,8 @@
+{
+ "label": "მოთხრობა",
+ "about": "A short animated tale (program story): 20-45 s, the two-line captions, a calm music bed, composed for HyperFrames.",
+ "music": "culture",
+ "min_seconds": 18,
+ "max_seconds": 45,
+ "engine": "hyperframes"
+}

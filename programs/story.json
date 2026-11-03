@@ -1,0 +1,14 @@
+{
+ "label": "მოთხრობა",
+ "about": "Fiction: a short animated tale, a fable or a cartoon (20-45 s), composed by an agent for the HyperFrames engine with the engines' own skills and Veasy's voice, captions, chrome and checks. The story tier: nothing is compared with articles, but the Georgian rules, the brand and the probe run, and no real person is named (S1: every name is one of the story's characters). Composed films are watched before they go out.",
+ "sources": ["text"],
+ "brief": "story.md",
+ "scenes": "all",
+ "rules": "story",
+ "format": "story",
+ "publish": "auto",
+ "link": "brand",
+ "engine": "hyperframes",
+ "review": "always",
+ "chrome": "film"
+}

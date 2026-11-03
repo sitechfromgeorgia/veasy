@@ -17,13 +17,26 @@ document (a web page, a PDF, a blog post, a provision of a law), and the video m
           L3  the narration names the act (კონსტიტუცია, სამოქალაქო კოდექსი, ...)
 
 N1 and N4 and the law rules run without the document too; N2, N3 and C1 need it (`engine check --sources`).
+
+  story   fiction (program story: a fable, a cartoon, an animated tale): no articles, so nothing is compared with
+          a document; the Georgian rules, the brand and the probe still run. One rule of its own:
+          S1  no real person named as doing something: every name in the film is one of the story's own
+              `characters` (a list in the story JSON). Code flags a Latin-script name, a Georgian surname
+              (-შვილი, -ძე in any case), a person in `who`/`link` or a quote's speaker that isn't a character, and
+              a real office (პრეზიდენტი, პრემიერი, მინისტრი, დეპუტატი, პატრიარქი, სპიკერი).
+          Its limit: a bare Georgian first name (ნიკა, ნინო) or a nickname can't be told from a character's name
+          by code, and a character may be given a real person's name on purpose; those need the review a composed
+          film gets anyway (queue.py, "review").
 """
 import re
 
 from tt_shorts import news_check
 
-TIERS = ("news", "claims", "law")
+TIERS = ("news", "claims", "law", "story")
 GE = "ა-ჰ"
+SURNAME = re.compile(rf"(?<![{GE}])[{GE}]{{2,}}(?:შვილ(?:ი|მა|ს|ის|ით|თან|ზე|ო)?|ძე(?:მ|ს|ის|ით|სთან|ზე)?)(?![{GE}])")
+NOT_SURNAME = ("შვილიშვილ",)  # a grandchild, not a family name
+OFFICES = ("პრეზიდენტ", "პრემიერ", "მინისტრ", "დეპუტატ", "პატრიარქ", "სპიკერ")
 # L2: the viewer told what to do, or told what they personally may do (a law video describes, it doesn't advise).
 # Whole-word starts only: "არჩევა" (election) is not "რჩევა" (advice).
 ADVICE = re.compile(
@@ -152,12 +165,53 @@ def act_named(story, facts):
     return [f"L3: the narration doesn't name the act ({title}): say which law this is"]
 
 
+def _character(name, cast):
+    """Is `name` (any case ending) one of the story's characters? Matched by stems, word by word."""
+    words = [stem(w) for w in re.findall(rf"[{GE}A-Za-z0-9]+", name.lower())]
+    return bool(words) and any(all(any(c.startswith(w) or w.startswith(c) for c in cw) for w in words)
+                               for cw in cast)
+
+
+def fiction(story, allow=()):
+    """S1: no real person named as doing something; every name is one of the story's `characters` (a story tier
+    rule, see the module docstring for what it can't see)."""
+    cast = [[stem(w) for w in re.findall(rf"[{GE}A-Za-z0-9]+", str(c).lower())]
+            for c in story.get("characters") or [] if isinstance(c, str) and c.strip()]
+    allowed = {a.lower() for a in allow if a}
+    allowed |= {w for a in allowed for w in LATIN_NAME.findall(a)}
+    out = []
+    if not isinstance(story.get("characters", []), list):
+        out.append("S1: characters is a list of the story's own names")
+    for where, text in _texts(story):
+        for name in dict.fromkeys(LATIN_NAME.findall(text)):
+            if len(name) <= 2 or not name[0].isupper() or name.lower() in allowed or _character(name, cast):
+                continue
+            out.append(f"S1: {where}: the name {name!r} is not one of the story's characters: fiction names no "
+                       "real person (add it to \"characters\" only if it is the story's own)")
+        for m in dict.fromkeys(m.group(0) for m in SURNAME.finditer(text)):
+            if not m.startswith(NOT_SURNAME) and not _character(m, cast):
+                out.append(f"S1: {where}: „{m}“ looks like a family name and is not one of the story's characters")
+        low = text.lower()
+        for office in OFFICES:
+            if re.search(rf"(?<![{GE}]){office}", low):
+                out.append(f"S1: {where}: a real office („{office}…“) in a story: fiction names no office-holder")
+    people = [it.get("name", "") for s in story.get("scenes", []) if s.get("type") in ("who", "link")
+              for it in s.get("items") or [] if isinstance(it, dict)]
+    people += [s.get("by", "") for s in story.get("scenes", []) if s.get("type") == "quote"]
+    for person in dict.fromkeys(p for p in people if isinstance(p, str) and p.strip()):
+        if person.lower() not in allowed and not _character(person, cast):
+            out.append(f"S1: {person!r} is not one of the story's characters")
+    return out
+
+
 def problems(story, sources, tier="claims", doc=None, allow=()):
     """Problems of one story under a tier; each names its rule. `doc`: {title, article} while writing."""
     if tier == "news":
         return news_check.problems(story, sources) if sources else []
     if tier not in TIERS:
         raise ValueError(f"unknown rule tier {tier!r}; known: {', '.join(TIERS)}")
+    if tier == "story":  # fiction: no document to compare with; S1, and no opinion scene
+        return [x for x in opinion(story, "") if "scene type" in x] + fiction(story, allow)
     corpus = news_check.flat(" ".join(sources))
     low = corpus.lower()
     out = opinion(story, low if sources else "") + relative_days(story)

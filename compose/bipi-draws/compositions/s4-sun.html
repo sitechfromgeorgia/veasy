@@ -1,0 +1,69 @@
+<!-- s4: the sun. „ერთ დილას“: one big sheet; „ფურცელზე“: at last a round circle; „თბილი“: it fills warm; „მზე
+     ამოვიდა“: rays grow and the robot smiles. Words: scene-2-items-0. -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .lab { position: absolute; left: 64px; top: 1000px; width: 876px; font-weight: 700; font-size: 64px; line-height: 1.1; }
+    #root svg { position: absolute; overflow: visible; }
+    #root .k { stroke: var(--ink); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    #root .p { fill: var(--panel); }
+    #root .i { fill: var(--ink); }
+    #root .a { fill: var(--accent); }
+    #root .as { stroke: var(--accent); fill: none; stroke-linecap: round; }
+    #root .draw { stroke-dasharray: 1; stroke-dashoffset: 1; }
+    #root .sheet { fill: var(--panel); stroke: var(--line-strong); stroke-width: 3; }
+  </style>
+  <div id="root" data-composition-id="s4" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="s4-lab" class="lab" data-var-text="scene-2-items-0">…</div>
+    </div>
+    <svg id="s4-sheet" viewBox="0 0 640 640" style="left: 220px; top: 320px; width: 640px; height: 640px">
+      <rect class="sheet" x="2" y="2" width="636" height="636" rx="20" />
+      <g id="s4-rays"></g>
+      <circle id="s4-fill" class="a" cx="320" cy="320" r="150" />
+      <circle id="s4-ring" class="k draw" cx="320" cy="320" r="150" stroke-width="12" pathLength="1" transform="rotate(-90 320 320)" />
+    </svg>
+    <svg id="s4-bot" viewBox="0 0 200 240" style="left: 64px; top: 1120px; width: 180px; height: 216px">
+      <line class="k" x1="100" y1="16" x2="100" y2="42" stroke-width="7" />
+      <circle class="a" cx="100" cy="14" r="11" />
+      <rect class="p k" x="38" y="42" width="124" height="98" rx="30" stroke-width="7" />
+      <path id="s4-e1" class="k" d="M68 90 Q78 80 88 90" stroke-width="7" /><path id="s4-e2" class="k" d="M112 90 Q122 80 132 90" stroke-width="7" />
+      <path id="s4-mouth" class="k" d="M84 114 Q100 122 116 114" stroke-width="7" />
+      <rect class="p k" x="58" y="150" width="84" height="66" rx="18" stroke-width="7" />
+      <line class="k" x1="142" y1="172" x2="176" y2="132" stroke-width="7" />
+      <circle class="p k" cx="78" cy="228" r="11" stroke-width="6" /><circle class="p k" cx="122" cy="228" r="11" stroke-width="6" />
+    </svg>
+  </div>
+  <script>
+    (function () {
+      const A = (b) => VEASY.at(b, "s4");
+      const NS = "http://www.w3.org/2000/svg";
+      const rays = document.getElementById("s4-rays");
+      for (let r = 0; r < 12; r++) {
+        const a = (r / 12) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+        const line = document.createElementNS(NS, "line");
+        line.setAttribute("class", "as");
+        line.setAttribute("stroke-width", "14");
+        line.setAttribute("x1", 320 + c * 186); line.setAttribute("y1", 320 + s * 186);
+        line.setAttribute("x2", 320 + c * 262); line.setAttribute("y2", 320 + s * 262);
+        rays.appendChild(line);
+      }
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#s4-sheet", { opacity: 0, scale: 0.86, rotation: -4 }, { opacity: 1, scale: 1, rotation: 0, duration: 0.6, ease: "expo.out" }, 0.12);
+      tl.fromTo("#s4-bot", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.45, ease: "expo.out" }, 0.3);
+      tl.set("#s4-fill", { opacity: 0, scale: 0.2, svgOrigin: "320 320" }, 0);
+      tl.set("#s4-rays line", { opacity: 0, scale: 0.4, svgOrigin: "320 320" }, 0);
+      // „ფურცელზე“: round, at last
+      tl.to("#s4-ring", { strokeDashoffset: 0, duration: 0.7, ease: "power1.inOut" }, A("sheet") - 0.1);
+      // „თბილი“: it fills warm
+      tl.to("#s4-fill", { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.6)", svgOrigin: "320 320" }, A("warm"));
+      // „მზე ამოვიდა“: the rays grow one by one, then the sun turns slowly; the robot smiles
+      tl.to("#s4-rays line", { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)", stagger: 0.04, svgOrigin: "320 320" }, A("sun"));
+      tl.fromTo("#s4-rays", { rotation: 0 }, { rotation: 20, duration: 2.4, ease: "none", svgOrigin: "320 320" }, A("sun"));
+      tl.fromTo("#s4-lab", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "expo.out" }, A("sun") + 0.1);
+      tl.to("#s4-mouth", { attr: { d: "M80 110 Q100 132 120 110" }, duration: 0.25, ease: "back.out(2)" }, A("sun") + 0.2);
+      tl.to(["#s4-sheet", "#s4-lab", "#s4-bot"], { opacity: 0, y: -60, duration: 0.3, ease: "power3.in", stagger: 0.03 }, A("moral"));
+      window.__timelines["s4"] = tl;
+    })();
+  </script>
+</template>

@@ -84,7 +84,7 @@ class Timing(unittest.TestCase):
             marks = speech.scene_frames(story, speech.estimate_words(story["narration"]))
             self.assertEqual(len(marks), len(story["scenes"]) + 1)
             lo, hi = 28, 45
-            if story.get("rubric"):  # number: 20-25 s, the digest: 45-60 s
+            if story.get("rubric") or story.get("program"):  # number: 20-25 s, the digest: 45-60 s, a tale 18-45 s
                 f = formats.get(engine.program_format(path))
                 lo, hi = f["min_seconds"], f["max_seconds"]
             self.assertTrue(lo <= marks[-1] / speech.FPS <= hi, f"{path.name}: {marks[-1] / speech.FPS:.1f}s")

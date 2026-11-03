@@ -332,5 +332,55 @@ class Queue(Home):
         self.assertEqual((j["state"], j["error_class"], j["result"]["program"]), ("held", "review", "law"))
 
 
+STORY = json.loads((ROOT / "stories" / "bipi-draws.json").read_text(encoding="utf-8"))
+
+
+def tale(**changes):
+    s = copy.deepcopy(STORY)
+    s.update(changes)
+    return s
+
+
+class StoryTier(unittest.TestCase):
+    """Fiction (program story): no articles to compare with; S1 says no real person is named as doing something."""
+
+    def test_the_program_is_fiction_on_hyperframes(self):
+        p = programs.get("story")
+        self.assertEqual((p["rules"], p["engine"], p["review"], p["chrome"]), ("story", "hyperframes", "always", "film"))
+        self.assertIn("story", claims_check.TIERS)
+
+    def test_the_demo_tale_passes_every_check(self):
+        self.assertEqual(engine.check_story(STORY), [])
+        self.assertEqual(programs.rule_problems(STORY, []), [])
+
+    def test_a_latin_name_or_a_surname_that_is_no_character(self):
+        bad = tale(narration=STORY["narration"].replace("ბიპი არ დანებდა", "ბიპი და Elon არ დანებდნენ"))
+        self.assertIn("S1", rules(programs.rule_problems(bad, [])))
+        bad = tale(narration=STORY["narration"].replace("ბიპი არ დანებდა", "ნიკა ბერიძე არ დანებდა"))
+        self.assertTrue(any("ბერიძე" in p for p in programs.rule_problems(bad, [])))
+        bad = tale(narration=STORY["narration"].replace("ბიპი არ დანებდა", "გიორგი კაპანაძემ თქვა"))
+        self.assertTrue(any("კაპანაძემ" in p for p in programs.rule_problems(bad, [])))
+
+    def test_a_character_may_be_named_in_any_case(self):
+        ok = tale(narration=STORY["narration"].replace("ბიპი არ დანებდა", "ბიპიმ და ლუკა ბერიძემ ხატეს"),
+                  characters=["ბიპი", "ლუკა ბერიძე"])
+        self.assertEqual(claims_check.fiction(ok, allow=["SiTech"]), [])
+
+    def test_a_real_office_or_a_person_in_who(self):
+        bad = tale(narration=STORY["narration"].replace("პატარა რობოტი", "პრეზიდენტის რობოტი"))
+        self.assertTrue(any("პრეზიდენტ" in p for p in programs.rule_problems(bad, [])))
+        bad = tale(scenes=STORY["scenes"][:1] + [{"type": "who", "at": "პირველი წრე",
+                                                   "items": [{"name": "ნინო", "role": "მასწავლებელი"}]}] + STORY["scenes"][2:])
+        self.assertTrue(any("'ნინო'" in p for p in claims_check.fiction(bad)))
+
+    def test_its_limit_a_bare_first_name_is_not_caught(self):  # documented: the review catches it
+        quiet = tale(narration=STORY["narration"].replace("ბიპი არ დანებდა", "ბიპი და ნიკა არ დანებდნენ"))
+        self.assertEqual(claims_check.fiction(quiet, allow=["SiTech"]), [])
+
+    def test_the_brand_names_are_allowed(self):
+        self.assertEqual(claims_check.fiction(tale(), allow=["SiTech"]), [])
+        self.assertIn("S1", rules(claims_check.fiction(tale())))  # SiTech in the CTA, without the brand allowed
+
+
 if __name__ == "__main__":
     unittest.main()
