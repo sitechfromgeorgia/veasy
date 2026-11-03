@@ -28,6 +28,8 @@ Directors are data, `directors/<id>.json`, validated here:
   themes      the pack themes it prefers, by name (optional; "light", "dark"...): with `theme: auto` variety picks
               among the pack's allowed themes that are in this list (all of them when the pack has none of these).
               Names only: the colors stay the pack's
+  engine      remotion | hyperframes (optional): the film engine; a director's wins over the program's, the
+              format's and the pack's (compose.engine_for)
 
 Facts (facts()) are what code extracts from the articles before writing: numbers (news_check.numbers), quantities
 (numbers that are not part of a date or time), percents, dates, times, places (the gazetteer, geo.locate), quotes
@@ -55,8 +57,8 @@ FACTS = ("numbers", "quantities", "percents", "dates", "times", "places", "regio
 FLAGS = ("deaths",)
 GATES = ("two_sides",)
 KEYS = ("id", "label", "about", "device", "form", "brief", "scenes", "count", "pacing", "hooks", "motifs", "enters",
-        "transitions", "current", "motion", "eligible", "never", "gates", "holds", "themes")
-OPTIONAL = ("gates", "holds", "themes")
+        "transitions", "current", "motion", "eligible", "never", "gates", "holds", "themes", "engine")
+OPTIONAL = ("gates", "holds", "themes", "engine")
 MOTION = {"damping": (8, 30), "stiffness": (80, 300), "enter_frames": (6, 16), "stagger_frames": (3, 6)}
 DEFAULT_MOTION = {"damping": 20, "stiffness": 170, "enter_frames": 10, "stagger_frames": 5}  # ui.tsx today
 
@@ -143,6 +145,9 @@ def validate(name, d):
     themes = d.get("themes", [])
     need(isinstance(themes, list) and all(isinstance(t, str) and re.match(r"^[a-z][a-z0-9-]*$", t) for t in themes),
          "themes is a list of theme names (brand.json themes: lowercase, e.g. light)")
+    if "engine" in d:
+        from tt_shorts import formats
+        formats.engine_value(d["engine"], f"director {name!r}", DirectorError)
     return {**d, "gates": list(d.get("gates", [])), "holds": list(holds), "themes": list(themes)}
 
 

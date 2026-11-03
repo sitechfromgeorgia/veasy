@@ -15,6 +15,8 @@
       cache/bundles/<sha16>/         the Remotion bundle per version of remotion/src (probe and stills: probe.py)
       cache/media/<sha16>/           the media layer (assets.py): one search's candidates (search.json), or one
                                      fetched file (a photo, a clip, a screenshot) + its ledger entry (asset.json)
+      cache/compose/<brand>-<ref>/   a composed film's HyperFrames project (compose.py): the agent's scenes and
+                                     beat sheet beside what Veasy writes (chrome, captions, facts, timing, frame.md)
       logs/<day>.jsonl               one JSON line per event (queued, rendered, failed, gc...)
 
 Names:
@@ -23,9 +25,10 @@ Names:
   day     YYYY-MM-DD of when the job was created (the server's local date)
   job     <brand>-<ref>-<format>, e.g. tbilisi-today-24725-news
 
-Retention (`engine gc`): work scratch 2 days, bundles 14 days, renders 30 days, voices 90 days (re-renders within
-that window are free), media 90 days (a story's ledger keeps each file's url and sha, so a later render fetches it
-again and checks it is the same file), logs 90 days. Stories are kept: they are small and they are the record of what was published.
+Retention (`engine gc`): work scratch 2 days, bundles 14 days, composed projects and renders 30 days, voices 90 days
+(re-renders within that window are free), media 90 days (a story's ledger keeps each file's url and sha, so a later
+render fetches it again and checks it is the same file), logs 90 days. Stories are kept: they are small and they are
+the record of what was published.
 """
 import datetime as dt
 import hashlib
@@ -37,7 +40,7 @@ import shutil
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-KEEP_DAYS = {"work": 2, "bundles": 14, "renders": 30, "voices": 90, "media": 90, "logs": 90}
+KEEP_DAYS = {"work": 2, "bundles": 14, "compose": 30, "renders": 30, "voices": 90, "media": 90, "logs": 90}
 
 
 def home():
@@ -114,6 +117,14 @@ def work_dir(name):
     return p
 
 
+def compose_dir(brand, ref):
+    """A composed film's HyperFrames project (compose.py): one per pack and story, <brand>-<ref>, a job's name without
+    its format (a composed film's look is the agent's, not a format's)."""
+    p = home() / "cache" / "compose" / f"{safe(brand)}-{safe(ref)}"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return p
+
+
 def bundle_dir():
     """Where the Remotion bundles are kept, one folder per version of remotion/src (remotion/probe.mjs)."""
     p = home() / "cache" / "bundles"
@@ -147,6 +158,7 @@ def gc(dry_run=False, now=None):
         "voices": [p for p in (h / "cache" / "voices").glob("*") if p.is_dir()],
         "media": [p for p in (h / "cache" / "media").glob("*") if p.is_dir()],
         "bundles": [p for p in (h / "cache" / "bundles").glob("*") if p.is_dir()],
+        "compose": [p for p in (h / "cache" / "compose").glob("*") if p.is_dir()],
         "renders": [p for p in (h / "renders").glob("*/*/*") if p.is_file() or p.name.endswith("-package")],
         "logs": [p for p in (h / "logs").glob("*.jsonl")],
     }

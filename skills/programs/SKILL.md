@@ -21,6 +21,16 @@ python -m tt_shorts.engine options          # "programs" and "sources": what eac
 | `law` | one article of Georgian law | ordo, text, pdf, url | law | explainer | review |
 | `blog` | a SiTech blog post (brand `sitech`) | sitech, url, text | claims | news | auto |
 | `digest` | the morning digest: 2-3 checked stories, built by code (`veasy:rubrics`) | stories | news | digest | auto |
+| `story` | fiction: a fable, an animated tale, a cartoon, composed for HyperFrames (`veasy:compose`) | text | story | story | auto + review always |
+
+- **story**: no articles, so nothing is compared with a document; the Georgian rules, the brand and the probe still
+  run, and **S1**: no real person named as doing something. Every name must be one of the story's own
+  `"characters"` (a list in the story); code flags a Latin-script name, a Georgian surname (-შვილი, -ძე), a `who`
+  person or quote speaker and a real office (პრეზიდენტი, მინისტრი...) that isn't one. Its limit: a bare first
+  name can't be told from a character's by code, so a composed film is watched first anyway. Engine `hyperframes`,
+  `chrome: film` (no dateline, source line or ticker), `review: always`. `stories/bipi-draws.json` is the demo.
+- A program may also set `engine` (remotion | hyperframes), `review` (always | until:<n>, composed films) and
+  `chrome` (news | film).
 
 - **claims**: every number, name and quote is in the document (N2, C1, N3); no opinion (N1, though a word the
   document itself uses is fine); no relative days (N4).

@@ -1,0 +1,43 @@
+<!doctype html>
+<!-- „ბიპი ხატავს“: a fable composed for HyperFrames (program story), as an agent does it from the veasy:compose skill.
+     Mine: this file, the background and the scenes s1-s5. Veasy's: the variables on <html>, the durations, every
+     host's start and length (data-beat / data-until), assets/, the locked chrome and captions. -->
+<html lang="ka">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/vendor/gsap.min.js"></script>
+    <link rel="stylesheet" href="assets/brand.css" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--canvas); }
+      #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; font-family: "Brand", sans-serif; }
+      #bg { position: absolute; inset: 0; background: var(--canvas); }
+      #bg-dots { position: absolute; left: -40px; top: -40px; width: 1160px; height: 2000px;
+        background-image: radial-gradient(var(--grid) 3px, transparent 3px); background-size: 48px 48px; }
+      #bg-glow { position: absolute; left: 140px; top: 520px; width: 800px; height: 800px; border-radius: 50%;
+        background: radial-gradient(circle, var(--ink-10) 0%, var(--canvas-0) 70%); opacity: 0.5; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="26" data-fps="30" data-width="1080" data-height="1920" data-probe-root>
+      <div id="bg" data-layout-ignore><div id="bg-dots"></div><div id="bg-glow"></div></div>
+
+      <div id="s1" data-composition-id="s1" data-composition-src="compositions/s1-bipi.html" data-beat="hook" data-until="first" data-until-shift="-0.1" data-track-index="1" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 10"></div>
+      <div id="s2" data-composition-id="s2" data-composition-src="compositions/s2-tries.html" data-beat="first" data-beat-shift="-0.1" data-until="notgiveup" data-until-shift="0.4" data-track-index="2" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 11"></div>
+      <div id="s3" data-composition-id="s3" data-composition-src="compositions/s3-days.html" data-beat="notgiveup" data-until="morning2" data-until-shift="0.1" data-track-index="1" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 12"></div>
+      <div id="s4" data-composition-id="s4" data-composition-src="compositions/s4-sun.html" data-beat="morning2" data-beat-shift="-0.1" data-until="moral" data-until-shift="0.4" data-track-index="2" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 13"></div>
+      <div id="s5" data-composition-id="s5" data-composition-src="compositions/s5-moral.html" data-beat="moral" data-until="end" data-until-shift="0.1" data-track-index="1" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 14"></div>
+
+      <!-- locked chrome (with the end card) and captions: placed, never edited -->
+      <div id="chrome" data-composition-id="chrome" data-composition-src="compositions/chrome.html" data-start="0" data-duration="26" data-track-index="5" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 30"></div>
+      <div id="captions" data-composition-id="captions" data-composition-src="compositions/captions.html" data-start="0" data-duration="26" data-track-index="6" data-track-kind="captions" data-width="1080" data-height="1920" style="z-index: 40"></div>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#bg-dots", { x: 0, y: 0 }, { x: 24, y: 48, duration: VEASY.duration, ease: "none" }, 0); // the paper drifts
+      tl.to("#bg-glow", { opacity: 0.9, scale: 1.15, duration: 1.2, ease: "sine.inOut" }, VEASY.beat("warm"));
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

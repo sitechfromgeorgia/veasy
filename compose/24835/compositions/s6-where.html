@@ -7,7 +7,7 @@
     #root .map { position: absolute; left: 64px; top: 300px; width: 952px; height: 600px; overflow: hidden; border-radius: 14px;
       background: var(--panel); border: 2px solid var(--line); }
     #root .map img { position: absolute; left: 0; top: 0; width: 952px; height: 600px; transform-origin: 0 0; }
-    #root .map #s6-place { -webkit-mask-image: radial-gradient(ellipse 60% 62% at 50% 50%, #000 62%, transparent 100%); mask-image: radial-gradient(ellipse 60% 62% at 50% 50%, #000 62%, transparent 100%); }
+    #root .map #s6-place { -webkit-mask-image: radial-gradient(ellipse 60% 62% at 50% 50%, var(--ink) 62%, transparent 100%); mask-image: radial-gradient(ellipse 60% 62% at 50% 50%, var(--ink) 62%, transparent 100%); }
     #root .pin { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 17px; background: var(--ink); }
     #root .pin i { position: absolute; left: 9px; top: 9px; width: 16px; height: 16px; border-radius: 8px; background: var(--accent); }
     #root .credit { position: absolute; right: 64px; top: 910px; font-weight: 400; font-size: 28px; line-height: 1.2; color: var(--muted); white-space: nowrap; }
@@ -25,7 +25,7 @@
         <div id="s6-p1" class="pin" style="left: 502.7px; top: 330.5px"><i></i></div>
         <div id="s6-p2" class="pin" style="left: 449.1px; top: 286.2px"><i></i></div>
       </div>
-      <div id="s6-credit" class="credit">Geostat · OCHA · CC BY-IGO</div>
+      <div id="s6-credit" class="credit"><span data-var-text="map-credit">…</span></div>
       <div id="s6-placetext" class="place">ვარკეთილი · ვაზისუბანი</div>
       <div id="s6-sub" class="sub">თბილისი · მისამართების სია ბმულზეა</div>
       <div id="s6-link" class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15M5 12l7 7 7-7"/></svg></div>

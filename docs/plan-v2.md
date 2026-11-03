@@ -278,6 +278,62 @@ is in topics, not names: captions (`remotion-captions`, HyperFrames' captions re
 media (`media-use`, Veasy's media layer), so `veasy:make-video` must say which wins. Not installed side by side
 here (it writes outside the repo); phase 2b tries it.
 
+## Phase 2 + 2b result (2026-11-03): the compose lane and both engines' skills
+
+Built on the same PC; nothing installed globally or run on the server.
+
+- **`tt_shorts/compose.py`, `engine compose scaffold|check|render|promote|templates`, tool `veasy_compose`, skill
+  `veasy:compose`.** The spike's two tools are thin wrappers now. A project lives in
+  `$VEASY_HOME/cache/compose/<brand>-<ref>/` (kept 30 days); its agent files come from a template, a folder, the
+  repo's `compose/<id>/` or a plain starter, and Veasy rewrites its own files on every check and render.
+- **The `"engine"` key**, validated in formats, programs, directors and brand packs, with the precedence above;
+  `engine render` dispatches on it, `--renderer` (and the queue's `renderer` override) forces one; `options` →
+  `film_engines`. Program `story` and format `story` say `hyperframes`; no pack sets one.
+- **Facts bound, not typed.** `facts.json` holds the data's facts (date, time, weekday, category, link, CTA,
+  sources, the map's credit) and the story's (numbers, dates, times, quotes, names, characters, its `facts` map and
+  every on-screen text of its scenes, `scene-<i>-<field>`). They are HyperFrames variables on `<html>`
+  (`data-var-text`), and `assets/vendor/veasy.js` gives scripts `VEASY.fact()` and the beats (`VEASY.at(beat,
+  host)`): a sub-composition's script sees no variables from `getVariables()` at init (0.9.8), so Veasy hands
+  them over itself. Hosts are timed by beats (`data-beat`/`data-until`), so a film re-times under another voice.
+- **`compose check`**: the story's own checks; Veasy's files against `.veasy/lock.json` (an edited chrome is
+  reported, never rebuilt over); our lint (rules color, font, link, net, canvas, probe, fact, host, locked, art);
+  the probe at every beat's settled frame, which now reports each text's composition, its bound fact and whether it
+  is the data's; the story's tier + K rules + kaeasy on every text the DOM shows (a bound fact still counting is a
+  warning); `hyperframes check` (errors hold, warnings shown, `film_silent` ignored: the mix is Veasy's). The first
+  run caught a real thing: 24835's count-up read 2 982 at its beat's settled frame.
+- **Render**: `hyperframes render` pinned (4 workers, software GL, `looks`, 30 fps, `--strict`), `props.mix_audio`
+  (SFX cues passed when its signature takes them: the media layer's hook), QA, the same result JSON as
+  `engine render` plus the check, the review policy and the render settings. A film that would fetch, hide text or
+  lose its chrome is not rendered.
+- **Review tier**: a composed film that passes QA ends `held` (`review`), `queue approve|reject`, counted per
+  brand in `reviews`; `review: always | until:<n>` on a format or a program (default always).
+- **Templates**: `compose promote` (lint-clean films only) writes `templates/<id>/` with every fact and typed word a
+  slot and `manifest.json`; `scaffold --template <id>|auto` (least used for the brand, `variety.template`) starts
+  from it with `slots.json` to fill. No template ships: promoting needs the owner's approval of a film.
+- **2b**: `ops/install.sh --skills --profile <name> | --target DIR [--dry-run]` installs Remotion's 13 skills
+  (remotion-dev/skills at c7cb2fd, via `npx skills@1.7.6 ... -a hermes-agent --copy`, in a scratch folder, never
+  global, never copied into Veasy) and HyperFrames' `hyperframes` and `hyperframes-cli` from the pinned package,
+  `media-use` left out, with a manifest of the pins. Tried into a temp folder: 15 skills. The `story` tier (S1:
+  every name one of the story's `characters`; Latin names, Georgian surnames, real offices flagged; a bare first
+  name is its known gap) and `programs/story.json` (+ brief, `chrome: film`). `veasy:make-video` routes: news and
+  data to the kit, free-form films to compose; captions are captions.py's, media the media layer's.
+- **With phases 1 and 3 and the themes**: pictures come through `assets.for_props` (`assets/media.json`), sound
+  effects through `props.mix_audio`'s `props["sfx"]` (a whoosh on every meter wipe, and the sound a beat names, when
+  the format says `sfx: on`); the format's caption design, theme and render keys go to `props.build` as for Lane A
+  (`formats.render_keys`, `brand.themed`), and the locked captions draw the keyword design from captions.py's
+  layout (the page's `key`, the pack's style). The `story` format: keyword captions, culture bed, sfx on.
+- **Found on the way**: a big `data-composition-variables` on `<html>` pushed `<meta charset>` past the 1024 bytes a
+  browser scans, and Georgian came out as mojibake on some loads: index.html gets a BOM and the probe sends the
+  charset. `sfx.ensure()` printed to stdout on first use (an engine command's JSON); it reports to stderr now.
+  24835's outlet chips were mid-highlight at their beat's settled frame (the contrast rule caught it): they are timed
+  from the beat now.
+
+**Numbers** (this PC, software GL, 4 workers; final runs after the rebase): 24835 composed (tbilisi-today, 36.9 s):
+render 69.9 s (1.9 s per video second), `compose check` 20 s (the probe's 28 frames ~7 s, `hyperframes check` the
+rest), clean with the articles, QA clean. The fable `bipi-draws` (25.4 s, 5 scenes, 20 beats, keyword captions, 10
+sound cues): sitech render 40.9 s (1.6 s/s), check 11 s, clean; the same files in tbilisi-today 40.8 s, clean; QA
+clean in both (-17.2 / -17.8 LUFS). The golden stills of Lane A: 51 unchanged.
+
 ## 8. Decisions only the owner can make
 
 1. **Lane B's review period:** how many approved films before composed videos publish on their own.

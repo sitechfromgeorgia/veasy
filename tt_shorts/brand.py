@@ -37,6 +37,8 @@ design (optional): the pack's own design rules for films an agent composes (tt_s
   "keyword": how the keyword captions (captions.py design "keyword") draw a page's keyword: underline (an accent
   underline: the accent as an active state), block (an ink block, the word in the canvas color) or tint (the word
   in the accent color: refused when design.accent.never has "text"). Default underline (keyword_style()).
+engine (optional): remotion | hyperframes, the pack's film engine when the director, the program and the format set
+  none (compose.engine_for; default remotion).
 package: the words of `engine package`'s texts (package.py): "more" (a link line with {url}), "link_in_bio" (for
   Instagram, where a caption's link can't be clicked) and "hashtags" (3+, after the category's own tag).
 
@@ -323,6 +325,9 @@ def validate(b, dirs):
             raise BrandError(f"brand {name}: design.keyword tint colors a word with the accent, and this pack's "
                              "accent is never text (design.accent.never): use underline or block")
     media_problems(b)
+    if "engine" in b:  # the pack's film engine, when neither the director, the program nor the format sets one
+        from tt_shorts import formats
+        formats.engine_value(b["engine"], f"brand {name}", BrandError)
     kind = b["logo"].get("kind")
     if kind not in ("tmark", "svg"):
         raise BrandError(f"brand {name}: logo.kind is tmark or svg")

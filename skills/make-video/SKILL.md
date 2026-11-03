@@ -15,6 +15,23 @@ python -m tt_shorts.engine options       # every brand pack, look, caption desig
 Which client the video is for is the story's `"brand"` (default tbilisi-today; see `veasy:brands`). Several videos,
 a daily batch or retries: use the queue (`veasy:queue`); it runs these same steps per job.
 
+## 0. Which way: the kit or a composed film
+
+Veasy has two film engines, both first-class, and any video can be made:
+- **News and data** (a cluster, a document, a law, a blog post, the digest): Veasy's programs (`veasy:programs`)
+  with the **Remotion** kit, the steps below. Facts, checks and the queue are built for it; ~50 a day.
+- **Free-form films** (a cartoon, an animated story or fable, a product or brand film, a tutorial, or a news story
+  in a form the kit lacks): **compose** it for **HyperFrames** with `veasy:compose`, using the engines' own skills
+  (`hyperframes`, `hyperframes-cli`; `remotion-*` for Remotion work; installed by `ops/install.sh --skills`).
+  Fiction is program `story` (its rules: Georgian, brand, probe, no real person).
+- Either way the film gets Veasy's voice, captions, media, music, mix, checks, QA, package and brand pack. Where the
+  engines' skills and Veasy's overlap, Veasy's win: captions are `captions.py`'s (locked), media is Veasy's media
+  layer (never `media-use` or HeyGen), HyperFrames runs only through `engine compose` (no publish, cloud, tts,
+  feedback, add).
+- The engine is the story's `"engine"`: the director's, else the program's, else the format's, else the pack's,
+  else remotion; `engine render` follows it (`--renderer` overrides). A composed film ends `held` for a person's
+  review in the queue (`veasy:queue`).
+
 ## 1. Get a story JSON
 
 - From a source: `python -m tt_shorts.engine write --source tbilisi-today --ref 24886 [--brand tbilisi-today]`

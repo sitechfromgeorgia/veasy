@@ -105,7 +105,9 @@ class Mix(unittest.TestCase):
 class FormatKey(unittest.TestCase):
     def test_sfx_is_a_format_key_off_by_default(self):
         every = formats.load_all()
-        self.assertTrue(all(f["sfx"] == "off" for f in every.values()))  # nothing changes for current renders
+        self.assertTrue(all(f["sfx"] == "off" for f in every.values() if f.get("engine") != "hyperframes"))  # nothing
+        # changes for current renders; the story format (a new, composed film) has its accents on
+        self.assertEqual(every["story"]["sfx"], "on")
         self.assertEqual(formats.get("news", sfx="on")["sfx"], "on")
         with self.assertRaises(formats.FormatError):
             formats.get("news", sfx="loud")

@@ -26,12 +26,17 @@ A format chooses only among what the engine can do:
                                                      which every pack it is used with must have; brand.json themes)
   platform  the utm_source of the QR link           (shorts, youtube, instagram, tiktok, ...)
   min_seconds / max_seconds   the length window a render must land in
+  engine    remotion | hyperframes                  (optional) the film engine: a director's, else the program's,
+                                                     else the format's, else the pack's, else remotion (compose.py)
+  review    always | until:<n>                      (optional) composed films only: held for a person's review
+                                                     always, or until the brand has n approved in a row (queue.py)
 
 Built-in formats live here; more can be added without code as JSON files in formats/<name>.json with the same
 keys (a file overrides a built-in of the same name). `python -m tt_shorts.engine options` lists them all.
 """
 import json
 import pathlib
+import re
 
 import re
 
@@ -47,6 +52,10 @@ CHAPTERS = ("auto", "on", "off")
 OUTROS = swipe.OUTROS
 SFX = ("off", "on")
 THEME_MODES = ("default", "auto")  # or a theme's name (brand.json themes)
+ENGINES = ("remotion", "hyperframes")  # the two film engines (compose.py); remotion is the default
+DEFAULT_ENGINE = "remotion"
+OPTIONAL = ("engine", "review")  # keys a format may set or leave to the program, director or pack
+DEFAULT_REVIEW = "always"  # a composed film is held for a person unless its program or format says otherwise
 DEFAULTS = {"look": "auto", "captions": "page", "transition": "auto", "outro": swipe.DEFAULT_OUTRO, "voice": "family",
             "music": "family", "sfx": "off", "platform": "shorts", "min_seconds": 18, "max_seconds": 45,
             "theme": "default", "beats": "on", "chapters": "off"}
@@ -96,7 +105,11 @@ def validate(name, f):
         bad("theme", f["theme"], THEME_MODES + tuple(themes))
     if not (0 < f["min_seconds"] < f["max_seconds"] <= 360):
         raise FormatError(f"format {name!r}: need 0 < min_seconds < max_seconds <= 360")
-    unknown = set(f) - set(DEFAULTS) - {"label", "about", "name"}
+    if "engine" in f:
+        engine_value(f["engine"], f"format {name!r}", FormatError)
+    if "review" in f:
+        review_policy(f["review"], f"format {name!r}", FormatError)
+    unknown = set(f) - set(DEFAULTS) - {"label", "about", "name"} - set(OPTIONAL)
     if unknown:
         raise FormatError(f"format {name!r}: unknown keys {sorted(unknown)}")
     return f
@@ -109,6 +122,22 @@ def themes_known():
     for n in brand.names():
         out += [t for t in brand.load(n)["themes"] if t not in out and re.match(r"^[a-z][a-z0-9-]*$", t)]
     return out
+def engine_value(value, where="engine", error=ValueError):
+    """value if it is a film engine, else raise `error`."""
+    if value not in ENGINES:
+        raise error(f"{where}: engine={value!r} is not one of {', '.join(ENGINES)}")
+    return value
+
+
+def review_policy(value, where="review", error=ValueError):
+    """'always' -> ("always", None); 'until:<n>' -> ("until", n): a composed film is held for a person until the
+    brand has n approved in a row (until:0: never held for this). Raises `error` on anything else."""
+    m = re.fullmatch(r"until:(\d{1,4})", str(value))
+    if value == "always":
+        return "always", None
+    if m:
+        return "until", int(m.group(1))
+    raise error(f"{where}: review={value!r} is \"always\" or \"until:<n>\" (n approved films in a row)")
 
 
 def load_all():
