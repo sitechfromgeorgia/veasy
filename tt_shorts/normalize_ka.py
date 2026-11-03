@@ -119,8 +119,8 @@ def attach(nominative, suf):
     + მა → ენვიდიამ, + ით → ენვიდიათი (vowel stems, like spelled acronyms: ეი აი + ს → ეი აის); a root ი after
     a vowel stays (ჰუავეი + მა → ჰუავეიმ)."""
     last = nominative.split()[-1]
-    if last in LETTERS.values():  # spelled letter names end in a real ი: პი + მ → პიმ, not პმ
-        return nominative + {"ის": "ს", "მა": "მ", "ით": "თ", "ად": "დ"}.get(suf, suf)
+    if last in LETTERS.values():  # spelled letters: ემ + ის → ემის, აი + ით → აით, პი + მ → პიმ
+        return nominative + ("თ" if suf == "ით" else suf)
     if nominative.endswith("ი") and len(last) > 1 and last[-2] not in VOWELS:
         return nominative[:-1] + suf
     if nominative[-1] in VOWELS:  # research table: vowel stems don't truncate (ტესლამ, ტესლას, ენვიდიას)
