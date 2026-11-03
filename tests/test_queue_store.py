@@ -162,5 +162,68 @@ class Queue(Home):
         self.assertEqual(queue.run(1)["processed"], [])
 
 
+class ReviewTier(Home):
+    """Composed films (HyperFrames) end held for a person unless the format or program lets them through; approved
+    films in a row are counted per brand, a rejection starts the count again."""
+
+    def held_job(self, brand="sitech", film="hyperframes"):
+        from tt_shorts import queue
+        job, _ = queue.add(brand=brand, story=str(ROOT / "stories" / "bipi-draws.json"),
+                           overrides={"platform": f"p{time.time_ns()}"})
+        queue._set(job["id"], state="held", error_class="review", result={"film_engine": film})
+        return job["id"]
+
+    def test_approve_and_reject_count_per_brand(self):
+        from tt_shorts import queue
+        a, b, c = self.held_job(), self.held_job(), self.held_job()
+        self.assertEqual(queue.approve(a)["state"], "done")
+        self.assertEqual(queue.approve(b)["state"], "done")
+        self.assertEqual(queue.approved_in_a_row("sitech"), 2)
+        self.assertEqual(queue.approved_in_a_row("tbilisi-today"), 0)
+        j = queue.reject(c)
+        self.assertEqual((j["state"], j["error_class"]), ("failed", "rejected"))
+        self.assertEqual(queue.approved_in_a_row("sitech"), 0)  # a rejection starts the run again
+        with self.assertRaises(ValueError):
+            queue.approve(a)  # only a held video
+        remotion = self.held_job(film="remotion")
+        queue.approve(remotion)
+        self.assertEqual(queue.approved_in_a_row("sitech"), 0)  # a kit video doesn't count
+
+    def test_the_policy(self):
+        from tt_shorts import formats, queue
+        story = json.loads((ROOT / "stories" / "bipi-draws.json").read_text(encoding="utf-8"))
+        self.assertIn("always", queue.review_hold("sitech", story, formats.get("story")))
+        until2 = {**formats.get("story"), "review": "until:2"}
+        self.assertIn("has 0", queue.review_hold("sitech", story, until2))
+        queue.approve(self.held_job())
+        queue.approve(self.held_job())
+        self.assertIsNone(queue.review_hold("sitech", story, until2))  # earned
+        self.assertIsNotNone(queue.review_hold("sitech", story, formats.get("story")))  # always is always
+        self.assertIsNone(queue.review_hold("sitech", story, {**until2, "review": "until:0"}))
+
+    def test_a_composed_job_that_passes_qa_ends_held(self):
+        from tt_shorts import engine as eng, queue
+        job, _ = queue.add(story=str(ROOT / "stories" / "bipi-draws.json"))
+        fake = {"file": "x.mp4", "problems": [], "film_engine": "hyperframes"}
+        with mock.patch.object(eng, "render_any", return_value=fake), \
+                mock.patch.object(eng, "qa_file", return_value={"problems": []}):
+            j = queue.process(queue._claim(), engine="gemini")
+        self.assertEqual((j["state"], j["error_class"]), ("held", "review"))
+        self.assertEqual(j["result"]["film_engine"], "hyperframes")
+
+    def test_a_composed_film_refused_by_its_checks_fails(self):
+        from tt_shorts import engine as eng, queue
+        queue.add(story=str(ROOT / "stories" / "bipi-draws.json"), overrides={"renderer": "hyperframes"})
+        with mock.patch.object(eng, "render_any", return_value={"problems": ["lint net: x"], "rendered": False}):
+            j = queue.process(queue._claim(), engine="gemini")
+        self.assertEqual((j["state"], j["error_class"]), ("failed", "layout"))
+
+    def test_compose_projects_live_under_the_cache(self):
+        from tt_shorts import store
+        p = store.compose_dir("sitech", "bipi-draws")
+        self.assertEqual(p.relative_to(store.home()).as_posix(), "cache/compose/sitech-bipi-draws")
+        self.assertIn("compose", store.KEEP_DAYS)
+
+
 if __name__ == "__main__":
     unittest.main()

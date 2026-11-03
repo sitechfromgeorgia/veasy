@@ -27,6 +27,14 @@ cluster had (rubrics.remember), so a later "continues" part can be compared with
     python -m tt_shorts.engine queue list [--state queued]
     python -m tt_shorts.engine queue run [--max 5]
     python -m tt_shorts.engine queue show <id> | retry <id> | cancel <id>
+    python -m tt_shorts.engine queue approve <id> | reject <id>      # a held film, after a person watched it
+
+The review tier (composed films): a film the HyperFrames engine made (compose.py; the film engine is the director's,
+the program's, the format's or the pack's "engine", or the job's --renderer) that passed QA still ends `held`
+(error_class review) unless its format's or program's `review` lets it through: `always` (the default: every
+composed film is watched) or `until:<n>` (held until the brand has n approved composed films in a row; a rejection
+starts the count again; until:0 never holds). `approve` makes a held job done and counts it; `reject` fails it
+(error_class rejected) and resets the brand's count. Counted per brand in the `reviews` table.
 """
 import contextlib
 import datetime as dt
@@ -59,6 +67,8 @@ create table if not exists jobs(
   story text, state text, priority int default 0, attempts int default 0, error_class text, error text,
   result text, created text, updated text, not_before real default 0, program text default 'news');
 create index if not exists jobs_state on jobs(state, priority, created);
+create table if not exists reviews(ts text, brand text, job text, engine text, verdict text);
+create index if not exists reviews_brand on reviews(brand, engine, ts);
 """
 # Columns added after the first release: an older veasy.db gets them on open (ALTER TABLE, with their default).
 MIGRATIONS = {"program": "alter table jobs add column program text default 'news'"}
@@ -166,7 +176,8 @@ def add(brand=None, source=None, ref=None, fmt=None, overrides=None, story=None,
         return _row(con.execute("select * from jobs where id=?", (jid,)).fetchone()), True
 
 
-NOT_FORMAT = ("director", "rubric", "part")  # overrides that are not format keys (directors.py, rubrics.py)
+NOT_FORMAT = ("director", "rubric", "part", "renderer")  # overrides that are not format keys (directors.py,
+# rubrics.py; renderer: the film engine, compose.engine_for)
 
 
 def _format_overrides(overrides):
@@ -283,8 +294,15 @@ def process(job, engine="gemini"):
             _episode(story, job["brand"], "failed")
             return get(jid)
         stage = "render"
-        r = eng.render_story(story, fmt, engine, director=(job["overrides"] or {}).get("director"))
+        director, renderer = (job["overrides"] or {}).get("director"), (job["overrides"] or {}).get("renderer")
+        film = eng.film_engine(story, fmt, director, renderer)
+        r = eng.render_any(story, fmt, engine, director=director, renderer=renderer)
         failures.record(job["brand"], "render", r["problems"])  # length, the layout probe
+        if not r.get("file"):  # a composed film whose checks refused it (network, canvas, the chrome): no video
+            _set(jid, state="failed", error_class="layout", error="; ".join(r["problems"][:5]), result=r)
+            store.log("failed", job=jid, stage="render", problems=r["problems"][:5])
+            _episode(story, job["brand"], "failed")
+            return get(jid)
         stage = "qa"
         q = eng.qa_file(r["file"], fmt) if not r["problems"] else {"problems": r["problems"]}
         if not r["problems"]:
@@ -300,6 +318,11 @@ def process(job, engine="gemini"):
             if state == "done" and programs.get(program)["publish"] == "review":
                 state, error_class = "held", "review"  # QA passed; the program wants a person to watch it first
                 error = f"program {program} publishes after a review: watch it, then publish (QA passed)"
+        result["film_engine"] = film
+        if state == "done" and film == "hyperframes":  # the review tier: composed films are watched first
+            why = review_hold(job["brand"], written, fmt)
+            if why:
+                state, error_class, error = "held", "review", why
         _set(jid, state=state, result=result, error=error, error_class=error_class)
         store.log(state, job=jid, file=r["file"], problems=q["problems"])
         if state == "done":  # its drawing passed and went out: the library keeps it for a story whose drawing fails
@@ -319,6 +342,66 @@ def process(job, engine="gemini"):
         j = get(jid) or {}
         if j.get("state") == "failed" and j.get("story"):
             _episode(j["story"], job["brand"], "failed")
+    return get(jid)
+
+
+def approved_in_a_row(brand, engine="hyperframes"):
+    """How many of the brand's composed films were approved since its last rejection."""
+    with _conn() as con:
+        rows = [r["verdict"] for r in con.execute(
+            "select verdict from reviews where brand=? and engine=? order by ts desc, rowid desc", (brand, engine))]
+    n = 0
+    for v in rows:
+        if v != "approved":
+            break
+        n += 1
+    return n
+
+
+def review_hold(brand, story, fmt):
+    """Why a composed film that passed QA is held for a person (compose.review_for: the format's or program's
+    `review`, else always), or None when the brand has earned automatic publishing (until:<n>)."""
+    from tt_shorts import compose
+    kind, n, why = compose.review_for(story, fmt)
+    if kind == "always":
+        return f"a composed film is watched before it goes out (review always, {why}): approve or reject it (QA passed)"
+    have = approved_in_a_row(brand)
+    if have < n:
+        return (f"a composed film is watched until {n} in a row are approved ({why}); {brand} has {have}: approve or "
+                "reject it (QA passed)")
+    return None
+
+
+def approve(jid):
+    """A held job, watched and approved by a person: done (ready to publish); a composed film counts toward its
+    brand's review tier."""
+    j = get(jid)
+    if not j or j["state"] != "held":
+        raise ValueError(f"job {jid} is not held (state {j and j['state']}): only a held video is approved")
+    _set(jid, state="done", error=None, error_class=None)
+    if (j.get("result") or {}).get("film_engine") == "hyperframes":
+        with _conn() as con:
+            con.execute("insert into reviews(ts, brand, job, engine, verdict) values(?,?,?,?,?)",
+                        (now(), j["brand"], jid, "hyperframes", "approved"))
+    store.log("approved", job=jid)
+    if j.get("story"):
+        _episode(j["story"], j["brand"], "done")
+    return get(jid)
+
+
+def reject(jid, why="rejected in review"):
+    """A held job a person rejected: failed (error_class rejected); a composed film resets its brand's count."""
+    j = get(jid)
+    if not j or j["state"] != "held":
+        raise ValueError(f"job {jid} is not held (state {j and j['state']}): only a held video is rejected")
+    _set(jid, state="failed", error_class="rejected", error=why)
+    if (j.get("result") or {}).get("film_engine") == "hyperframes":
+        with _conn() as con:
+            con.execute("insert into reviews(ts, brand, job, engine, verdict) values(?,?,?,?,?)",
+                        (now(), j["brand"], jid, "hyperframes", "rejected"))
+    store.log("rejected", job=jid)
+    if j.get("story"):
+        _episode(j["story"], j["brand"], "failed")
     return get(jid)
 
 
