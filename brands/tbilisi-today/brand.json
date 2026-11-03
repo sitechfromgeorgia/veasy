@@ -25,6 +25,7 @@
    "allowed": ["dot", "active state", "button"],
    "never": ["text", "a category", "a fill behind text", "an icon"]
   },
+  "keyword": "underline",
   "rules": [
    "One font family; hierarchy comes from size, weight and color only: no caps, no letter-spacing, no italics, no shadows, no outlines.",
    "No category colors and no tints: grounds are the canvas and the panel, depth is a color step and a 1-2 px line.",

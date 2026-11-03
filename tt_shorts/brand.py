@@ -25,6 +25,9 @@ say: the pack's spoken forms of its own names, merged under every story's "say" 
 design (optional): the pack's own design rules for films an agent composes (tt_shorts/frame_md.py writes them into
   frame.md; the composed film's probe checks the accent): "accent": {"allowed": [dot | active state | button],
   "never": ["text", ...]} and "rules": [sentences]. Lane A's components keep them by construction.
+  "keyword": how the keyword captions (captions.py design "keyword") draw a page's keyword: underline (an accent
+  underline: the accent as an active state), block (an ink block, the word in the canvas color) or tint (the word
+  in the accent color: refused when design.accent.never has "text"). Default underline (keyword_style()).
 package: the words of `engine package`'s texts (package.py): "more" (a link line with {url}), "link_in_bio" (for
   Instagram, where a caption's link can't be clicked) and "hashtags" (3+, after the category's own tag).
 
@@ -54,6 +57,8 @@ DOMAIN = re.compile(r"^(?=.{3,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]
 FONT_WEIGHTS = ("400", "500", "600", "700")
 LOOKS = ("editorial", "kinetic", "cards")
 ACCENT_USES = ("dot", "active state", "button")  # design.accent.allowed: where a pack may put its accent
+KEYWORD_STYLES = ("underline", "block", "tint")  # design.keyword: the keyword captions' highlight (captions.py)
+KEYWORD_DEFAULT = "underline"
 HASHTAG = re.compile(r"^#[^\s#!.,:;?]+$")
 # The music moods tools/compose_music.py writes (assets/music/<family>-N.m4a): a family is one of these.
 FAMILIES = ("politics", "economy", "world", "crime", "sports", "culture", "tech", "society")
@@ -158,6 +163,12 @@ def validate(b, dirs):
         rules = design.get("rules", [])
         if not isinstance(rules, list) or not all(isinstance(r, str) and r.strip() for r in rules):
             raise BrandError(f"brand {name}: design.rules is a list of sentences")
+        kw = design.get("keyword", KEYWORD_DEFAULT)
+        if kw not in KEYWORD_STYLES:
+            raise BrandError(f"brand {name}: design.keyword is one of {', '.join(KEYWORD_STYLES)}")
+        if kw == "tint" and "text" in ((design.get("accent") or {}).get("never") or []):
+            raise BrandError(f"brand {name}: design.keyword tint colors a word with the accent, and this pack's "
+                             "accent is never text (design.accent.never): use underline or block")
     media_problems(b)
     kind = b["logo"].get("kind")
     if kind not in ("tmark", "svg"):
@@ -220,6 +231,11 @@ def with_say(story):
     if not pack:
         return story
     return {**story, "say": {**pack, **(story.get("say") or {})}}
+
+
+def keyword_style(b):
+    """How the pack's keyword captions draw a keyword (design.keyword): underline, block or tint."""
+    return (b.get("design") or {}).get("keyword", KEYWORD_DEFAULT)
 
 
 def summary(b):

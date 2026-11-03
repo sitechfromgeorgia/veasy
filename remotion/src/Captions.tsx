@@ -95,10 +95,81 @@ const RollCaptions: React.FC<{ cap: CaptionLayout; t: number }> = ({ cap, t }) =
   );
 };
 
+/** keyword: one word of a page. Waiting words are dimmed, said ones ink, the word being said lit (it lifts by a
+ *  few px: a transform, so nothing reflows, and never wider than its line). A keyword word (Python picked it: tt_shorts/captions.py) gets the pack's style
+ *  from the moment the keyword starts being said: an accent underline, an ink block (the word in the canvas color),
+ *  or the accent as its color (only where the pack allows the accent on text: brand.py design.keyword). */
+const KeyWord: React.FC<{ w: CaptionWord; next?: CaptionWord; t: number; last: boolean; key0?: CaptionWord;
+  inKey: boolean; joinNext: boolean; style: CaptionLayout["keyword"] }> = ({ w, next, t, last, key0, inKey, joinNext, style }) => {
+  const said = t >= w.from - 0.04;
+  const until = next ? next.from : w.to + 0.35;
+  const active = said && t < until;
+  const lit = interpolate(t - w.from, [0, 0.1], [0, 1], { ...clamp, easing: easeOut }) *
+    interpolate(t - until, [0, 0.12], [1, 0], clamp);
+  const on = inKey && key0 ? interpolate(t - key0.from, [0, 0.16], [0, 1], { ...clamp, easing: easeOut }) : 0;
+  const keyed = on > 0;
+  const color = keyed && style === "block" ? CANVAS : keyed && style === "tint" ? RED : said ? INK : WAITING;
+  // a keyword of several words: one block across their spaces. The block's margin is an outline (it reaches 8 px
+  // past the word without widening the line, so nothing overflows the caption box)
+  const reach = joinNext ? "-0.27em" : 0;
+  return (
+    <span style={{ position: "relative", display: "inline-block", marginRight: last ? 0 : "0.27em", color,
+      transform: `translateY(${active ? -4 * lit : 0}px)` }}>
+      {inKey && style === "block" && (
+        <span style={{ position: "absolute", left: 0, right: reach, top: "10%", bottom: "2%", borderRadius: 4, background: INK,
+          outline: `8px solid ${INK}`, transform: `scaleX(${on})`, transformOrigin: "left", zIndex: -1 }} />
+      )}
+      <span style={{ position: "relative" }}>{w.text}</span>
+      {inKey && style === "underline" && (
+        <span style={{ position: "absolute", left: 0, right: joinNext ? "-0.27em" : 0, bottom: -6, height: 8, borderRadius: 4,
+          background: RED, transform: `scaleX(${on})`, transformOrigin: "left" }} />
+      )}
+    </span>
+  );
+};
+
+/** The keyword design: the page's lines in a dark box that never moves; a new page fades in as in "page". */
+const KeywordCaptions: React.FC<{ cap: CaptionLayout; t: number }> = ({ cap, t }) => {
+  const { size, lineHeight, band, pad, lines, pages } = cap;
+  let i = -1;
+  for (let k = 0; k < pages.length; k++) if (pages[k].start <= t) i = k;
+  if (i < 0) return null;
+  const p = pages[i];
+  const prevEnd = i > 0 ? pages[i - 1].end : -1;
+  const afterGap = p.start - prevEnd > 0.05;
+  const enter = interpolate(t - p.start, [0, 0.14], [0, 1], { ...clamp, easing: easeOut });
+  const out = interpolate(t, [p.end - 0.18, p.end], [1, 0], clamp);
+  const boxIn = afterGap ? interpolate(t - p.start, [0, 0.2], [0, 1], clamp) : 1;
+  const rowH = size * lineHeight;
+  const key = p.key;
+  return (
+    <div data-probe="captions" style={{ position: "absolute", left: W - RAIL_X, width: band, bottom: H - CAPTION_BOTTOM, height: rowH * 2 + 2 * 14,
+      background: alpha(CANVAS, 0.94), borderRadius: 2 * RADIUS, opacity: Math.min(boxIn, out),
+      display: "flex", alignItems: "center", justifyContent: "center", padding: `0 ${pad}px` }}>
+      <div style={{ opacity: enter, transform: `translateY(${(1 - enter) * 10}px)`, isolation: "isolate" }}>
+        {p.lines.map((li) => {
+          const ws = lines[li].words;
+          const k0 = key && key.line === li ? ws[key.from] : undefined;
+          return (
+            <div key={li} style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight, whiteSpace: "nowrap", textAlign: "center" }}>
+              {ws.map((w, k) => {
+                const inKey = !!key && key.line === li && k >= key.from && k <= key.to;
+                return <KeyWord key={k} w={w} next={ws[k + 1]} t={t} last={k === ws.length - 1} key0={k0} inKey={inKey}
+                  joinNext={inKey && !!key && k < key.to} style={cap.keyword} />;
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 export const Captions: React.FC<{ cap: CaptionLayout | null }> = ({ cap }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   if (!cap || !cap.lines.length) return null;
   const t = frame / fps;
+  if (cap.design === "keyword") return <KeywordCaptions cap={cap} t={t} />;
   return cap.design === "roll" ? <RollCaptions cap={cap} t={t} /> : <PageCaptions cap={cap} t={t} />;
 };

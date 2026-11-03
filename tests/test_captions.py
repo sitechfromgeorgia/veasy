@@ -18,9 +18,9 @@ def sample_words():
 
 
 class Layout(unittest.TestCase):
-    def test_both_designs_are_sound(self):
+    def test_every_design_is_sound(self):
         for name, words in sample_words():
-            for design in ("page", "roll"):
+            for design in captions.DESIGNS:
                 cap = captions.layout(words, design, end=words[-1]["end"] + 1.6)
                 self.assertEqual(captions.problems(cap, words), [], f"{name} {design}")
 
@@ -63,6 +63,67 @@ class Layout(unittest.TestCase):
     def test_layout_is_deterministic(self):  # every render tab gets the same props
         for _, words in sample_words():
             self.assertEqual(captions.layout(words, "roll"), captions.layout(words, "roll"))
+
+
+def timed(text, step=0.4):
+    return [{"text": t, "start": round(i * step, 3), "end": round(i * step + 0.3, 3)} for i, t in enumerate(text.split())]
+
+
+class Keyword(unittest.TestCase):
+    """The keyword design: the page design's lines and pages, plus one keyword a page, picked by code."""
+
+    def test_same_lines_and_pages_as_page(self):  # one size, the same geometry: only the drawing differs
+        for name, words in sample_words():
+            page, kw = captions.layout(words, "page"), captions.layout(words, "keyword")
+            self.assertEqual(page["size"], kw["size"], name)
+            self.assertEqual(page["lines"], kw["lines"], name)
+            self.assertEqual([p["lines"] for p in page["pages"]], [p["lines"] for p in kw["pages"]], name)
+            self.assertNotIn("key", " ".join(map(str, page["pages"])))  # page never carries a keyword
+
+    def test_em_first_then_a_number_then_a_name(self):
+        words = timed("ზელენსკი ამბობს რომ 6400 აბონენტს გაზი შეუწყდება.")
+        em = [{"kind": "em", "text": "გაზი შეუწყდება", "at": 2.4}]
+        name = [{"kind": "name", "text": "ვოლოდიმირ ზელენსკი", "at": None}, {"kind": "name", "text": "ზელენსკი", "at": None}]
+        cap = captions.layout(words, "keyword", keys=em + name)
+        k = cap["pages"][-1]["key"]  # the page that says the em phrase
+        said = [w["text"] for w in cap["lines"][k["line"]]["words"][k["from"]:k["to"] + 1]]
+        self.assertEqual((k["kind"], said), ("em", ["გაზი", "შეუწყდება."]))
+        k = cap["pages"][0]["key"]  # the page with the number and the name: the number
+        self.assertEqual(k["kind"], "number")
+        k = captions.layout(timed("ზელენსკი ამბობს რომ შეხვედრა იქნება."), "keyword", keys=name)["pages"][0]["key"]
+        self.assertEqual((k["kind"], k["from"], k["to"]), ("name", 0, 0))  # a name said by its surname alone
+
+    def test_an_em_phrase_said_elsewhere_is_not_this_pages(self):
+        words = timed("გაზი შეწყდება. ორშაბათს კი გაზი შეწყდება ვაკეშიც.", step=0.6)
+        key = captions.layout(words, "keyword", keys=[{"kind": "em", "text": "გაზი შეწყდება", "at": 2.4}])
+        kinds = [(p.get("key") or {}).get("kind") for p in key["pages"]]
+        self.assertNotEqual(kinds[0], "em")  # said at 0 s, the scene marks it at 2.4 s
+
+    def test_at_most_one_keyword_a_page_and_always_inside_a_line(self):
+        for name, words in sample_words():
+            cap = captions.layout(words, "keyword", keys=[{"kind": "name", "text": "თბილისი", "at": None}])
+            self.assertEqual(captions.problems(cap, words), [], name)
+            for p in cap["pages"]:
+                if "key" in p:
+                    self.assertIn(p["key"]["line"], p["lines"])
+                    self.assertIn(p["key"]["kind"], captions.KEY_KINDS)
+
+    def test_the_style_is_the_packs(self):
+        from tt_shorts import brand
+        words = timed("6400 აბონენტს გაზი შეუწყდება.")
+        for pack in ("tbilisi-today", "sitech"):
+            style = brand.keyword_style(brand.load(pack))
+            self.assertEqual(captions.layout(words, "keyword", style=style)["keyword"], style)
+        self.assertNotIn("keyword", captions.layout(words, "page"))
+
+    def test_candidates_come_from_the_built_scenes(self):
+        scenes = [{"type": "who", "from": 0, "items": [{"name": "ირაკლი კობახიძე", "role": "პრემიერი"}]},
+                  {"type": "stat", "from": 90, "value": 6400, "label": "აბონენტი",
+                   "mark": {"phrase": "6400", "at": 30, "field": "value"}},
+                  {"type": "quote", "from": 200, "text": "...", "by": "ზელენსკი"}]
+        c = captions.candidates(scenes, 30)
+        self.assertEqual(c[0], {"kind": "em", "text": "6400", "at": 4.0})
+        self.assertEqual([x["text"] for x in c if x["kind"] == "name"], ["ირაკლი კობახიძე", "ზელენსკი"])
 
 
 if __name__ == "__main__":

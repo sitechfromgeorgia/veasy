@@ -17,6 +17,9 @@
   "markBg": "#171817",
   "onAccent": "#171817"
  },
+ "design": {
+  "keyword": "tint"
+ },
  "logo": {
   "kind": "svg",
   "header": "logo-horizontal.svg",
