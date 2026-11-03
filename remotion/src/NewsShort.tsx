@@ -24,7 +24,8 @@ export const Background: React.FC = () => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const tile = motif === "icons" ? props.motifIcon : null;
-  const cell = tile ? 200 : motif === "dots" ? 48 : motif === "rules" ? 96 : 72;
+  const cell = tile ? 200 : motif === "dots" ? 48 : motif === "rules" ? 96
+    : motif === "waves" ? 80 : motif === "crosses" ? 64 : motif === "mesh" ? 80 : motif === "hash" ? 56 : 72;
   const pan = interpolate(frame, [0, durationInFrames], [0, cell]);
   const mark = {
     grid: <path d={`M${cell} 0H0V${cell}`} fill="none" stroke={GRID} strokeWidth={2} />,
@@ -33,6 +34,41 @@ export const Background: React.FC = () => {
     rules: <path d={`M0 ${cell - 1}H${cell}`} fill="none" stroke={GRID} strokeWidth={2} />,
     plain: null,
     icons: tile ? <IconTile nodes={tile} cell={cell} color={GRID} /> : null,
+    crosses: (
+      <path
+        d={`M${cell / 2 - 6} ${cell / 2}H${cell / 2 + 6} M${cell / 2} ${cell / 2 - 6}V${cell / 2 + 6}`}
+        fill="none"
+        stroke={GRID}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    ),
+    mesh: (
+      <path
+        d={`M0 ${cell / 2}L${cell / 2} 0L${cell} ${cell / 2}L${cell / 2} ${cell}Z`}
+        fill="none"
+        stroke={GRID}
+        strokeWidth={1.5}
+      />
+    ),
+    waves: (
+      <path
+        d={`M0 ${cell / 2} Q${cell / 4} ${cell / 4} ${cell / 2} ${cell / 2} T${cell} ${cell / 2}`}
+        fill="none"
+        stroke={GRID}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    ),
+    hash: (
+      <path
+        d={`M${cell * 0.25} ${cell * 0.75}L${cell * 0.75} ${cell * 0.25} M${cell * 0.45} ${cell * 0.95}L${cell * 0.95} ${cell * 0.45}`}
+        fill="none"
+        stroke={GRID}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    ),
   }[motif];
   return (
     <AbsoluteFill style={{ background: CANVAS }}>

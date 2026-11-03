@@ -58,7 +58,7 @@ from tt_shorts import store
 
 OPTIONS = {
     "hook": ("stack", "lead", "blocks", "underline"),
-    "motif": ("grid", "diagonal", "dots", "rules", "plain", "icons"),
+    "motif": ("grid", "diagonal", "dots", "rules", "plain", "icons", "crosses", "mesh", "waves", "hash"),
     "enter": ("rise", "slide", "reveal", "scale"),
 }
 NEEDS_ICON = {"motif": ("icons",)}  # options a story without a main icon can't use

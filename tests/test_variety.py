@@ -50,7 +50,7 @@ class Picks(unittest.TestCase):
             variety_db.unlink()
 
     def test_the_icon_motif_needs_an_icon(self):  # a story without one moves through the other motifs, evenly
-        picks = self.run_day(15, icon=False)
+        picks = self.run_day(18, icon=False)
         motifs = [p["motif"] for p in picks]
         self.assertNotIn("icons", motifs)
         others = variety.options_for("motif")

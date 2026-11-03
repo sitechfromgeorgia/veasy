@@ -66,7 +66,7 @@ export type Outro = "card" | "overlay" | "loop";
 // tt_shorts/variety.py: this video's own combination inside the brand and the look (layout and motion, never color)
 export type Style = {
   hook: "stack" | "lead" | "blocks" | "underline";
-  motif: "grid" | "diagonal" | "dots" | "rules" | "plain" | "icons"; // icons: props.motifIcon tiled
+  motif: "grid" | "diagonal" | "dots" | "rules" | "plain" | "icons" | "crosses" | "mesh" | "waves" | "hash"; // icons: props.motifIcon tiled
   enter: "rise" | "slide" | "reveal" | "scale";
   // tt_shorts/directors.py: the video's director, its motion personality and its current (absent: today's motion)
   director?: string;
