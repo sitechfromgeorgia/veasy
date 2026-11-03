@@ -117,7 +117,7 @@ def logo(b, project, place="header"):
     svg = the pack's own files (they carry the name)."""
     if b["logo"]["kind"] == "svg":
         shutil.copy(b["_logo"][place], project / "assets" / f"logo-{place}.svg")
-        size = "height:88px" if place == "header" else "width:528px"
+        size = "height:88px" if place == "header" else "height:340px"  # the end logo fits the band above the QR
         return f'<div class="logo-{place}"><img src="assets/logo-{place}.svg" style="{size};display:block" alt=""></div>'
     if place == "header":
         return f'<div class="logo-header">{tmark(88, b)}{wordmark(b, 44)}</div>'
