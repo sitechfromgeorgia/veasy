@@ -52,13 +52,55 @@ class StemMap(unittest.TestCase):
 
     def test_look_alike_words_are_not_icons(self):  # the blockers
         for text in ("გაზრდა", "გაზიარება", "ქართველი", "ზღვარი", "ავტორი", "ავტომატი", "კატეგორია", "მერე",
-                     "გამოცდილება", "ოპერაცია", "გულისხმობს", "პორტრეტი", "მზერა"):
+                     "გამოცდილება", "ოპერაცია", "გულისხმობს", "პორტრეტი", "მზერა", "ტარება", "ენერგიული", "გაზიანი", "ბაზრობა", "სალარო", "კოდირება"):
             self.assertEqual(icons.find(text), [], text)
         self.assertEqual(icons.find("გაზეთი"), ["newspaper"])
         self.assertEqual(icons.find("გაზაფხული"), ["sprout"])
         self.assertEqual(icons.find("ჯარიმა"), ["receipt"])
         self.assertEqual(icons.find("მთავრობამ"), ["landmark"])  # not a mountain (მთა=)
         self.assertEqual(icons.find("მთაში"), ["mountain"])
+
+    def test_expanded_stem_coverage(self):
+        cases = (
+            ("გაზსადენი", "flame"), ("გაზმომარაგება", "flame"), ("აირი", "flame"), ("ალის", "flame"),
+            ("ძაბვა", "zap"), ("ჰიდროენერგია", "zap"), ("გენერაცია", "zap"),
+            ("საწვავგასამართი", "fuel"), ("ავტოგასამართი", "fuel"), ("ნავთობპროდუქტები", "fuel"),
+            ("გათბობის სისტემა", "heater"), ("დატენვა", "battery-charging"), ("ელექტროდამტენი", "ev-charger"),
+            ("ჩართვა", "power"), ("გამორთვა", "power"), ("ძალაუფლება", "power"),
+            ("როზეტი", "plug-zap"), ("შტეფსელი", "plug-zap"), ("სასმელი წყალი", "droplet"),
+            ("სარწყავი", "droplet"), ("მორწყვა", "droplet"), ("ნალექები", "droplets"),
+            ("ტენიანობა", "droplets"), ("ცვარი", "droplets"), ("წყალსაქაჩი", "faucet"),
+            ("მილგაყვანილობა", "faucet"), ("შტორმი", "waves-horizontal"), ("ზვირთები", "waves-horizontal"),
+            ("ნაგავსაყრელი", "trash"), ("დეველოპერი", "construction"), ("ინფრასტრუქტურა", "construction"),
+            ("ავტოპარკი", "bus"), ("რკინიგზელი", "train-front"), ("ავტომანქანა", "car"),
+            ("ტრანსპორტი", "car"), ("ჩარტერი", "plane"), ("ავიარეისი", "plane"),
+            ("აფრენა", "plane-takeoff"), ("ტერმინალი", "plane-takeoff"), ("ესტაკადა", "bridge"),
+            ("ტვირთბრუნვა", "container"), ("ლოგისტიკა", "container"), ("ნიშნული", "signpost"),
+            ("მიმართულება", "signpost"), ("შესასვლელი", "door-open"), ("გასასვლელი", "door-closed"),
+            ("ამანათი", "package"), ("პაკეტი", "package"), ("სამშობიარო", "hospital"),
+            ("პოლიკლინიკა", "hospital"), ("რეანიმობილი", "ambulance"), ("თერაპევტი", "stethoscope"),
+            ("პედიატრი", "stethoscope"), ("ექთანი", "stethoscope"), ("რეანიმაცია", "heart-pulse"),
+            ("პულსი", "heart-pulse"), ("იმუნიზაცია", "syringe"), ("ფარმაცევტი", "pill"),
+            ("ფარმაცია", "pill"), ("ახალშობილები", "baby"), ("დეკრეტი", "baby"),
+            ("ჰუმანიტარული", "hand-heart"), ("გიმნაზია", "school"), ("ლიცეუმი", "school"),
+            ("მაგისტრატურა", "graduation-cap"), ("ბაკალავრიატი", "graduation-cap"), ("დიპლომი", "graduation-cap"),
+            ("ფაკულტეტი", "university"), ("ადვოკატი", "scale"), ("მოსარჩელე", "scale"),
+            ("განაჩენი", "gavel"), ("სააპელაციო", "gavel"), ("სააგენტო", "landmark"),
+            ("მუნიციპალიტეტი", "landmark"), ("პრემიერ-მინისტრი", "user"), ("თავმჯდომარე", "user"),
+            ("პლებისციტი", "vote"), ("საკანონმდებლო", "scroll"), ("ნორმატიული", "scroll"),
+            ("მანიფესტაცია", "megaphone"), ("საიდენტიფიკაციო", "id-card"), ("კიბერუსაფრთხოება", "shield-check"),
+            ("სანქციები", "ban"), ("ემბარგო", "ban"), ("ხარჯვა", "banknote-arrow-up"),
+            ("შემოდინება", "banknote-arrow-down"), ("თეთრი", "coins"), ("უნაღდო", "credit-card"),
+            ("ტრანზაქცია", "credit-card"), ("საპენსიო", "piggy-bank"), ("საგადასახადო", "receipt"),
+            ("საფასური", "tag"), ("მთვარე", "moon"), ("ღამე", "moon"), ("სეისმური", "activity"),
+            ("აგარაკი", "house"), ("კოტეჯი", "house"), ("ჰოსტელი", "hotel"), ("მოსავალი", "wheat"),
+            ("ვენახი", "grape"), ("მეღვინეობა", "wine"), ("ქვევრის", "amphora"), ("ბრწყინვალე", "sparkles"),
+            ("სისუფთავე", "sparkles"), ("მიკროპროცესორი", "microchip"), ("ნანოტექნოლოგია", "microchip"),
+            ("უპილოტო", "drone"), ("კიბერდაცვა", "lock"), ("განბლოკვა", "lock-open")
+        )
+        self.assertGreaterEqual(len(cases), 60)
+        for text, want in cases:
+            self.assertEqual(icons.find(text), [want], text)
 
     def test_order_and_two_word_stems(self):
         self.assertEqual(icons.find("მეტროს და ავტობუსის ფასი"), ["train-front", "bus", "tag"])
@@ -96,6 +138,13 @@ class Isotype(unittest.TestCase):
         self.assertFalse(icons.isotype(self.stat(icon="nothing")))
         self.assertFalse(icons.isotype({"type": "stat", "value": 12, "label": "ა"}))
 
+    def test_part_of_whole_isotype(self):
+        self.assertTrue(icons.isotype(self.stat(value=7, total=10)))
+        self.assertTrue(icons.isotype(self.stat(value=2, total=2)))
+        self.assertFalse(icons.isotype(self.stat(value=15, total=10)))  # value > total
+        self.assertFalse(icons.isotype(self.stat(value=7, total=35)))  # total > 30
+        self.assertFalse(icons.isotype(self.stat(value=7, total="10")))
+
 
 class Scene(unittest.TestCase):
     def test_shape_problems(self):
@@ -130,10 +179,29 @@ class Scene(unittest.TestCase):
         s["scenes"][1]["icon"] = "ხატულა"
         self.assertTrue(any("scene 1 (sign): icon" in x for x in icons.story_problems(s)))
 
+    def test_motions_and_morph(self):
+        p = engine.shape_problems
+        self.assertEqual(p({"type": "sign", "icon": "გაზი", "verb": "stops", "motion": "pop", "label": "ა"}), [])
+        self.assertEqual(p({"type": "sign", "icon": "გაზი", "verb": "stops", "motion": "pulse", "label": "ა"}), [])
+        self.assertEqual(p({"type": "sign", "icon": "გაზი", "verb": "stops", "motion": "sketch", "label": "ა"}), [])
+        self.assertEqual(p({"type": "sign", "icon": "გაზი", "verb": "stops", "motion": "morph", "morph_from": "zap", "label": "ა"}), [])
+        self.assertTrue(any("motion:" in x for x in p({"type": "sign", "icon": "გაზი", "verb": "stops", "motion": "flying"})))
+        self.assertTrue(any("morph_from:" in x for x in p({"type": "sign", "icon": "გაზი", "verb": "stops", "morph_from": "badicon"})))
+        self.assertTrue(any("total:" in x for x in p({"type": "stat", "value": 12, "icon": "bus", "total": 5})))
+
+    def test_attach_preserves_motion_and_morph(self):
+        scenes = [{"type": "sign", "icon": "flame", "verb": "stops", "motion": "pop", "morph_from": "zap"}]
+        attached = icons.attach(scenes, {"category": "society"})
+        self.assertEqual(attached[0]["motion"], "pop")
+        self.assertEqual(attached[0]["morphGlyph"], icons.nodes("zap"))
+        self.assertEqual(attached[0]["glyph"], icons.nodes("flame"))
+
     def test_options_list_the_icons(self):
         o = engine.options()["icons"]
         self.assertEqual(o["count"], len(icons.library()))
         self.assertEqual(set(o["verbs"]), set(icons.VERBS))
+        self.assertEqual(set(o["motions"]), set(icons.MOTIONS))
+        self.assertIn("isotype", o["charts"])
         self.assertIn("flame", o["names"])
 
 

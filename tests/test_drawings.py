@@ -23,8 +23,8 @@ def gas_story(svg="<image/>"):
 class Seeds(unittest.TestCase):
     def test_every_seed_passes_and_names_a_known_motif(self):
         seeds = drawings.seeds()
-        self.assertGreaterEqual(len(seeds), 12)
-        self.assertLessEqual(len(seeds), 20)
+        self.assertGreaterEqual(len(seeds), 40)
+        self.assertLessEqual(len(seeds), 60)
         for s in seeds:
             self.assertEqual(art.scene_problems(s["svg"]), [], s["name"])
             self.assertEqual(icons.resolve(s["motif"]), s["motif"], s["name"])
