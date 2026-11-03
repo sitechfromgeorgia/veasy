@@ -98,6 +98,24 @@ class Packs(unittest.TestCase):
     def test_pack_spoken_forms_sit_under_the_story_say(self):
         s = brand.with_say({"brand": "sitech", "say": {"Straiker": "სტრაიკერი"}})
         self.assertEqual(s["say"], {"SiTech": "საი-თეჩი", "Straiker": "სტრაიკერი"})
+
+    def test_brand_styles_key_validation(self):
+        b = brand.load("sitech")
+        self.assertEqual(brand.allowed_styles(b), [])
+        dirs = [pathlib.Path(b["_dir"])]
+
+        # Valid list of style slugs
+        with_styles = {**b, "styles": ["blueprint", "iso-infographic"]}
+        brand.validate(with_styles, dirs)
+        self.assertEqual(brand.allowed_styles(with_styles), ["blueprint", "iso-infographic"])
+
+        # Invalid styles key (not list)
+        with self.assertRaises(brand.BrandError):
+            brand.validate({**b, "styles": "blueprint"}, dirs)
+
+        # Invalid style slug (uppercase or special characters)
+        with self.assertRaises(brand.BrandError):
+            brand.validate({**b, "styles": ["Blueprint!"]}, dirs)
         own = brand.with_say({"brand": "sitech", "say": {"SiTech": "საითეჩი"}})
         self.assertEqual(own["say"]["SiTech"], "საითეჩი")  # the story's entry wins
         self.assertEqual(brand.with_say({"say": {}}), {"say": {}})  # tbilisi-today has no pack say

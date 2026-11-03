@@ -324,6 +324,10 @@ def validate(b, dirs):
         if kw == "tint" and "text" in ((design.get("accent") or {}).get("never") or []):
             raise BrandError(f"brand {name}: design.keyword tint colors a word with the accent, and this pack's "
                              "accent is never text (design.accent.never): use underline or block")
+    styles = b.get("styles")
+    if styles is not None:
+        if not isinstance(styles, list) or not all(isinstance(s, str) and re.match(r"^[a-z0-9][a-z0-9-]*$", s) for s in styles):
+            raise BrandError(f"brand {name}: styles is a list of style slug strings (lowercase, digits, hyphens)")
     media_problems(b)
     if "engine" in b:  # the pack's film engine, when neither the director, the program nor the format sets one
         from tt_shorts import formats
@@ -442,10 +446,16 @@ def keyword_style(b):
     return style
 
 
+def allowed_styles(b):
+    """The style slugs explicitly permitted for this brand pack (brand.json 'styles' list)."""
+    return list(b.get("styles") or [])
+
+
 def summary(b):
     """What `engine options` shows of a pack."""
     return {"label": b["label"], "about": b.get("about", ""), "lang": b["lang"], "logo": b["logo"]["kind"],
             "link": b["link"]["display"], "categories": len(b["categories"]), "voices": sorted(b.get("voices") or {}),
+            "styles": allowed_styles(b),
             "default_theme": b["default_theme"],
             "themes": {t: {"label": s["label"], "about": s["about"], "allowed": s["allowed"], "mode": mode(s["colors"]),
                            "canvas": s["colors"]["canvas"], "ink": s["colors"]["ink"], "accent": s["colors"]["accent"]}
