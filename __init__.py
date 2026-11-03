@@ -29,14 +29,20 @@ def _python() -> str:
     env = os.environ.get("VEASY_PYTHON")
     if env:
         return env
-    venv = ROOT / ".venv" / "bin" / "python"
-    return str(venv) if venv.exists() else sys.executable
+    for venv_dir in (ROOT / ".venv", ROOT.parent / "Veasy" / ".venv"):
+        for cand in (venv_dir / "Scripts" / "python.exe", venv_dir / "bin" / "python"):
+            if cand.exists():
+                return str(cand)
+    return sys.executable
 
 
 def _engine(cmd: str, argv: list[str]) -> str:
     try:
+        env = dict(os.environ)
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
         r = subprocess.run([_python(), "-m", "tt_shorts.engine", cmd, *argv], cwd=ROOT, capture_output=True,
-                           text=True, timeout=TIMEOUTS.get(cmd, 300))
+                           text=True, encoding="utf-8", env=env, timeout=TIMEOUTS.get(cmd, 300))
         out = (r.stdout or "").strip()
         try:
             data = json.loads(out) if out else {}
@@ -107,11 +113,16 @@ CHOICE_PROPS = {
 }
 
 TOOLS = {
-    "veasy_options": ({"type": "object", "properties": {"brand": BRAND}},
+    "veasy_options": ({"type": "object", "properties": {
+                          "brand": BRAND,
+                          "section": {"type": "string",
+                                      "description": "Optional section to inspect: summary (compact overview), "
+                                                     "formats, looks, captions, voices, themes, directors, programs, "
+                                                     "rubrics, scenes, icons, variety, media, brands, categories."}}},
                       "Everything Veasy can do: brand packs, looks, caption designs, voices, music, formats, scene "
-                      "types and fields, the icons and sign verbs, and one pack's defaults per category. Read it "
-                      "before choosing.",
-                      lambda a: _engine("options", _flags(a, ("brand",)))),
+                      "types and fields, icons and sign verbs, and one pack's defaults per category. Pass "
+                      "section='summary' for a compact overview, or name a section to inspect.",
+                      lambda a: _engine("options", _flags(a, ("brand", "section")))),
     "veasy_check": ({"type": "object", "properties": {
                         "story": STORY,
                         "sources": {"type": "string", "description": "JSON file with the member articles' texts "
@@ -182,6 +193,27 @@ TOOLS = {
                    lambda a: _engine("plan", [a["story"]] + _flags(a, ("format", "look", "captions", "transition",
                                                                        "outro", "voice", "music", "platform",
                                                                        "beats", "chapters", "director", "style", "out")))),
+    "veasy_critique": ({"type": "object", "properties": {
+                           "story": STORY,
+                           "format": CHOICE_PROPS["format"],
+                           "look": CHOICE_PROPS["look"],
+                           "director": CHOICE_PROPS["director"]},
+                        "required": ["story"]},
+                       "Automated pre-flight visual and pacing critique checklist on plan stills before rendering: "
+                       "evaluates safe zones, text reading load, static stretches, novelty, hook pacing, and brand contrast. "
+                       "Returns an overall grade (PASS, NEEDS_ATTENTION, FAIL), score (0-100), checklist items, and "
+                       "contact sheet path.",
+                       lambda a: _engine("critique", [a["story"]] + _flags(a, ("format", "look", "director")))),
+    "veasy_dry_run": ({"type": "object", "properties": {
+                          "story": STORY,
+                          "format": CHOICE_PROPS["format"],
+                          "engine": CHOICE_PROPS["engine"],
+                          "director": CHOICE_PROPS["director"]},
+                       "required": ["story"]},
+                      "A free pre-flight cost and timing calculator before rendering (costs $0.00, zero API calls): "
+                      "calculates word count, spoken seconds, estimated TTS cost, monthly budget status, and whether "
+                      "the voice and bundle are already cached.",
+                      lambda a: _engine("dry-run", [a["story"]] + _flags(a, ("format", "engine", "director")))),
     "veasy_write": ({"type": "object", "properties": {
                         "program": PROGRAM,
                         "source": SOURCE,
@@ -269,6 +301,16 @@ TOOLS = {
     "veasy_doctor": ({"type": "object", "properties": {}},
                      "Is this machine ready to render? ffmpeg, Remotion, fonts, music, keys, kaeasy.",
                      lambda a: _engine("doctor", [])),
+    "veasy_brand": ({"type": "object", "properties": {
+                        "action": {"type": "string", "enum": ["new"]},
+                        "name": {"type": "string", "description": "The brand identifier (lowercase, hyphens)."},
+                        "from": {"type": "string", "description": "Path or URL to brand guidelines, design.md, frame.md or web page."},
+                        "no_sheets": {"type": "boolean", "description": "Skip rendering contact sheets (faster)."}},
+                     "required": ["action", "name", "from"]},
+                    "Brand pack operations (skill veasy:brands): draft a new brand pack from any brand book "
+                    "or website URL (engine brand new <name> --from <source>), validate WCAG contrast and schema, "
+                    "and render preview contact sheets in dark and light themes.",
+                    lambda a: _engine("brand", [a["action"], a["name"], "--from", a["from"]] + (["--no-sheets"] if a.get("no_sheets") else []))),
 }
 
 
