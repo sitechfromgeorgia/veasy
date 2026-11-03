@@ -155,8 +155,16 @@ def _prompt(cluster: dict, articles: list[str], avoid: list[str] | None = None, 
         menu = list(dict.fromkeys(menu[:-1] + [t for t in extra_types if t not in ("hook", "end")] + ["end"]))
     shape = schema(menu)
     direction = directors.brief_block(director, facts) if director else ""
+    hard = (
+        "მკაცრი წესები:\n"
+        "- ციტატა მხოლოდ სტატიის ტექსტიდან, სიტყვასიტყვით და ბრჭყალებით. არ შეცვალო, არ შეამოკლო სიტყვების შეცვლით. "
+        "თუ ზუსტი ციტატა არ არის, quote სცენა საერთოდ არ გამოიყენო.\n"
+        "- sign სცენაზე მხოლოდ ის ხატულა/სიტყვა, რომელიც ამ სცენის ნარაციის ნაწილში ზუსტად არის ნათქვამი. თუ არა, აირჩიე points.\n"
+        "- stat/bars/compare-ის ციფრი ზუსტად იმავე ნაწილის ნარაციაში უნდა ჟღერდეს, სხვა რიცხვი არ დაწერო.\n"
+        "- ყოველი სცენის \"at\" არის ამ სცენის ნარაციის პირველი სიტყვები, ზუსტად.\n\n"
+    )
     return (f"{STYLE}\n\n{georgian + chr(10) * 2 if georgian else ''}{shape}\n\n{direction}{extra}{_variety_line(avoid)}"
-            f"{mistakes + chr(10) * 2 if mistakes else ''}"
+            f"{mistakes + chr(10) * 2 if mistakes else ''}{hard}"
             f"დაწერე ამ კლასტერის 30-40 წამიანი ვიდეოს სცენარი.\n"
             f"სათაური: {cluster.get('headline', '')}\n"
             f"კატეგორია: {cluster.get('category', 'general')}\n"
@@ -211,6 +219,90 @@ def _fix_dates(story: dict, cluster: dict) -> None:
 
     story["narration"] = fix(story.get("narration", ""))
     story["scenes"] = fix(story.get("scenes", []))
+
+
+
+_LIMITS = {"kicker": 24, "headline": 40, "label": 24, "big": 12, "unit": 8, "place": 30, "sub": 30, "by": 40, "text": 200, "via": 32}
+
+
+def _clamp(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    if " " in cut:
+        cut = cut.rsplit(" ", 1)[0]
+    return cut.rstrip(" ,.;:—-")
+
+
+def _clamp_texts(story: dict) -> None:
+    """A text that is one character over its schema limit is a failed job, not a bad video:
+    clamp it at a word boundary before the checks see it."""
+    for sc in story.get("scenes") or []:
+        if not isinstance(sc, dict):
+            continue
+        for key, limit in _LIMITS.items():
+            v = sc.get(key)
+            if isinstance(v, str) and len(v) > limit:
+                sc[key] = _clamp(v, limit)
+        lines = sc.get("lines")
+        if isinstance(lines, list):
+            sc["lines"] = [_clamp(l, 24) if isinstance(l, str) else l for l in lines]
+
+
+
+def _repair_enabled() -> bool:
+    return os.environ.get("TT_REPAIR_SCENES", "") == "1"
+
+
+def _repair_scenes(story: dict, articles: list[str]) -> None:
+    """Drop a scene the facts cannot carry instead of failing the whole job.
+
+    A quote the sources do not contain, a sign whose word the narration never says,
+    a stat whose number is not spoken in its own part: these are writer slips, and the
+    honest repair is to remove the card, not to publish an unsupported one."""
+    if not _repair_enabled():
+        return
+    scenes = story.get("scenes") or []
+    narration = story.get("narration") or ""
+    if not scenes or not narration:
+        return
+    starts, pos, missing = [], 0, False
+    for sc in scenes:
+        at = str(sc.get("at") or "").strip()
+        i = narration.find(at, pos) if at else -1
+        if i < 0:
+            missing = True
+            break
+        starts.append(i)
+        pos = i + len(at)
+    if missing or len(starts) != len(scenes):
+        return
+    parts = [narration[starts[i]: starts[i + 1] if i + 1 < len(starts) else len(narration)] for i in range(len(scenes))]
+
+    def norm(t: str) -> str:
+        return re.sub(r"\s+", " ", t or "").strip().lower().strip("\u201e\u201c\"'\u00ab\u00bb.,;:!?")
+
+    joined = norm("\n".join(articles))
+    kept = []
+    for sc, part in zip(scenes, parts):
+        t = sc.get("type")
+        if t == "quote":
+            q = norm(sc.get("text") or "")
+            if q and q not in joined:
+                continue
+            if not str(sc.get("by") or "").strip():
+                continue
+        elif t == "sign":
+            # the icon's own word must be spoken in this part; the writer cannot see that
+            # mapping, so a sign card is the one scene type that fails on details it cannot check
+            continue
+        elif t == "stat":
+            v = norm(str(sc.get("value") or ""))
+            if v and v not in norm(part):
+                continue
+        kept.append(sc)
+    if len(kept) >= 3 and len(kept) != len(scenes):
+        story["scenes"] = kept
 
 
 def _drop_short_scenes(story: dict) -> None:
@@ -308,6 +400,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _fix_dates(story, cluster)
     _tidy_end(story)
     _wrap_hook(story)  # the first pass too
+    _clamp_texts(story)
+    _repair_scenes(story, articles)
     _drop_short_scenes(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
     # identity is added once, after every model pass (see below)
     problems = checks_of(story, articles, cluster)
@@ -332,6 +426,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _fix_dates(story, cluster)
         _tidy_end(story)
         _wrap_hook(story)
+        _clamp_texts(story)
+        _repair_scenes(story, articles)
         _drop_short_scenes(story)
         problems = checks_of(story, articles, cluster)
         if not _anchors_ok(story):

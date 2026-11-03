@@ -40,6 +40,7 @@ import contextlib
 import datetime as dt
 import hashlib
 import json
+import os
 import pathlib
 import socket
 import sqlite3
@@ -231,14 +232,19 @@ def cancel(jid):
 
 
 def _claim():
+    """Claim one job. The update is guarded on state='queued' and its rowcount decides the
+    race, so two workers can run side by side without ever writing the same story."""
     with _conn() as con:
-        r = con.execute("select * from jobs where state='queued' and not_before<=? order by priority desc, created "
-                        "limit 1", (time.time(),)).fetchone()
-        if not r:
-            return None
-        con.execute("update jobs set state=?, attempts=attempts+1, updated=? where id=? and state='queued'",
-                    ("rendering" if r["story"] else "writing", now(), r["id"]))
-        return _row(r)
+        for _ in range(6):
+            r = con.execute("select * from jobs where state='queued' and not_before<=? order by priority desc, created "
+                            "limit 1", (time.time(),)).fetchone()
+            if not r:
+                return None
+            cur = con.execute("update jobs set state=?, attempts=attempts+1, updated=? where id=? and state='queued'",
+                              ("rendering" if r["story"] else "writing", now(), r["id"]))
+            if cur.rowcount == 1:
+                return _row(r)
+        return None
 
 
 def classify(exc):
@@ -459,7 +465,9 @@ def _lock():
 
 def run(max_jobs=5, engine="gemini"):
     """Process up to max_jobs queued jobs, one at a time; returns what happened. Another worker running -> busy."""
-    with _lock() as mine:
+    import contextlib
+    gate = contextlib.nullcontext(True) if os.environ.get("TT_QUEUE_PARALLEL") == "1" else _lock()
+    with gate as mine:
         if not mine:
             return {"busy": True, "processed": []}
         processed = []
