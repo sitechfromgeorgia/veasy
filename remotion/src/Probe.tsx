@@ -38,7 +38,7 @@ const parseColor = (s: string | null | undefined): RGBA | null => {
 const SHAPES = new Set(["rect", "circle", "ellipse", "path", "polygon"]);
 
 /** The color an element paints behind what lies over it: its background (HTML) or its fill (an SVG shape), with
- *  its opacity; "image" for a picture (its colors are unknown: the contrast rule skips the text); null for none. */
+ *  its opacity; "image" for a picture (its colors are unknown: groundAt bounds them); null for none. */
 const layerOf = (e: Element, root: Element): RGBA | "image" | null => {
   const tag = e.tagName.toLowerCase();
   if (tag === "img" || tag === "video" || tag === "canvas" || tag === "image") return "image";
@@ -56,24 +56,32 @@ const layerOf = (e: Element, root: Element): RGBA | "image" | null => {
   return [c[0], c[1], c[2], c[3] * opacityOf(e, root)];
 };
 
-/** The text's ground: what is painted under the point (x, y) below the text's own element `el` (every element
+/** The text's grounds: what is painted under the point (x, y) below the text's own element `el` (every element
  *  there, top to bottom, siblings included: document.elementsFromPoint; whatever covers the text, a wipe passing
- *  over it, is not its ground), composited over the canvas -> [r, g, b], or null under a picture. */
-const groundAt = (x: number, y: number, el: Element, root: Element, canvas: RGBA): number[] | null => {
+ *  over it, is not its ground), composited over the canvas -> [[r, g, b]]. Over a picture (a scene's media under
+ *  its scrim) its colors are unknown: two grounds, the layers above it over black and over white, and the rule
+ *  takes the worse. */
+const groundAt = (x: number, y: number, el: Element, root: Element, canvas: RGBA): number[][] => {
   const layers: RGBA[] = [];
   const stack = document.elementsFromPoint(x, y);
   const own = stack.findIndex((e) => e === el || e.contains(el));
+  let bases: number[][] = [[canvas[0], canvas[1], canvas[2]]];
   for (const e of own >= 0 ? stack.slice(own) : stack) {
     if (!root.contains(e)) continue;
     const c = layerOf(e, root);
-    if (c === "image") return null;
+    if (c === "image") {
+      bases = [[0, 0, 0], [255, 255, 255]];
+      break;
+    }
     if (!c) continue;
     layers.push(c);
     if (c[3] >= 0.999) break;
   }
-  let g = [canvas[0], canvas[1], canvas[2]];
-  for (const c of layers.reverse()) g = g.map((v, i) => v * (1 - c[3]) + c[i] * c[3]);
-  return g.map((v) => Math.round(v));
+  return bases.map((b) => {
+    let g = b;
+    for (const c of [...layers].reverse()) g = g.map((v, i) => v * (1 - c[3]) + c[i] * c[3]);
+    return g.map((v) => Math.round(v));
+  });
 };
 
 const collect = (frame: number, scenes: { from: number; duration: number; type: string }[], canvasHex: string) => {
@@ -128,7 +136,8 @@ const collect = (frame: number, scenes: { from: number; duration: number; type: 
     // under the middle of its first line (probe.py judges them)
     const ink = parseColor(svg ? cs.fill : cs.color);
     const color = ink ? [ink[0], ink[1], ink[2], r1(ink[3] * (svg ? parseFloat(cs.fillOpacity || "1") : 1) * opacity * 100) / 100] : null;
-    const ground = groundAt(first.left + first.width / 2, first.top + first.height / 2, el, root, canvas);
+    const grounds = groundAt(first.left + first.width / 2, first.top + first.height / 2, el, root, canvas);
+    const ground = grounds[0], ground2 = grounds[1] ?? null; // ground2: the other bound over a picture
     // overflow: how far the text reaches past an ancestor whose content is larger than its box (scrollWidth >
     // clientWidth), across and down, up to its region; a drawing's text past its <svg>.
     const over = { x: 0, y: 0, xIn: "", yIn: "", clipped: false };
@@ -163,7 +172,7 @@ const collect = (frame: number, scenes: { from: number; duration: number; type: 
       size: r1((parseFloat(cs.fontSize) * scale) / k), weight: cs.fontWeight, family: cs.fontFamily,
       opacity: r1(opacity), svg, overflow: over.x || over.y ? over : null, clipOk: !!el.closest("[data-probe-clip]"),
       decor: !!el.closest("[data-probe-decor]"),
-      color, ground,
+      color, ground, ground2,
     });
   }
   const i = scenes.findIndex((s) => frame >= s.from && frame < s.from + s.duration);

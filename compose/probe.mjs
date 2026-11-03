@@ -100,21 +100,24 @@ function collect(t, label) {
     if (!c || c[3] <= 0) return null;
     return [c[0], c[1], c[2], c[3] * opacityOf(e)];
   };
-  const groundAt = (x, y, el) => {
+  const groundAt = (x, y, el) => { // -> [ground] or, over a picture, [over black, over white]
     const layers = [];
     const stack = document.elementsFromPoint(x, y);
     const own = stack.findIndex((e) => e === el || e.contains(el)); // what covers the text is not its ground
+    let bases = [canvas.slice()];
     for (const e of own >= 0 ? stack.slice(own) : stack) {
       if (!root.contains(e)) continue;
       const c = layerOf(e);
-      if (c === "image") return null;
+      if (c === "image") { bases = [[0, 0, 0], [255, 255, 255]]; break; }
       if (!c) continue;
       layers.push(c);
       if (c[3] >= 0.999) break;
     }
-    let g = canvas.slice();
-    for (const c of layers.reverse()) g = g.map((v, i) => v * (1 - c[3]) + c[i] * c[3]);
-    return g.map((v) => Math.round(v));
+    return bases.map((b) => {
+      let g = b;
+      for (const c of [...layers].reverse()) g = g.map((v, i) => v * (1 - c[3]) + c[i] * c[3]);
+      return g.map((v) => Math.round(v));
+    });
   };
   const regions = {};
   root.querySelectorAll("[data-probe]").forEach((el) => { (regions[el.dataset.probe] ??= []).push(box(el.getBoundingClientRect())); });
@@ -168,7 +171,8 @@ function collect(t, label) {
     texts.push({ region: name, text, box: [r1((l - R.left) / k), r1((tp - R.top) / k), r1((r - l) / k), r1((b - tp) / k)],
       size: r1((parseFloat(cs.fontSize) * scale) / k), weight: cs.fontWeight, family: cs.fontFamily, color: svg ? cs.fill : cs.color, opacity: r1(opacity), svg,
       overflow: over.x || over.y ? over : null, clipOk: !!el.closest("[data-probe-clip]"), decor: !!el.closest("[data-probe-decor]"),
-      ground: first ? groundAt(first.left + first.width / 2, first.top + first.height / 2, el) : null });
+      ...(() => { const g = first ? groundAt(first.left + first.width / 2, first.top + first.height / 2, el) : [null];
+        return { ground: g[0], ground2: g[1] ?? null }; })() });
   }
   const fonts = {};
   document.fonts.forEach((f) => { if (f.family.replace(/["']/g, "") === "Brand") fonts[String(f.weight)] = f.status; });

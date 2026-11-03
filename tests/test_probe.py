@@ -149,8 +149,14 @@ class Contrast(unittest.TestCase):
         self.assertTrue(self.judged([23, 24, 23, 0.2], [241, 237, 228]))  # ink at 20%: a ghost
         self.assertEqual(self.judged([23, 24, 23, 0.2], [241, 237, 228], opacity=0.5), [])  # mid-fade: not judged
 
+    def test_over_a_picture_the_worse_bound_counts(self):  # media under a scrim: the picture over black and white
+        t = {**text(), "color": [23, 24, 23, 1], "ground": [173, 171, 164], "ground2": [245, 242, 235]}  # paper .72
+        self.assertEqual([i for i in probe.rules(report(t)) if i["rule"] == "contrast"], [])
+        thin = {**t, "ground": [68, 66, 64]}  # a thin scrim: a dark picture shows through under coal ink
+        self.assertEqual([i["rule"] for i in probe.rules(report(thin))], ["contrast"])
+
     def test_unknown_grounds_and_ornaments_are_not_judged(self):
-        self.assertEqual(self.judged([23, 24, 23, 1], None), [])  # over a picture: the probe can't know
+        self.assertEqual(self.judged([23, 24, 23, 1], None), [])  # no ground reported (an old probe)
         t = {**text(), "color": [23, 24, 23, 0.28], "ground": [241, 237, 228], "decor": True}  # the quote's giant „
         self.assertEqual([i for i in probe.rules(report(t)) if i["rule"] == "contrast"], [])
 

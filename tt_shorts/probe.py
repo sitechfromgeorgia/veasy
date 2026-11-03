@@ -20,9 +20,12 @@ bundle built once per version of remotion/src. rules() then checks the boxes aga
               middle of its first line below the text's own element (document.elementsFromPoint: backgrounds, SVG
               fills, siblings included; what covers the text, a wipe passing over it, is not its ground),
               composited over the canvas. At least CONTRAST["text"] (3:1) for every fully shown text, and
-              CONTRAST["small"] (4.5:1) for small regular text (under SMALL_PX and lighter than 600). A text over
-              a picture (img, video, canvas) has no known ground and is not judged here, nor is an ornament
-              (data-probe-decor: the quote scene's giant „, faint by design).
+              CONTRAST["small"] (4.5:1) for small regular text (under SMALL_PX and lighter than 600). Over a
+              picture (img, video: a scene's media) the ground is unknown, so it is bounded: the layers above the
+              picture (its scrim) over black and over white ("ground", "ground2"), and the worse one counts,
+              against 3:1 for any size (a bound, not the picture: the small-text floor would fail every quiet
+              credit under a scrim for a picture that is never pure white). An
+              ornament (data-probe-decor: the quote scene's giant „, faint by design) is not judged.
 
 The header and the footer are the brand's chrome: they are checked for frame, overflow, glyph, font and size, not
 for the rail (the footer's pack line sits bottom right by design). The ticker scrolls out of the frame by design
@@ -124,8 +127,8 @@ def text_contrast(t):
     if not color or not ground or len(color) < 3 or len(ground) < 3:
         return None
     fg = (*color[:3], color[3] if len(color) > 3 else 1.0)
-    bg = (*ground[:3], 1.0)
-    return brand.contrast(fg, bg), fg, bg
+    grounds = [(*g[:3], 1.0) for g in (ground, t.get("ground2")) if g and len(g) >= 3]  # ground2: over a picture
+    return min((brand.contrast(fg, bg), fg, bg) for bg in grounds)
 
 
 def _css(c):
@@ -190,11 +193,13 @@ def rules(report, cmaps=None, c=None):
         judged = text_contrast(t) if (t.get("opacity") or 1) >= 0.9 and not t.get("decor") else None
         if judged:
             ratio, fg, bg = judged
-            small = (t.get("size") or 99) < SMALL_PX and int(_weight(t.get("weight"))) < 600
+            # over a picture the ground is a worst-case bound (a pure black or white picture), so 3:1 is the floor
+            small = (t.get("size") or 99) < SMALL_PX and int(_weight(t.get("weight"))) < 600 and not t.get("ground2")
             need = CONTRAST["small" if small else "text"]
             if ratio < need - 1e-6:
-                bad("contrast", t, f"{q} is {_css(fg)} on {_css(bg)}: {ratio:.2f}:1, under {need:g}:1"
-                                   f"{' for small text' if small else ''} (dark on dark or light on light)")
+                bad("contrast", t, f"{q} is {_css(fg)} on {_css(bg)}{' (over a picture, its worst case)' if t.get('ground2') else ''}: "
+                                   f"{ratio:.2f}:1, under {need:g}:1{' for small text' if small else ''} "
+                                   "(dark on dark or light on light)")
     return out
 
 
