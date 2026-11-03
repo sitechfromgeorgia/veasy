@@ -3,19 +3,48 @@
  "extends": "_ka",
  "label": "SiTech",
  "about": "SiTech (sitech.ge), as in sitech-shorts: coal and paper with SiTech orange, the SiTech logo, the Charon voice with SiTech's tech-news delivery, the blog's categories.",
- "colors": {
-  "canvas": "#171817",
-  "panel": "#1F201E",
-  "ink": "#F1EDE4",
-  "muted": "#B6B4AC",
-  "accent": "#FF792E",
-  "line": "rgba(241,237,228,.14)",
-  "lineStrong": "rgba(241,237,228,.26)",
-  "grid": "rgba(241,237,228,.05)",
-  "ticker": "rgba(241,237,228,.06)",
-  "waiting": "rgba(241,237,228,.42)",
-  "markBg": "#171817",
-  "onAccent": "#171817"
+ "default_theme": "dark",
+ "themes": {
+  "dark": {
+   "label": "ქვანახშირი",
+   "about": "Coal: the coal canvas #171817, paper ink #F1EDE4, SiTech orange for the dot and the button.",
+   "colors": {
+    "canvas": "#171817",
+    "panel": "#1F201E",
+    "ink": "#F1EDE4",
+    "muted": "#B6B4AC",
+    "accent": "#FF792E",
+    "line": "rgba(241,237,228,.14)",
+    "lineStrong": "rgba(241,237,228,.26)",
+    "grid": "rgba(241,237,228,.05)",
+    "ticker": "rgba(241,237,228,.06)",
+    "waiting": "rgba(241,237,228,.42)",
+    "markBg": "#171817",
+    "onAccent": "#171817"
+   }
+  },
+  "light": {
+   "label": "ქაღალდი",
+   "about": "Paper: SiTech's paper #F1EDE4 as the canvas and its coal #171817 as the ink, lighter paper cards, a warm grey muted, the same orange for the dot, an active state and the button (its text in coal). The logo is the coal version of the white SVGs (logo-*-coal.svg: the same paths, recolored).",
+   "colors": {
+    "canvas": "#F1EDE4",
+    "panel": "#FBF9F4",
+    "ink": "#171817",
+    "muted": "#57554F",
+    "accent": "#FF792E",
+    "line": "rgba(23,24,23,.14)",
+    "lineStrong": "rgba(23,24,23,.28)",
+    "grid": "rgba(23,24,23,.06)",
+    "ticker": "rgba(23,24,23,.06)",
+    "waiting": "rgba(23,24,23,.5)",
+    "markBg": "#171817",
+    "onAccent": "#171817"
+   },
+   "logo": {
+    "header": "logo-horizontal-coal.svg",
+    "end": "logo-stacked-coal.svg"
+   }
+  }
  },
  "logo": {
   "kind": "svg",

@@ -140,12 +140,16 @@ About fifty videos a day go out without a person looking, so the engine looks fo
   box of every text it draws. The rules: scene text inside 248-1380; nothing right of x=940 below y=1100 (scene
   text and captions); captions above 1552; nothing outside the frame; no text past its box (`scrollWidth >
   clientWidth`, a line on a card's footer); every glyph in the brand font (checked against the woff2's cmap); the
-  pack's font, loaded before the frame was laid out; nothing shrunk under 24 px (40 in captions). A problem holds
+  pack's font, loaded before the frame was laid out; nothing shrunk under 24 px (40 in captions); every text
+  readable on what is really under it (its color against the backgrounds and fills the page paints there, read from
+  the DOM: 3:1, 4.5:1 for small regular text), so no theme can put dark on dark or light on light. A problem holds
   the job; `engine probe <story> --look all` runs it alone in ~5 s a look (the bundle is cached per version of
   `remotion/src`). `VEASY_PROBE=0` turns it off.
 - **Golden stills** (`engine selftest`): the two fixture stories in every look with one fixed style, each scene's
   still hashed (a 16x16 dHash of the frame and a 32x32 one of the scene band) and compared with `tests/golden/`.
-  It names the scenes that changed and fails on any probe problem; `--update` accepts a deliberate change. Run it
+  It names the scenes that changed and fails on any probe problem; `--update` accepts a deliberate change. The
+  fixtures are drawn in their own pack's default theme and again in `golden.THEMED` (sitech's `light`:
+  `<story>.sitech-light.<look>.json`); `--theme default|sitech:light` picks. Run it
   before merging a visual change; it is not a unit test (half a minute).
 - **Failure memory** (`failures` in `veasy.db`): every failed check (the writer's passes, the checks, render and
   QA problems, errors by class) is a row (ts, brand, stage, rule, message). `engine learn` lists the rules failing
@@ -282,7 +286,7 @@ On Shorts, Reels and TikTok the first frame decides the swipe, and Shorts count 
 
 ## Brand packs (`brands/`, `tt_shorts/brand.py`)
 
-`brands/<name>/brand.json` holds the palette, fonts, logo (tbilisi.today's t-mark drawn in code, or SVG files),
+`brands/<name>/brand.json` holds the palettes (`themes`), fonts, logo (tbilisi.today's t-mark drawn in code, or SVG files),
 wordmark, link and QR URL, footer line, calls to action, categories and their families, the look and the voice per
 family, the pack's own voice presets and spoken forms, the on-screen words, the time zone and the month and weekday
 names. `brands/_ka` is a base with the Georgian defaults; a pack `"extends": "_ka"` and overrides what differs.
@@ -294,6 +298,17 @@ file fails before anything renders. The `veasy:brands` skill explains adding one
 |---|---|---|
 | `tbilisi-today` | brand v1.2 below: black, white, one red, the t-mark, FiraGO | anchor / warm / clear / plain by family |
 | `sitech` | coal `#171817`, paper `#F1EDE4`, SiTech orange `#FF792E`, the SiTech logo, FiraGO | `sitech`: Charon with SiTech's tech-news delivery |
+
+**Themes** (owner, 2026-11-03: "not only on a night background; a white one and others too"). A pack has one or
+more palettes, `"themes": {"dark": {"colors": {...}}, "light": {"colors": {...}, "logo": {...}}}` with a
+`default_theme`; each theme is a full color set, checked for contrast on load (`brand.CONTRAST`: ink 7:1 on canvas
+and panel, muted 4.5:1, the accent dot, the button, the captions box), and may bring logo files for its ground.
+Both packs keep `dark` as the default (zero change for every render that names no theme) and ship `light`:
+sitech's paper (`#F1EDE4` canvas, coal ink, the orange, the white logo recolored to coal), and a proposed
+tbilisi.today day theme with `"allowed": false` until the owner approves it (its brand v1.2 is dark). A format's
+or `--theme`'s `default`, `auto` (variety alternates the allowed themes, least used lately; a director may prefer
+some by name) or a name chooses. Remotion gets the theme through `props.brand` (`applyBrand`), HyperFrames through
+`brand.css` and `frame.md`. The QR code is always dark on light (on paper, the ink on the canvas).
 
 ## tbilisi.today's brand (v1.2, https://tbilisi.today/brand)
 
@@ -307,7 +322,7 @@ file fails before anything renders. The `veasy:brands` skill explains adding one
   Numbers are written in digits. No long dashes.
 - The look follows the kind of story (the pack's `look_by_family`, `--look auto`): hard news (politics, world,
   crime) is editorial, light news (sports, culture) is kinetic, service news (society, economy, tech) is cards.
-- The three looks differ in layout and motion, never in palette (in every pack):
+- The three looks differ in layout and motion, never in palette (in every pack and every theme):
   - **editorial**: the grid, rising type, a cut line with the dot.
   - **kinetic**: giant type that slams in, inverted ink blocks, a panel wipe at each cut.
   - **cards**: every scene is a story card, like the site's cards.

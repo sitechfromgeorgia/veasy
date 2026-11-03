@@ -7,7 +7,8 @@ The format is the one of its frame presets (skills/hyperframes/assets/frame-pres
 
 Everything about a client comes from its pack; Veasy adds only what is the engine's for every pack:
 
-    colors       the pack's palette, verbatim (brand.json "colors" + brand.COLOR_DEFAULTS)
+    colors       the palette of the pack's theme the film is made in, verbatim (brand.json "themes", its default
+                 or the one asked for, + brand.COLOR_DEFAULTS); "theme" names it, "themes" lists the pack's others
     fonts        the pack's one family, registered as "Brand" (the name the layout probe checks), its four woff2
     typography   Veasy's video ramp (sizes for 1080x1920), every role in "Brand"
     layout       the frame's bands (the platforms' safe zone), read from remotion/src/brand.ts, shared by both engines
@@ -19,7 +20,7 @@ Everything about a client comes from its pack; Veasy adds only what is the engin
 The frontmatter is written as YAML whose every value is JSON (strings always quoted), so `parse()` reads it back
 without a YAML library and any YAML reader agrees. `problems()` is what the test checks for every pack.
 
-    python -m tt_shorts.frame_md [--brand sitech] [--out out/compose/24835-sitech/frame.md]
+    python -m tt_shorts.frame_md [--brand sitech] [--theme light] [--out out/compose/24835-sitech/frame.md]
 """
 import argparse
 import json
@@ -76,6 +77,8 @@ def front(b):
         "unit": f"the frame: {c['W']}x{c['H']} (9:16), {probe.FPS} fps",
         "principle": "tokens are the pack's · composition is free · every fact comes from the story",
         "pack": b["name"],
+        "theme": b["theme"],
+        "themes": {t: {"mode": brand.mode(s["colors"]), "allowed": s["allowed"]} for t, s in b["themes"].items()},
         "lang": b["lang"],
         "colors": dict(b["colors"]),
         "fonts": {"family": "Brand", "face": family_name(b), "weights": [int(w) for w in brand.FONT_WEIGHTS],
@@ -171,7 +174,10 @@ Richness comes from layout, scale, icons, maps, numbers and a beat every 1.5-3 s
 ## Colors
 
 Quote the tokens exactly; use them through `assets/brand.css` (`var(--ink)`, `var(--accent)`...), never as typed
-hex, so the same scenes render in another pack. {_accent_prose(f)}
+hex, so the same scenes render in another pack and in another of its themes. This film is in the pack's
+"{f['theme']}" theme ({f['themes'][f['theme']]['mode']} ground); the pack has {', '.join(f'{t} ({s["mode"]})' for t, s in f['themes'].items())}.
+Never assume a dark ground: no white or black typed anywhere, text is `--ink` or `--muted` on `--canvas` or `--panel`,
+an inverted block is `--ink` behind `--canvas` text. {_accent_prose(f)}
 
 ## Typography
 
@@ -323,8 +329,8 @@ def problems(text, b=None):
     return out
 
 
-def write(name, path):
-    b = brand.load(name)
+def write(name, path, theme=None):
+    b = brand.themed(brand.load(name), theme)
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(render(b), encoding="utf-8")
@@ -334,9 +340,10 @@ def write(name, path):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--brand", default=brand.DEFAULT)
+    ap.add_argument("--theme", help="one of the pack's themes (default: its default_theme)")
     ap.add_argument("--out", help="write here (default: print)")
     a = ap.parse_args()
     if a.out:
-        print(write(a.brand, a.out))
+        print(write(a.brand, a.out, a.theme))
     else:
-        print(render(brand.load(a.brand)))
+        print(render(brand.themed(brand.load(a.brand), a.theme)))

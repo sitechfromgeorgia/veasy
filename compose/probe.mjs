@@ -74,6 +74,51 @@ function collect(t, label) {
     return o;
   };
   const box = (r) => [r1((r.left - R.left) / k), r1((r.top - R.top) / k), r1(r.width / k), r1(r.height / k)];
+  // the contrast rule's ground (Probe.tsx groundAt): every element painted under a point, composited over the canvas
+  const parseColor = (s) => {
+    const m = /^rgba?\(([^)]+)\)$/.exec((s ?? "").trim());
+    if (!m) return null;
+    const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+    return p.length >= 3 && p.every((x) => !Number.isNaN(x)) ? [p[0], p[1], p[2], p.length > 3 ? p[3] : 1] : null;
+  };
+  const hex = getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim() || "#000000";
+  const canvas = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) || 0);
+  const SHAPES = new Set(["rect", "circle", "ellipse", "path", "polygon"]);
+  const layerOf = (e) => {
+    const tag = e.tagName.toLowerCase();
+    if (["img", "video", "canvas", "image"].includes(tag)) return "image";
+    const cs = getComputedStyle(e);
+    let c = null;
+    if (e instanceof SVGElement) {
+      if (!SHAPES.has(tag)) return null;
+      c = parseColor(cs.fill);
+      if (c) c = [c[0], c[1], c[2], c[3] * parseFloat(cs.fillOpacity || "1")];
+    } else {
+      c = parseColor(cs.backgroundColor);
+      if (!c && cs.backgroundImage.includes("url(")) return "image";
+    }
+    if (!c || c[3] <= 0) return null;
+    return [c[0], c[1], c[2], c[3] * opacityOf(e)];
+  };
+  const groundAt = (x, y, el) => { // -> [ground] or, over a picture, [over black, over white]
+    const layers = [];
+    const stack = document.elementsFromPoint(x, y);
+    const own = stack.findIndex((e) => e === el || e.contains(el)); // what covers the text is not its ground
+    let bases = [canvas.slice()];
+    for (const e of own >= 0 ? stack.slice(own) : stack) {
+      if (!root.contains(e)) continue;
+      const c = layerOf(e);
+      if (c === "image") { bases = [[0, 0, 0], [255, 255, 255]]; break; }
+      if (!c) continue;
+      layers.push(c);
+      if (c[3] >= 0.999) break;
+    }
+    return bases.map((b) => {
+      let g = b;
+      for (const c of [...layers].reverse()) g = g.map((v, i) => v * (1 - c[3]) + c[i] * c[3]);
+      return g.map((v) => Math.round(v));
+    });
+  };
   const regions = {};
   root.querySelectorAll("[data-probe]").forEach((el) => { (regions[el.dataset.probe] ??= []).push(box(el.getBoundingClientRect())); });
   const texts = [];
@@ -98,8 +143,10 @@ function collect(t, label) {
     else if (el.offsetWidth > 0) scale = el.getBoundingClientRect().width / el.offsetWidth;
     const lineH = svg ? NaN : parseFloat(cs.lineHeight) * scale;
     let l = Infinity, tp = Infinity, r = -Infinity, b = -Infinity;
+    let first = null;
     for (const c of Array.from(range.getClientRects())) {
       if (!c.width && !c.height) continue;
+      first ??= c;
       const shrink = lineH > 0 ? Math.max(0, (c.height - lineH) / 2) : 0;
       l = Math.min(l, c.left); r = Math.max(r, c.right); tp = Math.min(tp, c.top + shrink); b = Math.max(b, c.bottom - shrink);
     }
@@ -122,8 +169,10 @@ function collect(t, label) {
       if (a === region) break;
     }
     texts.push({ region: name, text, box: [r1((l - R.left) / k), r1((tp - R.top) / k), r1((r - l) / k), r1((b - tp) / k)],
-      size: r1((parseFloat(cs.fontSize) * scale) / k), weight: cs.fontWeight, family: cs.fontFamily, color: cs.color, opacity: r1(opacity), svg,
-      overflow: over.x || over.y ? over : null, clipOk: !!el.closest("[data-probe-clip]") });
+      size: r1((parseFloat(cs.fontSize) * scale) / k), weight: cs.fontWeight, family: cs.fontFamily, color: svg ? cs.fill : cs.color, opacity: r1(opacity), svg,
+      overflow: over.x || over.y ? over : null, clipOk: !!el.closest("[data-probe-clip]"), decor: !!el.closest("[data-probe-decor]"),
+      ...(() => { const g = first ? groundAt(first.left + first.width / 2, first.top + first.height / 2, el) : [null];
+        return { ground: g[0], ground2: g[1] ?? null }; })() });
   }
   const fonts = {};
   document.fonts.forEach((f) => { if (f.family.replace(/["']/g, "") === "Brand") fonts[String(f.weight)] = f.status; });

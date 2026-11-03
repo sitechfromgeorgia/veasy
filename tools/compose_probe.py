@@ -48,7 +48,7 @@ def accent_text(report, accent):
 def run(project, shots=None):
     project = pathlib.Path(project).resolve()
     timing = json.loads((project / "timing.json").read_text(encoding="utf-8"))
-    b = brand.load(timing["brand"])
+    b = brand.themed(brand.load(timing["brand"]), timing.get("theme"))
     points = settled(timing)
     spec = {"project": str(project), "times": [t for _, t in points], "labels": [l for l, _ in points],
             "shots": str(pathlib.Path(shots).resolve()) if shots else None}

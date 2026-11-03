@@ -15,6 +15,17 @@ bundle built once per version of remotion/src. rules() then checks the boxes aga
     font      the text is set in the pack's family, that weight loaded, and the frame was laid out after the font
               was in (text sized by measuring it would otherwise keep a fallback font's sizes)
     size      no text shrunk below the region's minimum (a long line squeezed by fitSize, a drawing's tiny label)
+    contrast  every text readable on what is really under it (a theme can put dark on dark or light on light): the
+              text's color (its alpha times its opacity) against its ground, every element the page paints under the
+              middle of its first line below the text's own element (document.elementsFromPoint: backgrounds, SVG
+              fills, siblings included; what covers the text, a wipe passing over it, is not its ground),
+              composited over the canvas. At least CONTRAST["text"] (3:1) for every fully shown text, and
+              CONTRAST["small"] (4.5:1) for small regular text (under SMALL_PX and lighter than 600). Over a
+              picture (img, video: a scene's media) the ground is unknown, so it is bounded: the layers above the
+              picture (its scrim) over black and over white ("ground", "ground2"), and the worse one counts,
+              against 3:1 for any size (a bound, not the picture: the small-text floor would fail every quiet
+              credit under a scrim for a picture that is never pure white). An
+              ornament (data-probe-decor: the quote scene's giant „, faint by design) is not judged.
 
 The header and the footer are the brand's chrome: they are checked for frame, overflow, glyph, font and size, not
 for the rail (the footer's pack line sits bottom right by design). The ticker scrolls out of the frame by design
@@ -49,7 +60,9 @@ RAIL_Y = 1100  # below this, nothing right of RAIL_X (CLAUDE.md: the safe zone)
 MIN_PX = {"scene": 24, "card": 26, "captions": 40, "header": 26, "footer": 22, "other": 24}
 CHROME = ("header", "footer")
 WEIGHTS = ("400", "500", "600", "700")  # brand.FONT_WEIGHTS: every pack ships the four
-RULES = ("band", "rail", "captions", "frame", "overflow", "glyph", "font", "size")
+RULES = ("band", "rail", "captions", "frame", "overflow", "glyph", "font", "size", "contrast")
+CONTRAST = {"text": 3.0, "small": 4.5}  # WCAG ratios: large/bold text, and small regular text
+SMALL_PX = 32
 
 
 def constants(path=BRAND_TS):
@@ -102,6 +115,24 @@ def missing_glyphs(text, cmap):
 def _quote(text, n=40):
     t = " ".join(text.split())
     return f"„{t[:n]}{'…' if len(t) > n else ''}“"
+
+
+def text_contrast(t):
+    """(ratio, color, ground) of one probed text, or None when the probe gave no color or no ground (a picture)."""
+    from tt_shorts import brand
+    color, ground = t.get("color"), t.get("ground")
+    if isinstance(color, str):  # the HyperFrames probe's computed CSS color ("rgb(1, 2, 3)"), times its opacity
+        c = brand.rgba(color)
+        color = (*c[:3], c[3] * (t.get("opacity") or 1)) if c else None
+    if not color or not ground or len(color) < 3 or len(ground) < 3:
+        return None
+    fg = (*color[:3], color[3] if len(color) > 3 else 1.0)
+    grounds = [(*g[:3], 1.0) for g in (ground, t.get("ground2")) if g and len(g) >= 3]  # ground2: over a picture
+    return min((brand.contrast(fg, bg), fg, bg) for bg in grounds)
+
+
+def _css(c):
+    return "#" + "".join(f"{round(v):02X}" for v in c[:3]) + (f" at {c[3]:.2f}" if len(c) > 3 and c[3] < 1 else "")
 
 
 def rules(report, cmaps=None, c=None):
@@ -159,6 +190,16 @@ def rules(report, cmaps=None, c=None):
         floor = MIN_PX.get(region, MIN_PX["other"])
         if (t.get("opacity") or 1) >= 0.9 and (t.get("size") or 99) < floor - 0.5:
             bad("size", t, f"{q} is {t['size']:.0f} px, under the {floor} px minimum for {region} text")
+        judged = text_contrast(t) if (t.get("opacity") or 1) >= 0.9 and not t.get("decor") else None
+        if judged:
+            ratio, fg, bg = judged
+            # over a picture the ground is a worst-case bound (a pure black or white picture), so 3:1 is the floor
+            small = (t.get("size") or 99) < SMALL_PX and int(_weight(t.get("weight"))) < 600 and not t.get("ground2")
+            need = CONTRAST["small" if small else "text"]
+            if ratio < need - 1e-6:
+                bad("contrast", t, f"{q} is {_css(fg)} on {_css(bg)}{' (over a picture, its worst case)' if t.get('ground2') else ''}: "
+                                   f"{ratio:.2f}:1, under {need:g}:1{' for small text' if small else ''} "
+                                   "(dark on dark or light on light)")
     return out
 
 
@@ -282,11 +323,13 @@ def story(story_path, fmt, look="auto", engine="silent", stills=None):
     jobs, built = [], []
     for lk in chosen:
         work, p = props.build(str(story_path), lk, engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
-                              caption_design=fmt["captions"], music="off", transition=fmt["transition"])
+                              caption_design=fmt["captions"], music="off", transition=fmt["transition"],
+                              theme=fmt.get("theme"))
         frames = settled(p["scenes"])
         jobs.append({"props": str(work / "props.json"), "public": str(work / "public"), "frames": frames,
                      "out": str(pathlib.Path(stills).resolve()) if stills else None,
-                     "name": f"{store.safe(p['id'])}-{lk}"})
+                     "name": f"{store.safe(p['id'])}-{lk}" + (f"-{p['theme']}" if fmt.get("theme") not in
+                                                                   (None, "default") else "")})
         built.append((lk, work, p, frames))
     per, done = run_jobs(jobs)
     result, found = {}, []

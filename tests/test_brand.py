@@ -143,7 +143,176 @@ class Packs(unittest.TestCase):
                 self.assertEqual(meta.display_url(7, "acme"), "acme.ge/7")
 
 
+DARK = {  # the palettes before themes (2026-11-03): a pack's dark theme must stay exactly these
+    "tbilisi-today": {"canvas": "#05080F", "panel": "#0B0F17", "ink": "#F8FAFC", "muted": "#A7B0BD", "accent": "#EF4444",
+                      "line": "rgba(248,250,252,.12)", "lineStrong": "rgba(248,250,252,.24)",
+                      "grid": "rgba(248,250,252,.045)", "ticker": "rgba(248,250,252,.06)",
+                      "waiting": "rgba(248,250,252,.42)", "markBg": "#0B0B0E", "onAccent": "#FFFFFF", "markInk": "#FFFFFF"},
+    "sitech": {"canvas": "#171817", "panel": "#1F201E", "ink": "#F1EDE4", "muted": "#B6B4AC", "accent": "#FF792E",
+               "line": "rgba(241,237,228,.14)", "lineStrong": "rgba(241,237,228,.26)", "grid": "rgba(241,237,228,.05)",
+               "ticker": "rgba(241,237,228,.06)", "waiting": "rgba(241,237,228,.42)", "markBg": "#171817",
+               "onAccent": "#171817", "markInk": "#FFFFFF"},
+}
+
+
+class Themes(unittest.TestCase):
+    """A pack's palettes (owner, 2026-11-03: "not only on a night background; a white one too")."""
+
+    def setUp(self):
+        brand.load.cache_clear()
+
+    def tearDown(self):
+        brand.load.cache_clear()
+
+    def test_the_default_is_today_s_dark_palette_unchanged(self):
+        for n, colors in DARK.items():
+            b = brand.load(n)
+            self.assertEqual((b["theme"], b["default_theme"]), ("dark", "dark"))
+            self.assertEqual(b["colors"], colors, n)  # zero visual change for every render that names no theme
+            self.assertEqual(brand.mode(b["colors"]), "dark")
+            r = brand.for_remotion(b)
+            self.assertEqual((r["theme"], r["mode"], r["colors"]["qrDark"], r["colors"]["qrLight"]),
+                             ("dark", "dark", colors["canvas"], "#FFFFFF"))  # the QR as before: canvas on white
+
+    def test_both_packs_ship_a_light_theme(self):
+        st, tt = brand.load("sitech"), brand.load("tbilisi-today")
+        light = brand.themed(st, "light")
+        self.assertEqual((light["colors"]["canvas"], light["colors"]["ink"]), ("#F1EDE4", "#171817"))  # paper, coal
+        self.assertEqual(light["colors"]["accent"], "#FF792E")  # one accent in every theme
+        self.assertEqual(brand.mode(light["colors"]), "light")
+        self.assertEqual(pathlib.Path(light["_logo"]["header"]).name, "logo-horizontal-coal.svg")
+        self.assertEqual(pathlib.Path(light["_logo"]["end"]).name, "logo-stacked-coal.svg")
+        self.assertEqual(brand.qr_colors(light["colors"]), ("#171817", "#F1EDE4"))  # a QR on paper, dark on light
+        for f in light["_logo"].values():  # the coal logo is the white one, recolored, nothing else
+            src = pathlib.Path(f.replace("-coal", ""))
+            self.assertEqual(pathlib.Path(f).read_text(encoding="utf-8"),
+                             src.read_text(encoding="utf-8").replace("#FFFFFF", "#171817"))
+        self.assertEqual(brand.theme_names(st, allowed_only=True), ["dark", "light"])
+        self.assertEqual(brand.theme_problems(light), [])
+        tl = brand.themed(tt, "light")
+        self.assertEqual(brand.mode(tl["colors"]), "light")
+        self.assertEqual(tl["colors"]["accent"], "#EF4444")  # brand v1.2's one red
+        self.assertEqual((tl["colors"]["markBg"], tl["colors"]["markInk"]), ("#0B0B0E", "#FFFFFF"))  # the mark unchanged
+        self.assertIsNone(tl["_logo"])  # the t-mark is drawn in code
+
+    def test_tbilisi_today_light_waits_for_the_owner(self):  # brand v1.2 is dark: the light theme is a preview
+        tt = brand.load("tbilisi-today")
+        self.assertEqual(brand.theme_names(tt, allowed_only=True), ["dark"])
+        self.assertIn("allowed: false", brand.theme_problems(brand.themed(tt, "light"))[0])
+        self.assertEqual(brand.theme_problems(tt), [])
+
+    def test_unknown_theme_fails(self):
+        with self.assertRaises(brand.BrandError):
+            brand.themed(brand.load("sitech"), "neon")
+        self.assertEqual(brand.themed(brand.load("sitech"), "default")["theme"], "dark")
+        self.assertEqual(brand.of({"brand": "sitech"}, "light")["colors"]["canvas"], "#F1EDE4")
+
+    def test_contrast_is_wcag(self):
+        self.assertAlmostEqual(brand.contrast("#FFFFFF", "#000000"), 21.0, places=2)
+        self.assertAlmostEqual(brand.contrast("#777777", "#777777"), 1.0, places=6)
+        self.assertAlmostEqual(brand.contrast("rgba(255,255,255,0)", "#000000"), 1.0, places=6)  # alpha over ground
+        self.assertGreater(brand.contrast("#F1EDE4", "#171817"), 7)
+        self.assertIsNone(brand.rgba("white"))
+        self.assertEqual(brand.rgba("rgba(5,8,15,.5)"), (5, 8, 15, 0.5))
+
+    def test_every_shipped_theme_passes_the_floors(self):
+        for n in brand.names():
+            b = brand.load(n)
+            for t, spec in b["themes"].items():
+                self.assertEqual(brand.contrast_problems(spec["colors"]), [], f"{n}:{t}")
+                c = spec["colors"]
+                self.assertGreaterEqual(brand.contrast(c["ink"], c["canvas"]), brand.CONTRAST["ink"])
+                self.assertGreaterEqual(brand.contrast(c["muted"], c["panel"]), brand.CONTRAST["muted"])
+
+    def test_unreadable_or_broken_themes_fail_loudly(self):
+        good = json.loads((ROOT / "brands" / "sitech" / "brand.json").read_text(encoding="utf-8"))
+        light = good["themes"]["light"]
+
+        def with_theme(**over):
+            return {**good, "themes": {**good["themes"], "light": {**light, **over}}}
+
+        def colors(**over):
+            return with_theme(colors={**light["colors"], **over})
+        cases = {
+            "darkondark": colors(canvas="#3A3B39", panel="#3F403E"),  # a dark ground under the coal ink
+            "lightonlight": colors(ink="#E8E4DA"),  # light ink on paper
+            "mutedlow": colors(muted="#A9A69E"),  # muted under 4.5:1
+            "accentgone": colors(accent="#EDE8DE"),  # the dot vanishes into the paper
+            "buttontext": colors(onAccent="#FF9050"),  # the button's text on the accent
+            "waiting": colors(waiting="rgba(23,24,23,.12)"),  # a caption word not yet spoken can't be read
+            "missing": with_theme(colors={k: v for k, v in light["colors"].items() if k != "panel"}),
+            "notcolor": colors(canvas="paper"),
+            "rgbacanvas": colors(canvas="rgba(241,237,228,1)"),  # the canvas is #RRGGBB (alpha() in brand.ts)
+            "badallowed": with_theme(allowed="yes"),
+            "badkey": with_theme(tint="#00FF00"),
+            "badname": {**good, "themes": {**good["themes"], "Light Mode": light}},
+            "nologo": with_theme(logo={"header": "missing.svg"}),
+            "nodefault": {**good, "default_theme": "sepia"},
+            "defaultpreview": {**good, "default_theme": "light", "themes": {**good["themes"],
+                                                                           "light": {**light, "allowed": False}}},
+            "nothemes": {k: v for k, v in good.items() if k not in ("themes",)},
+        }
+        with tempfile.TemporaryDirectory() as d:
+            d = pathlib.Path(d)
+            (d / "_ka").mkdir()
+            (d / "_ka" / "brand.json").write_text((ROOT / "brands" / "_ka" / "brand.json").read_text(encoding="utf-8"),
+                                                  encoding="utf-8")
+            for name, data in cases.items():
+                pack(d, name, {**data, "name": name})
+                for f in ("logo-horizontal.svg", "logo-stacked.svg", "logo-horizontal-coal.svg", "logo-stacked-coal.svg"):
+                    (d / name / f).write_bytes((ROOT / "brands" / "sitech" / f).read_bytes())
+            with mock.patch.object(brand, "DIR", d):
+                for name in cases:
+                    brand.load.cache_clear()
+                    with self.assertRaises(brand.BrandError, msg=name):
+                        brand.load(name)
+
+    def test_a_pack_with_colors_alone_has_one_theme(self):  # a new client's first pack needs no themes block
+        tt = json.loads((ROOT / "brands" / "tbilisi-today" / "brand.json").read_text(encoding="utf-8"))
+        flat = {k: v for k, v in tt.items() if k not in ("themes", "default_theme")}
+        with tempfile.TemporaryDirectory() as d:
+            d = pathlib.Path(d)
+            (d / "_ka").mkdir()
+            (d / "_ka" / "brand.json").write_text((ROOT / "brands" / "_ka" / "brand.json").read_text(encoding="utf-8"),
+                                                  encoding="utf-8")
+            pack(d, "flat", {**flat, "name": "flat", "colors": tt["themes"]["dark"]["colors"]})
+            pack(d, "paper", {**flat, "name": "paper", "colors": tt["themes"]["light"]["colors"]})
+            with mock.patch.object(brand, "DIR", d):
+                self.assertEqual(list(brand.load("flat")["themes"]), ["dark"])
+                self.assertEqual(brand.load("flat")["colors"], DARK["tbilisi-today"])
+                self.assertEqual(brand.load("paper")["theme"], "light")  # named by its canvas
+
+    def test_remotion_reads_the_theme_through_tokens(self):  # no color typed in a component (CLAUDE.md)
+        import re
+        src = ROOT / "remotion" / "src"
+        typed = []
+        for f in sorted(src.rglob("*.tsx")):
+            for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+                if line.strip().startswith(("//", "/*", "*")):
+                    continue  # a comment
+                for m in re.finditer(r"#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b|rgba?\(|\"(white|black)\"", line):
+                    if m.group(0) == "#000" and "linear-gradient(" in line:
+                        continue  # a mask's alpha (Captions.tsx, map.tsx), not a color
+                    typed.append(f"{f.name}:{i}: {line.strip()[:80]}")
+        self.assertEqual(typed, [])
+        ts = (src / "brand.ts").read_text(encoding="utf-8")
+        for token in ("MARK_INK", "QR_LIGHT"):
+            self.assertRegex(ts, rf"export let {token} = ")
+
+
 class Props(unittest.TestCase):
+    def test_a_theme_reaches_the_props_and_the_files(self):
+        story = ROOT / "stories" / "sitech-cybercartel.json"
+        with tempfile.TemporaryDirectory() as home, mock.patch.dict("os.environ", {"VEASY_HOME": home}):
+            work, p = props.build(str(story), "auto", "silent", music="off", theme="light")
+            self.assertEqual((p["theme"], p["brand"]["theme"], p["brand"]["mode"]), ("light", "light", "light"))
+            self.assertEqual(p["brand"]["colors"]["canvas"], "#F1EDE4")
+            self.assertIn('fill="#171817"', (work / "public" / "brand" / "header.svg").read_text(encoding="utf-8"))
+            self.assertIn("#171817", p["qrSvg"])  # the QR's modules are the coal ink
+            self.assertNotIn("#FFFFFF", p["qrSvg"])  # ... on the paper, not on a white box
+            _, d = props.build(str(story), "auto", "silent", music="off")
+            self.assertEqual((d["theme"], d["brand"]["colors"]["canvas"]), ("dark", "#171817"))
+
     def test_props_carry_the_pack(self):
         story = ROOT / "stories" / "sitech-cybercartel.json"
         with tempfile.TemporaryDirectory() as home, mock.patch.dict("os.environ", {"VEASY_HOME": home}):

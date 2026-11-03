@@ -67,6 +67,19 @@ def loops_for(music, family):
     return sorted(speech.MUSIC_DIR.glob(f"{fam}-*.m4a")) or sorted(speech.MUSIC_DIR.glob("society-*.m4a"))
 
 
+def theme_for(story, theme="default", director=None):
+    """The theme a video is drawn in: "default" (or None) the pack's default theme; a name, that theme of the pack
+    (an unknown one fails); "auto", the least used lately among the pack's allowed themes, inside the director's
+    "themes" when it names some (variety.pick_theme; a re-render keeps its theme)."""
+    b = brand.of(story)
+    if theme in (None, "", "default"):
+        return b["default_theme"]
+    if theme != "auto":
+        return brand.themed(b, theme)["theme"]
+    pool = brand.theme_names(b, allowed_only=True)
+    return variety.pick_theme(b["name"], story["id"], pool, (director or {}).get("themes"))
+
+
 def choose(story, variant, transition="auto", music="family", director=None, style=None, outro=swipe.DEFAULT_OUTRO):
     """The variety picks of one video in one look -> (style {hook, motif, enter, transition, music}, the director dict
     or None, the music loops, the story's main icon, the novelty guard's report). Reads the variety history and
@@ -90,7 +103,7 @@ def choose(story, variant, transition="auto", music="family", director=None, sty
 
 def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts",
           caption_design=None, music="family", transition="auto", style=None, outro=swipe.DEFAULT_OUTRO, director=None,
-          sfx="off"):
+          sfx="off", theme="default"):
     """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off".
     transition: "auto" (variety picks one that suits the look) or one of TRANSITIONS.
     style: {hook, motif, enter, transition, music} to force; by default variety.choose() picks the least used, and its
@@ -98,16 +111,21 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     outro: card | overlay | loop (swipe.py: the end card, a chip over the last scene, or a seamless loop).
     director: a directors.py id to use instead of the story's own "director" (render --director); with one, the
     variety picks stay inside its subsets and props.style carries its motion numbers and current.
-    sfx: off | on (format key): the sound effects' cues from the timeline (sfx.py), mixed by mix_audio."""
+    sfx: off | on (format key): the sound effects' cues from the timeline (sfx.py), mixed by mix_audio.
+    theme: "default" (the pack's), "auto" (variety picks among the pack's allowed themes) or a theme's name
+    (theme_for); props.brand carries that theme's colors, props.theme its name, and its logo files are copied."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     story = brand.with_say(story)  # the pack's own names (SiTech -> საი-თეჩი) are spoken right
     sid = story["id"]
     b = brand.of(story)
     category = story.get("category", "")
+    did = director or story.get("director")
+    b = brand.themed(b, theme_for(story, theme, directors.get(did) if did else None))
     if variant == "auto":  # the look follows the kind of story (the pack's look_by_family)
         variant = meta.variant_for(category, b)
     design = caption_design or CAPTIONS
-    work = store.work_dir(f"{b['name']}-{sid}-{variant}-{design}-{engine}")
+    work = store.work_dir(f"{b['name']}-{sid}-{variant}-{design}-{engine}"
+                          + ("" if b["theme"] == b["default_theme"] else f"-{b['theme']}"))
     key = speech.voice_key(story, engine, tone, edge_voice)
     voice_dir = store.voice_dir(key) if key else work  # one cached track per voice + text: other looks cost no TTS
     public = work / "public"
@@ -137,13 +155,14 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     link_shown, opens = meta.links(story, platform, b)  # the pack's story page, or the source's own (a law's article)
     props = {
         "brand": brand.for_remotion(b),
+        "theme": b["theme"],  # the pack's theme the video is drawn in (brand.themed): its colors are props.brand's
         "variant": variant, "id": sid, "category": meta.category_label(category, b),
         "date": {k: d[k] for k in ("date", "time", "weekday")},
         "when": meta.when(d, b),
         "sources": story.get("sources", []), "sourcesLine": meta.sources_line(story.get("sources", []), b=b),
         "cta": story.get("cta") or meta.cta_for(sid, b),
         "url": (story.get("url") or "").replace("https://", "").rstrip("/") or link_shown,
-        "qrSvg": meta.qr_svg(story.get("url") or opens, b["colors"]["canvas"]),
+        "qrSvg": meta.qr_svg(story.get("url") or opens, *brand.qr_colors(b["colors"])),
         "durationInFrames": marks[-1],
         "transition": st["transition"] if st["transition"] in TRANSITIONS else transition_for(transition, variant),
         "style": {**{k: st[k] for k in variety.OPTIONS}, **(directors.style(chosen) if chosen else {})},

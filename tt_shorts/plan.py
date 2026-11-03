@@ -107,7 +107,7 @@ def run(story_path, fmt, look=None, director=None, out=None, with_probe=True):
         work, p = props.build(str(story_path), look or fmt["look"], "silent", tone, speech.EDGE_VOICES["eka"],
                               fmt["platform"], caption_design=fmt["captions"], music=fmt["music"],
                               transition=fmt["transition"], outro=fmt["outro"], director=director,
-                              sfx=fmt.get("sfx", "off"))
+                              sfx=fmt.get("sfx", "off"), theme=fmt.get("theme"))
     except (ValueError, RuntimeError) as e:  # an anchor not in the narration, a scene too short: no storyboard yet
         return {"story": str(pathlib.Path(story_path).resolve()), "problems": [f"timing: {e}"], "warnings": [],
                 "took": round(time.time() - t0, 1)}
@@ -115,6 +115,7 @@ def run(story_path, fmt, look=None, director=None, out=None, with_probe=True):
     rows = motion["timeline"]
     st = p["style"]
     result = {"story": str(pathlib.Path(story_path).resolve()), "format": fmt["name"], "look": p["variant"],
+              "theme": p["theme"],
               "director": st.get("director"), "seconds": round(p["durationInFrames"] / speech.FPS, 1),
               "variety": {**{k: st[k] for k in ("hook", "motif", "enter") if k in st}, "transition": p["transition"],
                           "music": p["music"], "current": st.get("current")},
@@ -145,8 +146,11 @@ def run(story_path, fmt, look=None, director=None, out=None, with_probe=True):
         if len(judged["files"]) == len(rows):
             target = pathlib.Path(out) if out else store.plan_sheet_path(store.render_path(
                 brand.of(story)["name"], story["id"], fmt["name"], p["variant"], fmt["captions"]))
+            if not out and p["theme"] != brand.of(story)["default_theme"]:  # beside the default theme's sheet
+                target = target.with_name(target.name.replace(".plan.", f".{p['theme']}.plan."))
             result["sheet"] = str(sheet(judged["files"], rows, target).resolve())
     result["problems"] = problems
-    result["warnings"] = motion["warnings"] + [w for w in [(p.get("novelty") or {}).get("warning")] if w]
+    result["warnings"] = motion["warnings"] + [w for w in [(p.get("novelty") or {}).get("warning")] if w] \
+        + brand.theme_problems(brand.of(story, p["theme"]))  # a preview theme: shown here, refused by a render
     result["took"] = round(time.time() - t0, 1)
     return result

@@ -100,6 +100,14 @@ def options(brand_name=None):
                         "slide": "a short slide and fade", "push": "the old scene leaves left, the new one comes from the right",
                         "dot": "an iris opens from the header's progress dot"},
         "outros": dict(swipe.ABOUT),
+        "themes": {"about": "a pack's palettes (brand.json themes; brands.<pack>.themes lists them): a format's or "
+                            "--theme's default (the pack's default theme: nothing changes), auto (variety: the least "
+                            "used lately among the pack's allowed themes, inside a director's themes) or a name. "
+                            "allowed: false is a preview: plan, probe, still and selftest show it, a render refuses it",
+                   "default": b["default_theme"],
+                   "pack": {t: {"label": s["label"], "allowed": s["allowed"], "mode": packs.mode(s["colors"])}
+                            for t, s in b["themes"].items()},
+                   "known": formats.themes_known()},
         "captions": {"page":"a fixed two-line block; words light up as spoken (most stable)",
                      "roll": "a three-line teleprompter that scrolls continuously"},
         "voices": {name: {"label": p["label"], "voice": p["voice"], "approved": name in voices.APPROVED,
@@ -322,10 +330,15 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
     if missing:
         return {"problems": missing}
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
+    did = director or story.get("director")
+    theme = props.theme_for(story, fmt.get("theme"), directors.get(did) if did else None)
+    held = packs.theme_problems(packs.of(story, theme))  # allowed: false (brand.json): not before the owner's yes
+    if held:
+        return {"problems": held}
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     work, p = props.build(str(story_path), fmt["look"], engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
                           caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
-                          outro=fmt["outro"], director=director, sfx=fmt["sfx"])
+                          outro=fmt["outro"], director=director, sfx=fmt["sfx"], theme=theme)
     checked = _probe_render(work, p)  # the layout probe: seconds, before the minutes of the render
     motion = motion_rules.check(p)  # with the real voice's timings: unreadable text holds the video, like the probe
     secs = p["durationInFrames"] / FPS
@@ -333,11 +346,11 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
         brand_of(story), story["id"], fmt["name"], p["variant"], fmt["captions"])
     props.render_video(work, p, target)
     variety.record(brand_of(story), story["id"], p["variant"], {**p["style"], "transition": p["transition"],
-                                                                "music": p["music"]}, [x["type"] for x in p["scenes"]],
-                   p.get("novelty"))
+                                                                "music": p["music"], "theme": p.get("theme")},
+                   [x["type"] for x in p["scenes"]], p.get("novelty"))
     result = {"file": str(target.resolve()), "seconds": round(secs, 1), "format": fmt["name"], "look": p["variant"],
-              "style": p["style"], "transition": p["transition"], "outro": p["outro"],
-              "captions": fmt["captions"], "voice": fmt["voice"], "engine": engine, "music": p["music"],
+              "style": p["style"], "transition": p["transition"], "outro": p["outro"], "theme": p.get("theme"),
+              "mode": (p.get("brand") or {}).get("mode"), "captions": fmt["captions"], "voice": fmt["voice"], "engine": engine, "music": p["music"],
               "brand": brand_of(story), "story": str(pathlib.Path(story_path).resolve()),
               "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version(),
               "probe": checked, "motion": {"holds": motion["holds"], "warnings": motion["warnings"]},
@@ -375,7 +388,8 @@ def _probe_render(work, p):
 
 def probe_cmd(a):
     from tt_shorts import probe
-    fmt = formats.get(a.format, captions=a.captions, transition=a.transition, voice=a.voice, platform=a.platform)
+    fmt = formats.get(a.format, captions=a.captions, transition=a.transition, voice=a.voice, platform=a.platform,
+                      theme=a.theme)
     result = probe.story(a.story, fmt, a.look, a.engine, a.stills)
     return out(result, 1 if result["problems"] else 0)
 
@@ -412,7 +426,8 @@ def media_cmd(a):
 def selftest_cmd(a):
     from tt_shorts import golden
     pick = lambda v, every: [x.strip() for x in v.split(",") if x.strip()] if v else list(every)  # noqa: E731
-    result = golden.selftest(a.update, pick(a.story, golden.STORIES), pick(a.look, packs.LOOKS))
+    result = golden.selftest(a.update, pick(a.story, golden.STORIES), pick(a.look, packs.LOOKS),
+                             themes=golden.themes_arg(a.theme))
     return out(result, 1 if result["problems"] else 0)
 
 
@@ -425,7 +440,8 @@ def learn_cmd(a):
 def _format(a):
     name = a.format or program_format(a.story)
     return formats.get(name, look=a.look, captions=a.captions, transition=a.transition, outro=a.outro, voice=a.voice,
-                       music=a.music, platform=a.platform, sfx=getattr(a, "sfx", None))
+                       music=a.music, platform=a.platform, sfx=getattr(a, "sfx", None),
+                       theme=getattr(a, "theme", None))
 
 
 def program_format(story_path):
@@ -457,12 +473,13 @@ def still(a):
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     work, p = props.build(a.story, fmt["look"], a.engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
                           caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
-                          outro=fmt["outro"], director=a.director)
+                          outro=fmt["outro"], director=a.director, theme=fmt["theme"])
     frames = [int(x) for x in a.frames.split(",")] if a.frames else \
         [s["from"] + s["duration"] // 2 for s in p["scenes"]]  # default: the middle of every scene
     target = pathlib.Path(a.out) if a.out else store.home() / "renders" / store.safe(brand_of(story)) / store.today() / "stills"
     files = props.render_stills(work, frames, target)
-    return out({"files": [str(f) for f in files], "frames": frames})
+    return out({"files": [str(f) for f in files], "frames": frames, "theme": p["theme"],
+                "warnings": packs.theme_problems(packs.of(story, p["theme"]))})
 
 
 def _probe(path):
@@ -509,7 +526,8 @@ def qa_file(path, fmt):
         problems.append("no audio track")
     elif not -19 <= loud.get("I", -99) <= -13:
         problems.append(f"loudness {loud.get('I')} LUFS, expected -19..-13 (voice -16, music under it)")
-    ink = swipe.opening_ink(path)  # the first frame decides the swipe: the hook must be on screen there
+    light = _sidecar(path).get("mode") == "light"  # a light theme's ink is the dark pixels (render_story's mode)
+    ink = swipe.opening_ink(path, light)  # the first frame decides the swipe: the hook must be on screen there
     problems += swipe.opening_problems(path, ink)
     sheet = path.with_suffix(".sheet.jpg")
     n = 8
@@ -700,7 +718,7 @@ def queue_cmd(a):
     from tt_shorts import queue
     if a.action == "add":
         overrides = {k: getattr(a, k) for k in ("look", "captions", "transition", "outro", "voice", "music", "platform",
-                                                 "director", "rubric", "part") if getattr(a, k)}
+                                                 "director", "rubric", "part", "theme") if getattr(a, k)}
         job, created = queue.add(a.brand, a.source if not a.story else None, a.ref, a.format, overrides, a.story,
                                  a.priority, program=a.program)
         return out({"job": job, "created": created})
@@ -813,6 +831,7 @@ def main(argv=None):
         r.add_argument("--platform", help="utm_source of the QR link")
         r.add_argument("--engine", default="gemini", choices=["gemini", "edge", "silent"])
         r.add_argument("--director", help="a director (see options: directors) instead of the story's own")
+        r.add_argument("--theme", help="default (the pack's), auto (variety) or a theme's name (see options: brands)")
         r.add_argument("--out")
         if name == "still":
             r.add_argument("--frames", help="comma-separated frames (default: the middle of every scene)")
@@ -856,6 +875,7 @@ def main(argv=None):
     pr.add_argument("--engine", default="silent", choices=["gemini", "edge", "silent"],
                     help="silent: free, estimated timing; gemini/edge: a cached voice's real timing")
     pr.add_argument("--stills", help="also save each probed frame as a PNG in this folder")
+    pr.add_argument("--theme", help="default (the pack's), auto or a theme's name; a preview theme is allowed here")
     pl = sub.add_parser("plan")
     pl.add_argument("story")
     pl.add_argument("--format", help="a format (default: the story's program's, news for news)")
@@ -868,6 +888,7 @@ def main(argv=None):
     pl.add_argument("--sfx", choices=formats.SFX, help="sound effects (the plan counts the cues)")
     pl.add_argument("--platform")
     pl.add_argument("--director", help="a director (see options: directors) instead of the story's own")
+    pl.add_argument("--theme", help="default (the pack's), auto or a theme's name; a preview theme is allowed here")
     pl.add_argument("--out", help="the contact sheet's path (default: beside where the render will go, .plan.jpg)")
     md = sub.add_parser("media")
     md.add_argument("story")
@@ -876,6 +897,8 @@ def main(argv=None):
     st.add_argument("--update", action="store_true", help="rewrite tests/golden/ after a deliberate visual change")
     st.add_argument("--story", help="comma-separated fixtures (default veasy-scenes,veasy-demo)")
     st.add_argument("--look", help="comma-separated looks (default all three)")
+    st.add_argument("--theme", help="comma-separated: default (each fixture's pack, its default theme) and/or "
+                                    "<pack>:<theme> (golden.THEMED, e.g. sitech:light); default: all of them")
     le = sub.add_parser("learn")
     le.add_argument("--brand", help="one pack (default: every pack)")
     le.add_argument("--days", type=int, default=7)
@@ -889,7 +912,7 @@ def main(argv=None):
     qp.add_argument("--ref")
     qp.add_argument("--story", help="an already written story file (skips writing)")
     qp.add_argument("--format", help="default: the program's format (news: news)")
-    for k in ("look", "captions", "transition", "outro", "voice", "music", "platform", "director", "rubric"):
+    for k in ("look", "captions", "transition", "outro", "voice", "music", "platform", "director", "rubric", "theme"):
         qp.add_argument(f"--{k}")
     qp.add_argument("--part", type=int, help="add: a continues job's part (ops/daily.py sets it from the stored state)")
     qp.add_argument("--priority", type=int, default=0)

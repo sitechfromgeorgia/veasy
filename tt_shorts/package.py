@@ -46,6 +46,7 @@ SLIDE_W, SLIDE_H = 1080, 1350
 BOX_W, BOX_H, BOX_LEFT, BOX_TOP = 888, 964, 96, 196
 BAND_TOP, BAND_BOTTOM, FOOTER_TOP = 152, 1204, 1228
 INK_LEVEL = 90  # gray level above which a pixel is drawn ink or text, not the canvas, its motif or a 12% line
+# (on a light theme, brand.json themes: below 255 - INK_LEVEL)
 FITS = (1.0, 0.9, 0.8, 0.7)  # a slide's scale while it doesn't fit its box (Slide.tsx "fit")
 TEASER = (6.0, 10.0)  # seconds
 TAIL = 3.0  # the last seconds of the video in the teaser: the end card, its QR and the call to action
@@ -284,9 +285,10 @@ def _gray(png):
     return np.frombuffer(r.stdout, dtype=np.uint8).reshape(SLIDE_H, SLIDE_W)
 
 
-def fit_problems(png, kind):
+def fit_problems(png, kind, light=False):
     """Anything drawn outside the slide's scene box: below it (above the footer) or right of it. A scene that does
-    not fit overflows there (its body is centred, so it overflows up over its headline as much as down)."""
+    not fit overflows there (its body is centred, so it overflows up over its headline as much as down). light: the
+    slide's theme is a light ground, so ink is the dark pixels."""
     g = _gray(png)
     if kind == "end":  # the end card has the whole band; nothing may reach the footer
         bands = {"over the footer": g[BAND_BOTTOM:FOOTER_TOP + 12, :]}
@@ -294,7 +296,7 @@ def fit_problems(png, kind):
         bands = {"below its box": g[BOX_TOP + BOX_H + 4:FOOTER_TOP - 6, 24:SLIDE_W - 24],
                  "right of its box": g[BOX_TOP:BOX_TOP + BOX_H, BOX_LEFT + BOX_W + 8:SLIDE_W - 20]}
     return [f"{pathlib.Path(png).name} ({kind}): text or ink {where}, the scene doesn't fit the slide"
-            for where, band in bands.items() if int((band > INK_LEVEL).sum()) > 12]
+            for where, band in bands.items() if int(((band < 255 - INK_LEVEL) if light else (band > INK_LEVEL)).sum()) > 12]
 
 
 # ---------------------------------------------------------------- teaser
@@ -395,7 +397,7 @@ def _slides(props, slides, b, work, out_dir, platform):
     seq = work / "slides"
     shutil.rmtree(seq, ignore_errors=True)
     data = {**props, "captions": None, "voice": None, "music": None, "slides": slides, "durationInFrames": len(slides),
-            "qrSvg": meta.qr_svg(meta.story_url(props["id"], platform, b), b["colors"]["canvas"])}
+            "qrSvg": meta.qr_svg(meta.story_url(props["id"], platform, b), *brand.qr_colors(b["colors"]))}
     _remotion(["render", "src/index.ts", "Slide", str(seq.resolve()), "--sequence", "--image-format=png"], work, data)
     frames = sorted(seq.glob("*.png"), key=lambda p: int(re.findall(r"\d+", p.stem)[-1]))
     paths = []
@@ -415,7 +417,8 @@ def carousel(props, slides, b, work, out_dir, platform="instagram"):
     slides = [dict(s) for s in slides]
     for attempt in range(len(FITS)):
         paths = _slides(props, slides, b, work, out_dir, platform)
-        found = [fit_problems(p, s["type"]) for p, s in zip(paths, slides)]
+        light = (props.get("brand") or {}).get("mode") == "light"
+        found = [fit_problems(p, s["type"], light) for p, s in zip(paths, slides)]
         bad = [k for k, f in enumerate(found) if f and slides[k].get("fit", 1.0) > FITS[-1]]
         if not bad:
             break
@@ -434,7 +437,7 @@ def make(render, only=None):
     unknown = [x for x in parts if x not in PARTS]
     if unknown:
         raise PackageError(f"unknown parts {unknown}; known: {', '.join(PARTS)}")
-    b = brand.load(props["brand"]["name"])
+    b = brand.themed(brand.load(props["brand"]["name"]), props.get("theme"))  # the render's theme: colors, logo
     out = store.package_dir(m["_manifest"])
     out.mkdir(parents=True, exist_ok=True)
     files, problems, info = {}, [], {}

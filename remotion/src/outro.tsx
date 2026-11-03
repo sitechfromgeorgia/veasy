@@ -1,6 +1,6 @@
 import React from "react";
 import { Freeze, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { FONT, H, INK, LINE, ON_ACCENT, PANEL, RADIUS, RAIL_X, RED, SCENE_BOTTOM, SCENE_TOP, SIDE, W } from "./brand";
+import { FONT, H, INK, LINE, ON_ACCENT, PANEL, QR_LIGHT, RADIUS, RAIL_X, RED, SCENE_BOTTOM, SCENE_TOP, SIDE, W } from "./brand";
 import type { ShortProps } from "./types";
 import { fitSize, Opening, useTheme } from "./ui";
 
@@ -61,8 +61,8 @@ export const OutroChip: React.FC = () => {
     <div style={{ position: "absolute", left, top: CHIP_TOP, width, height: CHIP_H, boxSizing: "border-box", padding: CHIP_PAD,
       display: "flex", alignItems: "center", gap: 32, background: PANEL, border: `2px solid ${LINE}`, borderRadius: RADIUS,
       transform: `translateX(${(1 - t) * -(left + width + 40)}px)` }}>
-      {/* a QR needs its light quiet zone, as on the end card */}
-      <div style={{ width: qr, height: qr, flex: "none", boxSizing: "border-box", padding: 8, background: "#FFFFFF", borderRadius: 8,
+      {/* a QR needs its light quiet zone, as on the end card (the QR's own ground: white, or a light theme's canvas) */}
+      <div style={{ width: qr, height: qr, flex: "none", boxSizing: "border-box", padding: 8, background: QR_LIGHT, borderRadius: 8,
         lineHeight: 0 }} dangerouslySetInnerHTML={{ __html: props.qrSvg }} />
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16, minWidth: 0 }}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: urlSize, lineHeight: 1.2, color: INK, whiteSpace: "nowrap" }}>

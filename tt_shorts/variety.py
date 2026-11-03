@@ -9,6 +9,11 @@ Inside one brand and one look, each video gets its own combination of:
     transition  the cut between scenes, from the ones that suit the look (when the format says "auto")
     music       one of the family's loops (tools/compose_music.py writes several per family)
 
+and, when the format says `theme: auto`, the theme: one of the pack's allowed palettes (brand.json "themes"; a
+director may narrow them with its "themes"), least used the same way, a re-render keeping its own (pick_theme). The
+theme is not in the novelty guard's fingerprint: a pack with one theme, or a format that names one, would otherwise
+make every pair of its videos look one field closer.
+
 Each choice is the least used one among the brand's last RECENT videos (ties broken by the story id), so a run of
 videos keeps moving through the options instead of repeating; one story always gets the same picks again (a
 re-render in another caption design looks the same). Everything stays inside the brand pack: these change layout
@@ -81,6 +86,7 @@ MIGRATIONS = {  # columns added since the table was first made; an older veasy.d
     "director": "alter table variety add column director text",  # directors.py, before writing
     "novelty": "alter table variety add column novelty real",  # the guard: distance to the nearest recent video
     "rerolls": "alter table variety add column rerolls integer",  # the guard: the re-rolls it took
+    "theme": "alter table variety add column theme text",  # the pack's theme the video was drawn in (themes)
 }
 
 
@@ -136,6 +142,19 @@ def direct(brand, story, facts, program_scenes="all", forced=None):
     past = history(brand)
     same = next((r["director"] for r in past if r["story"] == str(story) and r["director"] in pool), None)
     return same or _least_used(pool, [r["director"] for r in past], story, "director")
+
+
+def pick_theme(brand, story, themes, subset=None):
+    """The theme of one video when the format says `theme: auto`: one of `themes` (the pack's allowed ones, in its
+    order), inside a director's `subset` when it names any that the pack has; the one this story had before if it
+    is still one of them, else the least used among the brand's last RECENT videos (ties by the story id). A pack
+    with one allowed theme always gets it. Records nothing (record() does, after a render)."""
+    pool = _within(tuple(themes), subset)
+    if len(pool) == 1:
+        return pool[0]
+    past = history(brand)
+    same = next((r.get("theme") for r in past if r["story"] == str(story) and r.get("theme") in pool), None)
+    return same or _least_used(pool, [r.get("theme") for r in past], story, "theme")
 
 
 # ---------------------------------------------------------------- the novelty guard (pure)
@@ -305,15 +324,16 @@ def pick(brand, story, look, transition="auto", loops=(), icon=False, director=N
 
 
 def record(brand, story, look, style, scenes, novelty=None):
-    """Remember what a finished render used (engine.render_story calls this). novelty: choose()'s report."""
+    """Remember what a finished render used (engine.render_story calls this). novelty: choose()'s report.
+    style may carry "theme" (the pack's theme it was drawn in)."""
     nov = novelty or {}
     with _db() as con:
         con.execute("insert into variety(ts, brand, story, look, hook, motif, enter, transition, music, scenes, director, "
-                    "novelty, rerolls) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "novelty, rerolls, theme) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), brand, str(story), look,
                      style.get("hook"), style.get("motif"), style.get("enter"), style.get("transition"),
                      style.get("music"), json.dumps(list(scenes)), style.get("director"), nov.get("distance"),
-                     nov.get("rerolls")))
+                     nov.get("rerolls"), style.get("theme")))
 
 
 def recent_sequences(brand, n=12):
@@ -335,8 +355,8 @@ def report(brand, n=50):
     if not past:
         return {}
     out = {}
-    for key in ("hook", "motif", "enter", "transition", "music", "scenes", "director"):
-        vals = [r[key] for r in past]
+    for key in ("hook", "motif", "enter", "transition", "music", "scenes", "director", "theme"):
+        vals = [r.get(key) for r in past]
         top = max(set(vals), key=vals.count)
         out[key] = {"distinct": len(set(vals)), "most_used_share": round(vals.count(top) / len(vals), 2)}
     names = [r["director"] for r in past]

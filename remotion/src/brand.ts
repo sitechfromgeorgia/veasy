@@ -7,7 +7,8 @@
 //
 // The colors are live bindings: NewsShort calls applyBrand(props.brand) before anything draws, and every module
 // that imports CANVAS, INK... reads the pack's value from then on. Read them inside components, never at module
-// level.
+// level. props.brand carries one of the pack's themes (brand.json "themes": dark, light...; tt_shorts/brand.py),
+// so no component may assume a dark ground: a color is always one of these tokens, never a literal.
 import type { BrandProps } from "./types";
 
 export let CANVAS = "#05080F";
@@ -22,6 +23,8 @@ export let GRID = "rgba(248,250,252,.045)";
 export let TICKER = "rgba(248,250,252,.06)";
 export let WAITING = "rgba(248,250,252,.42)"; // a caption word not yet spoken: the ink, dimmed
 export let MARK_BG = "#0B0B0E";
+export let MARK_INK = "#FFFFFF"; // the t of the mark
+export let QR_LIGHT = "#FFFFFF"; // the QR's ground (its quiet zone): white on a dark theme, the canvas on a light one
 
 // props.py copies the pack's four weights to public/fonts/brand-<weight>.woff2; Root.tsx loads them as "Brand".
 export const FONT = "Brand, sans-serif";
@@ -42,7 +45,10 @@ export const DEFAULT_BRAND: BrandProps = {
     "ticker": "rgba(248,250,252,.06)",
     "waiting": "rgba(248,250,252,.42)",
     "markBg": "#0B0B0E",
-    "onAccent": "#FFFFFF"
+    "onAccent": "#FFFFFF",
+    "markInk": "#FFFFFF",
+    "qrDark": "#05080F",
+    "qrLight": "#FFFFFF"
   },
   "wordmark": {
     "text": "tbilisi.today",
@@ -74,6 +80,7 @@ export const applyBrand = (b: BrandProps) => {
   const c = b.colors;
   CANVAS = c.canvas; PANEL = c.panel; INK = c.ink; MUTED = c.muted; RED = c.accent; ON_ACCENT = c.onAccent ?? "#FFFFFF";
   LINE = c.line; LINE_STRONG = c.lineStrong; GRID = c.grid; TICKER = c.ticker; WAITING = c.waiting; MARK_BG = c.markBg;
+  MARK_INK = c.markInk ?? "#FFFFFF"; QR_LIGHT = c.qrLight ?? "#FFFFFF";
 };
 
 /** "#05080F" at alpha .8 -> "rgba(5,8,15,0.8)" (a color step of the canvas, e.g. behind the captions). */

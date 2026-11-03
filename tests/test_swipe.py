@@ -228,6 +228,20 @@ class OpeningFrame(unittest.TestCase):
             outside = self.clip(d, "drawbox=x=0:y=1580:w=1080:h=300:color=0xF8FAFC:t=fill")
             self.assertTrue(swipe.opening_problems(outside))
 
+    def test_on_a_light_theme_ink_is_the_dark_pixels(self):  # brand.json themes: paper canvas, coal ink
+        with tempfile.TemporaryDirectory() as d:
+            out = pathlib.Path(d) / "p.mp4"
+            hook = ",".join(f"drawbox=x=64:y={300 + k * 190}:w=800:h=120:color=0x171817:t=fill" for k in range(3))
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0xF1EDE4:s=1080x1920:r=30:d=0.4",
+                            "-vf", hook, "-pix_fmt", "yuv420p", str(out)], check=True)
+            self.assertGreater(swipe.opening_ink(out, light=True), swipe.INK_SHARE)
+            self.assertEqual(swipe.opening_problems(out, light=True), [])
+            empty = pathlib.Path(d) / "e.mp4"
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0xF1EDE4:s=1080x1920:r=30:d=0.4",
+                            "-pix_fmt", "yuv420p", str(empty)], check=True)
+            self.assertEqual(swipe.opening_ink(empty, light=True), 0.0)  # paper alone is not a hook
+            self.assertTrue(swipe.opening_problems(empty, light=True))
+
     def test_qa_reports_it(self):
         with tempfile.TemporaryDirectory() as d:
             result = engine.qa_file(self.clip(d, "null"), formats.get("news"))

@@ -139,9 +139,13 @@ export type Scene = SceneBase & {
 export type BrandProps = {
   name: string;
   label: string; // "tbilisi.today", "SiTech": the ticker's name
+  theme?: string; // the pack's theme these colors are (brand.json themes: "dark", "light"...)
+  mode?: "dark" | "light"; // the theme's ground (tt_shorts/brand.py mode)
   colors: {
     canvas: string; panel: string; ink: string; muted: string; accent: string; onAccent?: string; line: string;
     lineStrong: string; grid: string; ticker: string; waiting: string; markBg: string;
+    markInk?: string; // the t of the mark
+    qrDark?: string; qrLight?: string; // the QR code's modules and its ground (brand.qr_colors: always dark on light)
   };
   wordmark: { text: string; accent?: string }; // the accent character is drawn in the accent color
   logo: "tmark" | "svg"; // svg: public/brand/header.svg and end.svg

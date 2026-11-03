@@ -14,6 +14,10 @@ A format chooses only among what the engine can do:
   sfx       off | on                                (sfx.py: short sound effects on the timeline's events, a
                                                      whoosh on a cut, a pop when a mark lands, ticks while a number
                                                      counts; one constant level under the voice, no ducking)
+  theme     default | auto | <a theme's name>       (default: the pack's default_theme, so nothing changes; auto:
+                                                     variety picks among the pack's allowed themes, least used
+                                                     lately; a name: that theme of the story's pack, e.g. light,
+                                                     which every pack it is used with must have; brand.json themes)
   platform  the utm_source of the QR link           (shorts, youtube, instagram, tiktok, ...)
   min_seconds / max_seconds   the length window a render must land in
 
@@ -22,6 +26,8 @@ keys (a file overrides a built-in of the same name). `python -m tt_shorts.engine
 """
 import json
 import pathlib
+
+import re
 
 from tt_shorts import meta, swipe, voices
 
@@ -32,8 +38,10 @@ CAPTIONS = ("page", "roll")
 TRANSITIONS = ("auto", "cut", "line", "panel", "wipe", "slide", "push", "dot")  # props.TRANSITIONS + auto
 OUTROS = swipe.OUTROS
 SFX = ("off", "on")
+THEME_MODES = ("default", "auto")  # or a theme's name (brand.json themes)
 DEFAULTS = {"look": "auto", "captions": "page", "transition": "auto", "outro": swipe.DEFAULT_OUTRO, "voice": "family",
-            "music": "family", "sfx": "off", "platform": "shorts", "min_seconds": 18, "max_seconds": 45}
+            "music": "family", "sfx": "off", "platform": "shorts", "min_seconds": 18, "max_seconds": 45,
+            "theme": "default"}
 BUILTIN = {
     "news": {"label": "ამბავი: სტანდარტული", "about": "The default news Short: look and voice by category, "
              "two-line captions that never move."},
@@ -70,12 +78,24 @@ def validate(name, f):
         bad("music", f["music"], musics)
     if f["sfx"] not in SFX:
         bad("sfx", f["sfx"], SFX)
+    themes = themes_known()
+    if f["theme"] not in THEME_MODES and f["theme"] not in themes:
+        bad("theme", f["theme"], THEME_MODES + tuple(themes))
     if not (0 < f["min_seconds"] < f["max_seconds"] <= 360):
         raise FormatError(f"format {name!r}: need 0 < min_seconds < max_seconds <= 360")
     unknown = set(f) - set(DEFAULTS) - {"label", "about", "name"}
     if unknown:
         raise FormatError(f"format {name!r}: unknown keys {sorted(unknown)}")
     return f
+
+
+def themes_known():
+    """Every theme name some pack defines (a format may name one; the story's pack must have it at render)."""
+    from tt_shorts import brand
+    out = []
+    for n in brand.names():
+        out += [t for t in brand.load(n)["themes"] if t not in out and re.match(r"^[a-z][a-z0-9-]*$", t)]
+    return out
 
 
 def load_all():

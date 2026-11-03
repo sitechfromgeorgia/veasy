@@ -49,6 +49,14 @@ class Data(unittest.TestCase):
         with self.assertRaises(directors.DirectorError):
             directors.validate("other", good)  # the id is its file name
 
+    def test_a_director_may_prefer_themes_by_name(self):  # never colors: the pack's themes (brand.json)
+        self.assertEqual(directors.get("draw")["themes"], ["light"])  # a drawing on paper
+        self.assertEqual(directors.get("data")["themes"], [])
+        good = json.loads((ROOT / "directors" / "data.json").read_text(encoding="utf-8"))
+        for bad in ({"themes": "light"}, {"themes": ["#FFFFFF"]}, {"themes": ["Light"]}):
+            with self.assertRaises(directors.DirectorError, msg=str(bad)):
+                directors.validate("data", {**good, **bad})
+
     def test_a_planned_brush_is_offered_once_it_exists(self):
         raw = json.loads((ROOT / "directors" / "data.json").read_text(encoding="utf-8"))
         with mock.patch.object(directors, "PLANNED", ("tally",)):
