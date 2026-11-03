@@ -86,7 +86,23 @@
   "preview_silent": "ხმის გარეშე · პრევიუ",
   "card_meta": "{n} წყარო · {time}",
   "category_default": "ამბები",
-  "at_least": "მინიმუმ {n}"
+  "at_least": "მინიმუმ {n}",
+  "illustrative": "საილუსტრაციო",
+  "media_credit": "{author} · {licence} · {source}"
+ },
+ "media": {
+  "providers": [
+   "openverse",
+   "commons",
+   "pexels",
+   "pixabay"
+  ],
+  "official": [
+   "matsne.gov.ge",
+   "gov.ge",
+   "parliament.ge"
+  ],
+  "own": []
  },
  "package": {
   "about": "engine package (tt_shorts/package.py): the words of the publishing kit's texts and the pack's hashtags (3+; the category's own tag comes first)",

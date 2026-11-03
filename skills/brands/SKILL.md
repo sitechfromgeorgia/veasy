@@ -33,6 +33,7 @@ tbilisi-today.
 | `voices` | the pack's own presets (`{"label", "voice", "style"}`), usable only by this pack |
 | `say` | spoken forms of the pack's own names (`"SiTech": "საი-თეჩი"`), under every story's `say` |
 | `strings`, `months`, `weekdays`, `utc_offset_hours` | the words on screen and the date |
+| `media` | the media layer (`tt_shorts/assets.py`, news rule N13): `providers`, the order a scene's picture is searched in (`openverse`, `commons`, `pexels`, `pixabay`; `[]`: no stock pictures for this pack); `official` and `own`, the domains a screenshot may come from (`_ka`: matsne.gov.ge, gov.ge, parliament.ge; a pack: its own site). `strings.illustrative` („საილუსტრაციო") is the label every illustrative picture carries, `strings.media_credit` the credit line (`{author}`, `{licence}`, `{source}`) |
 | `package` | `engine package`'s words (`veasy:package`): `more` (a link line with `{url}`), `link_in_bio`, and `hashtags` (3+, the pack's own after the category's tag; `_ka` has the words, a pack sets its tags) |
 
 ## Add a client

@@ -13,6 +13,8 @@
       cache/voices/<sha16>/          one voice + its word timings per (engine, voice, style, spoken text)
       cache/work/<job>/              render scratch, deleted after a good render
       cache/bundles/<sha16>/         the Remotion bundle per version of remotion/src (probe and stills: probe.py)
+      cache/media/<sha16>/           the media layer (assets.py): one search's candidates (search.json), or one
+                                     fetched file (a photo, a clip, a screenshot) + its ledger entry (asset.json)
       logs/<day>.jsonl               one JSON line per event (queued, rendered, failed, gc...)
 
 Names:
@@ -22,7 +24,8 @@ Names:
   job     <brand>-<ref>-<format>, e.g. tbilisi-today-24725-news
 
 Retention (`engine gc`): work scratch 2 days, bundles 14 days, renders 30 days, voices 90 days (re-renders within
-that window are free), logs 90 days. Stories are kept: they are small and they are the record of what was published.
+that window are free), media 90 days (a story's ledger keeps each file's url and sha, so a later render fetches it
+again and checks it is the same file), logs 90 days. Stories are kept: they are small and they are the record of what was published.
 """
 import datetime as dt
 import hashlib
@@ -34,7 +37,7 @@ import shutil
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-KEEP_DAYS = {"work": 2, "bundles": 14, "renders": 30, "voices": 90, "logs": 90}
+KEEP_DAYS = {"work": 2, "bundles": 14, "renders": 30, "voices": 90, "media": 90, "logs": 90}
 
 
 def home():
@@ -97,6 +100,14 @@ def voice_dir(key):
     return p
 
 
+def media_dir(key):
+    """The cache folder of one media search or one fetched file (assets.py): the key names the provider and what
+    was asked (a query, a file's id), so the same request is the same folder."""
+    p = home() / "cache" / "media" / hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
 def work_dir(name):
     p = home() / "cache" / "work" / safe(name)
     p.mkdir(parents=True, exist_ok=True)
@@ -134,6 +145,7 @@ def gc(dry_run=False, now=None):
     targets = {
         "work": [p for p in (h / "cache" / "work").glob("*") if p.is_dir()],
         "voices": [p for p in (h / "cache" / "voices").glob("*") if p.is_dir()],
+        "media": [p for p in (h / "cache" / "media").glob("*") if p.is_dir()],
         "bundles": [p for p in (h / "cache" / "bundles").glob("*") if p.is_dir()],
         "renders": [p for p in (h / "renders").glob("*/*/*") if p.is_file() or p.name.endswith("-package")],
         "logs": [p for p in (h / "logs").glob("*.jsonl")],

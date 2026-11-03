@@ -106,7 +106,8 @@ def run(story_path, fmt, look=None, director=None, out=None, with_probe=True):
     try:
         work, p = props.build(str(story_path), look or fmt["look"], "silent", tone, speech.EDGE_VOICES["eka"],
                               fmt["platform"], caption_design=fmt["captions"], music=fmt["music"],
-                              transition=fmt["transition"], outro=fmt["outro"], director=director)
+                              transition=fmt["transition"], outro=fmt["outro"], director=director,
+                              sfx=fmt.get("sfx", "off"))
     except (ValueError, RuntimeError) as e:  # an anchor not in the narration, a scene too short: no storyboard yet
         return {"story": str(pathlib.Path(story_path).resolve()), "problems": [f"timing: {e}"], "warnings": [],
                 "took": round(time.time() - t0, 1)}
@@ -120,7 +121,7 @@ def run(story_path, fmt, look=None, director=None, out=None, with_probe=True):
               "novelty": novelty(p.get("novelty"), {**st, "transition": p["transition"], "music": p["music"]},
                                  [s["type"] for s in p["scenes"]], st.get("director")),
               "outro": p["outro"], "captions": {"design": fmt["captions"], "pages": len(p["captions"].get("pages") or [])},
-              "scenes": scenes(p, rows), "cuts": motion["cuts"],
+              "scenes": scenes(p, rows), "cuts": motion["cuts"], "sfx": len(p.get("sfx") or []),
               "motion": {"holds": motion["holds"], "warnings": motion["warnings"]}}
     problems = list(motion["holds"])
     if with_probe:

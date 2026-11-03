@@ -24,6 +24,7 @@ format choice. The map itself needs no format key; see `veasy:write-script`.)
 | `outro` | `card` (the end card: logo, QR, link, CTA), `overlay` (no end card: a QR/link/CTA chip slides in over the last scene), `loop` (the chip, then the last 0.5 s cross-fade into the hook's first frame: a seamless replay) | `card` |
 | `voice` | `family` (by category, from the brand pack) or a preset: `plain`, `anchor`, `warm`, `clear` (approved for tbilisi.today), `firm`, `documentary`, or a pack's own (`sitech`) | `family` |
 | `music` | `family` (by category), `off`, or a family: politics, economy, world, crime, sports, culture, tech, society | `family` |
+| `sfx` | `off`, `on`: short sound effects on the timeline (`tt_shorts/sfx.py`): a whoosh on a cut (a click on a plain `cut`), a pop when a mark or the outro chip lands, ticks while a stat counts and a soft thud as it settles, a blip as each bar grows. Synthesized by `tools/compose_sfx.py`; one constant level under the voice, no ducking, no risers; mixed by ffmpeg, so it is the same in every engine | `off` |
 | `platform` | the QR link's utm_source: `shorts`, `youtube`, `instagram`, `tiktok`, ... | `shorts` |
 | `min_seconds`, `max_seconds` | the length window a render must land in | 18, 45 |
 

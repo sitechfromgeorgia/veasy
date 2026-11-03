@@ -15,6 +15,8 @@ Every command prints JSON on stdout (human notes go to stderr), so an agent can 
                                                              # timings, reading load, variety picks, motion rules,
                                                              # the probe and a half-size contact sheet (plan.py)
   python -m tt_shorts.engine selftest [--update]              # golden stills of the fixture stories (golden.py)
+  python -m tt_shorts.engine media  stories/24835-media.json [--offline]   # the scenes' show hints -> licensed
+                                                             # pictures in the story's assets ledger (assets.py)
   python -m tt_shorts.engine learn  [--brand sitech] [--days 7]   # the rules failing most lately (failures.py)
   python -m tt_shorts.engine package <render>.json [--only srt,vtt,cover,carousel,teaser,texts,telegram]
                                                              # one render -> every surface (package.py), no new voice
@@ -46,8 +48,8 @@ import subprocess
 import sys
 
 from tt_shorts import brand as packs
-from tt_shorts import (captions, catalog, directors, formats, geo, icons, ka_check, kaeasy, meta, motion_rules,
-                       news_check, programs, props, rubrics, speech, store, swipe, variety, voices)
+from tt_shorts import (assets, captions, catalog, directors, formats, geo, icons, ka_check, kaeasy, meta, motion_rules,
+                       news_check, programs, props, rubrics, sfx, speech, store, swipe, variety, voices)
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -119,6 +121,20 @@ def options(brand_name=None):
                "strokes": "clean for hard and service news, a little rough for light news (by the story's family)"},
         "package": {"about": "engine package <render>.json --only <parts>: one render -> every surface", **package.PARTS},
         "areas": geo.areas(),  # a where scene's optional area (tt_shorts/geo.py)
+        "media": {"about": "a scene's \"show\" hint (the writer's: a short English query, or \"screenshot\" for the "
+                           "story's own official page) -> a licensed picture behind the scene, resolved by code before "
+                           "the voice (engine media; write and plan do it too) into the scene's media and the story's "
+                           "assets ledger, both code-owned (assets.py)",
+                  "providers": {n: why or "available" for n, why in assets.availability().items()},
+                  "order": packs.load(brand_name).get("media", {}).get("providers", []),
+                  "licences": {k: v or "a screenshot of an allow-listed page" for k, v in assets.LICENCES.items()},
+                  "credited": list(assets.CREDITED), "kinds": list(assets.KINDS),
+                  "no_media": list(catalog.NO_MEDIA),
+                  "screenshots": "only from the pack's media.official and media.own and a program's screenshots",
+                  "rule": "N13: labelled „" + b["strings"]["illustrative"] + "“, never for crime, incidents or deaths, "
+                          "never presented as the event; no AI imagery until the owner decides"},
+        "sfx": {"about": "format key sfx: sound effects on the timeline's events, mixed by ffmpeg (sfx.py)",
+                **sfx.OPTIONS, "sounds": list(sfx.NAMES), "level_db": sfx.LEVEL_DB},
         "self_checks": {"plan": "engine plan <story> [--look]: a free storyboard before the voice is paid for: scene "
                                 "times, words and reading load, the variety picks (not recorded), the motion rules, "
                                 "the probe and a half-size contact sheet",
@@ -168,7 +184,8 @@ def structure_problems(story):
         p += [f"scene {i} ({t}): {x}" for x in shape_problems(s) + catalog.family_problems(s, family)]
     if "program" in story:  # a story without one is news, exactly as before programs
         p += programs.story_problems(story)
-    return p + icons.motif_problems(story) + directors.structure_problems(story) + rubrics.story_problems(story)
+    return p + icons.motif_problems(story) + directors.structure_problems(story) + rubrics.story_problems(story) + \
+        assets.problems(story)
 
 
 def _family(story):
@@ -271,8 +288,8 @@ def check_story(story, sources=None):
         p += rubrics.length_problems(story)  # a news rubric's own window (number: 20-25 s)
     if texts and story.get("director"):  # the director's own gates (witness: both sides when both are quoted)
         p += directors.story_problems(story, directors.facts(texts, story.get("category", ""), packs.of(story)))
-    if not (news and texts):  # N10 and N11 need no articles
-        p += news_check.pictograms(story) + news_check.spoken(story)
+    if not (news and texts):  # N10, N11 and N13 need no articles
+        p += news_check.pictograms(story) + news_check.spoken(story) + news_check.imagery(story)
     ka = ka_check.problems(story, {"title": "", "description": "", "text": " ".join(texts)})
     if not texts:  # without the articles a quote can't be compared: that check needs --sources (the news rules say so)
         ka = [x for x in ka if "is quoted but not in the article" not in x]
@@ -308,7 +325,7 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     work, p = props.build(str(story_path), fmt["look"], engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
                           caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
-                          outro=fmt["outro"], director=director)
+                          outro=fmt["outro"], director=director, sfx=fmt["sfx"])
     checked = _probe_render(work, p)  # the layout probe: seconds, before the minutes of the render
     motion = motion_rules.check(p)  # with the real voice's timings: unreadable text holds the video, like the probe
     secs = p["durationInFrames"] / FPS
@@ -324,7 +341,8 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
               "brand": brand_of(story), "story": str(pathlib.Path(story_path).resolve()),
               "scenes": [s["type"] for s in p["scenes"]], "voice_qa": p.get("voiceQa", []), "kaeasy": kaeasy.version(),
               "probe": checked, "motion": {"holds": motion["holds"], "warnings": motion["warnings"]},
-              "novelty": p.get("novelty")}
+              "novelty": p.get("novelty"), "sfx": len(p.get("sfx") or []),
+              "media": [s["media"]["what"] for s in p["scenes"] if s.get("media")]}
     # the novelty guard never holds a video: a plan it could not move far enough is a warning
     result["warnings"] = [w for w in [(p.get("novelty") or {}).get("warning")] if w]
     problems = (list(checked["problems"]) if checked else []) + motion["holds"]
@@ -364,8 +382,31 @@ def probe_cmd(a):
 
 def plan_cmd(a):
     from tt_shorts import plan
+    media = _resolve_media(a.story)  # the scenes' pictures, before the storyboard (cached; free APIs)
     result = plan.run(a.story, _format(a), director=a.director, out=a.out)  # the format carries --look
+    if media:
+        result["media"] = media
+        result["warnings"] = result.get("warnings", []) + media.get("errors", [])
     return out(result, 1 if result["problems"] else 0)
+
+
+def _resolve_media(story_path, fetch=True):
+    """Resolve a story's show hints into its ledger, in place (assets.resolve_file) -> the report, or None for a
+    story with no hints. A provider that fails leaves that scene without a picture: a warning, never a failure."""
+    story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
+    if not any(isinstance(s, dict) and (s.get("show") or s.get("media")) for s in story.get("scenes") or []):
+        return None
+    try:
+        return assets.resolve_file(story_path, fetch=fetch)
+    except Exception as e:  # noqa: BLE001 - no picture is never a failed story
+        return {"errors": [f"media: {type(e).__name__}: {e}"]}
+
+
+def media_cmd(a):
+    report = _resolve_media(a.story, fetch=not a.offline) or {"scenes": {}, "errors": [], "assets": 0}
+    story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
+    problems = assets.problems(story) + news_check.imagery(story)
+    return out({"story": a.story, **report, "problems": problems}, 1 if problems else 0)
 
 
 def selftest_cmd(a):
@@ -384,7 +425,7 @@ def learn_cmd(a):
 def _format(a):
     name = a.format or program_format(a.story)
     return formats.get(name, look=a.look, captions=a.captions, transition=a.transition, outro=a.outro, voice=a.voice,
-                       music=a.music, platform=a.platform)
+                       music=a.music, platform=a.platform, sfx=getattr(a, "sfx", None))
 
 
 def program_format(story_path):
@@ -566,6 +607,7 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
     except writer.ChecksFailed as e:
         failures.record(brand, "write", e.problems)
         raise
+    assets.strip_code_owned(story)  # a picture and its ledger are code's: only the writer's show hints stay
     story["brand"] = brand
     story["source"] = {"name": source, "ref": str(ref)}
     if did:
@@ -584,12 +626,15 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
     side = store.sources_path(target)  # the articles, so `check --sources` can re-run the news rules later
     texts = [m["text"] for m in members] if r and r["count"] == "agree" else data["articles"]  # agree: every member
     side.write_text(json.dumps(texts, ensure_ascii=False), encoding="utf-8")
+    media = _resolve_media(target)  # the show hints -> licensed pictures, before the voice (assets.py)
+    if media and media.get("changed"):
+        story = json.loads(target.read_text(encoding="utf-8"))
     problems = check_story(story, texts)
     failures.record(brand, "check", problems)
     store.log("written", story=str(target), problems=problems)
     result = {"story": str(target.resolve()), "sources": str(side.resolve()), "director": did,
               "scenes": [s["type"] for s in story["scenes"]], "problems": problems,
-              "warnings": directors.warnings(story, prog["scenes"])}
+              "warnings": directors.warnings(story, prog["scenes"]) + ((media or {}).get("errors") or [])}
     if prog["name"] != programs.DEFAULT:
         result.update(program=prog["name"], rules=prog["rules"], publish=prog["publish"], format=prog["format"])
     if r:
@@ -693,6 +738,8 @@ def doctor(_a):
         "fonts": all((ROOT / "assets" / "fonts" / f).exists() for f in (
             "firago-regular.d8b411bacd.woff2", "firago-bold.ed7553cea8.woff2")),
         "music loops": len(list((ROOT / "assets" / "music").glob("*.m4a"))),
+        "sound effects": "ready" if sfx.files_ready() else "composed on first use (tools/compose_sfx.py)",
+        "media providers": {n: why or "available" for n, why in assets.availability().items()},
         "GEMINI_API_KEY": bool(os.environ.get("GEMINI_API_KEY")),
         "alignment python": os.environ.get("ALIGN_PYTHON") or "unset (uses this python; needs torch + transformers)",
         "writer key (OPENROUTER_API_KEY)": bool(os.environ.get("OPENROUTER_API_KEY")),
@@ -762,6 +809,7 @@ def main(argv=None):
         r.add_argument("--outro", choices=formats.OUTROS, help="card (end card), overlay (a QR/link/CTA chip) or loop")
         r.add_argument("--voice", help="family or a preset (see options)")
         r.add_argument("--music", help="family, off or a family name")
+        r.add_argument("--sfx", choices=formats.SFX, help="sound effects on the timeline (default: the format's, off)")
         r.add_argument("--platform", help="utm_source of the QR link")
         r.add_argument("--engine", default="gemini", choices=["gemini", "edge", "silent"])
         r.add_argument("--director", help="a director (see options: directors) instead of the story's own")
@@ -817,9 +865,13 @@ def main(argv=None):
     pl.add_argument("--outro", choices=formats.OUTROS)
     pl.add_argument("--voice", help="family or a preset (the timing is the silent engine's estimate either way)")
     pl.add_argument("--music", help="family, off or a family name (the loop the render would get)")
+    pl.add_argument("--sfx", choices=formats.SFX, help="sound effects (the plan counts the cues)")
     pl.add_argument("--platform")
     pl.add_argument("--director", help="a director (see options: directors) instead of the story's own")
     pl.add_argument("--out", help="the contact sheet's path (default: beside where the render will go, .plan.jpg)")
+    md = sub.add_parser("media")
+    md.add_argument("story")
+    md.add_argument("--offline", action="store_true", help="no network: keep what the ledger has, drop the rest")
     st = sub.add_parser("selftest")
     st.add_argument("--update", action="store_true", help="rewrite tests/golden/ after a deliberate visual change")
     st.add_argument("--story", help="comma-separated fixtures (default veasy-scenes,veasy-demo)")
@@ -866,7 +918,8 @@ def main(argv=None):
             return out(result, 1 if problems else 0)
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
-                "plan": plan_cmd, "selftest": selftest_cmd, "learn": learn_cmd, "rubrics": rubrics_cmd}[a.cmd](a)
+                "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
+                "rubrics": rubrics_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
 

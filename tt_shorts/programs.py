@@ -16,6 +16,8 @@ prompt, the news rules N1-N5. Every other program is a JSON file in programs/<na
                 (a law on matsne.gov.ge) when the source gives a URL
   writer        model (default: the writer model, from the brief) | digest: code builds the story from stories that
                 already passed their checks (tt_shorts/digest.py), no model call
+  screenshots   optional: domains a proof screenshot may also come from (assets.py, news rule N13), beside the
+                pack's media.official and media.own (law: matsne.gov.ge)
 
 A new program is a JSON file and a brief, no code; `python -m tt_shorts.engine options` lists them and fails loudly
 on a program the engine can't do. A story carries its program as "program" (set by the pipeline, like "brand").
@@ -34,7 +36,8 @@ DEFAULT = "news"
 TIERS = claims_check.TIERS
 PUBLISH = ("auto", "review")
 LINKS = ("brand", "source")
-KEYS = ("label", "about", "sources", "brief", "scenes", "rules", "format", "publish", "category", "link", "writer")
+KEYS = ("label", "about", "sources", "brief", "scenes", "rules", "format", "publish", "category", "link", "writer",
+        "screenshots")
 WRITERS = ("model", "digest")
 REQUIRED = ("label", "sources", "rules", "format", "publish")
 MAX_SOURCE = 7000  # characters of the source the writer reads (a news cluster: 3 x 2 600)
@@ -90,11 +93,16 @@ def validate(name, p):
     writer = p.get("writer", "model")
     if writer not in WRITERS:
         bad(f"writer={writer!r} is not one of {', '.join(WRITERS)}")
+    shots = p.get("screenshots", [])
+    if not isinstance(shots, list) or not all(isinstance(d, str) and re.fullmatch(r"([a-z0-9-]+\.)+[a-z]{2,}", d)
+                                              for d in shots):
+        bad("screenshots is a list of domains (matsne.gov.ge), no scheme or path")
     cat = p.get("category")
     if cat is not None and not re.fullmatch(r"[a-z][a-z-]*", str(cat)):
         bad(f"category {cat!r} must be a lowercase key")
     return {**p, "name": name, "scenes": scenes, "link": link, "brief": brief, "category": cat,
-            "about": p.get("about", ""), "writer": writer}
+            "about": p.get("about", ""), "writer": writer,
+            "screenshots": shots}
 
 
 def load_all():

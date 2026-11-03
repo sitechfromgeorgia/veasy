@@ -2,8 +2,10 @@
 
 The writer's story JSON gives the text; this adds what comes from data and code: the voice and its word timings
 (speech.py), scene start frames, the date in the brand's time zone, the sources, the QR code, the music loop and the
-call to action (meta.py), and the brand pack itself (brand.py: colors, words, logo; its fonts and logo files are
-copied into the render's public dir). Then it runs `remotion render` and mixes the sound with ffmpeg.
+call to action (meta.py), the brand pack itself (brand.py: colors, words, logo; its fonts and logo files are
+copied into the render's public dir), the scenes' pictures (assets.py: the ledger's local files, copied into
+public/media/, with their label and credit) and the sound effects' cues (sfx.py, format key sfx). Then it runs
+`remotion render` and mixes the sound with ffmpeg (voice, music and the effects, each at one level).
 
   python -m tt_shorts.props stories/24835.json --variant editorial       # preview voice (edge-tts ka-GE)
   python -m tt_shorts.props stories/24835.json --variant kinetic --voice gemini --tone anchor
@@ -18,7 +20,8 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import art, brand, captions, directors, geo, icons, meta, rubrics, speech, store, swipe, variety, voices
+from tt_shorts import (art, assets, brand, captions, directors, geo, icons, meta, rubrics, sfx as effects, speech, store,
+                       swipe, variety, voices)
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -39,10 +42,15 @@ def transition_for(name, variant):
     return DEFAULT_TRANSITION[variant] if name in (None, "auto") else name
 
 
-def _scene(s, a, b, mark=None):
-    """One scene's props: its frames, a drawing as a safe tree instead of the writer's SVG, and its voice-synced mark
-    (speech.mark_frames: where, when and how the "em" phrase is drawn over; marks.py)."""
+def _scene(s, a, b, mark=None, media=None):
+    """One scene's props: its frames, a drawing as a safe tree instead of the writer's SVG, its voice-synced mark
+    (speech.mark_frames: where, when and how the "em" phrase is drawn over; marks.py) and its picture (assets.py:
+    the local file, the label and the credit, instead of the ledger reference)."""
     out = {**s, "from": a, "duration": b - a}
+    out.pop("media", None)
+    out.pop("show", None)
+    if s.get("media") and media and s["media"].get("asset") in media:
+        out["media"] = media[s["media"]["asset"]]
     if s.get("type") == "draw":
         out["art"] = art.sanitize(s.get("svg", ""))[0]
         out.pop("svg", None)
@@ -81,14 +89,16 @@ def choose(story, variant, transition="auto", music="family", director=None, sty
 
 
 def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts",
-          caption_design=None, music="family", transition="auto", style=None, outro=swipe.DEFAULT_OUTRO, director=None):
+          caption_design=None, music="family", transition="auto", style=None, outro=swipe.DEFAULT_OUTRO, director=None,
+          sfx="off"):
     """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off".
     transition: "auto" (variety picks one that suits the look) or one of TRANSITIONS.
     style: {hook, motif, enter, transition, music} to force; by default variety.choose() picks the least used, and its
     novelty guard re-rolls a plan too close to a recent video, all before the voice is made (props "novelty").
     outro: card | overlay | loop (swipe.py: the end card, a chip over the last scene, or a seamless loop).
     director: a directors.py id to use instead of the story's own "director" (render --director); with one, the
-    variety picks stay inside its subsets and props.style carries its motion numbers and current."""
+    variety picks stay inside its subsets and props.style carries its motion numbers and current.
+    sfx: off | on (format key): the sound effects' cues from the timeline (sfx.py), mixed by mix_audio."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     story = brand.with_say(story)  # the pack's own names (SiTech -> საი-თეჩი) are spoken right
     sid = story["id"]
@@ -114,6 +124,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     # first (choose -> variety.choose)
     st, chosen, loops, main, novelty = choose(story, variant, transition, music, director, style, outro)
 
+    media = assets.for_props(story, b, public, FPS)  # the ledger's files (fetched again, checked, if gc took them)
     audio, words = speech.voice(story, voice_dir, engine, tone, edge_voice)
     trim = swipe.lead_trim(words, swipe.leading_silence(audio)) if audio else 0.0  # the voice starts at once
     words = swipe.shift(words, trim)  # mix_audio cuts the same seconds from the track
@@ -138,7 +149,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "style": {**{k: st[k] for k in variety.OPTIONS}, **(directors.style(chosen) if chosen else {})},
         "novelty": novelty,  # the guard's report (variety.choose): the nearest recent video, re-rolls, a warning
         "outro": outro, "outroFrom": chip,  # the frame the outro chip comes in (None: the end card)
-        "scenes": icons.attach([_scene(s, a, z, m) for s, a, z, m in zip(
+        "scenes": icons.attach([_scene(s, a, z, m, media) for s, a, z, m in zip(
             shown, marks, marks[1:], speech.mark_frames(shown, words, marks, sid, meta.family(category, b)))], story),
         "motifIcon": icons.nodes(main) if st["motif"] == "icons" else None,  # the icon tiled in the background
         "words": words,
@@ -151,6 +162,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "voiceQa": story.get("qa", {}).get("voice", []),
     }
     geo.attach(props["scenes"], meta.family(category, b))  # a Georgian place: only what its map scene draws
+    props["sfx"] = effects.cues(props) if sfx == "on" else []  # the accents' times (sfx.py); ffmpeg mixes them
     (work / "props.json").write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
     return work, props
 
@@ -177,10 +189,12 @@ MUSIC_DB_SILENT = -1.0  # a preview without a voice: the music is the sound (abo
 
 
 def mix_audio(work, props, video, out):
-    """Picture from Remotion + voice + music, mixed by ffmpeg. The voice is levelled on its own; the music sits at
-    one constant level with a fade in and out, so nothing rises and falls under the speech (the owner's ear,
-    2026-11-01: the ducked bed pumped). The voice's leading silence beyond swipe.LEAD_KEEP is cut (props
-    "voiceTrim"; the word timings were moved by build()); a loop keeps the music level to the last frame."""
+    """Picture from Remotion + voice + music + sound effects, mixed by ffmpeg. The voice is levelled on its own; the
+    music sits at one constant level with a fade in and out, so nothing rises and falls under the speech (the
+    owner's ear, 2026-11-01: the ducked bed pumped). The voice's leading silence beyond swipe.LEAD_KEEP is cut
+    (props "voiceTrim"; the word timings were moved by build()); a loop keeps the music level to the last frame.
+    The effects (props "sfx": [{t, name}], sfx.py) are one track at one constant level (sfx.LEVEL_DB): no ducking,
+    no risers. Engine-free: any engine's picture gets the same sound from the same props."""
     dur = props["durationInFrames"] / FPS
     public = work / "public"
     inputs, graph, mix = ["-i", str(video)], [], []
@@ -199,6 +213,13 @@ def mix_audio(work, props, video, out):
         graph.append(f"[{k}:a]aresample=48000,atrim=0:{dur:.3f},volume={db}dB,afade=t=in:d={fade_in},"
                      f"afade=t=out:st={max(0, dur - fade_out):.3f}:d={fade_out}[bed]")
         mix.append("[bed]")
+    if props.get("sfx"):
+        k = inputs.count("-i")  # the music's -stream_loop makes len(inputs) // 2 wrong after it
+        track = effects.track(props["sfx"], dur, work / "sfx.wav")
+        inputs += ["-i", str(track)]
+        graph.append(f"[{k}:a]aresample=48000,aformat=channel_layouts=stereo,atrim=0:{dur:.3f},"
+                     f"volume={effects.LEVEL_DB}dB[sfx]")
+        mix.append("[sfx]")
     if not mix:
         subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(video), "-c", "copy", str(out)], check=True)
         return out

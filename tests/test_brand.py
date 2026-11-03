@@ -34,6 +34,16 @@ class Packs(unittest.TestCase):
             self.assertEqual(brand.load(n)["strings"]["at_least"], "მინიმუმ {n}")
         self.assertEqual(brand.for_remotion(brand.load())["strings"]["at_least"], "მინიმუმ {n}")
 
+    def test_media_words_and_allow_list_come_from_the_base_and_the_pack(self):  # assets.py, news rule N13
+        for n, own in (("tbilisi-today", "tbilisi.today"), ("sitech", "sitech.ge")):
+            b = brand.load(n)
+            self.assertEqual(b["strings"]["illustrative"], "საილუსტრაციო")
+            self.assertIn("{author}", b["strings"]["media_credit"])
+            self.assertEqual(b["media"]["own"], [own])  # the pack's own site
+            self.assertIn("matsne.gov.ge", b["media"]["official"])  # the base's official sites, merged
+            self.assertEqual(b["media"]["providers"][:2], ["openverse", "commons"])
+            self.assertIn("illustrative", brand.for_remotion(b)["strings"])
+
     def test_a_base_is_not_a_brand(self):
         with self.assertRaises(brand.BrandError):
             brand.load("_ka")
@@ -98,6 +108,13 @@ class Packs(unittest.TestCase):
             "baddesign": {**good, "design": ["no caps"]},
             "badaccent": {**good, "design": {"accent": {"allowed": ["glow"], "never": ["text"]}}},
             "badrules": {**good, "design": {"rules": "no caps"}},
+            # the media layer (assets.py, N13): known providers only, domains not URLs, the label never empty
+            "badprovider": {**good, "media": {"providers": ["openverse", "midjourney"]}},
+            "aiprovider": {**good, "media": {"providers": ["ai"]}},
+            "urlnotdomain": {**good, "media": {"own": ["https://tbilisi.today/stories"]}},
+            "badmediakey": {**good, "media": {"stock": True}},
+            "nolabel": {**good, "strings": {"illustrative": " "}},
+            "nocredit": {**good, "strings": {"media_credit": "{source}"}},
         }
         with tempfile.TemporaryDirectory() as d:
             d = pathlib.Path(d)

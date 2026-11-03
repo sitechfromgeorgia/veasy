@@ -6,6 +6,8 @@ data/
 # composed on the server by tools/compose_music.py (deterministic, ~19 MB): not in git
 assets/music/*.m4a
 assets/music/*.wav
+# synthesized by tools/compose_sfx.py (deterministic, composed on first use): not in git
+assets/sfx/*.wav
 remotion/node_modules
 compose/node_modules
 __pycache__/

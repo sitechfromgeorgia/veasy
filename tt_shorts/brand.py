@@ -14,6 +14,12 @@ they start with assets/. `python -m tt_shorts.engine options` lists the packs; a
 A pack is checked on load: a missing key, an unknown family or look, a voice preset that doesn't exist or a file
 that isn't there fails loudly, before anything is rendered.
 
+media: the media layer's data (assets.py): "providers", the order a scene's picture is searched in (openverse,
+  commons, pexels, pixabay: an empty list means no stock pictures for this pack), and the screenshot allow-list:
+  "official" (a base's government sites: matsne.gov.ge, gov.ge and its subdomains) and "own" (the pack's site).
+  strings.illustrative is the label every illustrative picture carries (news rule N13), strings.media_credit the
+  credit line's template ({author}, {licence}, {source}).
+
 logo.kind:
 say: the pack's spoken forms of its own names, merged under every story's "say" map (with_say).
 design (optional): the pack's own design rules for films an agent composes (tt_shorts/frame_md.py writes them into
@@ -36,11 +42,15 @@ DIR = ROOT / "brands"
 DEFAULT = "tbilisi-today"
 REQUIRED = ("name", "label", "lang", "utc_offset_hours", "colors", "fonts", "logo", "wordmark", "link", "footer",
             "ctas", "categories", "family_by_category", "default_family", "look_by_family", "voice_by_family",
-            "strings", "months", "weekdays", "package")
+            "strings", "months", "weekdays", "package", "media")
 COLORS = ("canvas", "panel", "ink", "muted", "accent", "line", "lineStrong", "grid", "ticker", "waiting", "markBg")
 COLOR_DEFAULTS = {"onAccent": "#FFFFFF"}  # text on the accent (the end card's button)
 STRINGS = ("outlets", "source_one", "source_many", "covered_by", "today", "preview_edge", "preview_silent",
-           "card_meta", "category_default", "at_least")
+           "card_meta", "category_default", "at_least", "illustrative", "media_credit")
+# media (assets.py): providers, the order a picture is searched in (assets.PROVIDERS, never screenshot or ai);
+# official and own, the domains a screenshot may come from (a base's official sites, the pack's own site)
+MEDIA_KEYS = ("providers", "official", "own")
+DOMAIN = re.compile(r"^(?=.{3,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$")
 FONT_WEIGHTS = ("400", "500", "600", "700")
 LOOKS = ("editorial", "kinetic", "cards")
 ACCENT_USES = ("dot", "active state", "button")  # design.accent.allowed: where a pack may put its accent
@@ -148,6 +158,7 @@ def validate(b, dirs):
         rules = design.get("rules", [])
         if not isinstance(rules, list) or not all(isinstance(r, str) and r.strip() for r in rules):
             raise BrandError(f"brand {name}: design.rules is a list of sentences")
+    media_problems(b)
     kind = b["logo"].get("kind")
     if kind not in ("tmark", "svg"):
         raise BrandError(f"brand {name}: logo.kind is tmark or svg")
@@ -157,6 +168,27 @@ def validate(b, dirs):
         files["logo"] = {"header": str(header), "end": str(_file(dirs, b["logo"]["end"], name))
                          if b["logo"].get("end") else str(header)}
     return files
+
+
+def media_problems(b):
+    """Raise BrandError when the pack's media key or its words for pictures are wrong (assets.py, news rule N13)."""
+    from tt_shorts import assets  # late: assets reads packs
+    name = b.get("name", "?")
+    m = b.get("media")
+    if not isinstance(m, dict) or set(m) - set(MEDIA_KEYS):
+        raise BrandError(f"brand {name}: media is {{{', '.join(MEDIA_KEYS)}}}")
+    searchable = [p for p in assets.PROVIDERS if p not in ("screenshot", "ai")]
+    provs = m.get("providers", [])
+    if not isinstance(provs, list) or not set(provs) <= set(searchable) or len(set(provs)) != len(provs):
+        raise BrandError(f"brand {name}: media.providers is an order of some of {', '.join(searchable)}")
+    for k in ("official", "own"):
+        doms = m.get(k, [])
+        if not isinstance(doms, list) or not all(isinstance(d, str) and DOMAIN.match(d) for d in doms):
+            raise BrandError(f"brand {name}: media.{k} is a list of domains (matsne.gov.ge), no scheme or path")
+    if not str(b["strings"]["illustrative"]).strip():
+        raise BrandError(f"brand {name}: strings.illustrative is the label an illustrative picture carries (N13)")
+    if "{author}" not in str(b["strings"]["media_credit"]) or "{licence}" not in str(b["strings"]["media_credit"]):
+        raise BrandError(f"brand {name}: strings.media_credit names {{author}} and {{licence}} (the credit a licence asks)")
 
 
 @functools.lru_cache(maxsize=16)
