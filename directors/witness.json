@@ -13,7 +13,7 @@
  "count": [4, 5], "pacing": "each quote held long enough to read (0.5 s + 0.3 s per word).",
  "hooks": ["lead", "stack"], "motifs": ["plain", "rules"], "enters": ["rise", "reveal"],
  "transitions": ["line", "wipe", "cut"], "current": "up",
- "motion": {"damping": 19.6, "stiffness": 120, "enter_frames": 12, "stagger_frames": 6},
+ "motion": {"damping": 22, "stiffness": 130, "enter_frames": 13, "stagger_frames": 5},
  "eligible": [{"quotes": 1, "speakers": 1}],
  "never": [],
  "gates": ["two_sides"]}

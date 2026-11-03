@@ -35,6 +35,22 @@ TICK_EVERY = 3  # frames between two ticks of a counting number
 COUNT_DELAY, COUNT_FRAMES = 4, 32  # remotion/src/scenes/index.tsx Stat: the number counts from frame 4 for 32
 WHOOSH_LEAD = 0.1  # a whoosh starts this much before the cut, so its middle lands on the moving scene
 CHART_STEP = 10  # frames between two bars' starts (remotion/src/scenes: 6 + i * 10)
+# Cues tailored per transition: snaps on cuts/louvers, pop on iris, whoosh on sweeps, silent on fade
+CUT_SOUND = {
+    "cut": "click",
+    "shutter": "click",
+    "blind": "click",
+    "iris": "pop",
+    "meter": "blip",
+    "line": "whoosh",
+    "panel": "whoosh",
+    "wipe": "whoosh",
+    "slide": "whoosh",
+    "push": "whoosh",
+    "split": "whoosh",
+    "corner": "whoosh",
+    "fade": None,
+}
 OPTIONS = {"off": "no sound effects (the default: renders are as before)",
            "on": "short accents on the timeline: a whoosh on a cut, a pop when a mark lands, ticks while a number "
                  "counts, blips as bars grow; one constant level under the voice, no ducking"}
@@ -56,11 +72,14 @@ def cues(props):
     """The accents of one video, from its props' timeline -> [{t, name}] (seconds)."""
     out = []
     scenes = props.get("scenes") or []
-    plain = props.get("transition") == "cut"
     for i, s in enumerate(scenes):
         a = s["from"]
         if i > 0:
-            out.append({"t": max(0.0, a / FPS - (0 if plain else WHOOSH_LEAD)), "name": "click" if plain else "whoosh"})
+            tr = s.get("transition") or props.get("transition") or "line"
+            snd = CUT_SOUND.get(tr, "whoosh")
+            if snd:
+                lead = 0.0 if snd in ("click", "pop", "blip") else WHOOSH_LEAD
+                out.append({"t": max(0.0, a / FPS - lead), "name": snd})
         m = s.get("mark")
         if m and isinstance(m.get("at"), (int, float)):
             out.append({"t": (a + m["at"]) / FPS, "name": "pop"})

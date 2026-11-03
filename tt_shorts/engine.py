@@ -103,7 +103,13 @@ def options(brand_name=None):
                         "panel": "an ink panel wipes through", "wipe": "the new scene is revealed left to right",
                         "slide": "a short slide and fade", "push": "the old scene leaves left, the new one comes from the right",
                         "dot": "an iris opens from the header's progress dot",
-                        "meter": "equaliser bars in ink rise over the old scene and fall away from the new one"},
+                        "meter": "equaliser bars in ink rise over the old scene and fall away from the new one",
+                        "fade": "a clean opacity fade between scenes, dipping through canvas",
+                        "shutter": "horizontal ink shutter slats sweep across along the current",
+                        "split": "an ink split wipe reveals the new scene outward from the center",
+                        "corner": "a diagonal geometric wipe sweeps across from the corner",
+                        "iris": "a circular ink iris opens from the center of the scene band",
+                        "blind": "vertical ink louver blinds rotate and wipe across the scene"},
         "outros": dict(swipe.ABOUT),
         "themes": {"about": "a pack's palettes (brand.json themes; brands.<pack>.themes lists them): a format's or "
                             "--theme's default (the pack's default theme: nothing changes), auto (variety: the least "
@@ -838,13 +844,6 @@ def gc_cmd(a):
     return out({"dry_run": a.dry_run, "removed": {k: len(v) for k, v in removed.items()}, "home": str(store.home())})
 
 
-
-def contact_sheet_cmd(a):
-    from tt_shorts import contact_sheet
-    res = contact_sheet.generate_contact_sheet_html(out_path=a.out, brand_filter=a.brand, theme_filter=a.theme)
-    return out(res, 0)
-
-
 def _source_tools():
     """What the document sources can use here (none of it blocks a news render)."""
     import importlib.util as iu
@@ -1064,10 +1063,6 @@ def main(argv=None):
     cp.add_argument("--as", dest="as_id", help="promote: the template id")
     cp.add_argument("--label", help="promote: the template's name")
     cp.add_argument("--about", help="promote: what it is for")
-    cs = sub.add_parser("contact-sheet", help="render every icon and drawing in every theme as an interactive contact sheet")
-    cs.add_argument("--out", help="target HTML file (default out/contact-sheet.html)")
-    cs.add_argument("--brand", default="all", help="all, sitech, or tbilisi-today")
-    cs.add_argument("--theme", default="all", help="all, dark, or light")
     a = ap.parse_args(argv)
     if a.cmd == "compose" and a.engine is None:
         a.engine = "gemini" if a.action == "render" else "silent"

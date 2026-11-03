@@ -12,7 +12,7 @@
  "count": [4, 5], "pacing": "brisk and even: one question per scene.",
  "hooks": ["blocks", "stack", "lead"], "motifs": ["grid", "dots", "icons"], "enters": ["rise", "slide", "scale"],
  "transitions": ["slide", "dot", "wipe"], "current": "right",
- "motion": {"damping": 22.8, "stiffness": 200, "enter_frames": 9, "stagger_frames": 4},
+ "motion": {"damping": 24, "stiffness": 220, "enter_frames": 8, "stagger_frames": 4},
  "eligible": [{"families": ["society", "economy", "tech"], "dates": 1, "quantities": 1},
               {"families": ["society", "economy", "tech"], "dates": 1, "places": 1},
               {"families": ["society", "economy", "tech"], "times": 1, "places": 1}],

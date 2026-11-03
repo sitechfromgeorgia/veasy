@@ -226,17 +226,17 @@ class Motion(unittest.TestCase):
         """ui.tsx / NewsShort.tsx move a slide entrance and every directional cut along style.flow (rise and reveal
         always go up, scale and dot have no direction); no director's choice moves against its current."""
         up = (0, -1)
-        moves = {"rise": up, "reveal": up, "scale": (0, 0)}
+        moves = {"rise": up, "reveal": up, "scale": (0, 0), "expand": (0, 0), "flip": (0, 0), "drop": (0, 0)}
         tsx = (ROOT / "remotion" / "src" / "NewsShort.tsx").read_text(encoding="utf-8")
         ui = (ROOT / "remotion" / "src" / "ui.tsx").read_text(encoding="utf-8")
         self.assertTrue("flowOf" in tsx and "flowOf" in ui, "the cuts and the entrance read style.flow")
         for name, d in directors.load_all().items():
             c = directors.CURRENTS[d["current"]]
             for e in d["enters"]:
-                v = c if e == "slide" else moves[e]
+                v = c if e in ("slide", "drift") else moves[e]
                 self.assertGreaterEqual(v[0] * c[0] + v[1] * c[1], 0, (name, e))
             for t in d["transitions"]:
-                v = c if t in ("line", "panel", "wipe", "slide", "push") else (0, 0)
+                v = c if t in ("line", "panel", "wipe", "slide", "push", "shutter", "blind", "corner") else (0, 0)
                 self.assertGreaterEqual(v[0] * c[0] + v[1] * c[1], 0, (name, t))
 
 

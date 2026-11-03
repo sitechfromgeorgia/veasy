@@ -12,6 +12,6 @@
  "count": [5, 6], "pacing": "one scene per dated beat, even in length.",
  "hooks": ["lead", "underline"], "motifs": ["rules", "plain"], "enters": ["slide", "reveal"],
  "transitions": ["slide", "push", "dot"], "current": "left",
- "motion": {"damping": 19.6, "stiffness": 120, "enter_frames": 14, "stagger_frames": 6},
+ "motion": {"damping": 24, "stiffness": 110, "enter_frames": 15, "stagger_frames": 6},
  "eligible": [{"dates": 2}, {"dates": 1, "times": 2}],
  "never": []}

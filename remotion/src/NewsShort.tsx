@@ -24,7 +24,8 @@ export const Background: React.FC = () => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const tile = motif === "icons" ? props.motifIcon : null;
-  const cell = tile ? 200 : motif === "dots" ? 48 : motif === "rules" ? 96 : 72;
+  const cell = tile ? 200 : motif === "dots" ? 48 : motif === "rules" ? 96
+    : motif === "waves" ? 80 : motif === "crosses" ? 64 : motif === "mesh" ? 80 : motif === "hash" ? 56 : 72;
   const pan = interpolate(frame, [0, durationInFrames], [0, cell]);
   const mark = {
     grid: <path d={`M${cell} 0H0V${cell}`} fill="none" stroke={GRID} strokeWidth={2} />,
@@ -33,6 +34,41 @@ export const Background: React.FC = () => {
     rules: <path d={`M0 ${cell - 1}H${cell}`} fill="none" stroke={GRID} strokeWidth={2} />,
     plain: null,
     icons: tile ? <IconTile nodes={tile} cell={cell} color={GRID} /> : null,
+    crosses: (
+      <path
+        d={`M${cell / 2 - 6} ${cell / 2}H${cell / 2 + 6} M${cell / 2} ${cell / 2 - 6}V${cell / 2 + 6}`}
+        fill="none"
+        stroke={GRID}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    ),
+    mesh: (
+      <path
+        d={`M0 ${cell / 2}L${cell / 2} 0L${cell} ${cell / 2}L${cell / 2} ${cell}Z`}
+        fill="none"
+        stroke={GRID}
+        strokeWidth={1.5}
+      />
+    ),
+    waves: (
+      <path
+        d={`M0 ${cell / 2} Q${cell / 4} ${cell / 4} ${cell / 2} ${cell / 2} T${cell} ${cell / 2}`}
+        fill="none"
+        stroke={GRID}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    ),
+    hash: (
+      <path
+        d={`M${cell * 0.25} ${cell * 0.75}L${cell * 0.75} ${cell * 0.25} M${cell * 0.45} ${cell * 0.95}L${cell * 0.95} ${cell * 0.45}`}
+        fill="none"
+        stroke={GRID}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    ),
   }[motif];
   return (
     <AbsoluteFill style={{ background: CANVAS }}>
@@ -117,13 +153,65 @@ const ChapterBar: React.FC<{ chapters: { from: number; to: number }[] }> = ({ ch
 };
 
 /** The cut between scenes, drawn over the new scene: "line" sweeps an ink line with the dot across, "panel" wipes an
- *  ink panel through (kinetic's own). The other transitions move the scene itself (sceneMotion). */
+ *  ink panel through (kinetic's own), "shutter" sweeps horizontal ink slats, "blind" rotates vertical slats.
+ *  The other transitions move the scene itself (sceneMotion). */
 const Cut: React.FC = () => {
   const frame = useCurrentFrame();
   const { props } = useTheme();
   const tr = props.transition ?? "line";
   const n = enterFrames(props);
   if (tr === "meter") return frame > n + METER_STAGGER ? null : <Meter t={frame} n={n} fall />;
+  if (tr === "shutter") {
+    if (frame > n + 6) return null;
+    const band = SCENE_BOTTOM - SCENE_TOP;
+    const slats = 6;
+    const h = band / slats;
+    const [fx] = flowOf(props.style, [1, 0]);
+    return (
+      <div style={{ position: "absolute", left: 0, top: SCENE_TOP, width: W, height: band, overflow: "hidden", pointerEvents: "none" }}>
+        {Array.from({ length: slats }).map((_, i) => {
+          const delay = (i * 4) / slats;
+          const p = interpolate(frame - delay, [0, n], [1, 0], {
+            extrapolateLeft: "clamp", extrapolateRight: "clamp",
+            easing: (x) => 1 - Math.pow(1 - x, 3),
+          });
+          const x = fx < 0 ? (1 - p) * -W : (1 - p) * W;
+          return (
+            <div key={i} style={{
+              position: "absolute", left: x, top: i * h, width: W, height: h + 1,
+              background: INK,
+            }} />
+          );
+        })}
+      </div>
+    );
+  }
+  if (tr === "blind") {
+    if (frame > n + 6) return null;
+    const band = SCENE_BOTTOM - SCENE_TOP;
+    const count = 8;
+    const gap = 8;
+    const w = (W - 2 * SIDE - gap * (count - 1)) / count;
+    const [fx] = flowOf(props.style, [1, 0]);
+    return (
+      <div style={{ position: "absolute", left: 0, top: SCENE_TOP, width: W, height: band, overflow: "hidden", pointerEvents: "none" }}>
+        {Array.from({ length: count }).map((_, i) => {
+          const order = fx < 0 ? count - 1 - i : i;
+          const delay = (order * 5) / count;
+          const p = interpolate(frame - delay, [0, n], [1, 0], {
+            extrapolateLeft: "clamp", extrapolateRight: "clamp",
+            easing: (x) => 1 - Math.pow(1 - x, 3),
+          });
+          return (
+            <div key={i} style={{
+              position: "absolute", left: SIDE + i * (w + gap), top: 0, width: w * p, height: band,
+              background: INK, transformOrigin: fx < 0 ? "right center" : "left center",
+            }} />
+          );
+        })}
+      </div>
+    );
+  }
   if (frame > n || (tr !== "line" && tr !== "panel")) return null;
   const [fx, fy] = flowOf(props.style, [1, 0]); // the sweep moves along the director's current (today: to the right)
   const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -214,6 +302,25 @@ const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, la
     const k = `${(1 - enter) * 100}%`;
     style.clipPath = wy !== 0 ? `inset(${k} 0 0 0)` : wx < 0 ? `inset(0 0 0 ${k})` : `inset(0 ${k} 0 0)`;
   }
+  if (tr === "split" && enter < 1) {
+    const k = `${(1 - enter) * 50}%`;
+    style.clipPath = `inset(0 ${k} 0 ${k})`;
+  }
+  if (tr === "corner" && enter < 1) {
+    const k = enter * 200;
+    style.clipPath = wx < 0
+      ? `polygon(100% 0, ${100 - k}% 0, 100% ${k}%)`
+      : `polygon(0 0, ${k}% 0, 0 ${k}%)`;
+  }
+  if (tr === "iris" && enter < 1) {
+    const cx = (W - 2 * left) / 2;
+    const cy = (SCENE_BOTTOM - SCENE_TOP) / 2;
+    style.clipPath = `circle(${enter * 1200}px at ${cx}px ${cy}px)`;
+  }
+  if (tr === "fade") {
+    opacity = Math.min(enter, out);
+    dy = 0;
+  }
   const along = (d: number) => -(1 - enter) * d + (1 - out) * d; // comes in from behind, leaves ahead
   if (tr === "slide") { dx = along(160) * mx; dy = along(160) * my; opacity = Math.min(enter, out); }
   if (tr === "push") { dx = along(W) * mx; dy = along(SCENE_BOTTOM - SCENE_TOP) * my; opacity = 1; }
@@ -235,7 +342,7 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
   if (v === "cards" && s.type !== "end") {
     const left = SIDE - 16;
     const m = sceneMotion(tr, frame, s, first, last, durationInFrames, left, props);
-    const own = tr === "line" || tr === "cut" || tr === "panel" || tr === "meter"; // the card's own entrance: it rises and settles
+    const own = tr === "line" || tr === "cut" || tr === "panel" || tr === "meter" || tr === "fade" || tr === "shutter" || tr === "blind"; // the card's own entrance: it rises and settles
     const enter = own && !first ? interpolate(frame, [0, enterFrames(props)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
       easing: (t) => 1 - Math.pow(1 - t, 3) }) : 1; // the first card is there at frame 0 (outro.tsx: the opening)
     const shown = Math.min(enter, m.opacity);

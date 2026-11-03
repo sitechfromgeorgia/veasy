@@ -60,16 +60,16 @@ export type Verb = "rises" | "falls" | "stops" | "opens" | "closes" | "moves" | 
 export type IconMotion = "draw" | "pop" | "pulse" | "count" | "morph" | "sketch";
 
 // the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python
-export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter";
+export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter" | "fade" | "shutter" | "split" | "corner" | "iris" | "blind";
 
 // the ending (tt_shorts/swipe.py OUTROS): the end card, a QR/link/CTA chip over the last scene, or a seamless loop
 export type Outro = "card" | "overlay" | "loop";
 
 // tt_shorts/variety.py: this video's own combination inside the brand and the look (layout and motion, never color)
 export type Style = {
-  hook: "stack" | "lead" | "blocks" | "underline";
-  motif: "grid" | "diagonal" | "dots" | "rules" | "plain" | "icons"; // icons: props.motifIcon tiled
-  enter: "rise" | "slide" | "reveal" | "scale";
+  hook: "stack" | "lead" | "blocks" | "underline" | "split" | "badge" | "bracket" | "rail";
+  motif: "grid" | "diagonal" | "dots" | "rules" | "plain" | "icons" | "crosses" | "mesh" | "waves" | "hash"; // icons: props.motifIcon tiled
+  enter: "rise" | "slide" | "reveal" | "scale" | "drop" | "expand" | "drift" | "flip";
   // tt_shorts/directors.py: the video's director, its motion personality and its current (absent: today's motion)
   director?: string;
   motion?: Motion;
@@ -138,9 +138,9 @@ export type Scene = SceneBase & {
   icon?: string; // sign, stat: the icon's library name (resolved in Python)
   verb?: Verb; // sign
   glyph?: IconNode[]; // sign, stat: the icon's shapes
-  motion?: IconMotion; // sign, stat: draw | pop | pulse | count | morph | sketch
-  morphGlyph?: IconNode[]; // sign: starting glyph for morph motion
-  chart?: "isotype" | "part_of_whole" | "unit";
+  chart?: "isotype" | "part_of_whole" | "unit_chart"; // isotype chart mode
+  motion?: IconMotion; // sign, stat: icon motion style (icons.MOTIONS)
+  morphGlyph?: IconNode[]; // sign: target glyph to morph towards
   isotype?: boolean; // stat: the value is drawn as that many icons (2-30 whole things)
   text?: string;
   by?: string;

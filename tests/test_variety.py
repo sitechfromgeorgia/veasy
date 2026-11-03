@@ -40,17 +40,17 @@ class Picks(unittest.TestCase):
         self.assertEqual({p["music"] for p in picks}, {"politics-1.m4a", "politics-2.m4a", "politics-3.m4a"})
 
     def test_the_meter_wipe_is_one_more_cut(self):  # phase 3: added to the looks it fits, never instead of one
-        self.assertEqual(variety.TRANSITIONS["editorial"], ("line", "wipe", "dot", "slide", "meter"))
-        self.assertEqual(variety.TRANSITIONS["kinetic"], ("panel", "push", "wipe", "cut", "meter"))
-        for look in ("editorial", "kinetic"):
-            picks = self.run_day(10, look)
+        self.assertEqual(variety.TRANSITIONS["editorial"], ("line", "wipe", "dot", "slide", "meter", "fade", "shutter", "iris"))
+        self.assertEqual(variety.TRANSITIONS["kinetic"], ("panel", "push", "wipe", "cut", "meter", "split", "corner", "shutter", "blind"))
+        for look, n in (("editorial", 16), ("kinetic", 18)):
+            picks = self.run_day(n, look)
             counts = [sum(p["transition"] == t for p in picks) for t in variety.TRANSITIONS[look]]
-            self.assertEqual(counts, [2] * 5, look)  # every cut, evenly
+            self.assertEqual(counts, [2] * len(variety.TRANSITIONS[look]), look)  # every cut, evenly
             variety_db = pathlib.Path(self.home.name) / "veasy.db"
             variety_db.unlink()
 
     def test_the_icon_motif_needs_an_icon(self):  # a story without one moves through the other motifs, evenly
-        picks = self.run_day(15, icon=False)
+        picks = self.run_day(18, icon=False)
         motifs = [p["motif"] for p in picks]
         self.assertNotIn("icons", motifs)
         others = variety.options_for("motif")
@@ -126,7 +126,7 @@ class Picks(unittest.TestCase):
     def test_report_measures_sameness(self):
         self.run_day(8)
         r = variety.report("tbilisi-today")
-        self.assertEqual(r["hook"]["distinct"], 4)
+        self.assertEqual(r["hook"]["distinct"], 8)
         self.assertEqual(r["scenes"]["most_used_share"], 1.0)  # every test video had the same scene order
 
 

@@ -33,7 +33,7 @@ NOTES = {"edge": "preview_edge", "silent": "preview_silent"}  # the pack's words
 CAPTIONS = os.environ.get("SHORTS_CAPTIONS", "page")  # page | roll (captions.py)
 
 
-TRANSITIONS = ("cut", "line", "panel", "wipe", "slide", "push", "dot", "meter")
+TRANSITIONS = ("cut", "line", "panel", "wipe", "slide", "push", "dot", "meter", "fade", "shutter", "split", "corner", "iris", "blind")
 DEFAULT_TRANSITION = {"editorial": "line", "cards": "line", "kinetic": "panel"}
 
 

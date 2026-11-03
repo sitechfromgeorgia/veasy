@@ -54,10 +54,15 @@ export const useOpening = () => useContext(Opening);
 const settle = (enter: Style["enter"], t: number, [fx, fy]: [number, number]): React.CSSProperties => {
   if (enter === "slide") return { transform: `translate(${(1 - t) * -16 * fx}px, ${(1 - t) * -16 * fy}px)` };
   if (enter === "scale") return { transform: `scale(${0.985 + 0.015 * Math.min(1.02, t)})`, transformOrigin: "left center" };
+  if (enter === "drop") return { transform: `translateY(${(1 - t) * -8}px)` };
+  if (enter === "expand") return { transform: `scale(${0.99 + 0.01 * Math.min(1.01, t)})`, transformOrigin: "center center" };
+  if (enter === "drift") return { transform: `translate(${(1 - t) * 8 * fx}px, ${(1 - t) * 6 * fy}px)` };
+  if (enter === "flip") return { transform: `translateY(${(1 - t) * 6}px)` };
   return { transform: `translateY(${(1 - t) * (enter === "reveal" ? 6 : 10)}px)` }; // rise, reveal (nothing masked)
 };
 
-/** How things come on screen: they rise, slide in from the left, come up from behind a mask, or scale up.
+/** How things come on screen: they rise, slide in, come up from behind a mask, scale up,
+ *  drop from above, expand outward from the center, drift directionally, or flip in perspective.
  *  Kinetic keeps its harder spring whichever motion the video has. In the opening they only settle (`Opening`). */
 export const In: React.FC<{ delay?: number; at?: number; style?: React.CSSProperties; children: React.ReactNode }> = (
   { delay = 0, at, style, children }) => {
@@ -83,6 +88,23 @@ export const In: React.FC<{ delay?: number; at?: number; style?: React.CSSProper
     css.opacity = Math.min(1, t * 3);
     css.clipPath = `inset(${(1 - Math.min(1, t)) * 100}% -4% -20% -4%)`;
     css.transform = `translateY(${(1 - t) * 32}px)`;
+  }
+  if (enter === "drop") {
+    css.transform = `translateY(${(1 - t) * -48}px)`;
+  }
+  if (enter === "expand") {
+    css.opacity = Math.min(1, t * 2.5);
+    css.clipPath = `inset(0 ${(1 - Math.min(1, t)) * 50}% 0 ${(1 - Math.min(1, t)) * 50}%)`;
+    css.transform = `scale(${0.97 + 0.03 * Math.min(1.01, t)})`;
+    css.transformOrigin = "center center";
+  }
+  if (enter === "drift") {
+    css.transform = `translate(${(1 - t) * 32 * fx}px, ${(1 - t) * 24 * fy}px) scale(${0.96 + 0.04 * Math.min(1.01, t)})`;
+    css.transformOrigin = "left center";
+  }
+  if (enter === "flip") {
+    css.transform = `perspective(600px) rotateX(${(1 - Math.min(1, t)) * 22}deg) translateY(${(1 - t) * 20}px)`;
+    css.transformOrigin = "center top";
   }
   return <div style={{ ...css, ...style }}>{children}</div>;
 };
@@ -187,11 +209,251 @@ export const Kicker: React.FC<{ text?: string; delay?: number }> = ({ text, dela
   return <span style={{ opacity: t }}><Chip live>{text}</Chip></span>;
 };
 
-export const Headline: React.FC<{ text?: string; delay?: number; size?: number; s?: Scene }> = ({ text, delay = 4, size = 60, s }) => {
+/** A mask reveal that clips content along an edge and slides it in. */
+export const MaskReveal: React.FC<{
+  delay?: number;
+  direction?: "up" | "down" | "left" | "right";
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+}> = ({ delay = 0, direction = "up", style, children }) => {
+  const opening = useOpening();
+  const m = useMotion();
+  const t = useIn(opening ? 0 : delay, m?.damping ?? 20, m?.stiffness ?? 170);
+  if (opening) return <div style={style}>{children}</div>;
+
+  let clip = "inset(0 0 0 0)";
+  let tr = "none";
+  if (direction === "up") {
+    clip = `inset(0 0 ${(1 - t) * 100}% 0)`;
+    tr = `translateY(${(1 - t) * 32}px)`;
+  } else if (direction === "down") {
+    clip = `inset(${(1 - t) * 100}% 0 0 0)`;
+    tr = `translateY(${(1 - t) * -32}px)`;
+  } else if (direction === "left") {
+    clip = `inset(0 ${(1 - t) * 100}% 0 0)`;
+    tr = `translateX(${(1 - t) * -32}px)`;
+  } else if (direction === "right") {
+    clip = `inset(0 0 0 ${(1 - t) * 100}%)`;
+    tr = `translateX(${(1 - t) * 32}px)`;
+  }
+
+  return (
+    <div style={{ clipPath: clip, transform: tr, opacity: Math.min(1, t * 2.5), ...style }}>
+      {children}
+    </div>
+  );
+};
+
+/** Kinetic typography for Georgian text: word-by-word reveal with mask reveals and emphasis blocks.
+ *  Georgian Mkhedruli script has uniform casing but deep descenders; sufficient clearance ensures no clipping. */
+export const WordReveal: React.FC<{
+  text: string;
+  delay?: number;
+  stagger?: number;
+  size?: number;
+  weight?: number;
+  lineHeight?: number;
+  color?: string;
+  style?: React.CSSProperties;
+  s?: Scene;
+  field?: string;
+  emStyle?: "inverted" | "underline";
+}> = ({
+  text,
+  delay = 4,
+  stagger = 3,
+  size = 60,
+  weight = 700,
+  lineHeight = 1.3,
+  color,
+  style,
+  s,
+  field,
+  emStyle = "inverted",
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const opening = useOpening();
+  const m = useMotion();
+
+  // Dynamic brand colors read inside component
+  const inkColor = color ?? INK;
+  const canvasColor = CANVAS;
+
+  const stag = m ? Math.max(1, Math.round((stagger * m.stagger_frames) / 5)) : stagger;
+  const damping = m?.damping ?? 20;
+  const stiffness = m?.stiffness ?? 170;
+
+  const lit = field && s?.beats?.lit?.[field];
+  const mark = field && s?.mark && s.mark.field === field ? s.mark : null;
+  const phrase = mark ? mark.phrase : null;
+  const words = text.split(/\s+/).filter(Boolean);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "baseline",
+        columnGap: Math.round(size * 0.28),
+        rowGap: Math.round(size * 0.16),
+        fontFamily: FONT,
+        fontWeight: weight,
+        fontSize: size,
+        lineHeight,
+        color: inkColor,
+        ...style,
+      }}
+    >
+      {words.map((w, i) => {
+        const beatFrame = lit && lit[i] !== undefined ? lit[i] : undefined;
+        const wordDelay = beatFrame !== undefined ? beatFrame : delay + i * stag;
+        const t = opening
+          ? 1
+          : spring({
+              frame: frame - wordDelay,
+              fps,
+              config: { damping, stiffness, mass: 0.8 },
+            });
+
+        const isEm = phrase && phrase.includes(w);
+        const opacity = opening ? 1 : Math.min(1, t * 2.5);
+        const trY = opening ? 0 : (1 - Math.min(1, t)) * (size * 0.4);
+
+        if (isEm && emStyle === "inverted") {
+          return (
+            <span key={i} style={{ display: "inline-block", overflow: "hidden", padding: "2px 0 4px" }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  opacity,
+                  transform: `translateY(${trY}px)`,
+                  background: inkColor,
+                  color: canvasColor,
+                  padding: `2px ${Math.round(size * 0.16)}px 4px`,
+                  borderRadius: 6,
+                  fontWeight: 800,
+                }}
+              >
+                {w}
+              </span>
+            </span>
+          );
+        }
+
+        return (
+          <span key={i} style={{ display: "inline-block", overflow: "hidden", padding: "2px 0 4px" }}>
+            <span style={{ display: "inline-block", opacity, transform: `translateY(${trY}px)` }}>
+              {w}
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
+/** Kinetic typography for Georgian text: line-by-line reveal with mask reveals. */
+export const LineReveal: React.FC<{
+  lines: string[];
+  delay?: number;
+  stagger?: number;
+  size?: number;
+  weight?: number;
+  lineHeight?: number;
+  color?: string;
+  style?: React.CSSProperties;
+  s?: Scene;
+  field?: string;
+}> = ({
+  lines,
+  delay = 4,
+  stagger = 4,
+  size = 60,
+  weight = 700,
+  lineHeight = 1.25,
+  color,
+  style,
+  s,
+  field,
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const opening = useOpening();
+  const m = useMotion();
+
+  const inkColor = color ?? INK;
+  const stag = m ? Math.max(1, Math.round((stagger * m.stagger_frames) / 5)) : stagger;
+  const damping = m?.damping ?? 20;
+  const stiffness = m?.stiffness ?? 170;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: Math.round(size * 0.15),
+        fontFamily: FONT,
+        fontWeight: weight,
+        fontSize: size,
+        lineHeight,
+        color: inkColor,
+        ...style,
+      }}
+    >
+      {lines.map((line, i) => {
+        const lineDelay = delay + i * stag;
+        const t = opening
+          ? 1
+          : spring({
+              frame: frame - lineDelay,
+              fps,
+              config: { damping, stiffness, mass: 0.8 },
+            });
+        const opacity = opening ? 1 : Math.min(1, t * 2.2);
+        const trY = opening ? 0 : (1 - Math.min(1, t)) * (size * 0.5);
+
+        return (
+          <div key={i} style={{ overflow: "hidden", padding: "4px 0 6px" }}>
+            <div style={{ opacity, transform: `translateY(${trY}px)` }}>
+              {s && field ? marked(s, `${field}.${i}`, line, { px: size }) : line}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+export const Headline: React.FC<{
+  text?: string;
+  delay?: number;
+  size?: number;
+  s?: Scene;
+  kinetic?: boolean | "word" | "line" | "mask";
+}> = ({ text, delay = 4, size = 60, s, kinetic }) => {
   if (!text) return null;
+  if (kinetic === "word") {
+    return (
+      <div style={{ marginTop: 24 }}>
+        <WordReveal text={text} delay={delay} size={size} s={s} field="headline" />
+      </div>
+    );
+  }
+  if (kinetic === "mask") {
+    return (
+      <MaskReveal delay={delay} direction="up" style={{ marginTop: 24 }}>
+        <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.2, color: INK }}>
+          {s ? marked(s, "headline", text, { px: size }) : text}
+        </div>
+      </MaskReveal>
+    );
+  }
   return (
     <In delay={delay}>
-      <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.2, color: INK, marginTop: 24 }}>{s ? marked(s, "headline", text, { px: size }) : text}</div>
+      <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.2, color: INK, marginTop: 24 }}>
+        {s ? marked(s, "headline", text, { px: size }) : text}
+      </div>
     </In>
   );
 };
