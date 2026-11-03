@@ -1,17 +1,79 @@
-{"id": "type", "label": "სიტყვა-დარტყმა",
+{
+ "id": "type",
+ "label": "სიტყვა-დარტყმა",
  "about": "The Kinetic Typographer: short lines of type carry the argument, cut on the beat.",
- "device": "type carries the argument", "form": "cut on the beat",
+ "device": "type carries the argument",
+ "form": "cut on the beat",
  "brief": [
   "The film is words on screen: every scene is a few strong words the voice is saying.",
   "First 2 s: the hook is 2-3 very short lines, the event in plain words.",
   "Many short scenes, each one beat: a point, a pair of sides, a short quote, a step.",
   "Keep every line short (2-4 words); never more than 3 lines in a scene.",
   "Only for light news: no politics, crime or deaths.",
-  "The viewer leaves with the story's one line in their head."],
- "scenes": {"points": 3, "quote": 2, "pair": 2, "steps": 2, "stat": 1, "sources": 1, "marker": 2, "compare": 1},
- "count": [5, 6], "pacing": "short scenes of about 2.5-4 s, each one beat.",
- "hooks": ["blocks", "stack"], "motifs": ["diagonal", "plain", "rules"], "enters": ["slide", "scale"],
- "transitions": ["panel", "push", "cut", "meter"], "current": "right",
- "motion": {"damping": 17, "stiffness": 240, "enter_frames": 8, "stagger_frames": 4},
- "eligible": [{"families": ["sports", "culture"]}],
- "never": [{"families": ["politics", "crime", "world"]}, {"deaths": true}]}
+  "The viewer leaves with the story's one line in their head."
+ ],
+ "scenes": {
+  "points": 3,
+  "quote": 2,
+  "pair": 2,
+  "steps": 2,
+  "stat": 1,
+  "sources": 1,
+  "marker": 2,
+  "compare": 1,
+  "glossary": 3,
+  "versus": 2,
+  "checklist": 2
+ },
+ "count": [
+  5,
+  6
+ ],
+ "pacing": "short scenes of about 2.5-4 s, each one beat.",
+ "hooks": [
+  "blocks",
+  "stack"
+ ],
+ "motifs": [
+  "diagonal",
+  "plain",
+  "rules"
+ ],
+ "enters": [
+  "slide",
+  "scale"
+ ],
+ "transitions": [
+  "panel",
+  "push",
+  "cut",
+  "meter"
+ ],
+ "current": "right",
+ "motion": {
+  "damping": 17,
+  "stiffness": 240,
+  "enter_frames": 8,
+  "stagger_frames": 4
+ },
+ "eligible": [
+  {
+   "families": [
+    "sports",
+    "culture"
+   ]
+  }
+ ],
+ "never": [
+  {
+   "families": [
+    "politics",
+    "crime",
+    "world"
+   ]
+  },
+  {
+   "deaths": true
+  }
+ ]
+}

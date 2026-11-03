@@ -1,6 +1,9 @@
-{"id": "data", "label": "ციფრი",
+{
+ "id": "data",
+ "label": "ციფრი",
  "about": "The Number: one hero number lands and the frame rebuilds around it.",
- "device": "a number lands", "form": "one frame that rebuilds",
+ "device": "a number lands",
+ "form": "one frame that rebuilds",
  "brief": [
   "The film is about one number from the articles: it is the hero and the first thing the viewer reads.",
   "First 2 s: the hook says the number and what it counts, in 2-3 short lines.",
@@ -8,11 +11,77 @@
   "Hold on the number: give the stat scene the longest part of the narration.",
   "Use charts (bars, trend, change) only when the articles state two or more values with one unit.",
   "No computed differences, no rounding, no number the articles don't have.",
-  "The viewer leaves remembering one number and what it means for them."],
- "scenes": {"stat": 4, "change": 2, "bars": 2, "trend": 2, "timeline": 2, "sources": 1, "share": 2, "compare": 1, "marker": 1},
- "count": [4, 5], "pacing": "few scenes, long holds on the numbers; the number scene is the longest.",
- "hooks": ["stack", "underline"], "motifs": ["grid", "rules", "plain", "icons"], "enters": ["rise", "scale"],
- "transitions": ["line", "dot", "cut", "meter"], "current": "up", "holds": ["stat"],
- "motion": {"damping": 20, "stiffness": 170, "enter_frames": 10, "stagger_frames": 5},
- "eligible": [{"quantities": 2}, {"quantities": 1, "percents": 1}, {"quantities": 1, "times": 2}],
- "never": [{"families": ["crime"], "deaths": true}]}
+  "The viewer leaves remembering one number and what it means for them."
+ ],
+ "scenes": {
+  "stat": 4,
+  "change": 2,
+  "bars": 2,
+  "trend": 2,
+  "timeline": 2,
+  "sources": 1,
+  "share": 2,
+  "compare": 1,
+  "marker": 1,
+  "ranking": 3,
+  "versus": 2,
+  "countdown": 2,
+  "budget": 3
+ },
+ "count": [
+  4,
+  5
+ ],
+ "pacing": "few scenes, long holds on the numbers; the number scene is the longest.",
+ "hooks": [
+  "stack",
+  "underline"
+ ],
+ "motifs": [
+  "grid",
+  "rules",
+  "plain",
+  "icons"
+ ],
+ "enters": [
+  "rise",
+  "scale"
+ ],
+ "transitions": [
+  "line",
+  "dot",
+  "cut",
+  "meter"
+ ],
+ "current": "up",
+ "holds": [
+  "stat"
+ ],
+ "motion": {
+  "damping": 20,
+  "stiffness": 170,
+  "enter_frames": 10,
+  "stagger_frames": 5
+ },
+ "eligible": [
+  {
+   "quantities": 2
+  },
+  {
+   "quantities": 1,
+   "percents": 1
+  },
+  {
+   "quantities": 1,
+   "times": 2
+  }
+ ],
+ "never": [
+  {
+   "families": [
+    "crime"
+   ],
+   "deaths": true
+  }
+ ]
+}
