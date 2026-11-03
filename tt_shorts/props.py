@@ -20,8 +20,8 @@ import pathlib
 import shutil
 import subprocess
 
-from tt_shorts import (art, assets, brand, captions, directors, geo, icons, meta, rubrics, sfx as effects, speech, store,
-                       swipe, variety, voices)
+from tt_shorts import (art, assets, beats as beat_track, brand, captions, chapters as chapters_of, directors,
+                       geo, icons, meta, rubrics, sfx as effects, speech, store, swipe, variety, voices)
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -33,7 +33,7 @@ NOTES = {"edge": "preview_edge", "silent": "preview_silent"}  # the pack's words
 CAPTIONS = os.environ.get("SHORTS_CAPTIONS", "page")  # page | roll (captions.py)
 
 
-TRANSITIONS = ("cut", "line", "panel", "wipe", "slide", "push", "dot")
+TRANSITIONS = ("cut", "line", "panel", "wipe", "slide", "push", "dot", "meter")
 DEFAULT_TRANSITION = {"editorial": "line", "cards": "line", "kinetic": "panel"}
 
 
@@ -103,7 +103,8 @@ def choose(story, variant, transition="auto", music="family", director=None, sty
 
 def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speech.EDGE_VOICES["eka"], platform="shorts",
           caption_design=None, music="family", transition="auto", style=None, outro=swipe.DEFAULT_OUTRO, director=None,
-          sfx="off", theme="default"):
+          sfx="off", theme="default", beats="on",
+          chapters="off"):
     """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off".
     transition: "auto" (variety picks one that suits the look) or one of TRANSITIONS.
     style: {hook, motif, enter, transition, music} to force; by default variety.choose() picks the least used, and its
@@ -113,7 +114,9 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     variety picks stay inside its subsets and props.style carries its motion numbers and current.
     sfx: off | on (format key): the sound effects' cues from the timeline (sfx.py), mixed by mix_audio.
     theme: "default" (the pack's), "auto" (variety picks among the pack's allowed themes) or a theme's name
-    (theme_for); props.brand carries that theme's colors, props.theme its name, and its logo files are copied."""
+    (theme_for); props.brand carries that theme's colors, props.theme its name, and its logo files are copied.
+    beats: on | off (beats.py: a change inside each scene every 1.5-3 s, on the words); chapters: auto | on | off
+    (chapters.py: the "01 / 03" bar; auto: for a video of chapters.AUTO_SECONDS or more)."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     story = brand.with_say(story)  # the pack's own names (SiTech -> საი-თეჩი) are spoken right
     sid = story["id"]
@@ -172,7 +175,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
             shown, marks, marks[1:], speech.mark_frames(shown, words, marks, sid, meta.family(category, b)))], story),
         "motifIcon": icons.nodes(main) if st["motif"] == "icons" else None,  # the icon tiled in the background
         "words": words,
-        "captions": captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"]),
+        "captions": None,  # below, once the scenes are built (keyword captions read their em phrases and names)
         "voice": audio.name if audio else None, "voiceVolume": 1.0, "voiceTrim": trim,
         "music": bed.name if bed else None, "musicVolume": 0.5 if engine == "silent" else 0.22,
         "previewNote": b["strings"][NOTES[engine]] if engine in NOTES else None,
@@ -181,6 +184,12 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "voiceQa": story.get("qa", {}).get("voice", []),
     }
     geo.attach(props["scenes"], meta.family(category, b))  # a Georgian place: only what its map scene draws
+    props["captions"] = captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"],
+                                        keys=captions.candidates(props["scenes"], FPS) if design == "keyword" else None,
+                                        style=brand.keyword_style(b))
+    if beats != "off":  # a visible change every 1.5-3 s inside each scene, landed on the words (beats.py)
+        beat_track.attach(props["scenes"], words)
+    props["chapters"] = chapters_of.split(props["scenes"], marks[-1], chapters)  # "01 / 03" (chapters.py), or None
     props["sfx"] = effects.cues(props) if sfx == "on" else []  # the accents' times (sfx.py); ffmpeg mixes them
     (work / "props.json").write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
     return work, props
@@ -277,7 +286,7 @@ if __name__ == "__main__":
     ap.add_argument("--voice", default="edge", choices=["edge", "gemini", "silent"])
     ap.add_argument("--tone", help=f"gemini preset: {', '.join(voices.PRESETS)}")
     ap.add_argument("--edge-voice", default="eka", choices=list(speech.EDGE_VOICES))
-    ap.add_argument("--captions", choices=["page", "roll"], help="caption design (default SHORTS_CAPTIONS or page)")
+    ap.add_argument("--captions", choices=list(captions.DESIGNS), help="caption design (default SHORTS_CAPTIONS or page)")
     ap.add_argument("--outro", default=swipe.DEFAULT_OUTRO, choices=swipe.OUTROS, help="end card, chip overlay or loop")
     ap.add_argument("--still", help="comma-separated frame numbers: PNG stills instead of the video")
     ap.add_argument("--out", default=str(ROOT / "out"))

@@ -48,8 +48,9 @@ import subprocess
 import sys
 
 from tt_shorts import brand as packs
-from tt_shorts import (assets, captions, catalog, directors, formats, geo, icons, ka_check, kaeasy, meta, motion_rules,
-                       news_check, programs, props, rubrics, sfx, speech, store, swipe, variety, voices)
+from tt_shorts import (assets, captions, catalog, chapters, directors, formats, geo, icons, ka_check, kaeasy,
+                       meta, motion_rules, news_check, programs, props, rubrics, sfx, speech, store, swipe,
+                       variety, voices)
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -98,7 +99,8 @@ def options(brand_name=None):
                         "cut": "a plain cut, the old scene just ends", "line": "an ink line with the dot sweeps across",
                         "panel": "an ink panel wipes through", "wipe": "the new scene is revealed left to right",
                         "slide": "a short slide and fade", "push": "the old scene leaves left, the new one comes from the right",
-                        "dot": "an iris opens from the header's progress dot"},
+                        "dot": "an iris opens from the header's progress dot",
+                        "meter": "equaliser bars in ink rise over the old scene and fall away from the new one"},
         "outros": dict(swipe.ABOUT),
         "themes": {"about": "a pack's palettes (brand.json themes; brands.<pack>.themes lists them): a format's or "
                             "--theme's default (the pack's default theme: nothing changes), auto (variety: the least "
@@ -108,8 +110,17 @@ def options(brand_name=None):
                    "pack": {t: {"label": s["label"], "allowed": s["allowed"], "mode": packs.mode(s["colors"])}
                             for t, s in b["themes"].items()},
                    "known": formats.themes_known()},
+        "beats": {"on": "a change inside every scene each 1.5-3 s on the words: items and labels come in when said, "
+                        "quotes and points light up a phrase a beat, rules, bars, runs and maps step on (beats.py)",
+                  "off": "each scene's own stagger (texts in by 40 % of the scene), as before"},
+        "chapters": {"off": "the progress rule (default)", "on": "\"01 / 03\" and a segmented bar in the header, "
+                     f"chapters of {chapters.MIN_SCENES}+ scenes by code (a digest's chapter cards open its stories)",
+                     "auto": f"on for a video of {chapters.AUTO_SECONDS} s or more"},
         "captions": {"page":"a fixed two-line block; words light up as spoken (most stable)",
-                     "roll": "a three-line teleprompter that scrolls continuously"},
+                     "roll": "a three-line teleprompter that scrolls continuously",
+                     "keyword": "a two-line page in a dark box, the spoken word lit, and per page one keyword (a "
+                                "number, a name from the story or the scene's em phrase) in the pack's keyword style "
+                                f"({packs.keyword_style(b)} here)"},
         "voices": {name: {"label": p["label"], "voice": p["voice"], "approved": name in voices.APPROVED,
                           **({"brand": b["name"]} if name in (b.get("voices") or {}) else {})}
                    for name, p in presets.items()},
@@ -338,7 +349,7 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     work, p = props.build(str(story_path), fmt["look"], engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
                           caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
-                          outro=fmt["outro"], director=director, sfx=fmt["sfx"], theme=theme)
+                          outro=fmt["outro"], director=director, theme=theme, **formats.render_keys(fmt))
     checked = _probe_render(work, p)  # the layout probe: seconds, before the minutes of the render
     motion = motion_rules.check(p)  # with the real voice's timings: unreadable text holds the video, like the probe
     secs = p["durationInFrames"] / FPS
@@ -389,7 +400,7 @@ def _probe_render(work, p):
 def probe_cmd(a):
     from tt_shorts import probe
     fmt = formats.get(a.format, captions=a.captions, transition=a.transition, voice=a.voice, platform=a.platform,
-                      theme=a.theme)
+                      theme=a.theme, beats=a.beats, chapters=a.chapters)
     result = probe.story(a.story, fmt, a.look, a.engine, a.stills)
     return out(result, 1 if result["problems"] else 0)
 
@@ -441,7 +452,8 @@ def _format(a):
     name = a.format or program_format(a.story)
     return formats.get(name, look=a.look, captions=a.captions, transition=a.transition, outro=a.outro, voice=a.voice,
                        music=a.music, platform=a.platform, sfx=getattr(a, "sfx", None),
-                       theme=getattr(a, "theme", None))
+                       theme=getattr(a, "theme", None), beats=getattr(a, "beats", None),
+                       chapters=getattr(a, "chapters", None))
 
 
 def program_format(story_path):
@@ -473,7 +485,7 @@ def still(a):
     tone = None if fmt["voice"] == "family" else fmt["voice"]
     work, p = props.build(a.story, fmt["look"], a.engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
                           caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
-                          outro=fmt["outro"], director=a.director, theme=fmt["theme"])
+                          outro=fmt["outro"], director=a.director, theme=fmt["theme"], **formats.render_keys(fmt))
     frames = [int(x) for x in a.frames.split(",")] if a.frames else \
         [s["from"] + s["duration"] // 2 for s in p["scenes"]]  # default: the middle of every scene
     target = pathlib.Path(a.out) if a.out else store.home() / "renders" / store.safe(brand_of(story)) / store.today() / "stills"
@@ -718,7 +730,7 @@ def queue_cmd(a):
     from tt_shorts import queue
     if a.action == "add":
         overrides = {k: getattr(a, k) for k in ("look", "captions", "transition", "outro", "voice", "music", "platform",
-                                                 "director", "rubric", "part", "theme") if getattr(a, k)}
+                                                 "beats", "chapters", "director", "rubric", "part", "theme") if getattr(a, k)}
         job, created = queue.add(a.brand, a.source if not a.story else None, a.ref, a.format, overrides, a.story,
                                  a.priority, program=a.program)
         return out({"job": job, "created": created})
@@ -809,6 +821,11 @@ def _rules_of(story):
         return None
 
 
+def _beat_args(parser):
+    parser.add_argument("--beats", choices=formats.BEATS, help="on: a change inside every scene each 1.5-3 s (beats.py)")
+    parser.add_argument("--chapters", choices=formats.CHAPTERS, help="the \"01 / 03\" bar (chapters.py); auto: 40 s+")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="tt_shorts.engine", description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -825,6 +842,7 @@ def main(argv=None):
         r.add_argument("--captions", choices=formats.CAPTIONS)
         r.add_argument("--transition", choices=formats.TRANSITIONS, help="the cut between scenes (auto: the look's own)")
         r.add_argument("--outro", choices=formats.OUTROS, help="card (end card), overlay (a QR/link/CTA chip) or loop")
+        _beat_args(r)
         r.add_argument("--voice", help="family or a preset (see options)")
         r.add_argument("--music", help="family, off or a family name")
         r.add_argument("--sfx", choices=formats.SFX, help="sound effects on the timeline (default: the format's, off)")
@@ -870,6 +888,7 @@ def main(argv=None):
     pr.add_argument("--format", default="news")
     pr.add_argument("--captions", choices=formats.CAPTIONS)
     pr.add_argument("--transition", choices=formats.TRANSITIONS)
+    _beat_args(pr)
     pr.add_argument("--voice", help="family or a preset (it only changes the timing)")
     pr.add_argument("--platform")
     pr.add_argument("--engine", default="silent", choices=["gemini", "edge", "silent"],
@@ -883,6 +902,7 @@ def main(argv=None):
     pl.add_argument("--captions", choices=formats.CAPTIONS)
     pl.add_argument("--transition", choices=formats.TRANSITIONS)
     pl.add_argument("--outro", choices=formats.OUTROS)
+    _beat_args(pl)
     pl.add_argument("--voice", help="family or a preset (the timing is the silent engine's estimate either way)")
     pl.add_argument("--music", help="family, off or a family name (the loop the render would get)")
     pl.add_argument("--sfx", choices=formats.SFX, help="sound effects (the plan counts the cues)")
@@ -912,7 +932,8 @@ def main(argv=None):
     qp.add_argument("--ref")
     qp.add_argument("--story", help="an already written story file (skips writing)")
     qp.add_argument("--format", help="default: the program's format (news: news)")
-    for k in ("look", "captions", "transition", "outro", "voice", "music", "platform", "director", "rubric", "theme"):
+    for k in ("look", "captions", "transition", "outro", "voice", "music", "platform", "beats", "chapters", "director",
+              "rubric", "theme"):
         qp.add_argument(f"--{k}")
     qp.add_argument("--part", type=int, help="add: a continues job's part (ops/daily.py sets it from the stored state)")
     qp.add_argument("--priority", type=int, default=0)

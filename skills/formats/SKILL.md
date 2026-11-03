@@ -19,8 +19,10 @@ format choice. The map itself needs no format key; see `veasy:write-script`.)
 | Key | Values | Default |
 |---|---|---|
 | `look` | `auto` (by category), `editorial`, `kinetic`, `cards` | `auto` |
-| `captions` | `page` (fixed two-line block), `roll` (three-line teleprompter) | `page` |
-| `transition` | `auto` (varied per video among those that suit the look), `cut`, `line`, `panel`, `wipe`, `slide`, `push`, `dot` (an iris from the header's progress dot) | `auto` |
+| `captions` | `page` (fixed two-line block), `roll` (three-line teleprompter), `keyword` (the page's lines in a dark box, the spoken word lit, and per page one keyword code picks: the scene's em phrase, else a number, else a name from the story, drawn in the pack's `design.keyword` style: tbilisi.today an accent underline, SiTech its orange) | `page` |
+| `transition` | `auto` (varied per video among those that suit the look), `cut`, `line`, `panel`, `wipe`, `slide`, `push`, `dot` (an iris from the header's progress dot), `meter` (equaliser bars in ink rise over the old scene and fall away from the new one) | `auto` |
+| `beats` | `on` (a change inside every scene each 1.5-3 s on the words: items and labels come in when said, quotes and points light up a phrase a beat, the hook's rule, a stat's cells, a timeline's run and a map's camera step on), `off` (each scene's own stagger) | `on` |
+| `chapters` | `off`, `on` ("01 / 03" and a segmented bar where the progress rule was; chapters of 3+ scenes by code, the hook in chapter 1, a digest's chapter cards opening its stories; none when a video can't make two), `auto` (on from 40 s) | `off` |
 | `outro` | `card` (the end card: logo, QR, link, CTA), `overlay` (no end card: a QR/link/CTA chip slides in over the last scene), `loop` (the chip, then the last 0.5 s cross-fade into the hook's first frame: a seamless replay) | `card` |
 | `voice` | `family` (by category, from the brand pack) or a preset: `plain`, `anchor`, `warm`, `clear` (approved for tbilisi.today), `firm`, `documentary`, or a pack's own (`sitech`) | `family` |
 | `music` | `family` (by category), `off`, or a family: politics, economy, world, crime, sports, culture, tech, society | `family` |
@@ -31,7 +33,7 @@ format choice. The map itself needs no format key; see `veasy:write-script`.)
 
 Built-in: `news` (all defaults) and `news-roll` (roll captions); `formats/explainer.json` (25-45 s) is the
 default of the explainer and law programs; `formats/number.json` (20-25 s) is the rubric „დღის ციფრი“'s and
-`formats/digest.json` (45-60 s) the morning digest's (`veasy:rubrics`) (a program names its format: `veasy:programs`). `auto` and `family` follow the story's brand pack
+`formats/digest.json` (45-60 s, `chapters: auto`) the morning digest's (`veasy:rubrics`) (a program names its format: `veasy:programs`). `auto` and `family` follow the story's brand pack
 (`options --brand <name>` shows its table). tbilisi.today: hard news `editorial` + `anchor`, light news `kinetic`,
 service news `cards`; people's news `warm`, numbers and tech `clear`, sports `plain`. SiTech: its own `sitech`
 voice (Charon) for every family. A format works for every brand; a pack's own voice only for that pack.
@@ -52,7 +54,8 @@ only colors (and a logo drawn for that ground), never the layout, the motion or 
 
 Inside a format, every video gets its own hook layout (stack, lead, blocks, underline), background motif (grid,
 diagonal, dots, rules, plain, and `icons`: the story's main icon tiled faintly, only for a story that has one and
-never for crime or deaths), entrance (rise, slide, reveal, scale), transition (when `auto`) and music loop
+never for crime or deaths), entrance (rise, slide, reveal, scale), transition (when `auto`; `meter` in editorial and
+kinetic) and music loop
 (four per family): the least used lately for the brand (`options` → `variety`). So a format doesn't need to vary
 these by hand; fix one in a format only when a show must always look one way (e.g. `"transition": "cut"`).
 Each story's **director** (`veasy:directors`) narrows these choices and sets the motion and its direction. A

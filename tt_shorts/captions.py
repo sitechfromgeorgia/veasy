@@ -7,16 +7,22 @@ Why here and not in the browser (owner, 2026-11-02: "the captions jump, sometime
 - the old chunks were 1-3 words and changed about once a second (14 of 32 a single word, 6 under 0.5 s); lines here
   are filled to the measured width, pages last at least MIN_PAGE seconds and gaps under BRIDGE seconds are bridged.
 
-Two designs (remotion/src/Captions.tsx draws them):
-  page  a fixed two-line block; the words wait in grey and turn white as they are spoken, the red underline marks
-        the word being said; the block itself never moves, only a new page fades in.
-  roll  a teleprompter: lines in one column that scrolls up continuously with time; the middle line is large,
-        its neighbours small and fading. Its position is a pure function of time, so it cannot jump.
+Three designs (remotion/src/Captions.tsx draws them):
+  page     a fixed two-line block; the words wait in grey and turn white as they are spoken, the red underline marks
+           the word being said; the block itself never moves, only a new page fades in.
+  roll     a teleprompter: lines in one column that scrolls up continuously with time; the middle line is large,
+           its neighbours small and fading. Its position is a pure function of time, so it cannot jump.
+  keyword  the page's lines and pages in a dark box (the reference's karaoke captions): the word being said is lit,
+           and each page has at most one keyword, picked here: the scene's em phrase when the page says it, else a
+           number, else a name from the story (a who's, a link's, a quote's speaker, a where's place). It is drawn
+           in the pack's keyword style (brand.keyword_style: underline, block or tint) from the moment it is said.
+           Which words and which style are data in the layout, so any engine draws the same keyword.
 
 Times are in seconds; the composition converts them to frames.
 """
 import functools
 import pathlib
+import re
 
 from fontTools.ttLib import TTFont
 
@@ -26,7 +32,10 @@ W, RAIL_X = 1080, 940
 BAND = 2 * RAIL_X - W - 32  # 768 px: the caption band, left of the like/share rail
 PAD = 26  # the box's side padding
 MAX_W = BAND - 2 * PAD  # 716 px of text per line
-SIZES = {"page": 60, "roll": 58}
+SIZES = {"page": 60, "roll": 58, "keyword": 60}
+DESIGNS = tuple(SIZES)
+KEY_KINDS = ("em", "number", "name")  # a page's keyword, in this order of preference
+KEY_PAD = 8  # px a keyword's block reaches past its word on each side (it stays inside the box's padding)
 MIN_SIZE = 44
 LINE_HEIGHT = 1.22
 PAUSE = 0.40  # a silence this long starts a new line (and a new page)
@@ -130,17 +139,96 @@ def _word(w):
     return {"text": w["text"], "from": round(w["start"], 3), "to": round(w["end"], 3)}
 
 
-def layout(words, design="page", end=None, font=None):
+def _toks(text):
+    from tt_shorts import marks  # the marker's Georgian stems (აბონენტს / აბონენტი)
+    return marks.tokens(text)
+
+
+def _same(a, b):
+    from tt_shorts import marks
+    return marks.same(a, b)
+
+
+def candidates(scenes, fps=30):
+    """A video's keyword candidates from its built scenes (props["scenes"]): [{kind, text, at}]. em: each scene's
+    voice-synced mark (its phrase and the second it is said); name: the names the story shows (a who's or a link's
+    item names, a quote's speaker, a where's place), at None. Numbers are found in the words themselves."""
+    out = []
+    for s in scenes:
+        m = s.get("mark")
+        if m and m.get("phrase"):
+            out.append({"kind": "em", "text": m["phrase"], "at": round((s["from"] + m["at"]) / fps, 3)})
+    for s in scenes:
+        names = [it.get("name") for it in s.get("items") or [] if isinstance(it, dict) and s.get("type") in ("who", "link")]
+        names += [s.get("by")] if s.get("type") == "quote" else []
+        names += [s.get("place")] if s.get("type") == "where" else []
+        out += [{"kind": "name", "text": n, "at": None} for n in names if isinstance(n, str) and n.strip()]
+    return out
+
+
+def _run(want, toks):
+    """Start index of the token run `want` in toks (stems), or None."""
+    if not want:
+        return None
+    for i in range(len(toks) - len(want) + 1):
+        if all(_same(w, toks[i + k]) for k, w in enumerate(want)):
+            return i
+    return None
+
+
+def _key(page, ls, keys):
+    """A page's keyword: {line, from, to, kind} (word indices inside one of the page's lines, to inclusive), or
+    None. The scene's em phrase said on this page first, then a number, then a name; always inside one line."""
+    for kind in KEY_KINDS:
+        for li in page:
+            line = ls[li]
+            toks = [(_toks(w["text"]) or [""])[0] for w in line]
+            if kind == "number":
+                for i, w in enumerate(line):
+                    if re.search(r"\d", w["text"]):
+                        return {"line": li, "from": i, "to": i, "kind": kind}
+                continue
+            for c in keys or []:
+                if c["kind"] != kind:
+                    continue
+                want = _toks(c["text"])
+                i = _run(want, toks)
+                if i is None and kind == "name":  # a name said in part, in another case: its surname, ვარკეთილსა
+                    i = next((k for k, t in enumerate(toks) for w in want if len(w) >= 5 and _named(w, t)), None)
+                    want = want[:1]
+                if i is None:
+                    continue
+                if kind == "em" and c.get("at") is not None and abs(line[i]["start"] - c["at"]) > 1.0:
+                    continue  # the phrase said elsewhere, not where the scene marks it
+                return {"line": li, "from": i, "to": i + len(want) - 1, "kind": kind}
+    return None
+
+
+def _named(name, said):
+    """One word of a name against a spoken word: the same stem, or the same beginning but for a case ending (a
+    shared prefix of all but the last three letters, at least five)."""
+    if _same(name, said):
+        return True
+    n = 0
+    while n < min(len(name), len(said)) and name[n] == said[n]:
+        n += 1
+    return n >= max(5, min(len(name), len(said)) - 3)
+
+
+def layout(words, design="page", end=None, font=None, keys=None, style="underline"):
     """-> props["captions"]: {design, size, lineHeight, box, lines:[{start, words}], pages:[{start, end, lines}]}.
     `end` is the video's last second (the last page stays until TAIL after its last word, at most to `end`).
-    `font` is the woff2 the captions are drawn in (the brand pack's bold; default FiraGO Bold)."""
+    `font` is the woff2 the captions are drawn in (the brand pack's bold; default FiraGO Bold).
+    keyword design: `keys` are the story's candidates (candidates()), `style` the pack's keyword style; each page
+    may get "key" {line (index into lines), from, to (word indices in that line), kind}, and the layout "keyword":
+    the style."""
     if not words:
         return {"design": design, "size": SIZES[design], "lineHeight": LINE_HEIGHT, "lines": [], "pages": []}
     size = font_size(words, design, font)
     ls = lines(words, size, font)
     if design == "roll":
         ls = _merge_short_lines(ls, size, MIN_LINE, font)
-    pg = pages(ls) if design == "page" else [[l] for l in ls]
+    pg = pages(ls) if design in ("page", "keyword") else [[l] for l in ls]
     index = {id(l): k for k, l in enumerate(ls)}
     out_pages = []
     for k, p in enumerate(pg):
@@ -152,7 +240,11 @@ def layout(words, design="page", end=None, font=None):
         else:
             stop = last + TAIL if end is None else min(end, last + TAIL)
         out_pages.append({"start": round(start, 3), "end": round(stop, 3), "lines": [index[id(l)] for l in p]})
-    return {
+        if design == "keyword":
+            key = _key(out_pages[-1]["lines"], ls, keys)
+            if key:
+                out_pages[-1]["key"] = key
+    out = {
         "design": design,
         "size": size,
         "lineHeight": LINE_HEIGHT,
@@ -161,6 +253,9 @@ def layout(words, design="page", end=None, font=None):
         "lines": [{"start": round(max(0.0, l[0]["start"] - LEAD), 3), "words": [_word(w) for w in l]} for l in ls],
         "pages": out_pages,
     }
+    if design == "keyword":
+        out["keyword"] = style
+    return out
 
 
 def problems(cap, words, font=None):
@@ -178,8 +273,18 @@ def problems(cap, words, font=None):
     for a, b in zip(ps, ps[1:]):
         if b["start"] < a["start"]:
             out.append("pages out of order")
-        if cap["design"] == "page" and b["start"] - a["start"] < MIN_PAGE - 1e-6 and len(cap["lines"]) > 2:
+        if cap["design"] in ("page", "keyword") and b["start"] - a["start"] < MIN_PAGE - 1e-6 and len(cap["lines"]) > 2:
             out.append(f"page at {a['start']}s is up for {b['start'] - a['start']:.2f}s")
         if 0 < b["start"] - a["end"] < BRIDGE - 1e-6:
             out.append(f"hidden gap of {b['start'] - a['end']:.2f}s at {a['end']}s (the caption would blink)")
+    for p in ps:  # a keyword sits inside one of its page's lines, and its block inside the box
+        k = p.get("key")
+        if not k:
+            continue
+        if k["line"] not in p["lines"] or not 0 <= k["from"] <= k["to"] < len(cap["lines"][k["line"]]["words"]):
+            out.append(f"page at {p['start']}s: its keyword is not inside one of its lines")
+            continue
+        text = " ".join(w["text"] for w in cap["lines"][k["line"]]["words"])
+        if width(text, size, font) + 2 * KEY_PAD > MAX_W + 2 * PAD:
+            out.append(f"page at {p['start']}s: the keyword's block reaches past the box")
     return out

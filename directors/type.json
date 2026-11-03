@@ -11,7 +11,7 @@
  "scenes": {"points": 3, "quote": 2, "pair": 2, "steps": 2, "stat": 1, "sources": 1, "marker": 2, "compare": 1},
  "count": [5, 6], "pacing": "short scenes of about 2.5-4 s, each one beat.",
  "hooks": ["blocks", "stack"], "motifs": ["diagonal", "plain", "rules"], "enters": ["slide", "scale"],
- "transitions": ["panel", "push", "cut"], "current": "right",
+ "transitions": ["panel", "push", "cut", "meter"], "current": "right",
  "motion": {"damping": 17, "stiffness": 240, "enter_frames": 8, "stagger_frames": 4},
  "eligible": [{"families": ["sports", "culture"]}],
  "never": [{"families": ["politics", "crime", "world"]}, {"deaths": true}]}

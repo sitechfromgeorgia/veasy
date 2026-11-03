@@ -5,7 +5,7 @@ import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, FONT, INK, LINE, LINE_STRONG, MUTED, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import { marked } from "../marker";
 import type { ArtNode, Scene } from "../types";
-import { Chip, Dot, fitSize, Frame, In, measure, useIn, useTheme } from "../ui";
+import { beat, Chip, Dot, fitSize, Frame, In, measure, useIn, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
 // text that reaches the lower part stays left of the like/share rail (a card's content starts further right)
@@ -112,7 +112,7 @@ export const Pair: React.FC<P> = ({ s, inner = INNER }) => {
     const it = items[i];
     if (!it) return null;
     return (
-      <In delay={4 + i * 10}>
+      <In delay={4 + i * 10} at={beat(s, `items.${i}`)}>
         <div style={{ width, boxSizing: "border-box", padding: "36px 48px 40px", background: PANEL, borderRadius: RADIUS,
           border: `2px solid ${i === 0 ? LINE_STRONG : LINE}` }}>
           <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.16, color: INK, whiteSpace: "nowrap" }}>
@@ -144,7 +144,8 @@ export const Steps: React.FC<P> = ({ s, inner = INNER }) => {
   const frame = useCurrentFrame();
   const ground = useGround();
   const width = low(inner);
-  const starts = stagger(items.length, s.duration, 6, 16);
+  // each step comes in when it is said (tt_shorts/beats.py), else on the stagger
+  const starts = stagger(items.length, s.duration, 6, 16).map((f, i) => beat(s, `items.${i}`) ?? f);
   const active = starts.reduce((a, st, i) => (frame >= st ? i : a), 0);
   const many = items.length > 3;
   const size = many ? 56 : 64;
@@ -164,7 +165,7 @@ export const Steps: React.FC<P> = ({ s, inner = INNER }) => {
                   strokeLinecap="round" strokeLinejoin="round" opacity={arrow > 0.9 ? 1 : 0} />
               </svg>
             )}
-            <In delay={starts[i]}>
+            <In delay={starts[i]} at={beat(s, `items.${i}`)}>
               <div style={{ display: "flex", alignItems: "center", gap: 32, width }}>
                 <div style={{ width: circle, height: circle, borderRadius: circle / 2, flex: "none", display: "flex", alignItems: "center",
                   justifyContent: "center", boxSizing: "border-box", fontFamily: FONT, fontWeight: 700, fontSize: circle * 0.46,

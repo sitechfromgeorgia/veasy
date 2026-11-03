@@ -8,7 +8,9 @@ import { Mark, marked } from "../marker";
 import { Compare, flapSize, Link, Rail, Share, StatNumber } from "./brushes";
 import { Bars, Change, Draw, Pair, Steps, Trend } from "./more";
 import { isoSpan, Isotype, railWidth, Sign } from "./sign";
-import { Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, measure, useIn, useOpening, useStyle, useTheme } from "../ui";
+import {
+  beat, Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, measure, stepped, useIn, useOpening, useStyle, useTheme,
+} from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
 // text that reaches the lower part stays left of the like/share rail (a card's content starts further right)
@@ -32,7 +34,8 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
   const leadSize = fitSize([lines[0] ?? ""], width, 72, 40);
   // the opening (frame 0 decides the swipe): the rule is half drawn and the dot is there; underlines draw quickly
   const opening = useOpening();
-  const grow = useIn(opening ? 2 : 8 + lines.length * 5, 22, 120);
+  // with a beat track the rule steps on with the voice, a stage a beat (tt_shorts/beats.py), and ends full as before
+  const grow = stepped(s, frame, useIn(opening ? 2 : 8 + lines.length * 5, 22, 120));
   const bar = opening ? 0.5 + 0.5 * grow : grow;
   return (
     <Frame s={s} head={false}>
@@ -86,8 +89,9 @@ export const Stat: React.FC<P> = ({ s, inner = INNER }) => {
   const span = iso ? isoSpan(s.duration) : 32;
   const frame = useCurrentFrame();
   const cells = 20;
-  const fill = interpolate(frame, [8, 40], [0, cells], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
-    easing: (x) => 1 - Math.pow(1 - x, 3) });
+  // the cell bar: its own fill, then a stage a beat (tt_shorts/beats.py)
+  const fill = cells * stepped(s, frame, interpolate(frame, [8, 40], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
+    easing: (x) => 1 - Math.pow(1 - x, 3) }));
   return (
     <Frame s={s}>
       <In delay={4}>
@@ -103,7 +107,7 @@ export const Stat: React.FC<P> = ({ s, inner = INNER }) => {
         ))}
         <Dot size={24} pulse />
       </div>)}
-      <In delay={14}>
+      <In delay={14} at={beat(s, "label")}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 64, lineHeight: 1.2, color: INK, marginTop: iso ? 40 : 48,
           maxWidth: iso ? railWidth(inner) : low(inner) }}>
           {marked(s, "label", s.label, { px: 64 })}
@@ -121,8 +125,9 @@ const split = (x?: string) => {
 export const Timeline: React.FC<P> = ({ s, inner = INNER }) => {
   const a = split(s.start), b = split(s.end);
   const frame = useCurrentFrame();
-  const run = interpolate(frame, [12, 44], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
-    easing: (x) => 1 - Math.pow(1 - x, 3) });
+  // the run from the start to the end: its own sweep, then a stage a beat; the end lights when it arrives
+  const run = stepped(s, frame, interpolate(frame, [12, 44], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
+    easing: (x) => 1 - Math.pow(1 - x, 3) }), 16);
   const tight = inner < INNER - 40; // inside a card there is less height
   const size = fitSize([a.time, b.time], inner - 160, tight ? 176 : 220, 112);
   const H_ = tight ? 440 : 600;
@@ -147,7 +152,7 @@ export const Timeline: React.FC<P> = ({ s, inner = INNER }) => {
           {block(b, run < 0.98, 18)}
         </div>
       </div>
-      <In delay={28}>
+      <In delay={28} at={beat(s, "label")}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: tight ? 48 : 56, lineHeight: 1.2, color: INK, marginTop: tight ? 24 : 40,
           maxWidth: low(inner) }}>
           {marked(s, "label", s.label, { px: tight ? 48 : 56 })}
@@ -162,7 +167,10 @@ export const Where: React.FC<P> = (p) => (p.s.map ? <MapWhere {...p} /> : <GridW
 
 const GridWhere: React.FC<P> = ({ s, inner = INNER }) => {
   const frame = useCurrentFrame();
-  const pin = useIn(2, 12, 180);
+  // the pin drops, then bounces once on every beat of the scene's steps (tt_shorts/beats.py) and rests as before
+  const bounce = (s.beats?.steps ?? []).reduce((a, f) =>
+    a + 0.14 * Math.sin(Math.PI * interpolate(frame - f, [0, 14], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })), 0);
+  const pin = useIn(2, 12, 180) * (1 + bounce);
   // A long place name (ველის სასაფლაო, ლილოს ტერიტორია) overflowed the frame at the 72px floor;
   // split it into two balanced lines and let fitSize pick a size that actually fits.
   const words = String(s.place ?? "").split(" ").filter(Boolean);
@@ -200,7 +208,7 @@ const GridWhere: React.FC<P> = ({ s, inner = INNER }) => {
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.12, color: INK, textAlign: "center",
           marginTop: 32, maxWidth: width, marginLeft: "auto", marginRight: "auto" }}>{placeLines.map((l, i) => <div key={i}>{l}</div>)}</div>
       </In>
-      <In delay={16}>
+      <In delay={16} at={beat(s, "sub")}>
         <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 44, lineHeight: 1.3, color: MUTED, textAlign: "center", marginTop: 16,
           maxWidth: width, marginLeft: "auto", marginRight: "auto" }}>
           {marked(s, "sub", s.sub, { px: 44 })}
@@ -219,7 +227,7 @@ export const Who: React.FC<P> = ({ s, inner = INNER }) => {
     <Frame s={s}>
       <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
         {items.map((it, i) => (
-          <In key={i} delay={6 + i * 7}>
+          <In key={i} delay={6 + i * 7} at={beat(s, `items.${i}`)}>
             <div style={{ display: "flex", alignItems: "center", gap: 40, padding: 40, width, background: PANEL, borderRadius: RADIUS,
               border: `2px solid ${i === 0 ? LINE_STRONG : LINE}` }}>
               <div style={{ position: "relative", width: 168, height: 168, borderRadius: 84, flex: "none", display: "flex",
@@ -231,7 +239,7 @@ export const Who: React.FC<P> = ({ s, inner = INNER }) => {
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: fitSize([it.name], width - 300, 68, 40), lineHeight: 1.2,
                   color: INK, whiteSpace: "nowrap" }}>{marked(s, `items.${i}.name`, it.name, { px: 60 })}</div>
-                <div style={{ fontFamily: FONT, fontWeight: 400, fontSize: 40, color: MUTED, marginTop: 8 }}>{it.role}</div>
+                <div style={{ fontFamily: FONT, fontWeight: 400, fontSize: 40, color: MUTED, marginTop: 8 }}>{marked(s, `items.${i}.role`, it.role)}</div>
               </div>
             </div>
           </In>
@@ -262,14 +270,16 @@ const pointsSize = (items: string[], text: number, room: number) => {
 export const Points: React.FC<P> = ({ s, inner = INNER }) => {
   const items = (s.items ?? []).slice(0, 3) as string[];
   const frame = useCurrentFrame();
-  const active = items.reduce((a, _, i) => (frame >= 6 + i * 10 ? i : a), 0);
+  // each point comes in when it is said (tt_shorts/beats.py), else on the stagger; the newest is the active one
+  const starts = items.map((_, i) => beat(s, `items.${i}`) ?? 6 + i * 10);
+  const active = items.reduce((a, _, i) => (frame >= starts[i] ? i : a), 0);
   // the room under the head: the scene band (1132) or a card's body (964), less the kicker and the headline
   const room = (inner < INNER - 40 ? 964 : 1132) - (s.kicker ? 80 : 0) - (s.headline ? 100 : 0) - 40;
   const size = pointsSize(items, low(inner) - 120 - 40 - 24 - 40, room);
   return (
     <Frame s={s}>
       {items.map((t, i) => (
-        <In key={i} delay={6 + i * 10}>
+        <In key={i} delay={6 + i * 10} at={beat(s, `items.${i}`)}>
           <div style={{ display: "flex", alignItems: "center", gap: 40, padding: "32px 0", borderTop: `2px solid ${LINE}`,
             width: low(inner) }}>
             <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 120, lineHeight: 1, width: 120, flex: "none",

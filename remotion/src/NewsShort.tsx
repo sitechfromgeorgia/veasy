@@ -64,9 +64,54 @@ const Header: React.FC = () => {
           {props.date.weekday} · {props.date.time} · {props.category}
         </div>
       </div>
-      <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 204, height: 4, background: LINE }} />
-      <div style={{ position: "absolute", left: SIDE, top: 204, height: 4, width: x, background: INK }} />
-      <div style={{ position: "absolute", left: SIDE + x - 10, top: 196 }}><Dot size={20} /></div>
+      {props.chapters && props.chapters.length > 1 ? <ChapterBar chapters={props.chapters} /> : (
+        <>
+          <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 204, height: 4, background: LINE }} />
+          <div style={{ position: "absolute", left: SIDE, top: 204, height: 4, width: x, background: INK }} />
+          <div style={{ position: "absolute", left: SIDE + x - 10, top: 196 }}><Dot size={20} /></div>
+        </>
+      )}
+    </>
+  );
+};
+
+const two = (n: number) => String(n).padStart(2, "0");
+
+/** The chapters (tt_shorts/chapters.py), where the progress rule was: "01 / 03" and one segment a chapter, as long
+ *  as the chapter; past ones full ink, the current one filling, the accent dot at its head ("now"). */
+const ChapterBar: React.FC<{ chapters: { from: number; to: number }[] }> = ({ chapters }) => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const k = chapters.reduce((a, c, i) => (frame >= c.from ? i : a), 0);
+  const gap = 12, label = 132;
+  const left = SIDE + label, width = W - SIDE - left - gap * (chapters.length - 1);
+  const total = Math.max(1, chapters[chapters.length - 1].to - chapters[0].from);
+  let x = left, head = left;
+  const segs = chapters.map((c, i) => {
+    const w = (width * (c.to - c.from)) / total;
+    const done = interpolate(frame, [c.from, Math.min(c.to, durationInFrames) - 1], [0, 1],
+      { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    const seg = { x, w, done };
+    if (i === k) head = x + w * done;
+    x += w + gap;
+    return seg;
+  });
+  // the number changes with a short lift as a chapter begins
+  const lift = interpolate(frame - chapters[k].from, [0, 8], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  return (
+    <>
+      <div data-probe="header" style={{ position: "absolute", left: SIDE, top: 188, height: 36, display: "flex", alignItems: "center",
+        fontFamily: FONT, fontWeight: 700, fontSize: 30, lineHeight: 1, whiteSpace: "nowrap" }}>
+        <span style={{ color: INK, display: "inline-block", transform: `translateY(${lift * 8}px)`, opacity: 1 - lift * 0.6 }}>{two(k + 1)}</span>
+        <span style={{ color: MUTED }}>{` / ${two(chapters.length)}`}</span>
+      </div>
+      {segs.map((sg, i) => (
+        <React.Fragment key={i}>
+          <div style={{ position: "absolute", left: sg.x, top: 204, height: 4, width: sg.w, background: LINE, borderRadius: 2 }} />
+          <div style={{ position: "absolute", left: sg.x, top: 204, height: 4, width: sg.w * sg.done, background: INK, borderRadius: 2 }} />
+        </React.Fragment>
+      ))}
+      <div style={{ position: "absolute", left: head - 10, top: 196 }}><Dot size={20} /></div>
     </>
   );
 };
@@ -78,6 +123,7 @@ const Cut: React.FC = () => {
   const { props } = useTheme();
   const tr = props.transition ?? "line";
   const n = enterFrames(props);
+  if (tr === "meter") return frame > n + METER_STAGGER ? null : <Meter t={frame} n={n} fall />;
   if (frame > n || (tr !== "line" && tr !== "panel")) return null;
   const [fx, fy] = flowOf(props.style, [1, 0]); // the sweep moves along the director's current (today: to the right)
   const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -108,6 +154,42 @@ const Cut: React.FC = () => {
       <div style={{ flex: 1, height: 4, background: INK }} /><Dot size={20} />
     </div>
   );
+};
+
+const METER_BARS = 14;
+const METER_STAGGER = 6; // frames between the first bar's move and the last's
+// each bar's peak, a share of the scene band: an equaliser's uneven row (fixed, so every render draws the same)
+const METER_PEAKS = [0.72, 0.94, 0.81, 1, 0.66, 0.9, 0.78, 0.97, 0.7, 0.88, 1, 0.75, 0.92, 0.8];
+
+/** The meter wipe (transition "meter"): equaliser bars in ink rise from the bottom of the scene band over the old
+ *  scene's last frames, then fall away from the new one, each bar a little after its neighbour. `t` counts frames
+ *  into the rise (the old scene's exit) or the fall (the new scene's entrance); `n` is how long each takes. */
+const Meter: React.FC<{ t: number; n: number; fall?: boolean; stagger?: number }> = ({ t, n, fall = false, stagger = METER_STAGGER }) => {
+  const [fx] = flowOf(useTheme().props.style, [1, 0]); // the bars ripple along the current (today: left to right)
+  const band = SCENE_BOTTOM - SCENE_TOP;
+  const gap = 12;
+  const w = (W - 2 * SIDE - gap * (METER_BARS - 1)) / METER_BARS;
+  return (
+    <div style={{ position: "absolute", left: 0, top: SCENE_TOP, width: W, height: band, overflow: "hidden", pointerEvents: "none" }}>
+      {METER_PEAKS.map((peak, i) => {
+        const order = fx < 0 ? METER_BARS - 1 - i : i;
+        const delay = (order * stagger) / (METER_BARS - 1);
+        const p = interpolate(t - delay, [0, n], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
+          easing: (x) => (fall ? x * x : 1 - Math.pow(1 - x, 3)) });
+        const h = band * peak * (fall ? 1 - p : p);
+        return <div key={i} style={{ position: "absolute", left: SIDE + i * (w + gap), bottom: 0, width: w, height: h,
+          background: INK, borderRadius: "6px 6px 0 0" }} />;
+      })}
+    </div>
+  );
+};
+
+/** The meter's rise, over the outgoing scene's exit (after its settled frame: the probe and the stills never see
+ *  it); its fall is the next scene's Cut. */
+const MeterRise: React.FC<{ duration: number }> = ({ duration }) => {
+  const frame = useCurrentFrame();
+  const from = duration - EXIT;
+  return frame < from ? null : <Meter t={frame - from} n={EXIT - 3} stagger={3} />;
 };
 
 const ENTER = 10; // frames a scene takes to come in (a director's motion.enter_frames replaces it)
@@ -153,7 +235,7 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
   if (v === "cards" && s.type !== "end") {
     const left = SIDE - 16;
     const m = sceneMotion(tr, frame, s, first, last, durationInFrames, left, props);
-    const own = tr === "line" || tr === "cut" || tr === "panel"; // the card's own entrance: it rises and settles
+    const own = tr === "line" || tr === "cut" || tr === "panel" || tr === "meter"; // the card's own entrance: it rises and settles
     const enter = own && !first ? interpolate(frame, [0, enterFrames(props)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
       easing: (t) => 1 - Math.pow(1 - t, 3) }) : 1; // the first card is there at frame 0 (outro.tsx: the opening)
     const shown = Math.min(enter, m.opacity);
@@ -245,6 +327,7 @@ export const NewsShort: React.FC<ShortProps> = (props) => {
           <Sequence key={i} from={s.from} durationInFrames={s.duration} layout="none">
             <SwipeSlot i={i}><SceneSlot i={i} /></SwipeSlot>
             {i > 0 && <Cut />}
+            {props.transition === "meter" && i < props.scenes.length - 1 && <MeterRise duration={s.duration} />}
           </Sequence>
         ))}
         <OutroChip />

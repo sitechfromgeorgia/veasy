@@ -61,7 +61,8 @@ def _flags(args: dict, names: tuple[str, ...]) -> list[str]:
     return out
 
 
-CHOICES = ("format", "look", "captions", "transition", "outro", "voice", "music", "platform", "engine", "director", "out")
+CHOICES = ("format", "look", "captions", "transition", "outro", "voice", "music", "platform", "beats", "chapters",
+           "engine", "director", "out")
 STORY = {"type": "string", "description": "Path to the story JSON (absolute, or relative to the Veasy folder)."}
 BRAND = {"type": "string", "description": "A brand pack in brands/ (tbilisi-today, sitech, ...; see veasy_options)."}
 PROGRAM = {"type": "string", "description": "What kind of video (skill veasy:programs): news (default), explainer "
@@ -77,9 +78,15 @@ RUBRIC = {"type": "string", "description": "A rubric (skill veasy:rubrics): numb
 CHOICE_PROPS = {
     "format": {"type": "string", "description": "A show format (see veasy_options), default news."},
     "look": {"type": "string", "enum": ["auto", "editorial", "kinetic", "cards"]},
-    "captions": {"type": "string", "enum": ["page", "roll"]},
-    "transition": {"type": "string", "enum": ["auto", "cut", "line", "panel", "wipe", "slide", "push", "dot"],
-                   "description": "The cut between scenes; auto is the look's own."},
+    "captions": {"type": "string", "enum": ["page", "roll", "keyword"],
+                 "description": "page (two lines that never move), roll (a teleprompter) or keyword (a dark box, the "
+                                "spoken word lit, one keyword a page in the pack's style)."},
+    "transition": {"type": "string", "enum": ["auto", "cut", "line", "panel", "wipe", "slide", "push", "dot", "meter"],
+                   "description": "The cut between scenes; auto is the look's own; meter: equaliser bars."},
+    "beats": {"type": "string", "enum": ["on", "off"],
+              "description": "on (default): a change inside every scene each 1.5-3 s, on the words."},
+    "chapters": {"type": "string", "enum": ["auto", "on", "off"],
+                 "description": "The \"01 / 03\" chapter bar in the header: off (default), on, auto (40 s and more)."},
     "outro": {"type": "string", "enum": ["card", "overlay", "loop"],
               "description": "The ending: card (the end card, default), overlay (no end card; a QR/link/CTA chip over "
                              "the last scene) or loop (the chip, then a cross-fade into the hook: a seamless replay)."},
@@ -139,7 +146,8 @@ TOOLS = {
                         "story": STORY,
                         "look": {"type": "string", "description": "auto (the story's own look), all, or a "
                                  "comma-separated list of editorial, kinetic, cards. Default auto."},
-                        **{k: CHOICE_PROPS[k] for k in ("format", "captions", "transition", "voice", "platform")},
+                        **{k: CHOICE_PROPS[k] for k in ("format", "captions", "transition", "voice", "platform",
+                                                        "beats", "chapters")},
                         "engine": {"type": "string", "enum": ["silent", "edge", "gemini"],
                                    "description": "silent (default, free, estimated timing) or a voice already "
                                                   "cached for this story (its real timing)."},
@@ -151,11 +159,12 @@ TOOLS = {
                     "overflow, the brand font with every glyph, no text shrunk too small. Free, about 5 s a look. "
                     "Every render runs it too; problems must be empty.",
                     lambda a: _engine("probe", [a["story"]] + _flags(a, ("look", "format", "captions", "transition",
-                                                                         "voice", "platform", "engine", "stills")))),
+                                                                         "voice", "platform", "beats", "chapters",
+                                                                         "engine", "stills")))),
     "veasy_plan": ({"type": "object", "properties": {
                        "story": STORY,
                        **{k: CHOICE_PROPS[k] for k in ("format", "look", "captions", "transition", "outro", "voice",
-                                                       "music", "platform", "director")},
+                                                       "music", "platform", "beats", "chapters", "director")},
                        "out": {"type": "string", "description": "Where to write the contact sheet (default: beside "
                                "where the render will go, <render>.plan.jpg)."}},
                     "required": ["story"]},
@@ -166,7 +175,7 @@ TOOLS = {
                    "Run it before veasy_render; problems must be empty.",
                    lambda a: _engine("plan", [a["story"]] + _flags(a, ("format", "look", "captions", "transition",
                                                                        "outro", "voice", "music", "platform",
-                                                                       "director", "out")))),
+                                                                       "beats", "chapters", "director", "out")))),
     "veasy_write": ({"type": "object", "properties": {
                         "program": PROGRAM,
                         "source": SOURCE,
@@ -203,7 +212,8 @@ TOOLS = {
                         "brand": BRAND, "rubric": RUBRIC,
                         "part": {"type": "integer", "description": "add: a continues job's part (ops/daily.py sets it)."},
                         **{k: CHOICE_PROPS[k] for k in ("format", "look", "captions", "transition", "outro",
-                                                        "voice", "music", "platform", "engine", "director")},
+                                                        "voice", "music", "platform", "beats", "chapters", "engine",
+                                                        "director")},
                         "priority": {"type": "integer", "description": "add: higher runs first (default 0)."},
                         "state": {"type": "string", "enum": ["queued", "writing", "rendering", "done", "held",
                                                              "failed", "cancelled"], "description": "list: filter."},
@@ -214,8 +224,8 @@ TOOLS = {
                     "job passed QA; held means rendered but QA found problems; failed has error_class and error.",
                     lambda a: _engine("queue", [a["action"]] + ([str(a["id"])] if a.get("id") else []) + _flags(
                         a, ("program", "source", "ref", "story", "brand", "format", "look", "captions", "transition", "outro",
-                            "voice", "music", "platform", "engine", "director", "rubric", "part", "priority", "state",
-                            "max")))),
+                            "voice", "music", "platform", "beats", "chapters", "engine", "director", "rubric", "part",
+                            "priority", "state", "max")))),
     "veasy_doctor": ({"type": "object", "properties": {}},
                      "Is this machine ready to render? ffmpeg, Remotion, fonts, music, keys, kaeasy.",
                      lambda a: _engine("doctor", [])),

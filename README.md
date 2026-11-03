@@ -165,6 +165,20 @@ About fifty videos a day go out without a person looking, so the engine looks fo
   scenes of one type in a row. Warnings in `plan`; only unreadable text holds a render (in its `problems`, like the
   probe: the job ends `held`).
 
+## Beats and chapters (phase 3 of docs/plan-v2.md)
+
+The reference changes something every 1.5-2.5 s; our scenes had all their text in by 40 % and then held still.
+- **Beats** (`tt_shorts/beats.py`, format key `beats: on|off`, on by default): code splits each scene's part of the
+  narration at the word timings into beats of 1.5-3 s and gives each a change the scene already draws: a list
+  item, a label or a sub line comes in when it is said; a quote's or a point's words light up a phrase a beat;
+  the hook's rule, a stat's cell bar, a timeline's run and a map's camera (or the grid's pin) step on. Remotion
+  reads `scene.beats` (frames); every device ends where the scene ended before, so the settled frames (probe,
+  golden stills) are unchanged. `motion_rules` counts the beats, so `still` is met by construction.
+- **Chapters** (`tt_shorts/chapters.py`, format key `chapters: off|on|auto`, off by default, auto from 40 s; the
+  digest's format has auto): „01 / 03“ and a segmented bar in the header, chapters of 3+ scenes by code.
+- **Keyword captions** (`captions: keyword`) and the **meter** wipe (`transition: meter`; variety offers it in
+  editorial and kinetic, the data and type directors allow it).
+
 ## Variety (`tt_shorts/variety.py`)
 
 So that a thousand videos don't look alike (the owner, 2026-11-02), each video gets its own combination inside the
@@ -331,9 +345,9 @@ some by name) or a name chooses. Remotion gets the theme through `props.brand` (
 
 | Band (px) | What |
 |---|---|
-| 80-210 | the pack's logo (mark + wordmark, or its header SVG), date, weekday · time · category, progress rule with the accent dot |
+| 80-210 | the pack's logo (mark + wordmark, or its header SVG), date, weekday · time · category, progress rule with the accent dot (with `chapters`: „01 / 03“ and one segment a chapter) |
 | 248-1380 | the scene (story text never goes lower) |
-| ~1380-1552 | captions, lower third (`tt_shorts/captions.py` lays them out once with the real font; `remotion/src/Captions.tsx` draws them): `page` = a fixed two-line block whose words light up as they are spoken, `roll` = a three-line teleprompter that scrolls continuously. The spoken word gets a red underline |
+| ~1380-1552 | captions, lower third (`tt_shorts/captions.py` lays them out once with the real font; `remotion/src/Captions.tsx` draws them): `page` = a fixed two-line block whose words light up as they are spoken, `roll` = a three-line teleprompter that scrolls continuously, `keyword` = the page's lines in a dark box, the spoken word lit and one keyword a page (em phrase, number or name) in the pack's `design.keyword` style. The spoken word gets a red underline |
 | 1580-1760 | moving ticker (category, date, outlets). Platforms draw their UI here, so this band carries no story text |
 | 1768-1880 | sources line; the pack's link on the left and its footer line on the right (tbilisi.today: „SiTech-ის პროექტი · sitech.ge“) |
 
@@ -431,8 +445,9 @@ real map, see below), who (items: name, role),
 points (items), quote (text, by, via), sources, end, and since 2026-11-02: draw (svg: the writer's drawing, made safe
 by `tt_shorts/art.py`), pair (items: title, sub; between), steps (items), bars (items: label, value; unit), trend
 (items: label, value; unit), change (before, after: label, value; unit), sign (icon, verb, label; `icons.py`), and
-an optional `icon` on stat. Formats also choose the cut between scenes (`transition`: auto, cut, line, panel, wipe,
-slide, push, dot) and the ending (`outro`: card, overlay, loop; the `end` scene is always written, the outro
+an optional `icon` on stat. Any scene may carry `show`, a few English words for the picture behind it (the media
+layer's; never shown as text). Formats also choose the cut between scenes (`transition`: auto, cut, line, panel,
+wipe, slide, push, dot, meter) and the ending (`outro`: card, overlay, loop; the `end` scene is always written, the outro
 decides whether it is shown). `stories/veasy-demo.json`, `stories/veasy-scenes.json`,
 `stories/veasy-icons.json` and `stories/veasy-brushes.json` use every scene type.
 

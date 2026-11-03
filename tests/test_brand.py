@@ -69,7 +69,15 @@ class Packs(unittest.TestCase):
         tt, st = brand.load("tbilisi-today"), brand.load("sitech")
         self.assertIn("text", tt["design"]["accent"]["never"])  # brand v1.2: the accent is never text
         self.assertTrue(tt["design"]["rules"])
-        self.assertNotIn("design", st)  # SiTech's pack sets no such rules (yet)
+        self.assertNotIn("accent", st["design"])  # SiTech's pack sets no such rules (yet)
+        self.assertNotIn("rules", st["design"])
+
+    def test_the_keyword_style_is_the_packs(self):  # captions.py design "keyword": how a page's keyword is drawn
+        tt, st = brand.load("tbilisi-today"), brand.load("sitech")
+        self.assertEqual(brand.keyword_style(tt), "underline")  # brand v1.2: the accent only as an active state
+        self.assertEqual(brand.keyword_style(st), "tint")  # SiTech's orange may color a word
+        self.assertEqual(brand.keyword_style({"name": "x"}), brand.KEYWORD_DEFAULT)
+        self.assertIn(brand.KEYWORD_DEFAULT, brand.KEYWORD_STYLES)
 
     def test_base_months_reach_both_packs(self):
         for n in brand.names():
@@ -115,6 +123,9 @@ class Packs(unittest.TestCase):
             "badmediakey": {**good, "media": {"stock": True}},
             "nolabel": {**good, "strings": {"illustrative": " "}},
             "nocredit": {**good, "strings": {"media_credit": "{source}"}},
+            # the keyword captions' highlight: a known style, and never the accent as text where the pack forbids it
+            "badkeyword": {**good, "design": {**good["design"], "keyword": "glow"}},
+            "tintedtext": {**good, "design": {**good["design"], "keyword": "tint"}},
         }
         with tempfile.TemporaryDirectory() as d:
             d = pathlib.Path(d)

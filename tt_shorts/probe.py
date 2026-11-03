@@ -315,7 +315,7 @@ def looks(choice, story):
 
 def story(story_path, fmt, look="auto", engine="silent", stills=None):
     """`engine probe`: one story in one or more looks, every scene at its settled frame, in one browser."""
-    from tt_shorts import props, speech
+    from tt_shorts import formats, props, speech
     t0 = time.time()
     data = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
     chosen = looks(look, data)
@@ -324,7 +324,7 @@ def story(story_path, fmt, look="auto", engine="silent", stills=None):
     for lk in chosen:
         work, p = props.build(str(story_path), lk, engine, tone, speech.EDGE_VOICES["eka"], fmt["platform"],
                               caption_design=fmt["captions"], music="off", transition=fmt["transition"],
-                              theme=fmt.get("theme"))
+                              theme=fmt.get("theme"), **formats.render_keys(fmt))
         frames = settled(p["scenes"])
         jobs.append({"props": str(work / "props.json"), "public": str(work / "public"), "frames": frames,
                      "out": str(pathlib.Path(stills).resolve()) if stills else None,
