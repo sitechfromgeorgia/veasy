@@ -219,7 +219,7 @@ def shape_problems(s):
     """Counts, item shapes and numbers of one scene (the brush's slots: catalog.slot_problems, then each type's
     own); a draw scene's SVG through art.sanitize; a rail's dates in order."""
     t = s.get("type")
-    out = catalog.slot_problems(s) + catalog.show_problems(s)
+    out = catalog.slot_problems(s)
     items = s.get("items")
     if t == "pair":
         for k, it in enumerate(items or []):
