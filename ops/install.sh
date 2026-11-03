@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Veasy: set up the render environment on the agent server (84.46.250.149).
-# Run by the owner from the Veasy checkout:  bash ops/install.sh [--align]
+# Run by the owner from the Veasy checkout:  bash ops/install.sh [--align] [--compose]
+# --compose also installs the second engine, HyperFrames (compose/); anything new on a server needs the owner's OK.
 # Idempotent. It installs no secrets and enables no timers: data/.env and the systemd timer (phase 1) are
 # separate, owner-approved steps.
 #
@@ -80,11 +81,12 @@ python3 -m venv .venv
 .venv/bin/pip install -q -r requirements.txt
 
 (cd remotion && npm ci --no-audit --no-fund && npx remotion browser ensure)  # frames: Remotion + chrome-headless-shell
-# the second engine, HyperFrames (pinned in compose/package.json), with telemetry and update checks off
-(cd compose && npm ci --no-audit --no-fund && HYPERFRAMES_NO_TELEMETRY=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1 \
-  HYPERFRAMES_SKIP_SKILLS=1 HYPERFRAMES_NO_AUTO_INSTALL=1 node node_modules/hyperframes/bin/hyperframes.mjs browser ensure)
+if [[ " $* " == *" --compose "* ]]; then  # the second engine, HyperFrames (compose/package.json), opt-in
+  (cd compose && npm ci --no-audit --no-fund && HYPERFRAMES_NO_TELEMETRY=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1 \
+    HYPERFRAMES_SKIP_SKILLS=1 HYPERFRAMES_NO_AUTO_INSTALL=1 node node_modules/hyperframes/bin/hyperframes.mjs browser ensure)
+fi
 
-if [[ "${1:-}" == "--align" ]]; then  # Georgian word timings for the Gemini voice (~2 GB with CPU torch)
+if [[ " $* " == *" --align "* ]]; then  # Georgian word timings for the Gemini voice (~2 GB with CPU torch)
   python3 -m venv .venv-align
   .venv-align/bin/pip install -q --upgrade pip
   .venv-align/bin/pip install -q -r requirements-align.txt
