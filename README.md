@@ -4,6 +4,10 @@
 kaeasy handles Georgian writing, Veasy handles video.
 - **What it does:** turns a story into a checked, voiced, captioned vertical video (1080×1920). It uses Remotion
   frames, a Gemini TTS voice with word-level alignment, composed music and an ffmpeg mix.
+- **Where it is going** ([docs/plan-v2.md](docs/plan-v2.md)): a general engine that belongs to no client, with two
+  first-class renderers, Remotion and HyperFrames, and both products' own agent skills installed beside Veasy's.
+  An agent can then make any video (news, explainers, data pieces, animated stories, product films), composing its
+  own forms and templates, while Veasy supplies the voice, captions, media, music, mix, checks and queue.
 - **For any client:** what makes a video one client's (colors, logo, link, footer, voice, categories, words) is a
   **brand pack**, a folder in `brands/`. Shipped: `tbilisi-today` (the default) and `sitech`. A new client is a new
   folder, no code.

@@ -1,8 +1,18 @@
-# Veasy v2: from templates to directed films
+# Veasy v2: from templates to directed films, on two engines
 
 Written 2026-11-03 at the owner's request: "every video looks alike: white text on black and set scripts; agents
 should be able to build their own templates." The reference is a friend's 90 s Short (a Georgian tech explainer,
 analysed below). This is the plan; `docs/next.md` holds the briefs an agent starts from.
+
+Three things the owner set the same day, which the whole plan follows:
+- **Veasy belongs to no client.** It is a general video engine for agents, like Remotion and HyperFrames are
+  general tools. tbilisi.today is its first client and one brand pack; its rules (one accent, never on text) are
+  that pack's, not Veasy's.
+- **Two engines, both first-class: Remotion and HyperFrames.** Neither is "the main one plus a lane". Veasy chooses
+  the engine per video and shares everything around it.
+- **Both engines' own skills come with Veasy.** An agent can make any video, not only news: a cartoon, an animated
+  story, a product film, an explainer, a data piece. It works with Remotion's and HyperFrames' skills directly,
+  and together with Veasy's (voice, captions, media, music, checks, queue). That is what makes it a strong engine.
 
 ## 1. Why the videos look alike
 
@@ -34,7 +44,41 @@ Directors, brushes and variety change the layout and the rhythm. They do not cha
 Its frame is grey panels on near-black, rounded cards, one font, a few tints. It's richer than ours not because of
 a presenter but because **every phrase has its own picture**, and the pictures are real (screenshots) or iconic.
 
-## 3. The target: three lanes on one media layer
+## 3. The target: two engines, three ways to make a film, one media layer
+
+**What the two engines share** (Veasy's part, engine-free): the story and its facts, programs and rule tiers,
+brand packs, the voice and its word timings, caption pages (laid out in Python), the media layer, music and sound
+effects, the ffmpeg mix, the checks (news, Georgian, probe, motion, brand, provenance), QA, package and the queue.
+
+**What each engine is best at:** Remotion, the typed kit (brushes in React, high volume, every video checked the
+same way). HyperFrames, films an agent composes in HTML/CSS/GSAP, its ~450-block registry, 3D and camera moves.
+A video's engine comes from its format, program, pack or director (`"engine": "remotion" | "hyperframes"`), and a
+film can mix them (HyperFrames clips inside a Remotion film, or the other way round) where phase 0 shows it works.
+
+### The engines' own skills, with Veasy's
+
+Veasy installs and keeps, pinned, the skills both products publish for agents:
+- **Remotion** (`remotion-dev/skills`): `remotion-create`, `remotion-best-practices`, `remotion-captions`,
+  `remotion-maps`, `remotion-multimedia`, `remotion-render` and the rest. The repo has no licence file, so Veasy
+  doesn't copy them; `ops/install.sh --skills` installs them with `npx skills add remotion-dev/skills` at a pinned
+  commit.
+- **HyperFrames** (`heygen-com/hyperframes`, Apache-2.0): `/hyperframes`, `/hyperframes-cli`,
+  `/hyperframes-registry`, and on demand `/remotion-to-hyperframes`, `/reverse-any-video`, `/figma`, `/slideshow`.
+  `/media-use` stays off by default: it can call HeyGen's paid APIs, and Veasy's media layer does that job.
+- **Motion design references** (MIT): `charlie947/motion-graphics-skills` (`vox-explainer`, `animated-chart`,
+  `title-sequence-3d`), for the agent to read when it composes.
+
+Veasy's own skills say how they fit together. `veasy:make-video` routes the request:
+- news and data go through Veasy's programs (facts, checks, queue);
+- anything else (a cartoon, an animated story, a product or brand film, a tutorial) is built with the engine's
+  own skills;
+- either way, the film gets Veasy's voice, captions, media, music, mix, QA and package, and the brand pack.
+
+A new kind of film doesn't need a change in Veasy: a program (`programs/<id>.json` with its rule tier: `news`,
+`claims`, or a new `story` tier for fiction, where nothing is checked against articles but the brand, the
+Georgian and the probe still are), a format, and the engine's skills.
+
+### The three ways to make a film
 
 ```
                  story (facts, code-owned identity)
@@ -55,11 +99,11 @@ a presenter but because **every phrase has its own picture**, and the pictures a
             mix (ffmpeg) -> QA -> package -> publish/hold
 ```
 
-### Lane A, the kit (Remotion, today's engine, made richer)
+#### Lane A, the kit (Remotion, today's engine, made richer)
 Stays the volume lane: cheap, safe, automatic. It gains what the media layer brings (a picture under every
 scene), beats instead of scenes, the chapter bar, keyword captions and sound effects (phases 1 and 3).
 
-### Lane B, composed (HyperFrames)
+#### Lane B, composed (HyperFrames)
 The agent writes the film. HyperFrames (HeyGen, Apache-2.0, v0.9.8, pinned) renders HTML/CSS/GSAP to MP4 and ships
 skills for agents and a registry of ~450 editable blocks (titles, kinetic type, charts, maps, transitions, camera
 moves). Veasy gives the agent a project, not a blank page:
@@ -76,7 +120,7 @@ from the DOM and runs the same checks as Lane A. A composed film that the owner 
 template**: its scenes become slots (`templates/<id>/`), it joins variety's rotation, and Lane A or another agent
 can reuse it. That is how agents add new forms without anyone writing a brush by hand.
 
-### Lane H, host (optional, SiTech first)
+#### Lane H, host (optional, SiTech first)
 The reference's format: the owner records himself talking (a phone is enough); Veasy cuts the pauses (silencedetect
 plus word timings), lays composed cutaways between the takes and picture-in-picture over them. No avatar. Only
 when the owner wants to be on camera.
@@ -130,6 +174,7 @@ pack allows it.
 | 0. Spike (2 days) | HyperFrames 0.9.8 on this PC and on the server; one composed 24835 by hand from a `frame.md` made from the pack; render time on the server's CPU; FiraGO and determinism | the film renders twice to the same frames; time per second of video known; integration decided (a whole film, or scene clips placed by Remotion) |
 | 1. Media layer (1 week) | `assets.py`, Pexels/Pixabay/Openverse/Commons, screenshots, MapLibre, one illustration model, SFX synth, the ledger, N13 | 24835 in Lane A with a picture under every scene, all licensed, N13 tests |
 | 2. Compose lane (1 week) | `engine compose` (scaffold, check, render), locked chrome, DOM text checks, probe on HyperFrames, review tier, `veasy:compose` skill | an agent makes a composed 24835 from the skill alone and it passes every check |
+| 2b. Both engines' skills (2-3 days) | `ops/install.sh --skills` (Remotion's and HyperFrames' skills, pinned), `"engine"` as a format/program key, `veasy:make-video` routing, a `story` rule tier for fiction | an agent makes a short animated story (no news) from a chat request with the engines' skills plus Veasy's voice, captions and checks, in two packs |
 | 3. Lane A upgrades | beat sheet writer, chapter bar, keyword captions, SFX, picture-in-picture cards, meter wipes as one more transition | the 3 s still warning gone from the shipped stories; a/b of old vs new at the same facts |
 | 4. Templates + rollout | promote an approved composed film to `templates/<id>`, variety rotation, the Hub agents (mark, then sizmara, then sitech), the host lane if wanted | two agent-made templates in rotation; mark makes a video from a chat request |
 | 5. Measure | retention per beat and per lane (ROADMAP D8), the bandit over lanes and directors | the choice of lane is driven by watch time |
@@ -145,6 +190,8 @@ pack allows it.
    monthly cap.
 5. **The host lane:** whether the owner wants to be on camera for SiTech.
 6. **HyperFrames' own media** (`media-use` can call HeyGen's paid APIs): off by default; only our media layer.
+7. **Which agents get which skills:** all of Veasy plus both engines' skills on every agent that makes videos, or
+   the engines' skills only where an agent composes (sizmara for design, mark for SMM).
 
 ## 9. What we don't do
 
