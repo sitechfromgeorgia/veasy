@@ -193,12 +193,26 @@ def _key(page, ls, keys):
                     continue
                 want = _toks(c["text"])
                 i = _run(want, toks)
+                if i is None and kind == "name":  # a name said in part, in another case: its surname, ვარკეთილსა
+                    i = next((k for k, t in enumerate(toks) for w in want if len(w) >= 5 and _named(w, t)), None)
+                    want = want[:1]
                 if i is None:
                     continue
                 if kind == "em" and c.get("at") is not None and abs(line[i]["start"] - c["at"]) > 1.0:
                     continue  # the phrase said elsewhere, not where the scene marks it
                 return {"line": li, "from": i, "to": i + len(want) - 1, "kind": kind}
     return None
+
+
+def _named(name, said):
+    """One word of a name against a spoken word: the same stem, or the same beginning but for a case ending (a
+    shared prefix of all but the last three letters, at least five)."""
+    if _same(name, said):
+        return True
+    n = 0
+    while n < min(len(name), len(said)) and name[n] == said[n]:
+        n += 1
+    return n >= max(5, min(len(name), len(said)) - 3)
 
 
 def layout(words, design="page", end=None, font=None, keys=None, style="underline"):

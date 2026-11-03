@@ -92,6 +92,10 @@ class Keyword(unittest.TestCase):
         self.assertEqual(k["kind"], "number")
         k = captions.layout(timed("ზელენსკი ამბობს რომ შეხვედრა იქნება."), "keyword", keys=name)["pages"][0]["key"]
         self.assertEqual((k["kind"], k["from"], k["to"]), ("name", 0, 0))  # a name said by its surname alone
+        place = [{"kind": "name", "text": "ვარკეთილი · ვაზისუბანი", "at": None}]
+        k = captions.layout(timed("ვარკეთილსა და ვაზისუბანში გაზი შეწყდება."), "keyword", keys=place)["pages"][0]["key"]
+        self.assertEqual((k["kind"], k["from"], k["to"]), ("name", 0, 0))  # a place in another case
+        self.assertNotIn("key", captions.layout(timed("გაზი შეწყდება ღამით."), "keyword", keys=place)["pages"][0])
 
     def test_an_em_phrase_said_elsewhere_is_not_this_pages(self):
         words = timed("გაზი შეწყდება. ორშაბათს კი გაზი შეწყდება ვაკეშიც.", step=0.6)
