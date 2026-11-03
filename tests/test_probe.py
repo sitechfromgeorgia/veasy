@@ -121,6 +121,55 @@ class Rules(unittest.TestCase):
         self.assertEqual(probe.missing_glyphs("5 ₾", cmaps["700"]), ["₾"])
 
 
+class Contrast(unittest.TestCase):
+    """A theme can put dark on dark or light on light: the probe judges each text against what is under it."""
+
+    def judged(self, color, ground, **kw):
+        t = {**text(**kw), "color": color, "ground": ground}
+        return [i for i in probe.rules(report(t)) if i["rule"] == "contrast"]
+
+    def test_readable_text_passes_in_either_theme(self):
+        self.assertEqual(self.judged([248, 250, 252, 1], [5, 8, 15]), [])  # white on the night canvas
+        self.assertEqual(self.judged([23, 24, 23, 1], [241, 237, 228]), [])  # coal on paper
+        self.assertEqual(self.judged([87, 85, 79, 1], [241, 237, 228], size=28, weight="400"), [])  # muted, small
+
+    def test_dark_on_dark_and_light_on_light_fail(self):
+        dark = self.judged([23, 24, 23, 1], [31, 32, 30])  # coal ink left on a coal panel (a theme's mistake)
+        self.assertEqual(len(dark), 1)
+        self.assertIn("under 3:1", dark[0]["detail"])
+        self.assertTrue(self.judged([241, 237, 228, 1], [251, 249, 244]))  # paper ink on a paper card
+
+    def test_small_regular_text_needs_more(self):
+        grey = ([130, 128, 122, 1], [241, 237, 228])  # about 3.4:1
+        self.assertEqual(self.judged(*grey, size=60), [])  # large: 3:1 is enough
+        self.assertEqual(self.judged(*grey, size=28, weight="700"), [])  # small but bold
+        self.assertIn("small text", self.judged(*grey, size=28, weight="400")[0]["detail"])
+
+    def test_alpha_and_opacity_count(self):
+        self.assertTrue(self.judged([23, 24, 23, 0.2], [241, 237, 228]))  # ink at 20%: a ghost
+        self.assertEqual(self.judged([23, 24, 23, 0.2], [241, 237, 228], opacity=0.5), [])  # mid-fade: not judged
+
+    def test_unknown_grounds_and_ornaments_are_not_judged(self):
+        self.assertEqual(self.judged([23, 24, 23, 1], None), [])  # over a picture: the probe can't know
+        t = {**text(), "color": [23, 24, 23, 0.28], "ground": [241, 237, 228], "decor": True}  # the quote's giant „
+        self.assertEqual([i for i in probe.rules(report(t)) if i["rule"] == "contrast"], [])
+
+    def test_the_hyperframes_probe_s_css_color_is_read_too(self):  # compose/probe.mjs reports computed CSS
+        t = {**text(), "color": "rgb(23, 24, 23)", "ground": [31, 32, 30]}
+        self.assertEqual([i["rule"] for i in probe.rules(report(t))], ["contrast"])
+        ok = {**text(), "color": "rgb(23, 24, 23)", "ground": [241, 237, 228]}
+        self.assertEqual(probe.rules(report(ok)), [])
+
+    def test_both_probes_report_the_ground(self):  # the page measures it, Python judges it
+        tsx = (ROOT / "remotion" / "src" / "Probe.tsx").read_text(encoding="utf-8")
+        mjs = (ROOT / "compose" / "probe.mjs").read_text(encoding="utf-8")
+        for src in (tsx, mjs):
+            self.assertIn("document.elementsFromPoint", src)
+            self.assertIn("ground", src)
+            self.assertIn("data-probe-decor", src)
+        self.assertIn("contrast", probe.RULES)
+
+
 class Reports(unittest.TestCase):
     def test_chrome_issues_are_reported_once_scene_issues_per_scene(self):
         bad_footer = text("x", (1000, 1833, 120, 33), region="footer", size=28)

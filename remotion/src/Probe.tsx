@@ -4,7 +4,11 @@
 //
 // Regions are marked in the composition with data-probe="scene|card|captions|header|footer|ticker" (the ticker
 // scrolls out of the frame by design and is skipped). data-probe-clip marks a box whose clipping is by design
-// (the roll captions' neighbour lines).
+// (the roll captions' neighbour lines). data-probe-decor marks a glyph that is ornament, faint by design (the quote
+// scene's giant „): it is measured, but not judged for contrast.
+//
+// For the contrast rule each text also reports its color and its ground (groundAt): what the page paints under it,
+// read from the DOM, in whichever theme the pack's colors are.
 import React, { useLayoutEffect } from "react";
 import { continueRender, delayRender, useCurrentFrame } from "remotion";
 import { W } from "./brand";
@@ -22,9 +26,57 @@ const opacityOf = (el: Element, root: Element) => {
   return o;
 };
 
-const collect = (frame: number, scenes: { from: number; duration: number; type: string }[]) => {
+type RGBA = [number, number, number, number];
+
+/** "rgb(1, 2, 3)" / "rgba(1, 2, 3, 0.5)" (what getComputedStyle gives) -> [r, g, b, a], or null (none, a url...). */
+const parseColor = (s: string | null | undefined): RGBA | null => {
+  const m = /^rgba?\(([^)]+)\)$/.exec((s ?? "").trim());
+  if (!m) return null;
+  const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+  return p.length >= 3 && p.every((x) => !Number.isNaN(x)) ? [p[0], p[1], p[2], p.length > 3 ? p[3] : 1] : null;
+};
+const SHAPES = new Set(["rect", "circle", "ellipse", "path", "polygon"]);
+
+/** The color an element paints behind what lies over it: its background (HTML) or its fill (an SVG shape), with
+ *  its opacity; "image" for a picture (its colors are unknown: the contrast rule skips the text); null for none. */
+const layerOf = (e: Element, root: Element): RGBA | "image" | null => {
+  const tag = e.tagName.toLowerCase();
+  if (tag === "img" || tag === "video" || tag === "canvas" || tag === "image") return "image";
+  const cs = getComputedStyle(e);
+  let c: RGBA | null = null;
+  if (e instanceof SVGElement) {
+    if (!SHAPES.has(tag)) return null;
+    c = parseColor(cs.fill);
+    if (c) c = [c[0], c[1], c[2], c[3] * parseFloat(cs.fillOpacity || "1")];
+  } else {
+    c = parseColor(cs.backgroundColor);
+    if (!c && cs.backgroundImage.includes("url(")) return "image";
+  }
+  if (!c || c[3] <= 0) return null;
+  return [c[0], c[1], c[2], c[3] * opacityOf(e, root)];
+};
+
+/** The text's ground: what is painted under the point (x, y) (every element there, top to bottom, siblings
+ *  included: document.elementsFromPoint), composited over the canvas -> [r, g, b], or null under a picture. */
+const groundAt = (x: number, y: number, root: Element, canvas: RGBA): number[] | null => {
+  const layers: RGBA[] = [];
+  for (const e of document.elementsFromPoint(x, y)) {
+    if (!root.contains(e)) continue;
+    const c = layerOf(e, root);
+    if (c === "image") return null;
+    if (!c) continue;
+    layers.push(c);
+    if (c[3] >= 0.999) break;
+  }
+  let g = [canvas[0], canvas[1], canvas[2]];
+  for (const c of layers.reverse()) g = g.map((v, i) => v * (1 - c[3]) + c[i] * c[3]);
+  return g.map((v) => Math.round(v));
+};
+
+const collect = (frame: number, scenes: { from: number; duration: number; type: string }[], canvasHex: string) => {
   const root = document.querySelector("[data-probe-root]");
   if (!root) return null;
+  const canvas = [...[1, 3, 5].map((i) => parseInt(canvasHex.slice(i, i + 2), 16) || 0), 1] as RGBA; // the theme's canvas, under everything
   const R = root.getBoundingClientRect();
   const k = R.width / W || 1;
   const box = (r: DOMRect): Box => [r1((r.left - R.left) / k), r1((r.top - R.top) / k), r1(r.width / k), r1(r.height / k)];
@@ -60,13 +112,20 @@ const collect = (frame: number, scenes: { from: number; duration: number; type: 
     // the layout, not an overflow), unioned over its lines.
     const lineH = svg ? NaN : parseFloat(cs.lineHeight) * scale;
     let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+    let first: DOMRect | null = null;
     for (const c of Array.from(range.getClientRects())) {
       if (!c.width && !c.height) continue;
+      first ??= c;
       const shrink = lineH > 0 ? Math.max(0, (c.height - lineH) / 2) : 0;
       l = Math.min(l, c.left); r = Math.max(r, c.right);
       t = Math.min(t, c.top + shrink); b = Math.max(b, c.bottom - shrink);
     }
-    if (!(r > l)) continue;
+    if (!(r > l) || !first) continue;
+    // the contrast rule's two colors: the text's own (its alpha times its opacity) and its ground, everything painted
+    // under the middle of its first line (probe.py judges them)
+    const ink = parseColor(svg ? cs.fill : cs.color);
+    const color = ink ? [ink[0], ink[1], ink[2], r1(ink[3] * (svg ? parseFloat(cs.fillOpacity || "1") : 1) * opacity * 100) / 100] : null;
+    const ground = groundAt(first.left + first.width / 2, first.top + first.height / 2, root, canvas);
     // overflow: how far the text reaches past an ancestor whose content is larger than its box (scrollWidth >
     // clientWidth), across and down, up to its region; a drawing's text past its <svg>.
     const over = { x: 0, y: 0, xIn: "", yIn: "", clipped: false };
@@ -100,6 +159,8 @@ const collect = (frame: number, scenes: { from: number; duration: number; type: 
       region: name, text, box: [r1((l - R.left) / k), r1((t - R.top) / k), r1((r - l) / k), r1((b - t) / k)],
       size: r1((parseFloat(cs.fontSize) * scale) / k), weight: cs.fontWeight, family: cs.fontFamily,
       opacity: r1(opacity), svg, overflow: over.x || over.y ? over : null, clipOk: !!el.closest("[data-probe-clip]"),
+      decor: !!el.closest("[data-probe-decor]"),
+      color, ground,
     });
   }
   const i = scenes.findIndex((s) => frame >= s.from && frame < s.from + s.duration);
@@ -142,7 +203,7 @@ export const Probe: React.FC = () => {
         timer = setTimeout(tick, 10);
         return;
       }
-      const data = collect(frame, props.scenes);
+      const data = collect(frame, props.scenes, props.brand.colors.canvas);
       if (data) console.log(`VEASY_PROBE ${JSON.stringify({ ...data, placed: placed(), fontsAtRender: atRender })}`);
       timer = null;
       continueRender(handle);
