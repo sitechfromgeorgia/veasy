@@ -1,6 +1,6 @@
 import React from "react";
 import { interpolate, useCurrentFrame } from "remotion";
-import { CANVAS, fill, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
+import { CANVAS, fill, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, QR_LIGHT, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import type { Scene } from "../types";
 import { MapWhere } from "./map";
 import { Agree, Chapter } from "./rubrics";
@@ -289,7 +289,7 @@ export const Quote: React.FC<P> = ({ s }) => {
   const mark = useIn(0, 12, 180);
   return (
     <Frame s={s}>
-      <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 320, lineHeight: 0.5, height: 120, color: LINE_STRONG,
+      <div data-probe-decor style={{ fontFamily: FONT, fontWeight: 700, fontSize: 320, lineHeight: 0.5, height: 120, color: LINE_STRONG,
         transform: `scale(${mark})`, transformOrigin: "left bottom" }}>„</div>
       <In delay={6}>
         <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: size, lineHeight: 1.3, color: INK }}>„{marked(s, "text", text, { px: size })}“</div>
@@ -338,7 +338,7 @@ export const End: React.FC<P> = () => {
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
       <In><Logo place="end" size={176} /></In>
-      <div style={{ marginTop: 40, width: 416, height: 416, background: "#FFFFFF", padding: 16, borderRadius: RADIUS,
+      <div style={{ marginTop: 40, width: 416, height: 416, background: QR_LIGHT, padding: 16, borderRadius: RADIUS,
         transform: `scale(${0.7 + 0.3 * qr})`, opacity: qr }} dangerouslySetInnerHTML={{ __html: props.qrSvg }} />
       <In delay={16}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: fitSize([props.url], MID, 44, 28), color: INK, marginTop: 32,

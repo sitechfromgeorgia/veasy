@@ -77,6 +77,24 @@ class Goldens(unittest.TestCase):
                 for s in g["scenes"]:
                     self.assertEqual((len(s["hash"]), len(s["band"])), (golden.SIZE ** 2 // 4, golden.BAND_SIZE ** 2 // 4))
 
+    def test_themed_goldens_sit_beside_the_default_ones(self):  # brand.json themes: one pack's light theme
+        self.assertIn(("sitech", "light"), golden.THEMED)
+        self.assertEqual(golden.golden_path("veasy-demo", "cards").name, "veasy-demo.cards.json")
+        self.assertEqual(golden.golden_path("veasy-demo", "cards", ("sitech", "light")).name,
+                         "veasy-demo.sitech-light.cards.json")
+        self.assertEqual(golden.themes_arg(None), [None, *golden.THEMED])
+        self.assertEqual(golden.themes_arg("default,sitech:light"), [None, ("sitech", "light")])
+        for bad in ("light", "sitech:neon", "nobody:light"):
+            with self.assertRaises(ValueError, msg=bad):
+                golden.themes_arg(bad)
+        for pk, th in golden.THEMED:  # made per machine with --update; when present, they match the fixtures
+            for name in golden.STORIES:
+                for look in brand.LOOKS:
+                    gp = golden.golden_path(name, look, (pk, th))
+                    if gp.exists():
+                        g = json.loads(gp.read_text(encoding="utf-8"))
+                        self.assertEqual((g["story"], g["brand"], g["theme"], g["look"]), (name, pk, th, look))
+
 
 if __name__ == "__main__":
     unittest.main()

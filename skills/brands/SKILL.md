@@ -1,6 +1,6 @@
 ---
 name: brands
-description: "Use when a video should look and sound like a client (colors, logo, link, footer, voice, words), when adding a new client to Veasy, or when asked which brands Veasy can make videos for. Examples: \"make this as a SiTech video\", \"add a brand for our new client\", \"why is the button orange\""
+description: "Use when a video should look and sound like a client (colors, themes such as light or dark, logo, link, footer, voice, words), when adding a new client or a new theme to Veasy, or when asked which brands Veasy can make videos for. Examples: \"make this as a SiTech video\", \"make it on a white background\", \"add a brand for our new client\", \"why is the button orange\""
 ---
 
 # Brand packs
@@ -22,7 +22,7 @@ tbilisi-today.
 | Key | What |
 |---|---|
 | `label`, `wordmark` | the name in the ticker; the wordmark text and its accent character (`.` of tbilisi.today) |
-| `colors` | canvas, panel, ink, muted, accent, line, lineStrong, grid, ticker, waiting, markBg, onAccent (the text on the accent button) |
+| `themes`, `default_theme` | the pack's palettes: `{"dark": {"colors": {...}}, "light": {"colors": {...}, "logo": {...}, "allowed": false}}`; below. A pack with a plain `colors` has one theme |
 | `fonts` | 400/500/600/700 woff2 (one family; captions are measured with the 700) |
 | `logo` | `{"kind": "tmark"}`, or `{"kind": "svg", "header": "logo-horizontal.svg", "end": "logo-stacked.svg"}` (the SVGs carry the name) |
 | `link` | `display` (as shown) and `qr` (the tracked URL; must contain `{id}`, may contain `{platform}`) |
@@ -36,6 +36,32 @@ tbilisi-today.
 | `media` | the media layer (`tt_shorts/assets.py`, news rule N13): `providers`, the order a scene's picture is searched in (`openverse`, `commons`, `pexels`, `pixabay`; `[]`: no stock pictures for this pack); `official` and `own`, the domains a screenshot may come from (`_ka`: matsne.gov.ge, gov.ge, parliament.ge; a pack: its own site). `strings.illustrative` („საილუსტრაციო") is the label every illustrative picture carries, `strings.media_credit` the credit line (`{author}`, `{licence}`, `{source}`) |
 | `package` | `engine package`'s words (`veasy:package`): `more` (a link line with `{url}`), `link_in_bio`, and `hashtags` (3+, the pack's own after the category's tag; `_ka` has the words, a pack sets its tags) |
 
+## Themes (a pack on another ground)
+
+Owner, 2026-11-03: not only on a night background; a white one and others too. A theme is one full palette:
+`colors` = canvas, panel, ink, muted, accent, line, lineStrong, grid, ticker, waiting, markBg, onAccent (the text
+on the accent button), markInk (the t of the t-mark; default white); `#RRGGBB` for the solid ones, `rgba()` for
+the lines and the dimmed ink. Optional: `logo` (`{"header": ..., "end": ...}`, an svg pack's files for that ground:
+a white logo needs a dark one on paper), `allowed` (default true), `label`, `about`.
+
+| Pack | Themes |
+|---|---|
+| `tbilisi-today` | `dark` (default, brand v1.2) · `light` (slate paper #F8FAFC, night ink, the same red; the mark unchanged): **allowed false** until the owner approves it |
+| `sitech` | `dark` (default: coal, paper ink, orange) · `light` (paper #F1EDE4, coal ink, orange; `logo-*-coal.svg`, the white logo recolored) |
+
+Every theme is checked on load (`brand.CONTRAST`, WCAG ratios): ink on canvas and on panel 7:1, muted 4.5:1, the
+accent dot 2:1 against both, the button's text 3:1, the captions (spoken words 4.5:1 on the box over an ink block,
+waiting words 3:1 on the box), the t-mark 3:1. A theme that fails names the pair and the ratio. Then every render's
+layout probe judges each text against what is really under it (`probe contrast`), so a theme can't put dark on dark
+or light on light anywhere (icons, map, drawings, chips, captions).
+
+Choosing one: a format's or `--theme`'s `default` (the pack's default theme), `auto` (variety alternates the
+allowed themes) or a name (`veasy:formats`). The QR is always dark on light: on a light theme it is the ink on
+the canvas. Composed films (HyperFrames) get the theme's tokens in `brand.css` and `frame.md` (`--theme`).
+
+To add a theme: a new entry under `themes` (copy the closest), `options --brand <name>` to see it load, then
+`probe <story> --look all --theme <name> --stills <dir>` and the owner's eye; `"allowed": false` until then.
+
 ## Add a client
 
 1. `brands/<name>/brand.json` with `"name": "<name>"`, `"extends": "_ka"` and the keys that differ; logo SVGs and
@@ -45,4 +71,5 @@ tbilisi-today.
 3. A still on a sample story (`still <story> --engine silent`) and the owner's eye before the first real video.
 
 The rules a pack can't change: one accent color used for the dot, an active state and the button, never for text;
-no shadows; the safe zone; the source and the time always on screen; news rules for news.
+no shadows; the safe zone; the source and the time always on screen; news rules for news; readable contrast in
+every theme.

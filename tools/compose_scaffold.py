@@ -1,11 +1,13 @@
 """Veasy's side of a film composed for the HyperFrames engine (docs/plan-v2.md; phase 0 spike): everything in a
 HyperFrames project that code owns, for any brand pack, so the agent composes scenes and nothing else.
 
-    python tools/compose_scaffold.py compose/24835 [--brand sitech] [--out DIR]   # -> out/compose/24835-<pack>/
+    python tools/compose_scaffold.py compose/24835 [--brand sitech] [--theme light] [--out DIR]
+                                                         # -> out/compose/24835-<pack>[-<theme>]/
 
 Copies the agent's pack-neutral source (index.html, compositions/s*.html, beats.json: colors only as var(--token))
 into the project folder and writes beside it:
-    assets/brand.css             the pack's tokens as CSS variables and its font as "Brand"
+    assets/brand.css             the tokens of the pack's theme (its default, or --theme: brand.json themes) as CSS
+                                 variables and its font as "Brand"
     frame.md                     the pack's design spec (tt_shorts/frame_md.py)
     timing.json                  the voice's words (silent engine here), the chapters and beats resolved to seconds,
                                  the film's length, the facts the chrome shows, the map of the place
@@ -62,8 +64,8 @@ def resolve(beats, words):
     return out
 
 
-def timing(project, story_path, sheet):
-    work, p = props.build(str(story_path), "cards", "silent", music="off", transition="cut")
+def timing(project, story_path, sheet, theme="default"):
+    work, p = props.build(str(story_path), "cards", "silent", music="off", transition="cut", theme=theme)
     words = p["words"]
     keys = {speech.norm(k) for k in sheet.get("keywords", [])}
     dur = p["durationInFrames"] / FPS
@@ -80,7 +82,7 @@ def timing(project, story_path, sheet):
     where = next((s for s in p["scenes"] if s.get("map")), None)
     return {
         "about": "Written by tools/compose_scaffold.py from the story, the voice and beats.json: do not edit.",
-        "story": p["id"], "brand": p["brand"]["name"], "engine": "silent", "fps": FPS,
+        "story": p["id"], "brand": p["brand"]["name"], "theme": p["theme"], "engine": "silent", "fps": FPS,
         "frames": p["durationInFrames"], "duration": round(dur, 3), "width": W, "height": H,
         "words": [{"i": i, "text": w["text"], "start": w["start"], "end": w["end"],
                    "keyword": speech.norm(w["text"]) in keys} for i, w in enumerate(words)],
@@ -102,7 +104,7 @@ def tmark(size, b):
     from_ts = (ROOT / "remotion" / "src" / "brand.ts").read_text(encoding="utf-8")
     path = from_ts.split('T_PATH =\n  "', 1)[1].split('"', 1)[0]
     return (f'<svg width="{size}" height="{size}" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" '
-            f'fill="{c["markBg"]}"/><g transform="translate(0,512) scale(0.1,-0.1)"><path d="{path}" fill="#FFFFFF"/>'
+            f'fill="{c["markBg"]}"/><g transform="translate(0,512) scale(0.1,-0.1)"><path d="{path}" fill="{c["markInk"]}"/>'
             f'</g><circle cx="323" cy="295" r="34" fill="{c["accent"]}"/></svg>')
 
 
@@ -363,30 +365,33 @@ def brand_css(b):
     c = b["colors"]
     names = {"canvas": "canvas", "panel": "panel", "ink": "ink", "muted": "muted", "accent": "accent", "line": "line",
              "lineStrong": "line-strong", "grid": "grid", "ticker": "ticker", "waiting": "waiting", "markBg": "mark-bg",
-             "onAccent": "on-accent"}
+             "onAccent": "on-accent", "markInk": "mark-ink"}
     rgb = ",".join(str(int(c["canvas"][i:i + 2], 16)) for i in (1, 3, 5))
-    tokens = "\n".join(f"  --{v}: {c[k]};" for k, v in names.items())
-    return (f"/* {b['label']}: written by tools/compose_scaffold.py from brands/{b['name']}/brand.json */\n"
+    qr_dark, qr_light = brand.qr_colors(c)
+    tokens = "\n".join(f"  --{v}: {c[k]};" for k, v in names.items()) + f"\n  --qr-dark: {qr_dark};\n  --qr-light: {qr_light};"
+    return (f"/* {b['label']}, theme {b['theme']}: written by tools/compose_scaffold.py from brands/{b['name']}/brand.json */\n"
             f"{font_faces('fonts')}\n:root {{\n{tokens}\n  --canvas-0: rgba({rgb},0);\n  --canvas-90: rgba({rgb},.9);\n}}\n")
 
 
-def scaffold(source, pack=None, out=None):
+def scaffold(source, pack=None, out=None, theme="default"):
     """A buildable HyperFrames project for one pack: the agent's pack-neutral source (index.html, compositions/s*.html,
-    beats.json) copied into `out` (default out/compose/<story>-<pack>/) with everything code owns written beside it."""
+    beats.json) copied into `out` (default out/compose/<story>-<pack>[-<theme>]/) with everything code owns written
+    beside it, in the pack's default theme or `theme` (brand.json themes)."""
     source = pathlib.Path(source).resolve()
     sheet = json.loads((source / "beats.json").read_text(encoding="utf-8"))
     story = json.loads((ROOT / sheet["story"]).read_text(encoding="utf-8"))
     if pack:
         story["brand"] = pack
-    b = brand.of(story)
-    project = pathlib.Path(out or ROOT / "out" / "compose" / f"{story['id']}-{b['name']}").resolve()
+    b = brand.of(story, theme)
+    suffix = "" if b["theme"] == b["default_theme"] else f"-{b['theme']}"
+    project = pathlib.Path(out or ROOT / "out" / "compose" / f"{story['id']}-{b['name']}{suffix}").resolve()
     shutil.rmtree(project, ignore_errors=True)
     (project / "compositions").mkdir(parents=True)
     for f in ["index.html", "beats.json", *(f"compositions/{x.name}" for x in (source / "compositions").glob("*.html"))]:
         shutil.copy(source / f, project / f)
     story_path = project / "story.json"  # the story with the pack it is built for (props.build reads the pack there)
     story_path.write_text(json.dumps(story, ensure_ascii=False, indent=1), encoding="utf-8")
-    t, p, work = timing(project, story_path, sheet)
+    t, p, work = timing(project, story_path, sheet, b["theme"])
     (project / "assets" / "fonts").mkdir(parents=True, exist_ok=True)
     (project / "assets" / "brand.css").write_text(brand_css(b), encoding="utf-8")
     (project / "assets" / "icons").mkdir(parents=True, exist_ok=True)
@@ -399,7 +404,7 @@ def scaffold(source, pack=None, out=None):
     shutil.copy(GSAP, project / "assets" / "vendor" / "gsap.min.js")
     for name in sheet.get("icons", []):
         (project / "assets" / "icons" / f"{name}.svg").write_text(icon_svg(name, b["colors"]["ink"]), encoding="utf-8")
-    qr = meta.qr_svg(meta.links(story, "shorts", b)[1], b["colors"]["canvas"])  # inline SVG: an <img> needs the xmlns
+    qr = meta.qr_svg(meta.links(story, "shorts", b)[1], *brand.qr_colors(b["colors"]))  # inline SVG: an <img> needs the xmlns
     (project / "assets" / "qr.svg").write_text(qr.replace("<svg ", "<svg xmlns=\"http://www.w3.org/2000/svg\" ", 1),
                                               encoding="utf-8")
     where = next((s for s in p["scenes"] if s.get("map")), None)
@@ -435,8 +440,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("source", help="the agent's composition: index.html, compositions/s*.html, beats.json (compose/24835)")
     ap.add_argument("--brand", help="the pack to build for (default: the story's)")
-    ap.add_argument("--out", help="the project folder to write (default out/compose/<story>-<pack>)")
+    ap.add_argument("--theme", default="default", help="the pack's theme (default: its default_theme)")
+    ap.add_argument("--out", help="the project folder to write (default out/compose/<story>-<pack>[-<theme>])")
     a = ap.parse_args()
-    project, t = scaffold(a.source, a.brand, a.out)
+    project, t = scaffold(a.source, a.brand, a.out, a.theme)
     print(json.dumps({"project": str(project), "duration": t["duration"], "chapters": t["chapters"], "gaps": t["gaps"],
                       "beats": [(x["id"], x["t"]) for x in t["beats"]]}, ensure_ascii=False))

@@ -36,9 +36,11 @@ LEAD_KEEP = 0.12  # at most this much silence before the first word
 SILENCE_DB = -50  # quieter than this counts as silence at the start of the voice track
 MUSIC_FADES = {"loop": (0.03, 0.03)}  # (in, out) seconds; loop: a de-click only, the level stays steady
 MUSIC_FADE_DEFAULT = (1.2, 2.5)
-# frame 0's hook band: the share of ink-coloured pixels (light on the dark canvas, in every pack) it must have
+# frame 0's hook band: the share of ink-coloured pixels it must have (light on a dark theme's canvas, dark on a
+# light theme's: brand.json themes)
 INK_BAND = (250, 1100)
-INK_LEVEL = 160  # 0-255 luma; the canvas and the motif are near black, ink and muted text are well above
+INK_LEVEL = 160  # 0-255 luma; a dark canvas and its motif are near black, ink and muted text well above (a light
+# theme's ink is below 255 - INK_LEVEL)
 INK_SHARE = 0.02
 
 
@@ -121,8 +123,9 @@ def music_fades(outro):
 # ---------------------------------------------------------------- QA: the opening frame
 
 
-def opening_ink(video):
-    """The share (0..1) of ink-coloured pixels in frame 0's hook band (y INK_BAND), or None when ffmpeg can't read it."""
+def opening_ink(video, light=False):
+    """The share (0..1) of ink-coloured pixels in frame 0's hook band (y INK_BAND), or None when ffmpeg can't read it.
+    light: the video's theme is a light ground (brand.mode), so ink is the dark pixels."""
     top, bottom = INK_BAND
     try:
         r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(video), "-vf",
@@ -133,14 +136,15 @@ def opening_ink(video):
     raw = r.stdout
     if r.returncode != 0 or not raw:
         return None
-    dark = len(raw.translate(None, bytes(range(INK_LEVEL, 256))))  # the bytes left once the ink ones are deleted
-    return (len(raw) - dark) / len(raw)
+    ink = bytes(range(0, 256 - INK_LEVEL)) if light else bytes(range(INK_LEVEL, 256))
+    ground = len(raw.translate(None, ink))  # the bytes left once the ink ones are deleted
+    return (len(raw) - ground) / len(raw)
 
 
-def opening_problems(video, share=...):
+def opening_problems(video, share=..., light=False):
     """QA messages about frame 0 (empty when the hook is readable there); `share` when opening_ink() already ran."""
     if share is ...:
-        share = opening_ink(video)
+        share = opening_ink(video, light)
     if share is None:
         return ["frame 0: could not be read (ffmpeg)"]
     if share < INK_SHARE:

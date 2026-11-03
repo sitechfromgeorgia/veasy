@@ -34,6 +34,25 @@ class Formats(unittest.TestCase):
         with self.assertRaises(formats.FormatError):
             formats.get("no-such-show")
 
+    def test_theme_is_a_format_choice(self):  # brand.json themes; default keeps every current render as it was
+        self.assertEqual(formats.get("news")["theme"], "default")
+        self.assertTrue(all(f["theme"] == "default" for f in formats.load_all().values()))
+        self.assertEqual(formats.get("news", theme="auto")["theme"], "auto")
+        self.assertEqual(formats.get("news", theme="light")["theme"], "light")  # a theme some pack has
+        with self.assertRaises(formats.FormatError):
+            formats.get("news", theme="neon")
+        o = engine.options("sitech")
+        self.assertEqual(o["themes"]["default"], "dark")
+        self.assertEqual(set(o["themes"]["pack"]), {"dark", "light"})
+        self.assertFalse(engine.options("tbilisi-today")["themes"]["pack"]["light"]["allowed"])
+        self.assertIn("themes", o["brands"]["sitech"])
+
+    def test_a_render_refuses_a_preview_theme(self):  # tbilisi-today light: allowed false until the owner says yes
+        story = ROOT / "stories" / "24835.json"
+        with mock.patch.object(engine.props, "build", side_effect=AssertionError("no build for a preview theme")):
+            r = engine.render_story(story, formats.get("news", theme="light"), "silent")
+        self.assertIn("allowed: false", r["problems"][0])
+
     def test_a_show_is_added_as_a_json_file(self):  # no code change needed for a new format
         with tempfile.TemporaryDirectory() as d:
             pathlib.Path(d, "evening.json").write_text(json.dumps(

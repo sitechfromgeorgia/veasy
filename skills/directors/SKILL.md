@@ -13,7 +13,9 @@ runs (`tt_shorts/directors.py`, `directors/<id>.json`). A director chooses:
 - the **current**, the one direction entrances and cuts move in. With `left`, slides come from the right and move
   left, and push goes the same way. With `up`, things rise.
 
-It never touches the facts, the palette, the fonts, the safe zone or the news rules.
+It never touches the facts, the colors, the fonts, the safe zone or the news rules. It may prefer some of a pack's
+themes by name (`"themes": ["light"]`: `draw` does, a drawing on paper); with a format's `theme: auto` variety then
+picks among those the pack has and allows.
 
 | id | label | film | current |
 |---|---|---|---|

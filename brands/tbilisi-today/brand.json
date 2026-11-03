@@ -3,18 +3,45 @@
  "extends": "_ka",
  "label": "tbilisi.today",
  "about": "tbilisi.today brand v1.2 (https://tbilisi.today/brand): dark canvas, white ink, one red (the dot); FiraGO only.",
- "colors": {
-  "canvas": "#05080F",
-  "panel": "#0B0F17",
-  "ink": "#F8FAFC",
-  "muted": "#A7B0BD",
-  "accent": "#EF4444",
-  "line": "rgba(248,250,252,.12)",
-  "lineStrong": "rgba(248,250,252,.24)",
-  "grid": "rgba(248,250,252,.045)",
-  "ticker": "rgba(248,250,252,.06)",
-  "waiting": "rgba(248,250,252,.42)",
-  "markBg": "#0B0B0E"
+ "default_theme": "dark",
+ "themes": {
+  "dark": {
+   "label": "ღამე",
+   "about": "brand v1.2 (https://tbilisi.today/brand): the night canvas, white ink, one red for the dot.",
+   "colors": {
+    "canvas": "#05080F",
+    "panel": "#0B0F17",
+    "ink": "#F8FAFC",
+    "muted": "#A7B0BD",
+    "accent": "#EF4444",
+    "line": "rgba(248,250,252,.12)",
+    "lineStrong": "rgba(248,250,252,.24)",
+    "grid": "rgba(248,250,252,.045)",
+    "ticker": "rgba(248,250,252,.06)",
+    "waiting": "rgba(248,250,252,.42)",
+    "markBg": "#0B0B0E"
+   }
+  },
+  "light": {
+   "label": "დღე",
+   "about": "A day (light) version of brand v1.2, proposed 2026-11-03 and NOT approved: the brand is dark. The site's slate inverted: the canvas is its ink #F8FAFC, the ink its canvas #05080F, a slate muted, white cards with a 12% line, the same one red only for the dot, an active state and the button, the mark unchanged (never recolored). Off until the owner says yes (allowed: false): plan, probe, still and selftest preview it, a render refuses it.",
+   "allowed": false,
+   "colors": {
+    "canvas": "#F8FAFC",
+    "panel": "#FFFFFF",
+    "ink": "#05080F",
+    "muted": "#566170",
+    "accent": "#EF4444",
+    "line": "rgba(5,8,15,.12)",
+    "lineStrong": "rgba(5,8,15,.24)",
+    "grid": "rgba(5,8,15,.05)",
+    "ticker": "rgba(5,8,15,.05)",
+    "waiting": "rgba(5,8,15,.5)",
+    "markBg": "#0B0B0E",
+    "markInk": "#FFFFFF",
+    "onAccent": "#FFFFFF"
+   }
+  }
  },
  "logo": {
   "kind": "tmark"
@@ -22,8 +49,17 @@
  "design": {
   "about": "brand v1.2 (https://tbilisi.today/brand) as rules for a film an agent composes; Lane A's components keep them by construction",
   "accent": {
-   "allowed": ["dot", "active state", "button"],
-   "never": ["text", "a category", "a fill behind text", "an icon"]
+   "allowed": [
+    "dot",
+    "active state",
+    "button"
+   ],
+   "never": [
+    "text",
+    "a category",
+    "a fill behind text",
+    "an icon"
+   ]
   },
   "rules": [
    "One font family; hierarchy comes from size, weight and color only: no caps, no letter-spacing, no italics, no shadows, no outlines.",

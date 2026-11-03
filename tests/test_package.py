@@ -195,6 +195,18 @@ class Carousel(unittest.TestCase):
             self.assertTrue(package.fit_problems(bad, "who"))
             self.assertTrue(package.fit_problems(bad, "end"))
 
+    def test_fit_check_on_a_light_theme(self):  # paper canvas, coal ink: the ink is the dark pixels
+        with tempfile.TemporaryDirectory() as d:
+            ok, bad = pathlib.Path(d, "ok.png"), pathlib.Path(d, "bad.png")
+            base = ["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "color=c=0xF1EDE4:s=1080x1350"]
+            subprocess.run(base + ["-vf", "drawbox=x=200:y=400:w=600:h=80:color=0x171817:t=fill", "-frames:v", "1",
+                                   str(ok)], check=True)
+            subprocess.run(base + ["-vf", "drawbox=x=200:y=1180:w=600:h=30:color=0x171817:t=fill", "-frames:v", "1",
+                                   str(bad)], check=True)
+            self.assertEqual(package.fit_problems(ok, "who", light=True), [])
+            self.assertTrue(package.fit_problems(bad, "who", light=True))
+            self.assertTrue(package.fit_problems(ok, "who"))  # read as a dark theme, paper is all "ink"
+
 
 class Teaser(unittest.TestCase):
     def props(self, hook_s, total_s=30.0, end_s=4.0):

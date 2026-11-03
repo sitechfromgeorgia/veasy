@@ -5,7 +5,8 @@ Models asked to "be creative" converge (Artificial Hivemind, NeurIPS 2025), so t
 A director changes what kind of film a story becomes: which scene types carry it (with weights), how many scenes,
 the hook layouts, motifs, entrances and cuts variety.pick() may choose from, the motion personality (spring
 numbers, entrance and stagger frames) and the "current", the one direction entrances and cuts move in. A director
-never touches the facts, the palette, the fonts, the safe zone or the news rules: every story goes through the
+never touches the facts, the colors, the fonts, the safe zone or the news rules (it may prefer some of a pack's
+themes by name, never its colors): every story goes through the
 same checks.
 
 Directors are data, `directors/<id>.json`, validated here:
@@ -24,6 +25,9 @@ Directors are data, `directors/<id>.json`, validated here:
               the story's quotes show 2 of them)
   holds       scene types the director means to hold on (optional): motion_rules lets them stay still up to
               HOLD_MAX s instead of STILL_MAX (the data director's number: the owner's call, 2026-11-03)
+  themes      the pack themes it prefers, by name (optional; "light", "dark"...): with `theme: auto` variety picks
+              among the pack's allowed themes that are in this list (all of them when the pack has none of these).
+              Names only: the colors stay the pack's
 
 Facts (facts()) are what code extracts from the articles before writing: numbers (news_check.numbers), quantities
 (numbers that are not part of a date or time), percents, dates, times, places (the gazetteer, geo.locate), quotes
@@ -51,8 +55,8 @@ FACTS = ("numbers", "quantities", "percents", "dates", "times", "places", "regio
 FLAGS = ("deaths",)
 GATES = ("two_sides",)
 KEYS = ("id", "label", "about", "device", "form", "brief", "scenes", "count", "pacing", "hooks", "motifs", "enters",
-        "transitions", "current", "motion", "eligible", "never", "gates", "holds")
-OPTIONAL = ("gates", "holds")
+        "transitions", "current", "motion", "eligible", "never", "gates", "holds", "themes")
+OPTIONAL = ("gates", "holds", "themes")
 MOTION = {"damping": (8, 30), "stiffness": (80, 300), "enter_frames": (6, 16), "stagger_frames": (3, 6)}
 DEFAULT_MOTION = {"damping": 20, "stiffness": 170, "enter_frames": 10, "stagger_frames": 5}  # ui.tsx today
 
@@ -136,7 +140,10 @@ def validate(name, d):
     holds = d.get("holds", [])
     need(isinstance(holds, list) and set(holds) <= set(scenes) - set(DEVICES) - set(ALWAYS),
          "holds is a list of the director's own scene types")
-    return {**d, "gates": list(d.get("gates", [])), "holds": list(holds)}
+    themes = d.get("themes", [])
+    need(isinstance(themes, list) and all(isinstance(t, str) and re.match(r"^[a-z][a-z0-9-]*$", t) for t in themes),
+         "themes is a list of theme names (brand.json themes: lowercase, e.g. light)")
+    return {**d, "gates": list(d.get("gates", [])), "holds": list(holds), "themes": list(themes)}
 
 
 @functools.lru_cache(maxsize=4)
@@ -370,5 +377,5 @@ def options():
                               "scenes": d["scenes"], "count": d["count"], "current": d["current"],
                               "motion": d["motion"], "hooks": d["hooks"], "motifs": d["motifs"], "enters": d["enters"],
                               "transitions": d["transitions"], "eligible": d["eligible"], "never": d["never"],
-                              "gates": d["gates"], "planned": planned(d)}
+                              "gates": d["gates"], "themes": d["themes"], "planned": planned(d)}
                           for n, d in sorted(load_all().items())}}

@@ -92,6 +92,27 @@ class Picks(unittest.TestCase):
         self.assertIn("hook>stat>end x3", prompt)
         self.assertNotIn("Scene orders the latest", writer._prompt({"headline": "x"}, ["ა 1"]))
 
+    def test_auto_themes_move_evenly_and_a_story_keeps_its_own(self):  # brand.json themes, format theme: auto
+        got = []
+        for i in range(12):
+            t = variety.pick_theme("sitech", 3000 + i, ["dark", "light"])
+            variety.record("sitech", 3000 + i, "cards", {**variety.pick("sitech", 3000 + i, "cards"), "theme": t},
+                           ["hook", "end"])
+            got.append(t)
+        self.assertEqual((got.count("dark"), got.count("light")), (6, 6))  # evenly
+        self.assertTrue(all(abs(got[:k].count("dark") - got[:k].count("light")) <= 1 for k in range(13)))  # at every point
+        self.assertEqual(variety.pick_theme("sitech", 3000, ["dark", "light"]), got[0])  # a re-render keeps it
+        self.assertEqual(variety.report("sitech")["theme"]["distinct"], 2)
+
+    def test_auto_themes_stay_in_the_pack_and_the_director_s(self):
+        self.assertEqual(variety.pick_theme("tbilisi-today", 1, ["dark"]), "dark")  # one allowed theme: always it
+        self.assertEqual({variety.pick_theme("sitech", i, ["dark", "light"], ["light"]) for i in range(5)}, {"light"})
+        # a director's preference the pack doesn't have: every allowed theme stays possible
+        self.assertIn(variety.pick_theme("sitech", 9, ["dark", "light"], ["sepia"]), ("dark", "light"))
+
+    def test_the_theme_is_not_in_the_fingerprint(self):  # a one-theme pack must not look one field closer
+        self.assertNotIn("theme", variety.FIELDS)
+
     def test_report_measures_sameness(self):
         self.run_day(8)
         r = variety.report("tbilisi-today")

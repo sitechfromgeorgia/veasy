@@ -26,6 +26,7 @@ format choice. The map itself needs no format key; see `veasy:write-script`.)
 | `music` | `family` (by category), `off`, or a family: politics, economy, world, crime, sports, culture, tech, society | `family` |
 | `sfx` | `off`, `on`: short sound effects on the timeline (`tt_shorts/sfx.py`): a whoosh on a cut (a click on a plain `cut`), a pop when a mark or the outro chip lands, ticks while a stat counts and a soft thud as it settles, a blip as each bar grows. Synthesized by `tools/compose_sfx.py`; one constant level under the voice, no ducking, no risers; mixed by ffmpeg, so it is the same in every engine | `off` |
 | `platform` | the QR link's utm_source: `shorts`, `youtube`, `instagram`, `tiktok`, ... | `shorts` |
+| `theme` | `default` (the pack's default theme: today's look, nothing changes), `auto` (varied per video among the pack's allowed themes, least used lately), or a theme's name: `dark`, `light` (every pack the format is used with must have it) | `default` |
 | `min_seconds`, `max_seconds` | the length window a render must land in | 18, 45 |
 
 Built-in: `news` (all defaults) and `news-roll` (roll captions); `formats/explainer.json` (25-45 s) is the
@@ -34,6 +35,18 @@ default of the explainer and law programs; `formats/number.json` (20-25 s) is th
 (`options --brand <name>` shows its table). tbilisi.today: hard news `editorial` + `anchor`, light news `kinetic`,
 service news `cards`; people's news `warm`, numbers and tech `clear`, sports `plain`. SiTech: its own `sitech`
 voice (Charon) for every family. A format works for every brand; a pack's own voice only for that pack.
+
+## Themes: the same pack on another ground
+
+A pack may have several palettes (brand.json `themes`, `veasy:brands`): both shipped packs have `dark` (the
+default) and `light` (paper). `options --brand <name>` → `themes` lists a pack's, with `allowed`. A theme changes
+only colors (and a logo drawn for that ground), never the layout, the motion or the rules.
+- `"theme": "auto"` lets variety alternate a pack's allowed themes evenly (a re-render keeps its own); a
+  director may prefer some by name (`draw` prefers `light`, a drawing on paper).
+- `allowed: false` is a theme the owner has not approved yet (tbilisi.today's `light`: its brand v1.2 is dark).
+  `auto` never picks it, and `render` and the queue refuse it; `plan`, `probe`, `still` and `selftest` take
+  `--theme light` to preview it.
+- Per render: `--theme light` on `render`, `still`, `plan`, `probe` and `queue add`.
 
 ## Variety comes on its own
 
@@ -74,6 +87,7 @@ A looping show is one key: `{"label": "ამბავი: უწყვეტი
 
 ## What a format can't change
 
-The palette, logo and words (the brand pack's, `veasy:brands`), the safe zone, the news rules, the
+The palette itself, the logo and words (the brand pack's, `veasy:brands`; a format only picks one of the pack's
+themes), the safe zone, the news rules, the
 date/sources/link from the data, and the voices' approval: a new voice preset or a new look is code or a pack
 (`voices.py`, a pack's `voices`, `remotion/src`) and needs the owner's ear or eye first.

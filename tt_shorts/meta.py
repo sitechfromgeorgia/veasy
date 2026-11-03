@@ -83,8 +83,9 @@ def links(story, platform="shorts", b=None):
     return display_url(story["id"], b), story_url(story["id"], platform, b)
 
 
-def qr_svg(url, dark="#05080F"):
-    return segno.make(url, error="m").svg_inline(scale=10, dark=dark, light="#FFFFFF", border=2, omitsize=True)
+def qr_svg(url, dark="#05080F", light="#FFFFFF"):
+    """The QR code as inline SVG: always dark modules on a light ground (brand.qr_colors gives a theme's two)."""
+    return segno.make(url, error="m").svg_inline(scale=10, dark=dark, light=light, border=2, omitsize=True)
 
 
 def sources_line(names, shown=3, b=None):

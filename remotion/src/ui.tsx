@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from "react";
 import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { CANVAS, FONT, INK, LINE_STRONG, MARK_BG, RED, T_PATH } from "./brand";
+import { CANVAS, FONT, INK, LINE_STRONG, MARK_BG, MARK_INK, RED, T_PATH } from "./brand";
 import { marked } from "./marker";
 import { MediaCredit, SceneMedia } from "./media";
 import type { Motion, Scene, ShortProps, Style, Variant } from "./types";
@@ -86,12 +86,13 @@ export const fitSize = (lines: string[], width: number, max: number, min = 40, w
   return size - (size % 4);
 };
 
-/** tbilisi.today's mark, exactly as the guide draws it: no frame, no shadow, no recolor. */
+/** tbilisi.today's mark, exactly as the guide draws it: no frame, no shadow, no recolor (its tile, t and dot are the
+ *  theme's markBg, markInk and accent; tbilisi.today's themes keep the guide's own). */
 export const Mark: React.FC<{ size: number }> = ({ size }) => (
   <svg width={size} height={size} viewBox="0 0 512 512">
     <rect width={512} height={512} rx={112} fill={MARK_BG} />
     <g transform="translate(0,512) scale(0.1,-0.1)">
-      <path d={T_PATH} fill="#FFFFFF" />
+      <path d={T_PATH} fill={MARK_INK} />
     </g>
     <circle cx={323} cy={295} r={34} fill={RED} />
   </svg>
