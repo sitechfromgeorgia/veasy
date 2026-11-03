@@ -297,3 +297,15 @@ here (it writes outside the repo); phase 2b tries it.
 - No avatar, no face-swap, no cloning of other people's videos (hypit), no publisher photos.
 - No OpenMontage code inside Veasy (AGPL-3.0); it can be a separate tool an agent runs.
 - No generated imagery of real people or of the news event itself.
+
+## 10. Any brand book in (owner, 2026-11-03)
+
+"We make tools; whoever has a brand book fits the tool to it." A client brings their own brand, and Veasy must make
+that easy without code:
+- `engine brand new <name> --from <url|pdf|design.md|frame.md>`: reads a brand page, a brand-book PDF or a design
+  file and drafts `brands/<name>/brand.json` (fonts, palette per theme, logo files, words, rules under `design`),
+  then validates it and renders a contact sheet in every theme and both engines for a person to check.
+- Everything the engines draw comes from the pack: themes (dark, light and more), the accent rule, tints, caption
+  style, chrome, voice, words. Nothing about a client lives in `tt_shorts/`, `remotion/src/` or `compose/`.
+- The `veasy:brands` skill walks an agent through it; a new pack key always gets validation in `brand.py` and a
+  case in `tests/test_brand.py`.
