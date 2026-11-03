@@ -299,6 +299,16 @@ TOOLS = {
     "veasy_doctor": ({"type": "object", "properties": {}},
                      "Is this machine ready to render? ffmpeg, Remotion, fonts, music, keys, kaeasy.",
                      lambda a: _engine("doctor", [])),
+    "veasy_brand": ({"type": "object", "properties": {
+                        "action": {"type": "string", "enum": ["new"]},
+                        "name": {"type": "string", "description": "The brand identifier (lowercase, hyphens)."},
+                        "from": {"type": "string", "description": "Path or URL to brand guidelines, design.md, frame.md or web page."},
+                        "no_sheets": {"type": "boolean", "description": "Skip rendering contact sheets (faster)."}},
+                     "required": ["action", "name", "from"]},
+                    "Brand pack operations (skill veasy:brands): draft a new brand pack from any brand book "
+                    "or website URL (engine brand new <name> --from <source>), validate WCAG contrast and schema, "
+                    "and render preview contact sheets in dark and light themes.",
+                    lambda a: _engine("brand", [a["action"], a["name"], "--from", a["from"]] + (["--no-sheets"] if a.get("no_sheets") else []))),
 }
 
 

@@ -62,8 +62,19 @@ the canvas. Composed films (HyperFrames) get the theme's tokens in `brand.css` a
 To add a theme: a new entry under `themes` (copy the closest), `options --brand <name>` to see it load, then
 `probe <story> --look all --theme <name> --stills <dir>` and the owner's eye; `"allowed": false` until then.
 
-## Add a client
+## Add a client (automated brand book intake)
 
+Use the brand intake tool to draft and validate a pack from any source in seconds:
+```bash
+python -m tt_shorts.engine brand new <name> --from <url|pdf|design.md|frame.md>
+```
+Tool `veasy_brand` (`action: "new", name: "<name>", from: "<source>"`).
+1. Automatically parses the source (a brand page URL, PDF, DTCG design tokens, or `frame.md`).
+2. Extracts and balances palettes for dark and light themes, ensuring all WCAG contrast floors pass.
+3. Writes `brands/<name>/brand.json` extending `_ka` with fonts, wordmark, links, footers and CTAs.
+4. Validates the pack against `brand.py` and renders contact sheets (`brand-<name>-dark.plan.jpg`, `brand-<name>-light.plan.jpg`) for visual inspection.
+
+Manual pack setup remains supported:
 1. `brands/<name>/brand.json` with `"name": "<name>"`, `"extends": "_ka"` and the keys that differ; logo SVGs and
    fonts in the same folder (paths starting with `assets/` are Veasy's shared ones).
 2. `python -m tt_shorts.engine options --brand <name>` and `doctor`: a missing key, an unknown family, look or

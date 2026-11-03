@@ -924,6 +924,16 @@ def doctor(_a):
     return out({"checks": checks, "problems": blocking}, 1 if blocking else 0)
 
 
+def brand_cmd(a):
+    from tt_shorts import brand_new
+    if a.action == "new":
+        if not a.name or not a.source:
+            return out({"problems": ["usage: engine brand new <name> --from <url|pdf|design.md|frame.md>"]}, 2)
+        res = brand_new.create_brand(a.name, a.source, render_sheets=not getattr(a, "no_sheets", False))
+        return out(res, 0 if res.get("validation") == "valid" else 1)
+    return out({"problems": [f"unknown brand action '{a.action}'; known: new"]}, 2)
+
+
 def critique_cmd(a):
     from tt_shorts import critique
     res = critique.critique_story(a.story, fmt_name=a.format, look=getattr(a, "look", None),
@@ -1100,6 +1110,11 @@ def main(argv=None):
     cp.add_argument("--as", dest="as_id", help="promote: the template id")
     cp.add_argument("--label", help="promote: the template's name")
     cp.add_argument("--about", help="promote: what it is for")
+    bp = sub.add_parser("brand", help="brand pack operations: new <name> --from <source>")
+    bp.add_argument("action", choices=["new"])
+    bp.add_argument("name", nargs="?", help="the brand identifier (e.g. alpha)")
+    bp.add_argument("--from", dest="source", required=True, help="path or URL to brand guidelines, frame.md, design.md or web page")
+    bp.add_argument("--no-sheets", action="store_true", help="skip rendering sample contact sheets")
     cr = sub.add_parser("critique", help="pre-flight visual and pacing critique checklist on plan stills")
     cr.add_argument("story")
     cr.add_argument("--format", help="a format (default: the story's program's, news for news)")
@@ -1146,7 +1161,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
     except FileNotFoundError as e:
