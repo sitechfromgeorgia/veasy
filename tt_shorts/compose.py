@@ -919,7 +919,7 @@ def assemble_blocks(story, project, block_ids, slot_bindings=None):
     (project / "compositions").mkdir(parents=True, exist_ok=True)
     scenes = [s for s in story.get("scenes", []) if s.get("type") != "end"]
     end = next((s for s in story.get("scenes", []) if s.get("type") == "end"), None)
-    end_at = end["at"] if end else 25.0
+    end_at = end["at"] if end else "end"
 
     hosts, beats, slots_combined = [], [], {}
     for i, bid in enumerate(block_ids):
@@ -927,7 +927,7 @@ def assemble_blocks(story, project, block_ids, slot_bindings=None):
         manifest, _ = blk.get(bid)
         rendered = blk.render_block(bid, cid, slot_bindings or {})
         (project / "compositions" / f"{cid}.html").write_text(rendered, encoding="utf-8")
-        scene_at = scenes[i]["at"] if i < len(scenes) else round(end_at * (i / len(block_ids)), 1)
+        scene_at = scenes[i]["at"] if i < len(scenes) else end_at
         beats.append({"id": cid, "at": scene_at, "show": bid})
         nxt = f"s{i + 1}" if i + 1 < len(block_ids) else "end"
         hosts.append(f'      <div id="{cid}" data-composition-id="{cid}" data-composition-src="compositions/{cid}.html" '

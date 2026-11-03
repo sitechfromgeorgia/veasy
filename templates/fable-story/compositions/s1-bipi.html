@@ -1,0 +1,75 @@
+<!-- s1: Bipi. The robot and the title are on screen at frame 0 (the thumbnail); its name pops on „ბიპი“, the easel
+     rises on „ყოველ დილით“, it starts to draw on „ხატვას“. Words: the story's hook (scene-0-*) and its character. -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .chip { position: absolute; display: inline-flex; align-items: center; gap: 12px; font-weight: 600; font-size: 30px;
+      line-height: 1; padding: 13px 24px 15px; border-radius: 999px; border: 2px solid var(--line-strong); white-space: nowrap; }
+    #root .chip i { width: 14px; height: 14px; border-radius: 7px; background: var(--accent); }
+    #root .hook { position: absolute; left: 64px; font-weight: 700; font-size: 96px; line-height: 1.12; white-space: nowrap; }
+    #root .inv { position: relative; display: inline-block; }
+    #root .inv .blk { position: absolute; left: -14px; right: -14px; top: 8px; bottom: -2px; border-radius: 14px; background: var(--ink);
+      transform-origin: 0 50%; transform: scaleX(0); }
+    #root .inv em { position: relative; font-style: normal; }
+    #root .name { position: absolute; left: 440px; top: 700px; font-weight: 700; font-size: 56px; line-height: 1;
+      padding: 18px 34px 22px; border-radius: 999px; background: var(--ink); color: var(--canvas); white-space: nowrap; }
+    #root svg { position: absolute; overflow: visible; }
+    #root .k { stroke: var(--ink); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    #root .p { fill: var(--panel); }
+    #root .i { fill: var(--ink); }
+    #root .a { fill: var(--accent); }
+    #root .as { stroke: var(--accent); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    #root .draw { stroke-dasharray: 1; stroke-dashoffset: 1; }
+    #root .sheet { fill: var(--panel); stroke: var(--line-strong); stroke-width: 3; }
+  </style>
+  <div id="root" data-composition-id="s1" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="s1-kick" class="chip" style="left: 64px; top: 300px"><i></i><span data-var-text="slot-s1-bipi-scene-0-kicker">…</span></div>
+      <div id="s1-l1" class="hook" style="top: 380px"><span data-var-text="slot-s1-bipi-scene-0-lines-0">…</span></div>
+      <div id="s1-l2" class="hook" style="top: 488px"><span class="inv"><i class="blk"></i><em data-var-text="slot-s1-bipi-scene-0-lines-1">…</em></span></div>
+      <div id="s1-name" class="name" data-var-text="slot-s1-bipi-character-1">…</div>
+    </div>
+    <svg id="s1-bot" viewBox="0 0 200 240" style="left: 80px; top: 680px; width: 340px; height: 408px">
+      <line class="k" x1="100" y1="16" x2="100" y2="42" stroke-width="6" />
+      <circle id="s1-ant" class="a" cx="100" cy="14" r="11" />
+      <rect class="p k" x="38" y="42" width="124" height="98" rx="30" stroke-width="6" />
+      <g id="s1-eyes"><circle class="i" cx="78" cy="88" r="11" /><circle class="i" cx="122" cy="88" r="11" /></g>
+      <path class="k" d="M84 114 Q100 124 116 114" stroke-width="6" />
+      <rect class="p k" x="58" y="150" width="84" height="66" rx="18" stroke-width="6" />
+      <circle class="a" cx="100" cy="183" r="7" />
+      <line class="k" x1="58" y1="172" x2="30" y2="196" stroke-width="6" />
+      <g id="s1-arm"><line class="k" x1="142" y1="172" x2="176" y2="150" stroke-width="6" />
+        <line class="as" x1="176" y1="150" x2="194" y2="124" stroke-width="9" /></g>
+      <circle class="p k" cx="78" cy="228" r="11" stroke-width="5" /><circle class="p k" cx="122" cy="228" r="11" stroke-width="5" />
+    </svg>
+    <svg id="s1-easel" viewBox="0 0 380 360" style="left: 560px; top: 800px; width: 380px; height: 360px">
+      <line class="k" x1="80" y1="300" x2="40" y2="356" stroke-width="7" /><line class="k" x1="300" y1="300" x2="340" y2="356" stroke-width="7" />
+      <rect class="sheet" x="20" y="10" width="340" height="290" rx="14" />
+      <path id="s1-scrib" class="k draw" pathLength="1" stroke-width="7"
+        d="M70 210 C 90 120, 130 230, 160 150 S 220 90, 240 180 S 300 230, 310 120" />
+    </svg>
+  </div>
+  <script>
+    (function () {
+      const A = (b) => VEASY.at(b, "s1");
+      const C = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(); // a pack token
+      const tl = gsap.timeline({ paused: true });
+      // frame 0 is the thumbnail: everything of the hook is there, settling by a few px
+      tl.fromTo("#s1-bot", { y: 24 }, { y: 0, duration: 0.7, ease: "expo.out" }, 0);
+      tl.fromTo(["#s1-kick", "#s1-l1", "#s1-l2"], { y: 14 }, { y: 0, duration: 0.5, ease: "expo.out", stagger: 0.05 }, 0);
+      // „ბიპი“: the name and the antenna
+      tl.fromTo("#s1-name", { opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(2.2)" }, A("name"));
+      tl.fromTo("#s1-ant", { scale: 1 }, { scale: 1.6, duration: 0.14, ease: "power2.out", yoyo: true, repeat: 3, transformOrigin: "50% 50%" }, A("name"));
+      // „ყოველ დილით“: the easel
+      tl.fromTo("#s1-easel", { opacity: 0, y: 80 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, A("morning"));
+      tl.fromTo("#s1-bot", { rotation: 0 }, { rotation: 4, duration: 0.3, ease: "sine.inOut", yoyo: true, repeat: 1, transformOrigin: "50% 100%" }, A("morning"));
+      // „ხატვას“: the second line inverts, the arm draws, a first scribble
+      tl.to("#s1-l2 .blk", { scaleX: 1, duration: 0.3, ease: "expo.out" }, A("learns"));
+      tl.to("#s1-l2 em", { color: C("--canvas"), duration: 0.08, ease: "none" }, A("learns") + 0.05);
+      tl.fromTo("#s1-arm", { rotation: 0 }, { rotation: -18, duration: 0.18, ease: "sine.inOut", yoyo: true, repeat: 5, svgOrigin: "142 172" }, A("learns"));
+      tl.to("#s1-scrib", { strokeDashoffset: 0, duration: 1.0, ease: "power1.inOut" }, A("learns") + 0.1);
+      tl.fromTo("#s1-eyes", { scaleY: 1 }, { scaleY: 0.15, duration: 0.08, yoyo: true, repeat: 1, svgOrigin: "100 88" }, A("learns") + 0.9);
+      window.__timelines["s1"] = tl;
+    })();
+  </script>
+</template>

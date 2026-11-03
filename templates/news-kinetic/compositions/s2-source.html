@@ -1,0 +1,56 @@
+<!-- s2 stacked cards (4.9-8.65 s): the source card on top („თბილისი ენერჯის“ ცნობით), the houses badge with the
+     places' chips below. Text: stories/24835.json stat + where; the date line is the story's (chrome facts). -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .card { position: absolute; background: var(--panel); border: 2px solid var(--line); border-radius: 14px; }
+    #root .kick { position: absolute; display: flex; align-items: center; gap: 14px; font-weight: 600; font-size: 30px; line-height: 1.2; color: var(--muted); white-space: nowrap; }
+    #root .dot { width: 14px; height: 14px; border-radius: 7px; background: var(--accent); }
+    #root .head { position: absolute; font-weight: 700; font-size: 72px; line-height: 1.14; white-space: nowrap; }
+    #root .head span { display: inline-block; }
+    #root .meta { position: absolute; font-weight: 400; font-size: 30px; line-height: 1.3; color: var(--muted); white-space: nowrap; }
+    #root .rule { position: absolute; height: 2px; background: var(--line); transform-origin: 0 50%; }
+    #root .badge { position: absolute; border-radius: 50%; background: var(--ticker); border: 2px solid var(--line-strong); }
+    #root .badge svg { position: absolute; left: 22%; top: 22%; width: 56%; height: 56%; }
+    #root .draw path { stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; }
+    #root .chip { position: absolute; display: inline-flex; align-items: center; gap: 14px; font-weight: 600; font-size: 40px; line-height: 1;
+      padding: 18px 32px 20px 24px; border-radius: 999px; border: 2px solid var(--line-strong); white-space: nowrap; }
+    #root .chip svg { width: 40px; height: 40px; }
+  </style>
+  <div id="root" data-composition-id="s2" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="s2-src" class="card" style="left: 64px; top: 300px; width: 952px; height: 356px">
+        <div class="kick" style="left: 48px; top: 44px"><span class="dot"></span><span data-var-text="slot-s2-source-w1">რამდენს ეხება</span></div>
+        <div class="head" style="left: 48px; top: 104px"><span data-var-text="slot-s2-source-quote-1">…</span><br /><span><span data-var-text="slot-s2-source-w2">ცნობით</span></span></div>
+        <div id="s2-rule" class="rule" style="left: 48px; right: 48px; top: 282px"></div>
+        <div class="meta" style="left: 48px; top: 298px"><span data-var-text="date">…</span> <span data-var-text="slot-s2-source-w3">·</span> <span data-var-text="time">…</span></div>
+      </div>
+      <div id="s2-who" class="card" style="left: 64px; top: 680px; width: 952px; height: 404px">
+        <div id="s2-badge" class="badge" style="left: 48px; top: 64px; width: 276px; height: 276px">
+          <svg class="draw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path pathLength="1" d="m12.681 4.24.834-.715a1.45 1.45 0 011.88 0l5.09 4.364A1.45 1.45 0 0121 9v6.546a1.45 1.45 0 01-1 1.381"/><path pathLength="1" d="M15.485 11.889A1.45 1.45 0 0116 13v6.546A1.454 1.454 0 0114.546 21H4.364a1.454 1.454 0 01-1.454-1.454V13a1.45 1.45 0 01.515-1.111l5.09-4.364a1.45 1.45 0 011.88 0z"/><path pathLength="1" d="M7.41 20.546v-4a1 1 0 011-1h2a1 1 0 011 1v4"/></svg>
+        </div>
+        <div id="s2-c1" class="chip" style="left: 372px; top: 80px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg><span data-var-text="slot-s2-source-w4">ვარკეთილი</span></div>
+        <div id="s2-c2" class="chip" style="left: 372px; top: 176px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg><span data-var-text="slot-s2-source-w5">ვაზისუბანი</span></div>
+        <div id="s2-city" class="meta" style="left: 376px; top: 290px"><span data-var-text="slot-s2-source-w6">თბილისი</span></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // "„თბილისი ენერჯის“ ცნობით": the source card comes up, its words land one by one
+    tl.fromTo("#s2-src", { opacity: 0, y: 160 }, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 0.1);
+    tl.fromTo("#s2-src .head span", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power2.out", stagger: 0.09 }, 0.28);
+    tl.fromTo("#s2-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "power3.out" }, 0.6);
+    tl.fromTo("#s2-src .meta", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 0.75);
+    // "ცნობით, მიწოდება": the lower card stacks under it, the houses draw, the places pop
+    tl.fromTo("#s2-who", { opacity: 0, y: 160 }, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 1.86);
+    tl.fromTo("#s2-badge", { scale: 0.6 }, { scale: 1, duration: 0.5, ease: "back.out(1.7)" }, 1.98);
+    tl.to("#s2-badge path", { strokeDashoffset: 0, opacity: 1, duration: 0.6, ease: "power2.out", stagger: 0.08 }, 2.02);
+    tl.fromTo("#s2-c1", { opacity: 0, scale: 0.8, x: -30 }, { opacity: 1, scale: 1, x: 0, duration: 0.35, ease: "back.out(1.8)" }, 2.2);
+    tl.fromTo("#s2-c2", { opacity: 0, scale: 0.8, x: -30 }, { opacity: 1, scale: 1, x: 0, duration: 0.35, ease: "back.out(1.8)" }, 2.36);
+    tl.fromTo("#s2-city", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 2.6);
+    // out on "6400": the stack shrinks back as the number arrives (s3)
+    tl.to(["#s2-src", "#s2-who"], { opacity: 0, scale: 0.9, y: -100, duration: 0.3, ease: "power3.in", stagger: 0.05 }, 3.3);
+    window.__timelines["s2"] = tl;
+  </script>
+</template>

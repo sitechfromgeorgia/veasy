@@ -1,0 +1,179 @@
+{
+ "about": "The beat sheet of the composed 24835 (Veasy v2 phase 0, docs/plan-v2.md § 6): chapters and beats anchored to the narration's words. tools/compose_scaffold.py resolves every anchor to the voice's timing into timing.json; the scenes (compositions/s*.html) land their motion on those times. Every text on screen comes from stories/24835.json.",
+ "story": null,
+ "chapters": [
+  {
+   "title": "",
+   "at": null,
+   "example": "რამდენს ეხება"
+  },
+  {
+   "title": "",
+   "at": null,
+   "example": "როდის"
+  },
+  {
+   "title": "",
+   "at": null,
+   "example": "სად და რატომ"
+  }
+ ],
+ "end": {
+  "at": null
+ },
+ "beats": [
+  {
+   "id": "hook-places",
+   "show": "the hook on screen at frame 0: chip and the first line",
+   "at": null
+  },
+  {
+   "id": "hook-line2",
+   "show": "second line",
+   "at": null
+  },
+  {
+   "id": "hook-date",
+   "show": "date chip with a calendar badge",
+   "at": null
+  },
+  {
+   "id": "hook-gas",
+   "show": "third line, the flame badge",
+   "at": null
+  },
+  {
+   "id": "hook-stop",
+   "show": "the ban stroke closes across the flame",
+   "at": null
+  },
+  {
+   "id": "source",
+   "show": "stacked cards: the source card slides in",
+   "at": null
+  },
+  {
+   "id": "houses",
+   "show": "lower card: houses badge with the place chips",
+   "at": null
+  },
+  {
+   "id": "number",
+   "show": "big number counts up, source chip under it",
+   "at": null
+  },
+  {
+   "id": "subscribers",
+   "show": "the label line",
+   "at": null
+  },
+  {
+   "id": "temporary",
+   "show": "the meter fills, 'დროებით' inverted",
+   "at": null
+  },
+  {
+   "id": "when",
+   "show": "chapter 2: the headline",
+   "at": null
+  },
+  {
+   "id": "monday",
+   "show": "monday chip lights",
+   "at": null
+  },
+  {
+   "id": "from",
+   "show": "the night node: moon badge, date",
+   "at": null
+  },
+  {
+   "id": "from-time",
+   "show": "22:00 lands",
+   "at": null
+  },
+  {
+   "id": "to",
+   "show": "the track draws to the morning node: sun badge, date",
+   "at": null
+  },
+  {
+   "id": "to-time",
+   "show": "10:00 lands",
+   "at": null
+  },
+  {
+   "id": "why",
+   "show": "chapter 3: the headline, the pipeline node",
+   "at": null
+  },
+  {
+   "id": "why-works",
+   "show": "arrow, the works node",
+   "at": null
+  },
+  {
+   "id": "why-off",
+   "show": "arrow, the gas-off node",
+   "at": null
+  },
+  {
+   "id": "where",
+   "show": "the map card: Georgia",
+   "at": null
+  },
+  {
+   "id": "where-zoom",
+   "show": "camera to Tbilisi, the two pins",
+   "at": null
+  },
+  {
+   "id": "link",
+   "show": "the link chip",
+   "at": null
+  },
+  {
+   "id": "media",
+   "show": "headline, newspaper badge",
+   "at": null
+  },
+  {
+   "id": "media-four",
+   "show": "the 4 and the outlets' chips, one by one",
+   "at": null
+  },
+  {
+   "id": "media-say",
+   "show": "the label",
+   "at": null
+  },
+  {
+   "id": "end",
+   "show": "the end card: mark, wordmark",
+   "at": null
+  },
+  {
+   "id": "end-link",
+   "show": "the link and the QR",
+   "at": null
+  },
+  {
+   "id": "cta",
+   "show": "the call to action button",
+   "at": null
+  }
+ ],
+ "keywords": [],
+ "icons": [
+  "flame",
+  "ban",
+  "houses",
+  "calendar",
+  "moon",
+  "sun",
+  "clock",
+  "construction",
+  "map-pin",
+  "newspaper"
+ ]
+}
