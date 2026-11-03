@@ -31,11 +31,13 @@ bash /root/.hermes/shared-plugins/veasy/ops/install.sh --align    # the engine's
 
 What the agent gets:
 - **Tools:** `veasy_options`, `veasy_check`, `veasy_render`, `veasy_still`, `veasy_qa`, `veasy_probe`, `veasy_plan`,
-  `veasy_package`, `veasy_write`, `veasy_rubrics`, `veasy_queue` and `veasy_doctor`.
+  `veasy_package`, `veasy_write`, `veasy_rubrics`, `veasy_queue`, `veasy_compose` and `veasy_doctor`.
   - Each runs the engine in its own venv and returns its JSON.
   - A render takes a minute or two; the agent needs none of the render libraries.
 - **Skills:** `veasy:make-video`, `veasy:write-script`, `veasy:qa`, `veasy:package`, `veasy:formats`, `veasy:queue`,
-  `veasy:brands`, `veasy:programs`, `veasy:directors`, `veasy:rubrics`, `veasy:media`.
+  `veasy:brands`, `veasy:programs`, `veasy:directors`, `veasy:rubrics`, `veasy:media`, `veasy:compose`; and the
+  engines' own (`ops/install.sh --skills --profile <profile>`: Remotion's `remotion-*`, HyperFrames'
+  `hyperframes` and `hyperframes-cli`, pinned).
 - **A one-line hint** on the first turn; turn it off with `VEASY_HINT=0`.
 
 Frames are rendered with [Remotion](https://github.com/remotion-dev/remotion) (React; `remotion/`). Python
@@ -67,6 +69,45 @@ python -m tt_shorts.engine gc     [--dry-run]                      # retention (
 python -m tt_shorts.engine voices --story <story.json>             # Gemini tone samples, by ear
 ```
 
+- **Two film engines** (`tt_shorts/compose.py`, skill `veasy:compose`): a video's `"engine"` is `remotion` (the
+  brush kit below) or `hyperframes` (a film the agent composes in HTML/CSS/GSAP, HyperFrames 0.9.8 pinned in
+  `compose/`): the director's, else the program's, else the format's, else the pack's, else remotion; `engine render`
+  follows it (`--renderer` overrides). Both get the same voice, captions, pack, mix, checks, QA and queue.
+  ```bash
+  python -m tt_shorts.engine compose scaffold <story> [--brand sitech] [--template auto] [--from DIR]  # a project
+  python -m tt_shorts.engine compose check    <story> [--sources <story>.sources.json] [--shots DIR]   # every check
+  python -m tt_shorts.engine compose render   <story> [--engine silent]          # pinned render, mix, QA
+  python -m tt_shorts.engine compose promote  <project> --as <id>                # an approved film -> templates/<id>
+  ```
+  - The project (`$VEASY_HOME/cache/compose/<brand>-<ref>/`) holds the agent's `index.html`, `compositions/*.html`
+    and `beats.json`, and Veasy's files: `frame.md` and `assets/brand.css` from the pack, `facts.json`,
+    `timing.json` (the voice's words, the chapters, the beats), `assets/vendor/veasy.js` (`VEASY.fact`,
+    `VEASY.at`), the locked `chrome.html` and `captions.html` (v2, hashed in `.veasy/lock.json`).
+  - **Facts are bound, not typed**: a scene shows a number, date, name, quote or source through
+    `data-var-text="<fact id>"` (HyperFrames variables declared from facts.json); hosts are timed by beats
+    (`data-beat`, `data-until`), so a film keeps its timing under another voice.
+  - **`compose check`**: our lint (no typed color, font, link or fact; nothing from the network; no canvas/WebGL
+    text; every text in a `data-probe` region; the chrome hosted and unchanged), the layout probe at every beat's
+    settled frame (`compose/probe.mjs`), the story's rule tier + K rules + kaeasy on every text the DOM shows, and
+    `hyperframes check`. Problems hold the film; a film that would fetch, hide text or lose its chrome is not
+    rendered.
+  - **Render**: `hyperframes render` with pinned settings (4 workers, software GL, `--quality looks`, 30 fps),
+    then `props.mix_audio`, QA and the same result JSON as `engine render`. HyperFrames only runs through
+    Veasy, with telemetry, update checks, skill installs and auto-installs off; `publish`, `cloud`, `lambda`, `tts`,
+    `media-use`, `feedback`, `add` (and other upload or fetch commands) are refused.
+  - **Review tier**: a composed film that passed QA ends `held` (error_class review) until a person
+    `queue approve`s or `reject`s it, unless its format's or program's `review: until:<n>` lets a brand's films
+    through after n approved in a row (default `always`).
+  - **Templates**: `compose promote` turns an approved film's facts and typed words into slots
+    (`templates/<id>/manifest.json`); `compose scaffold --template <id>|auto` (least used for the brand) starts a
+    new film from it.
+  - Demos: `compose/24835` (the gas cut, in either pack) and `compose/bipi-draws` (program `story`: a fable about a
+    small robot learning to draw, brand sitech).
+- **The engines' own skills**: `bash ops/install.sh --skills --profile <name>` (or `--target DIR`) installs, pinned,
+  Remotion's `remotion-*` skills (remotion-dev/skills at a fixed commit, through `npx skills@1.7.6`; never copied
+  into this repo: it has no licence file) and HyperFrames' `hyperframes` and `hyperframes-cli` from the pinned npm
+  package (`media-use` left out). `veasy:make-video` says which way a request goes and which skill wins where they
+  overlap (captions: `captions.py`; media: Veasy's media layer).
 - **Formats** (`tt_shorts/formats.py`, `formats/*.json`): a show is a named set of choices (look, captions,
   transition, outro, voice, music, platform, length window). Built-in: `news`, `news-roll`. A new show is a JSON
   file, no code. Which show uses which format is the owner's and the agent's decision. A format works for every
@@ -78,7 +119,8 @@ python -m tt_shorts.engine voices --story <story.json>             # Gemini tone
   `sitech` (a sitech.ge blog post by slug). A new source is one module with `fetch(ref)`.
 - **Programs** (`tt_shorts/programs.py`, `programs/*.json` + `programs/briefs/`): what a video is made from and
   what it may claim. `news` (the default, unchanged), `explainer` (any document, 30-45 s), `law` (one article of
-  Georgian law) and `blog` (a SiTech post). A program names its sources, the writer's brief, its scene types, a rule
+  Georgian law), `blog` (a SiTech post) and `story` (fiction composed for HyperFrames: tier `story`, S1 "no real
+  person": every name is one of the story's `characters`). A program names its sources, the writer's brief, its scene types, a rule
   tier (`news`; `claims`: every number, name and quote in the document; `law`: claims plus the article number on
   screen, the act named and no advice; `tt_shorts/claims_check.py`), its default format and `publish: auto|review`
   (review jobs end `held` for a person). A new program is a JSON file and a brief. Skill: `veasy:programs`.
@@ -116,6 +158,7 @@ cache/work/<job>/                            render scratch, deleted after a goo
 cache/bundles/<sha16>/                       the Remotion bundle per version of remotion/src (probe, selftest)
 cache/media/<sha16>/                         the media layer: one search's candidates, or one fetched picture + its
                                              ledger entry (assets.py)
+cache/compose/<brand>-<ref>/                 a composed film's HyperFrames project (engine compose), 30 days
 logs/<day>.jsonl                             one JSON line per event (queued, written, rendered, failed, gc)
 ```
 Names are lowercase ASCII with hyphens (Georgian and spaces become hyphens); `day` is the server's date. A job is

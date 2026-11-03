@@ -30,6 +30,11 @@ format choice. The map itself needs no format key; see `veasy:write-script`.)
 | `platform` | the QR link's utm_source: `shorts`, `youtube`, `instagram`, `tiktok`, ... | `shorts` |
 | `theme` | `default` (the pack's default theme: today's look, nothing changes), `auto` (varied per video among the pack's allowed themes, least used lately), or a theme's name: `dark`, `light` (every pack the format is used with must have it) | `default` |
 | `min_seconds`, `max_seconds` | the length window a render must land in | 18, 45 |
+| `engine` (optional) | the film engine: `remotion` (the brush kit) or `hyperframes` (a composed film, `veasy:compose`); a director's or program's wins over the format's, the format's over the pack's | remotion |
+| `review` (optional) | composed films only: `always` (held for a person) or `until:<n>` (held until the brand has n approved in a row); a format's wins over the program's | always |
+
+`formats/story.json` is the `story` program's (18-45 s, the culture music bed, engine hyperframes).
+`engine options` → `film_engines` lists who sets which engine.
 
 Built-in: `news` (all defaults) and `news-roll` (roll captions); `formats/explainer.json` (25-45 s) is the
 default of the explainer and law programs; `formats/number.json` (20-25 s) is the rubric „დღის ციფრი“'s and

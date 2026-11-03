@@ -15,7 +15,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SKILLS_DIR = ROOT / "skills"
-TIMEOUTS = {"render": 1500, "write": 900, "still": 600, "queue": 3600, "package": 900, "probe": 600, "plan": 600}
+TIMEOUTS = {"render": 1500, "write": 900, "still": 600, "queue": 3600, "package": 900, "probe": 600, "plan": 600,
+            "compose": 2400}
 
 HINT = (
     "[veasy] If this turn involves making, checking or fixing a video (a Short, a reel, a story video), first load "
@@ -62,7 +63,10 @@ def _flags(args: dict, names: tuple[str, ...]) -> list[str]:
 
 
 CHOICES = ("format", "look", "captions", "transition", "outro", "voice", "music", "platform", "beats", "chapters",
-           "engine", "director", "out")
+           "engine", "director", "out", "renderer")
+RENDERER = {"type": "string", "enum": ["remotion", "hyperframes"],
+            "description": "The film engine instead of the story's (director, program, format, pack; default remotion). "
+                           "hyperframes renders the story's composed film (veasy_compose)."}
 STORY = {"type": "string", "description": "Path to the story JSON (absolute, or relative to the Veasy folder)."}
 BRAND = {"type": "string", "description": "A brand pack in brands/ (tbilisi-today, sitech, ...; see veasy_options)."}
 PROGRAM = {"type": "string", "description": "What kind of video (skill veasy:programs): news (default), explainer "
@@ -98,6 +102,7 @@ CHOICE_PROPS = {
     "director": {"type": "string", "description": "A director (skill veasy:directors): data, map, type, draw, "
                  "chronicle, witness, brief, single. Default: the story's own (code assigns it before writing)."},
     "out": {"type": "string", "description": "Output path (optional)."},
+    "renderer": RENDERER,
 }
 
 TOOLS = {
@@ -119,11 +124,11 @@ TOOLS = {
                      "costs about $0.01; the voice is cached per story. Takes a minute or two.",
                      lambda a: _engine("render", [a["story"]] + _flags(a, CHOICES))),
     "veasy_still": ({"type": "object", "properties": {
-                        "story": STORY, **CHOICE_PROPS,
+                        "story": STORY, **{k: v for k, v in CHOICE_PROPS.items() if k != "renderer"},
                         "frames": {"type": "string", "description": "Comma-separated frames; default the middle of every scene."}},
                      "required": ["story"]},
                     "PNG stills of a story (no full render): a quick look at the layout.",
-                    lambda a: _engine("still", [a["story"]] + _flags(a, CHOICES + ("frames",)))),
+                    lambda a: _engine("still", [a["story"]] + _flags(a, tuple(c for c in CHOICES if c != "renderer") + ("frames",)))),
     "veasy_qa": ({"type": "object", "properties": {
                      "video": {"type": "string", "description": "Path to the rendered mp4."},
                      "format": {"type": "string", "description": "The format it was rendered in (length window)."}},
@@ -203,7 +208,9 @@ TOOLS = {
                       lambda a: _engine("rubrics", [a["action"]] + ([a["story"]] if a.get("story") else []) + _flags(
                           a, ("rubric", "brand", "source", "ref", "sources", "part")))),
     "veasy_queue": ({"type": "object", "properties": {
-                        "action": {"type": "string", "enum": ["add", "list", "run", "show", "retry", "cancel"]},
+                        "action": {"type": "string", "enum": ["add", "list", "run", "show", "retry", "cancel", "approve",
+                                                             "reject"]},
+                        "renderer": RENDERER,
                         "id": {"type": "string", "description": "A job id (show, retry, cancel)."},
                         "program": PROGRAM,
                         "source": SOURCE,
@@ -224,8 +231,39 @@ TOOLS = {
                     "job passed QA; held means rendered but QA found problems; failed has error_class and error.",
                     lambda a: _engine("queue", [a["action"]] + ([str(a["id"])] if a.get("id") else []) + _flags(
                         a, ("program", "source", "ref", "story", "brand", "format", "look", "captions", "transition", "outro",
-                            "voice", "music", "platform", "beats", "chapters", "engine", "director", "rubric", "part",
+                            "voice", "music", "platform", "beats", "chapters", "engine", "director", "rubric", "part", "renderer",
                             "priority", "state", "max")))),
+    "veasy_compose": ({"type": "object", "properties": {
+                          "action": {"type": "string", "enum": ["scaffold", "check", "render", "promote", "templates"]},
+                          "story": {"type": "string", "description": "scaffold/check/render: the story JSON."},
+                          "project": {"type": "string", "description": "The HyperFrames project folder (default: "
+                                      "$VEASY_HOME/cache/compose/<brand>-<ref>); promote: the film to promote."},
+                          "brand": BRAND,
+                          "template": {"type": "string", "description": "scaffold/render: start from templates/<id> "
+                                       "(auto: the least used for the brand)."},
+                          "from": {"type": "string", "description": "scaffold: copy the agent's files (index.html, "
+                                   "compositions/, beats.json) from this folder."},
+                          "force": {"type": "boolean", "description": "scaffold: replace the project's own files."},
+                          "sources": {"type": "string", "description": "check/render: the member articles (default "
+                                      "<story>.sources.json)."},
+                          "engine": {"type": "string", "enum": ["gemini", "edge", "silent"],
+                                     "description": "The voice (scaffold/check default silent; render default gemini)."},
+                          "format": CHOICE_PROPS["format"],
+                          "as": {"type": "string", "description": "promote: the template id (lowercase, hyphens)."},
+                          "label": {"type": "string", "description": "promote: the template's name."}},
+                       "required": ["action"]},
+                      "Films an agent composes for the HyperFrames engine (skill veasy:compose): scaffold a project "
+                      "(the pack's frame.md and tokens, facts.json, timing.json with the voice's words and the beats, "
+                      "the locked chrome and captions), check it (our lint, the probe at every beat, the story's rules, "
+                      "Georgian and kaeasy on every text the DOM shows, hyperframes check; problems must be empty), "
+                      "render it (pinned HyperFrames, the ffmpeg mix, QA), promote an approved film to a template.",
+                      lambda a: _engine("compose", [a["action"]] + (
+                          [a["project"]] if a["action"] == "promote" and a.get("project") else
+                          [a["story"]] if a.get("story") else []) + _flags(
+                          a, ("brand", "template", "sources", "engine", "format", "label")) +
+                          (["--project", a["project"]] if a.get("project") and a["action"] != "promote" else []) +
+                          (["--from", a["from"]] if a.get("from") else []) + (["--as", a["as"]] if a.get("as") else []) +
+                          (["--force"] if a.get("force") else []))),
     "veasy_doctor": ({"type": "object", "properties": {}},
                      "Is this machine ready to render? ffmpeg, Remotion, fonts, music, keys, kaeasy.",
                      lambda a: _engine("doctor", [])),

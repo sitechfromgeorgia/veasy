@@ -22,7 +22,7 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   - Secrets live only in `data/.env` (chmod 600, git-ignored).
   - Timers, cron and anything installed on the server need the owner's OK.
 - **Entry point:** `python -m tt_shorts.engine` (options, check, plan, render, still, qa, probe, write, queue, gc,
-  voices, doctor; JSON out). `plan` is the free storyboard to run before paying for a voice.
+  voices, doctor, compose; JSON out). `plan` is the free storyboard to run before paying for a voice.
   The skills in `skills/` say how an agent uses it. Keep the engine, the skills and `options` in step: a new
   choice in code must appear in `engine.options()`, `formats.py` validation and the `veasy:formats` skill.
 - **A new scene type** is a brush (`brushes/<type>.json`, validated by `tt_shorts/catalog.py`; its docstring lists
@@ -48,6 +48,16 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   a shape, a slot and an episode. `rubric`, `episode` and `part` are code-owned like `date`; eligibility is
   declarative data (no code strings); a new rubric needs a case in `tests/test_rubrics.py`. The digest (program
   `digest`) is built by code from checked stories, never by a model, and states its real story count.
+- **Two film engines** (`"engine": "remotion" | "hyperframes"`: director, else program, else format, else pack,
+  else remotion; `compose.engine_for`). The HyperFrames lane is `tt_shorts/compose.py` (`engine compose
+  scaffold|check|render|promote`, skill `veasy:compose`, tool `veasy_compose`):
+  - HyperFrames runs only through `compose.hyperframes()` (telemetry and updates off, `REFUSED` subcommands), pinned
+    in `compose/package.json`; renders pinned in `compose.RENDER`.
+  - The locked chrome and captions are versioned (`CHROME_VERSION`) and hashed; a change to them bumps the version.
+  - A new lint rule goes in `compose.lint` and `LINT_RULES` with a case in `tests/test_compose.py`.
+  - Facts are bound (`data-var-text`, `VEASY.fact`), never typed; every DOM text goes through the story's tier.
+  - A composed film is held for review unless its format or program says `review: until:<n>` (queue.py).
+  - The engines' own skills are installed by `ops/install.sh --skills`, never copied into this repo.
 - **Motion rules** (`tt_shorts/motion_rules.py`): warnings in `engine plan`; only unreadable text (0.5 s + 0.3 s a
   word) holds a render. A new rule needs a case in `tests/test_motion_rules.py`.
 - **Data flow:** source → story JSON → `tt_shorts/props.py` (voice, timings, data, the brand pack) → `remotion/`

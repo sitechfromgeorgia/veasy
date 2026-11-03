@@ -18,6 +18,7 @@ python -m tt_shorts.engine queue add --story /path/story.json --brand sitech --f
 python -m tt_shorts.engine queue list [--state failed]      # newest first, plus counts per state
 python -m tt_shorts.engine queue run [--max 5]               # one worker at a time; a second one answers busy
 python -m tt_shorts.engine queue show <id> | retry <id> | cancel <id>
+python -m tt_shorts.engine queue approve <id> | reject <id>   # a held video, after a person watched it
 ```
 
 ## States
@@ -35,6 +36,12 @@ cancelled: taken out by hand
 rule), `layout` (scene timing), `render` (Remotion or ffmpeg: read the log line), `review` (`held` only: QA passed,
 but the job's program says `publish: review`, e.g. law and explainer; a person watches it before it goes out).
 Higher `--priority` runs first. A story job takes the story's own `program`.
+
+**Composed films** (the HyperFrames engine, `veasy:compose`; `--renderer hyperframes` on `queue add` forces it)
+end `held` (error_class `review`) after QA passes, unless the format's or program's `review` says `until:<n>` and
+the brand already has n approved composed films in a row. A person watches the film, then:
+`queue approve <id>` (done; counts toward the brand's run) or `queue reject <id>` (failed, `rejected`; the run
+starts again). A rejected film's fault goes back to the agent that composed it.
 Every failed check is remembered (`failures` in veasy.db): `python -m tt_shorts.engine learn [--brand ...]` lists
 the rules failing most lately, and the writer reads them before its next script.
 
