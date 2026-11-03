@@ -32,18 +32,21 @@ overlap with Veasy, **Veasy wins**:
 ## The workflow
 
 ```bash
-python -m tt_shorts.engine compose scaffold <story.json> [--brand sitech] [--template auto]   # a project
+python -m tt_shorts.engine compose blocks                                      # list all available blocks
+python -m tt_shorts.engine compose scaffold <story.json> [--blocks b1,b2,b3]   # assemble from blocks
+python -m tt_shorts.engine compose scaffold <story.json> [--template auto]     # or start from a template
 python -m tt_shorts.engine compose check <story.json> [--sources <story>.sources.json] [--shots out/shots]
-python -m tt_shorts.engine compose render <story.json> --engine silent      # a free preview, then the real voice
+python -m tt_shorts.engine compose render <story.json> --engine silent         # a free preview, then the real voice
 ```
-Tool `veasy_compose` (action scaffold|check|render|promote|templates). Every command prints JSON.
+Tool `veasy_compose` (action scaffold|check|render|promote|templates|blocks). Every command prints JSON.
 
 1. **A story** (`veasy:write-script`; fiction: program `story`, `veasy:programs`): narration, `cta`, `characters`
    for fiction, and `scenes` with `at` anchors (they are the storyboard and the words the film may show).
    `engine check <story>` must pass first.
 2. **Scaffold.** The project is `$VEASY_HOME/cache/compose/<brand>-<ref>/` (or `--project`). Its agent files come
-   from `--template <id>`, `--from <dir>`, the repo's `compose/<story id>/`, or a plain starter (one scene per
-   story scene). Re-scaffolding keeps your files and rewrites Veasy's.
+   from `--blocks <b1,b2,...>` (reusable blocks assembled in order), `--template <id>`, `--from <dir>`, the repo's
+   `compose/<story id>/`, or a plain starter (one scene per story scene). Re-scaffolding keeps your files and
+   rewrites Veasy's.
 3. **Read** `frame.md` (the pack's tokens, type ramp, the frame's bands, the pack's own rules), `facts.json` (every
    fact you may show, by id) and `timing.json` (the words, chapters and beats in seconds).
 4. **Write** `beats.json` (chapters, an `end` anchor, and a beat every 1.5-3 s, each anchored to the words that say
@@ -84,22 +87,47 @@ Tool `veasy_compose` (action scaffold|check|render|promote|templates). Every com
 - Network: only files inside the project; the only scripts are `assets/vendor/gsap.min.js` and
   `assets/vendor/veasy.js` in index.html.
 
+## The Block Library (`compose/blocks/`)
+
+Agents assemble films from reusable, verified scene blocks (`python -m tt_shorts.engine compose blocks`):
+- `kinetic-headline`: giant kinetic text with accent pill, high-contrast block inversion, subtitle
+- `number-reveal`: massive metric counter with unit pill, track progress indicator, explanatory card
+- `map-pin`: geographic region with locator beacon, coordinates, and details card
+- `comparison`: side-by-side comparison with topic header, left/right pillars, summary takeaway
+- `icon-grid`: multi-item badge grid with animated SVG icons and descriptive labels
+- `quote`: quoted statement attribution card with quotation styling, speaker pill, verified role
+- `process`: vertical step-by-step pipeline sequence with connecting spine and phase badges
+- `chapter-card`: bold chapter title and thematic transition with backdrop numeral and summary
+- `end-card`: closing takeaway card with action pill and outro framing
+
+Scaffold with `--blocks <id1,id2,...>` to stitch chosen blocks into `index.html` hosts and `beats.json`.
+
 ## What `compose check` runs
 
-The story's own checks (`engine check`), Veasy's files against their hashes, our **lint** (rules: color, font,
-link, net, canvas, probe, fact, host, locked, art), the **layout probe** at every beat's settled frame (band,
-rail, captions, frame, overflow, glyph, font, size, the pack's accent rule, a text outside a region, any network
-request), the **story's rule tier** + K rules + kaeasy on every text the DOM shows (news: numbers, quotes, no
-relative days against the articles; claims and law; story: S1, no real person), slots filled, and `hyperframes
-check` (its errors are problems, its warnings shown). A bound fact still counting at a settled frame is a warning.
+The story's own checks (`engine check`), Veasy's files against their hashes, our **lint** (13 rules:
+`color`, `font`, `link`, `net`, `canvas`, `probe`, `fact`, `host`, `locked`, `art`, `timeline`, `prefix`, `template`),
+the **layout probe** at every beat's settled frame (band, rail, captions, frame, overflow, glyph, font, size, the
+pack's accent rule, a text outside a region, any network request), the **story's rule tier** + K rules + kaeasy
+on every text the DOM shows (news: numbers, quotes, no relative days against the articles; claims and law;
+story: S1, no real person), slots filled, and `hyperframes check` (its errors are problems, its warnings shown).
+A bound fact still counting at a settled frame is a warning.
 
-## Templates
+The three sub-composition lint rules:
+- `timeline`: sub-composition scripts must register their timeline on `window.__timelines["<id>"] = tl;`
+- `prefix`: all element IDs must be prefixed with `<cid>-` or equal `'root'` to prevent DOM collisions across scenes
+- `template`: sub-compositions must be wrapped in `<template>` and declare `data-composition-id="<id>"`
 
-`engine compose promote <project> --as <id> [--label "..."]` saves a film **the owner approved** as `templates/<id>/`:
-its scenes with every fact and typed word turned into a slot, its beats without anchors, and `manifest.json` (each
-slot's kind and example). `compose scaffold <story> --template <id>` (or `auto`: the least used for the brand)
-starts a new film from it: fill `slots.json` (a fact slot `"=<fact id>"`, a words slot the words) and the beats'
-anchors, then scaffold again and check.
+## Templates & Phase 4 Pipeline
+
+`engine compose promote <project> --as <id> [--label "..."] [--about "..."]` saves an approved film
+as `templates/<id>/`: its scenes with every fact and typed word turned into a slot, its beats without anchors,
+and `manifest.json` (each slot's kind and example).
+`compose scaffold <story> --template <id>` (or `auto`: the least used for the brand) starts a new film from it:
+fill `slots.json` (a fact slot `"=<fact id>"`, a words slot the words) and the beats' anchors, then scaffold
+again and check.
+
+A composed film stays held for review (`error_class review` in `queue.py`) unless its format or program says
+otherwise. Agents prepare template candidates; the owner marks a film approved.
 
 ## Don'ts
 

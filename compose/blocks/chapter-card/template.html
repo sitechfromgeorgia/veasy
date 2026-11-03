@@ -1,0 +1,32 @@
+<!-- block chapter-card: bold section title card with background index numeral and summary line -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .bg-num { position: absolute; left: 56px; top: 250px; font-weight: 800; font-size: 320px; line-height: 0.9;
+      color: var(--line-strong); opacity: 0.25; user-select: none; pointer-events: none; font-variant-numeric: tabular-nums; }
+    #root .ch-pill { position: absolute; left: 64px; top: 490px; display: inline-flex; align-items: center; gap: 12px;
+      font-weight: 700; font-size: 30px; line-height: 1; padding: 12px 24px; border-radius: 999px; background: var(--ink); color: var(--canvas); }
+    #root .ch-title { position: absolute; left: 64px; top: 580px; width: 876px; font-weight: 700; font-size: 76px; line-height: 1.15; }
+    #root .ch-sub { position: absolute; left: 64px; top: 780px; width: 876px; font-weight: 500; font-size: 42px; line-height: 1.3; color: var(--muted); }
+  </style>
+  <div id="root" data-composition-id="{id}" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="{id}-bgnum" class="bg-num" data-layout-ignore><span data-var-text="{slot_number}">…</span></div>
+      <div id="{id}-pill" class="ch-pill">თავი <span data-var-text="{slot_number}">…</span></div>
+      <div id="{id}-title" class="ch-title"><span data-var-text="{slot_title}">…</span></div>
+      <div id="{id}-sub" class="ch-sub"><span data-var-text="{slot_summary}">…</span></div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+      // Numerals and pill enter
+      tl.fromTo("#{id}-bgnum", { opacity: 0, scale: 0.9 }, { opacity: 0.25, scale: 1, duration: 0.6, ease: "expo.out" }, 0.05);
+      tl.fromTo("#{id}-pill", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.12);
+      // Title and sub reveal
+      tl.fromTo("#{id}-title", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, 0.25);
+      tl.fromTo("#{id}-sub", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.55);
+      window.__timelines["{id}"] = tl;
+    })();
+  </script>
+</template>

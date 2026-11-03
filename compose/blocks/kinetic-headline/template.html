@@ -1,0 +1,41 @@
+<!-- block kinetic-headline: typographic hook with category chip, staggered lines and kinetic accent block -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .chip { position: absolute; display: inline-flex; align-items: center; gap: 12px; font-weight: 600; font-size: 30px; line-height: 1;
+      padding: 12px 24px 14px; border-radius: 999px; border: 2px solid var(--line-strong); white-space: nowrap; }
+    #root .dot { width: 14px; height: 14px; border-radius: 7px; background: var(--accent); }
+    #root .hook { position: absolute; left: 64px; font-weight: 700; font-size: 96px; line-height: 1.12; white-space: nowrap; }
+    #root .inv { position: relative; display: inline-block; }
+    #root .inv .blk { position: absolute; left: -14px; right: -14px; top: 10px; bottom: 2px; border-radius: 14px; background: var(--ink); transform-origin: 0 50%; }
+    #root .inv em { position: relative; font-style: normal; }
+    #root .sub { position: absolute; left: 64px; font-weight: 500; font-size: 44px; line-height: 1.25; color: var(--muted); white-space: nowrap; }
+    #root .rule { position: absolute; left: 64px; width: 876px; height: 3px; background: var(--line); transform-origin: 0 50%; }
+  </style>
+  <div id="root" data-composition-id="{id}" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="{id}-chip" class="chip" style="left: 64px; top: 300px"><span class="dot"></span><span data-var-text="{slot_kicker}">…</span></div>
+      <div id="{id}-l1" class="hook" style="top: 384px"><span data-var-text="{slot_headline_1}">…</span></div>
+      <div id="{id}-l2" class="hook" style="top: 504px"><span class="inv"><i class="blk"></i><em data-var-text="{slot_headline_2}">…</em></span></div>
+      <div id="{id}-rule" class="rule" style="top: 648px"></div>
+      <div id="{id}-sub" class="sub" style="top: 672px"><span data-var-text="{slot_sub}">…</span></div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const C = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+      const tl = gsap.timeline({ paused: true });
+      // Frame 0: chip and first line are readable, settling in
+      tl.fromTo("#{id}-chip", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0);
+      tl.fromTo("#{id}-l1", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, 0.08);
+      // Second line inverts cleanly on emphasis beat
+      tl.fromTo("#{id}-l2", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, 0.28);
+      tl.fromTo("#{id}-l2 .blk", { scaleX: 0 }, { scaleX: 1, duration: 0.35, ease: "expo.out" }, 0.48);
+      tl.fromTo("#{id}-l2 em", { color: C("--ink") }, { color: C("--canvas"), duration: 0.1, ease: "none" }, 0.52);
+      // Divider rule and sub line
+      tl.fromTo("#{id}-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "expo.out" }, 0.65);
+      tl.fromTo("#{id}-sub", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.75);
+      window.__timelines["{id}"] = tl;
+    })();
+  </script>
+</template>

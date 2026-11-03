@@ -1,0 +1,27 @@
+{
+  "id": "quote",
+  "label": "ციტატა",
+  "about": "Official statement or testimony with quotation styling, speaker pill and verified attribution.",
+  "slots": {
+    "quote_text": {
+      "kind": "quote",
+      "label": "ციტატის ტექსტი",
+      "example": "„ჩვენი მიზანია სისტემის უსაფრთხო და სტაბილური მუშაობა“"
+    },
+    "speaker_name": {
+      "kind": "name",
+      "label": "მოლაპარაკე ან ავტორი",
+      "example": "გიორგი მამულაშვილი"
+    },
+    "speaker_role": {
+      "kind": "words",
+      "label": "თანამდებობა ან სტატუსი",
+      "example": "ტექნიკური დირექტორი"
+    }
+  },
+  "beats": [
+    {"id": "statement", "show": "quote", "at": null},
+    {"id": "speaker", "show": "quote", "at": null}
+  ],
+  "recommended_seconds": [3.5, 6.5]
+}

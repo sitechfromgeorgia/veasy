@@ -1,0 +1,56 @@
+<!-- block icon-grid: structured list of feature cards with animated SVG icon badges -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root .header-chip { position: absolute; left: 64px; top: 300px; display: inline-flex; align-items: center; gap: 12px;
+      font-weight: 600; font-size: 32px; line-height: 1; padding: 12px 26px; border-radius: 999px; border: 2px solid var(--line-strong); }
+    #root .header-chip i { width: 14px; height: 14px; border-radius: 7px; background: var(--accent); }
+    #root .list-wrap { position: absolute; left: 64px; top: 390px; width: 876px; display: flex; flex-direction: column; gap: 24px; }
+    #root .item-card { height: 140px; background: var(--panel); border: 2px solid var(--line); border-radius: 14px;
+      display: flex; align-items: center; padding: 0 32px; gap: 28px; }
+    #root .icon-circle { width: 80px; height: 80px; border-radius: 50%; background: var(--ticker); border: 2px solid var(--line-strong);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    #root .icon-circle svg { width: 44px; height: 44px; }
+    #root .icon-circle path, #root .icon-circle circle, #root .icon-circle line { stroke: var(--ink); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+    #root .item-text { font-weight: 700; font-size: 46px; line-height: 1.2; white-space: nowrap; }
+  </style>
+  <div id="root" data-composition-id="{id}" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <div id="{id}-chip" class="header-chip"><i></i><span data-var-text="{slot_header}">…</span></div>
+      <div class="list-wrap">
+        <div id="{id}-i1" class="item-card">
+          <div class="icon-circle">
+            <svg viewBox="0 0 24 24"><path pathLength="1" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <div class="item-text"><span data-var-text="{slot_item_1}">…</span></div>
+        </div>
+        <div id="{id}-i2" class="item-card">
+          <div class="icon-circle">
+            <svg viewBox="0 0 24 24"><path pathLength="1" d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="item-text"><span data-var-text="{slot_item_2}">…</span></div>
+        </div>
+        <div id="{id}-i3" class="item-card">
+          <div class="icon-circle">
+            <svg viewBox="0 0 24 24"><circle pathLength="1" cx="12" cy="12" r="10"/><path pathLength="1" d="M12 6v6l4 2"/></svg>
+          </div>
+          <div class="item-text"><span data-var-text="{slot_item_3}">…</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+      // Header chip
+      tl.fromTo("#{id}-chip", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.05);
+      // Items cascade in
+      ["#{id}-i1", "#{id}-i2", "#{id}-i3"].forEach((sel, idx) => {
+        const at = 0.2 + idx * 0.22;
+        tl.fromTo(sel, { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.45, ease: "expo.out" }, at);
+        tl.to(sel + " svg *", { strokeDashoffset: 0, duration: 0.4, ease: "power2.out" }, at + 0.1);
+      });
+      window.__timelines["{id}"] = tl;
+    })();
+  </script>
+</template>

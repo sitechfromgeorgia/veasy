@@ -1,0 +1,42 @@
+{
+  "id": "comparison",
+  "label": "შედარება",
+  "about": "Comparative balance block: before & after or two contrasting metrics side by side with visual divider.",
+  "slots": {
+    "topic": {
+      "kind": "words",
+      "label": "შედარების თემა",
+      "example": "მაჩვენებლების შედარება"
+    },
+    "left_label": {
+      "kind": "words",
+      "label": "მარცხენა სვეტის სათაური",
+      "example": "ადრე"
+    },
+    "left_val": {
+      "kind": "words",
+      "label": "მარცხენა მნიშვნელობა",
+      "example": "12 საათი"
+    },
+    "right_label": {
+      "kind": "words",
+      "label": "მარჯვენა სვეტის სათაური",
+      "example": "ახლა"
+    },
+    "right_val": {
+      "kind": "words",
+      "label": "მარჯვენა მნიშვნელობა",
+      "example": "2 საათი"
+    },
+    "summary": {
+      "kind": "words",
+      "label": "შეჯამება ან დასკვნა",
+      "example": "მომსახურების დრო 6-ჯერ შემცირდა"
+    }
+  },
+  "beats": [
+    {"id": "compare", "show": "comparison", "at": null},
+    {"id": "result", "show": "comparison", "at": null}
+  ],
+  "recommended_seconds": [3.0, 6.0]
+}

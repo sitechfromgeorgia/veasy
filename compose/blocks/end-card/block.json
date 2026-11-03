@@ -1,0 +1,27 @@
+{
+  "id": "end-card",
+  "label": "დასასრული",
+  "about": "Closing call-to-action block with summary takeaway, action pill, and outro framing.",
+  "slots": {
+    "headline": {
+      "kind": "words",
+      "label": "დასკვნითი სათაური",
+      "example": "იყავით ინფორმირებული"
+    },
+    "sub": {
+      "kind": "words",
+      "label": "მოწოდება ან განმარტება",
+      "example": "დეტალური ანალიტიკა და წყაროები"
+    },
+    "action": {
+      "kind": "words",
+      "label": "მოქმედების ღილაკი (CTA)",
+      "example": "გამოიწერეთ არხი"
+    }
+  },
+  "beats": [
+    {"id": "outro", "show": "end-card", "at": null},
+    {"id": "cta", "show": "end-card", "at": null}
+  ],
+  "recommended_seconds": [3.0, 5.0]
+}
