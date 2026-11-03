@@ -59,7 +59,7 @@ from tt_shorts import store
 OPTIONS = {
     "hook": ("stack", "lead", "blocks", "underline", "split", "badge", "bracket", "rail"),
     "motif": ("grid", "diagonal", "dots", "rules", "plain", "icons", "crosses", "mesh", "waves", "hash"),
-    "enter": ("rise", "slide", "reveal", "scale"),
+    "enter": ("rise", "slide", "reveal", "scale", "drop", "expand", "drift", "flip"),
 }
 NEEDS_ICON = {"motif": ("icons",)}  # options a story without a main icon can't use
 # the cuts that suit each look when the format leaves the transition to the engine ("auto")

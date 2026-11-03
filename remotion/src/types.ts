@@ -67,7 +67,7 @@ export type Outro = "card" | "overlay" | "loop";
 export type Style = {
   hook: "stack" | "lead" | "blocks" | "underline" | "split" | "badge" | "bracket" | "rail";
   motif: "grid" | "diagonal" | "dots" | "rules" | "plain" | "icons" | "crosses" | "mesh" | "waves" | "hash"; // icons: props.motifIcon tiled
-  enter: "rise" | "slide" | "reveal" | "scale";
+  enter: "rise" | "slide" | "reveal" | "scale" | "drop" | "expand" | "drift" | "flip";
   // tt_shorts/directors.py: the video's director, its motion personality and its current (absent: today's motion)
   director?: string;
   motion?: Motion;

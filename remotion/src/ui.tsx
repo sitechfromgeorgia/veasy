@@ -54,10 +54,15 @@ export const useOpening = () => useContext(Opening);
 const settle = (enter: Style["enter"], t: number, [fx, fy]: [number, number]): React.CSSProperties => {
   if (enter === "slide") return { transform: `translate(${(1 - t) * -16 * fx}px, ${(1 - t) * -16 * fy}px)` };
   if (enter === "scale") return { transform: `scale(${0.985 + 0.015 * Math.min(1.02, t)})`, transformOrigin: "left center" };
+  if (enter === "drop") return { transform: `translateY(${(1 - t) * -8}px)` };
+  if (enter === "expand") return { transform: `scale(${0.99 + 0.01 * Math.min(1.01, t)})`, transformOrigin: "center center" };
+  if (enter === "drift") return { transform: `translate(${(1 - t) * 8 * fx}px, ${(1 - t) * 6 * fy}px)` };
+  if (enter === "flip") return { transform: `translateY(${(1 - t) * 6}px)` };
   return { transform: `translateY(${(1 - t) * (enter === "reveal" ? 6 : 10)}px)` }; // rise, reveal (nothing masked)
 };
 
-/** How things come on screen: they rise, slide in from the left, come up from behind a mask, or scale up.
+/** How things come on screen: they rise, slide in, come up from behind a mask, scale up,
+ *  drop from above, expand outward from the center, drift directionally, or flip in perspective.
  *  Kinetic keeps its harder spring whichever motion the video has. In the opening they only settle (`Opening`). */
 export const In: React.FC<{ delay?: number; at?: number; style?: React.CSSProperties; children: React.ReactNode }> = (
   { delay = 0, at, style, children }) => {
@@ -83,6 +88,23 @@ export const In: React.FC<{ delay?: number; at?: number; style?: React.CSSProper
     css.opacity = Math.min(1, t * 3);
     css.clipPath = `inset(${(1 - Math.min(1, t)) * 100}% -4% -20% -4%)`;
     css.transform = `translateY(${(1 - t) * 32}px)`;
+  }
+  if (enter === "drop") {
+    css.transform = `translateY(${(1 - t) * -48}px)`;
+  }
+  if (enter === "expand") {
+    css.opacity = Math.min(1, t * 2.5);
+    css.clipPath = `inset(0 ${(1 - Math.min(1, t)) * 50}% 0 ${(1 - Math.min(1, t)) * 50}%)`;
+    css.transform = `scale(${0.97 + 0.03 * Math.min(1.01, t)})`;
+    css.transformOrigin = "center center";
+  }
+  if (enter === "drift") {
+    css.transform = `translate(${(1 - t) * 32 * fx}px, ${(1 - t) * 24 * fy}px) scale(${0.96 + 0.04 * Math.min(1.01, t)})`;
+    css.transformOrigin = "left center";
+  }
+  if (enter === "flip") {
+    css.transform = `perspective(600px) rotateX(${(1 - Math.min(1, t)) * 22}deg) translateY(${(1 - t) * 20}px)`;
+    css.transformOrigin = "center top";
   }
   return <div style={{ ...css, ...style }}>{children}</div>;
 };
