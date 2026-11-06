@@ -14,7 +14,7 @@ from tt_shorts import catalog, engine, ka_check, news_check, speech, writer
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BEFORE = json.loads((ROOT / "tests" / "fixtures" / "scenes_before.json").read_text(encoding="utf-8"))
 OLD = list(BEFORE["scenes"])
-NEW = ("share", "rail", "compare", "link", "agree", "chapter", "ranking", "versus", "countdown", "calendar", "glossary", "checklist", "impact", "route", "budget")
+NEW = ("share", "rail", "compare", "link", "agree", "chapter", "ranking", "versus", "countdown", "calendar", "glossary", "checklist", "impact", "route", "budget", "plate")
 # The changes made on purpose: stat takes a style (count, wheel, flap); the draw line's SVG quotes are escaped, so
 # the line the writer copies is JSON.
 STAT_STYLE = "style"
@@ -176,7 +176,7 @@ class AddingAType(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_news_keeps_its_own_allowlist(self):  # N1: a brush reaches the news only when SCENE_TYPES names it
-        self.assertEqual(set(catalog.types()), news_check.SCENE_TYPES)
+        self.assertEqual(set(catalog.types()) - news_check.MADE_PICTURE_TYPES, news_check.SCENE_TYPES)
 
 
 if __name__ == "__main__":

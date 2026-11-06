@@ -53,7 +53,7 @@ KEYS = ("type", "order", "what", "use_when", "avoid_when", "pairs_with", "slots"
 KINDS = ("text", "num", "enum", "list", "obj", "icon", "verb", "svg", "area")
 MARKS = ("underline", "box", "circle", "highlight", "bracket")  # @remotion/rough-notation's, as code picks them
 UNIVERSAL = ("type", "at", "em", "show")
-NO_MEDIA = ("where", "end", "chapter")  # assets.py: these types never carry a picture
+NO_MEDIA = ("where", "end", "chapter", "plate")  # assets.py: these types never carry a picture
 MIN_SECONDS_DEFAULT = 2.5
 MIN_WORDS_DEFAULT = 6
 

@@ -287,3 +287,134 @@ def ledger_entry(manifest):
             "licence": LICENCE, "author": "", "title": manifest["kind"], "fetched": store.today(),
             "sha": sha_of(master) if master.is_file() else "", "file": f"cache/plates/{h}/plate.mp4",
             "hash": h, "seed": manifest["seed"]}
+
+
+def entry_problems(e):
+    """A plate's ledger entry (assets.problems calls this for kind "plate"): [] when well formed."""
+    out = []
+    h = str(e.get("hash"))
+    if not re.fullmatch(r"[0-9a-f]{16}", h) or e.get("id") != f"plate-{h}":
+        out.append("a plate's id is plate-<its 16-hex hash>")
+    if e.get("provider") != "plates" or e.get("licence") != LICENCE:
+        out.append(f"a plate is provider plates, licence {LICENCE} (drawn by Veasy's own code)")
+    if not str(e.get("url", "")).startswith("veasy:plates/"):
+        out.append("url is veasy:plates/<kind>")
+    if e.get("file") != f"cache/plates/{h}/plate.mp4":
+        out.append(f"file is cache/plates/{h}/plate.mp4")
+    if not re.fullmatch(r"[0-9a-f]{64}", str(e.get("sha"))):
+        out.append("sha is the master's sha256")
+    if not isinstance(e.get("seed"), int):
+        out.append("seed is the integer the plate was baked with")
+    return out
+
+
+# ---------------------------------------------------------------- the story: refusals, the pick, the props
+
+
+def plate_scenes(story):
+    return [(i, s) for i, s in enumerate(story.get("scenes") or []) if isinstance(s, dict) and s.get("type") == "plate"]
+
+
+def story_problems(story):
+    """Checks every story with a plate scene passes (engine.structure_problems): the three refusals (news, crime family,
+    deaths and incidents in the words) and the shape of the scene's code-owned `plate` field."""
+    scenes = plate_scenes(story)
+    if not scenes:
+        return []
+    from tt_shorts import brand, meta, news_check, programs
+    out = []
+    try:
+        pack = brand.of(story)
+    except brand.BrandError:
+        pack = brand.load()
+    program = programs.name_of(story)
+    text = f"{story.get('narration', '')} {news_check.screen_text(story)}"
+    why = refusal(program=program, family=meta.family(story.get("category", ""), pack), text=text) or \
+        news_check.no_pictograms(story)
+    if why:
+        out.append(f"scene {scenes[0][0]} (plate): refused, {why}")
+    ids = {e.get("id") for e in story.get("assets") or [] if isinstance(e, dict) and e.get("kind") == "plate"}
+    for i, s in scenes:
+        p = s.get("plate")
+        if p is None:
+            continue
+        from tt_shorts import variety
+        if not isinstance(p, dict) or set(p) - {"asset", "layout"} or p.get("layout") not in (None, *variety.PLATE_LAYOUTS):
+            out.append(f"scene {i} (plate): plate is code's: {{\"asset\": <ledger id>, \"layout\": top|mid|low}}")
+        elif p.get("asset") not in ids:
+            out.append(f"scene {i} (plate): plate {p.get('asset')} is not in the story's assets ledger")
+    return out
+
+
+def resolve(story, b=None):
+    """Give every plate scene without one a baked plate from the shelf, and its ledger entry -> (story, report).
+    Reads the library only: a queue job never bakes. An empty shelf, or a refused story, is a warning in the report and
+    the scene stays on the plain canvas: never a lost film. Picks are recorded (variety.record_plate)."""
+    from tt_shorts import brand, variety
+    story = json.loads(json.dumps(story))
+    report = {"plates": {}, "warnings": []}
+    todo = [(i, s) for i, s in plate_scenes(story) if not (s.get("plate") or {}).get("asset")]
+    if not todo:
+        return story, report
+    pack = b or brand.of(story)
+    problems = story_problems({**story, "scenes": [{**s, "plate": None} for s in story["scenes"]]})
+    if problems:
+        report["warnings"] += problems
+        return story, report
+    shelf = {m["hash"]: m for m in library()}
+    ledger = [e for e in story.get("assets") or [] if isinstance(e, dict)]
+    have = {e["id"] for e in ledger}
+    for i, s in todo:
+        h = variety.pick_plate(pack["name"], story.get("id"), sorted(shelf))
+        if not h:
+            report["warnings"].append(f"scene {i} (plate): no baked plate on the shelf (engine plate example): the scene "
+                                      "is drawn on the plain canvas")
+            continue
+        layout = variety.pick_plate_layout(pack["name"], story.get("id"), i)
+        e = ledger_entry(shelf[h])
+        if e["id"] not in have:
+            ledger.append(e)
+            have.add(e["id"])
+        s["plate"] = {"asset": e["id"], "layout": layout}
+        variety.record_plate(pack["name"], story.get("id"), i, h, layout)
+        report["plates"][i] = {"asset": e["id"], "layout": layout}
+    if ledger:
+        story["assets"] = ledger
+    return story, report
+
+
+def resolve_file(path):
+    """resolve() on a story file, in place only when something changed -> the report."""
+    path = pathlib.Path(path)
+    story = json.loads(path.read_text(encoding="utf-8"))
+    new, report = resolve(story)
+    if new != story:
+        path.write_text(json.dumps(new, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    return report
+
+
+def for_props(story, b, public):
+    """Copy each plate scene's toned clip into public/plates/ -> {asset id: {src, frames, tracks}} (props.py). The clip
+    is toned for the applied theme's canvas and ink (cached beside the master; toning is seconds, never a bake)."""
+    ledger = {e["id"]: e for e in story.get("assets") or [] if isinstance(e, dict) and e.get("kind") == "plate"}
+    out = {}
+    for _, s in plate_scenes(story):
+        aid = (s.get("plate") or {}).get("asset")
+        if not aid or aid in out or aid not in ledger:
+            continue
+        d = store.home() / "cache" / "plates" / ledger[aid]["hash"]
+        manifest = cached(ledger[aid]["hash"])
+        if not manifest:
+            continue  # gc took it: the scene falls back to the plain canvas (a warning in plan, never a lost film)
+        canvas, ink = b["colors"]["canvas"].upper(), b["colors"]["ink"].upper()
+        clip = d / clip_name(canvas, ink)
+        if not clip.is_file():
+            tone_clip(d / "plate.mp4", clip, hex_rgb(canvas), hex_rgb(ink))
+        dest = pathlib.Path(public) / "plates" / f"{aid}-{clip.stem}.mp4"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(clip, dest)
+        tracks = {}
+        if (d / "anchors.json").is_file():
+            tracks = json.loads((d / "anchors.json").read_text(encoding="utf-8")).get("tracks", {})
+        out[aid] = {"src": f"plates/{dest.name}", "frames": manifest["frames"], "tracks": tracks}
+    return out

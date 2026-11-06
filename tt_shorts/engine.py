@@ -285,6 +285,7 @@ def structure_problems(story):
     if "program" in story:  # a story without one is news, exactly as before programs
         p += programs.story_problems(story)
     p += concept.story_problems(story)
+    p += plates.story_problems(story)
     return p + icons.motif_problems(story) + directors.structure_problems(story) + rubrics.story_problems(story) + \
         assets.problems(story)
 
@@ -551,12 +552,20 @@ def _resolve_media(story_path, fetch=True):
     """Resolve a story's show hints into its ledger, in place (assets.resolve_file) -> the report, or None for a
     story with no hints. A provider that fails leaves that scene without a picture: a warning, never a failure."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
-    if not any(isinstance(s, dict) and (s.get("show") or s.get("media")) for s in story.get("scenes") or []):
-        return None
-    try:
-        return assets.resolve_file(story_path, fetch=fetch)
-    except Exception as e:  # noqa: BLE001 - no picture is never a failed story
-        return {"errors": [f"media: {type(e).__name__}: {e}"]}
+    made = None
+    if any(isinstance(s, dict) and (s.get("show") or s.get("media")) for s in story.get("scenes") or []):
+        try:
+            made = assets.resolve_file(story_path, fetch=fetch)
+        except Exception as e:  # noqa: BLE001 - no picture is never a failed story
+            made = {"errors": [f"media: {type(e).__name__}: {e}"]}
+    if plates.plate_scenes(story):  # a plate from the shelf (never a bake); none on it is a warning
+        try:
+            rep = plates.resolve_file(story_path)
+        except Exception as e:  # noqa: BLE001
+            rep = {"warnings": [f"plates: {type(e).__name__}: {e}"]}
+        made = {**(made or {"scenes": {}, "errors": []}), "plates": rep.get("plates", {}),
+                "errors": (made or {}).get("errors", []) + rep.get("warnings", []), "changed": True}
+    return made
 
 
 def media_cmd(a):

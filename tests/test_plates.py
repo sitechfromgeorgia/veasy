@@ -153,6 +153,114 @@ class Ledger(unittest.TestCase):
             self.assertEqual(e["file"], f"cache/plates/{h}/plate.mp4")
 
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+
+def demo(**over):
+    st = json.loads((ROOT / "stories" / "veasy-plate.json").read_text(encoding="utf-8"))
+    st.update(over)
+    return st
+
+
+def fake_shelf(home, *hashes):
+    for h in hashes:
+        d = pathlib.Path(home) / "cache" / "plates" / h
+        d.mkdir(parents=True)
+        (d / "plate.mp4").write_bytes(h.encode())
+        (d / "plate.json").write_text(json.dumps({"kind": "example", "hash": h, "seed": 1, "seconds": 4, "scale": 1,
+                                                  "fps": 30, "frames": 120, "ms_per_frame": 200, "anchors": []}))
+
+
+class InTheStory(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"VEASY_HOME": self.tmp.name})
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+        self.tmp.cleanup()
+
+    def test_the_demo_explainer_passes_every_check(self):
+        from tt_shorts import engine
+        self.assertEqual(engine.check_story(demo()), [])
+
+    def test_news_refuses_a_plate_scene(self):
+        got = plates.story_problems(demo(program="news"))
+        self.assertTrue(got and "news" in got[0], got)
+        st = demo()
+        del st["program"]  # a story with no program is news
+        self.assertTrue(plates.story_problems(st))
+
+    def test_the_crime_family_refuses_it(self):
+        got = plates.story_problems(demo(category="crime"))
+        self.assertTrue(got, "crime must refuse")
+
+    def test_a_death_in_the_words_refuses_it(self):
+        st = demo()
+        st["narration"] += " ორი ადამიანი დაიღუპა."
+        self.assertTrue(plates.story_problems(st))
+
+    def test_news_check_does_not_allow_the_type_so_n1_refuses_it(self):
+        from tt_shorts import news_check
+        self.assertNotIn("plate", news_check.SCENE_TYPES)
+        got = news_check.problems(demo(program="news"), ["ტექსტი"])
+        self.assertTrue(any("N1" in x and "plate" in x for x in got), got)
+
+    def test_the_brush_denies_the_crime_family_and_carries_no_media(self):
+        from tt_shorts import catalog
+        self.assertIn("crime", catalog.get("plate")["families_deny"])
+        self.assertIn("plate", catalog.NO_MEDIA)
+
+    def test_resolve_picks_from_the_shelf_and_writes_the_ledger(self):
+        from tt_shorts import assets
+        fake_shelf(self.tmp.name, "aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb")
+        story, rep = plates.resolve(demo())
+        scene = next(s for s in story["scenes"] if s["type"] == "plate")
+        self.assertIn(scene["plate"]["asset"], {e["id"] for e in story["assets"]})
+        self.assertIn(scene["plate"]["layout"], ("top", "mid", "low"))
+        e = next(e for e in story["assets"] if e["kind"] == "plate")
+        self.assertEqual((e["licence"], e["provider"], e["seed"]), ("own", "plates", 1))
+        self.assertEqual(assets.problems(story), [])
+        self.assertEqual(plates.story_problems(story), [])
+
+    def test_resolve_is_stable_and_never_bakes(self):
+        fake_shelf(self.tmp.name, "aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb")
+        first, _ = plates.resolve(demo())
+        again, rep = plates.resolve(first)
+        self.assertEqual(first, again)
+        self.assertEqual(rep["plates"], {})
+        with mock.patch.object(plates, "bake", side_effect=AssertionError("a queue job never bakes")):
+            plates.resolve(demo(id="another"))
+
+    def test_least_used_plate_is_picked_next(self):
+        fake_shelf(self.tmp.name, "aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb")
+        picked = []
+        for n in range(4):
+            story, _ = plates.resolve(demo(id=f"s{n}"))
+            picked.append(next(e["hash"] for e in story["assets"] if e["kind"] == "plate"))
+        self.assertEqual(sorted(picked), ["aaaaaaaaaaaaaaaa"] * 2 + ["bbbbbbbbbbbbbbbb"] * 2)
+
+    def test_an_empty_shelf_is_a_warning_never_a_lost_film(self):
+        story, rep = plates.resolve(demo())
+        self.assertTrue(rep["warnings"])
+        self.assertEqual(plates.story_problems(story), [])  # still a valid story: the scene draws the plain canvas
+        self.assertNotIn("assets", story)
+
+    def test_resolve_refuses_a_refused_story_without_picking(self):
+        fake_shelf(self.tmp.name, "aaaaaaaaaaaaaaaa")
+        story, rep = plates.resolve(demo(category="crime"))
+        self.assertTrue(rep["warnings"])
+        self.assertNotIn("assets", story)
+
+    def test_a_forged_ledger_entry_is_caught(self):
+        from tt_shorts import assets
+        fake_shelf(self.tmp.name, "aaaaaaaaaaaaaaaa")
+        story, _ = plates.resolve(demo())
+        story["assets"][0]["file"] = "cache/media/x.mp4"
+        self.assertTrue(assets.problems(story))
+
+
 @unittest.skipUnless(TOOLS, "node, ffmpeg and plates/node_modules needed")
 class Baked(unittest.TestCase):
     @classmethod
@@ -203,6 +311,21 @@ class Baked(unittest.TestCase):
         out = d / "again.mp4"
         plates.tone_clip(d / "plate.mp4", out, c, i)
         self.assertEqual(out.read_bytes(), clip.read_bytes())
+
+    def test_for_props_copies_the_toned_clip_for_the_theme(self):
+        ledger = plates.ledger_entry(self.first)
+        story = demo(assets=[ledger])
+        for sc in story["scenes"]:
+            if sc["type"] == "plate":
+                sc["plate"] = {"asset": ledger["id"], "layout": "low"}
+        for pack, theme in (("tbilisi-today", "dark"), ("sitech", "light")):
+            b = packs.themed(packs.load(pack), theme)
+            with tempfile.TemporaryDirectory() as pub:
+                got = plates.for_props(story, b, pub)[ledger["id"]]
+                self.assertTrue((pathlib.Path(pub) / got["src"]).is_file())
+                self.assertEqual(got["frames"], 30)
+                self.assertIn("dot", got["tracks"])
+                self.assertIn(b["colors"]["canvas"].lstrip("#").lower(), got["src"])
 
     def test_library_lists_the_plate(self):
         self.assertIn(self.first["hash"], [m["hash"] for m in plates.library()])

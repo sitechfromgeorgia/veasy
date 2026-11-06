@@ -38,10 +38,10 @@ from tt_shorts import store
 from tt_shorts.media import MediaError
 
 PROVIDERS = ("openverse", "commons", "pexels", "pixabay", "screenshot", "ai")
-KINDS = ("photo", "video", "screenshot", "illustration", "ai")
+KINDS = ("photo", "video", "screenshot", "illustration", "ai", "plate")
 ILLUSTRATIVE = ("photo", "video", "illustration", "ai")  # pictures that only illustrate: they carry the label
 LICENCES = {"cc0": "CC0", "pdm": "Public Domain", "pexels": "Pexels", "pixabay": "Pixabay", "by": "CC BY",
-            "by-sa": "CC BY-SA", "screenshot": None}
+            "by-sa": "CC BY-SA", "screenshot": None, "own": "Own"}
 CREDITED = ("by", "by-sa")  # a credit (the author) is a condition of the licence
 RANK = {"cc0": 0, "pdm": 0, "pexels": 1, "pixabay": 1, "by": 2, "by-sa": 3}
 ENTRY_KEYS = ("id", "kind", "provider", "url", "licence", "author", "title", "fetched", "sha", "file")
@@ -283,6 +283,8 @@ def resolve(story, b=None, providers=None, fetch=True):
         report["scenes"][i] = {"asset": e["id"], "provider": e["provider"], "licence": e["licence"]}
     kept = [ledger[k] for k in dict.fromkeys(m["asset"] for m in (s.get("media") for s in story.get("scenes") or [])
                                               if m) if k in ledger]
+    kept += [e for e in (story.get("assets") or []) if e.get("kind") == "plate" and e["id"] in {
+        (s.get("plate") or {}).get("asset") for s in story.get("scenes") or [] if isinstance(s, dict)}]  # plates.py's
     if kept:
         story["assets"] = kept
     else:
@@ -338,6 +340,7 @@ def strip_code_owned(story):
     for s in story.get("scenes") or []:
         if isinstance(s, dict):
             s.pop("media", None)
+            s.pop("plate", None)
     return story
 
 
@@ -361,6 +364,13 @@ def problems(story):
         missing = [x for x in ENTRY_KEYS if x not in e]
         if missing:
             out.append(f"{where}: missing {', '.join(missing)}")
+            continue
+        if e.get("kind") == "plate":  # a baked plate (plates.py): its own checks, no provider or url to fetch again
+            from tt_shorts import plates
+            if e["id"] in ids:
+                out.append(f"{where}: {e['id']} is in the ledger twice")
+            ids.add(e["id"])
+            out += [f"{where}: {x}" for x in plates.entry_problems(e)]
             continue
         if e["id"] in ids:
             out.append(f"{where}: {e['id']} is in the ledger twice")

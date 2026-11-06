@@ -35,6 +35,9 @@ import re
 # (brushes/<type>.json) is allowed in news only once it is named here too.
 SCENE_TYPES = {"hook", "stat", "timeline", "where", "who", "points", "quote", "sources", "draw", "pair", "steps", "bars",
                "trend", "change", "sign", "end", "share", "rail", "compare", "link", "agree", "chapter", "ranking", "versus", "countdown", "calendar", "glossary", "checklist", "impact", "route", "budget"}
+# Scene types that are not news types: never in SCENE_TYPES (so N1 refuses them in news), allowed in a program that
+# says so. A plate is a made picture (plates.py): it decorates an idea, it never depicts an event.
+MADE_PICTURE_TYPES = {"plate"}
 RELATIVE_DAYS = ("დღეს", "გუშინ", "ხვალ", "ზეგ", "გუშინწინ")
 # Words that judge instead of report (stems: Georgian adds case endings). Extend from the edits log.
 EVALUATIVE = ("სკანდალურ", "შოკისმომგვრელ", "სამარცხვინო", "საოცარ", "გასაოცარ", "უპრეცედენტო", "საშინელ",
