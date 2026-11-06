@@ -131,8 +131,11 @@ async function bake(job) {
       }
     }
     const perFrame = Math.round((Date.now() - started) / frames);
+    console.error("DEBUG: ending child.stdin");
     child.stdin.end();
+    console.error("DEBUG: awaiting done");
     await done;
+    console.error("DEBUG: done finished");
     if (offsite.length) throw new Error(`a plate reads local files only, it asked for ${offsite[0]}`);
     if (errors.length) throw new Error(`page error: ${errors[0]}`);
 
@@ -144,12 +147,31 @@ async function bake(job) {
     fs.writeFileSync(path.join(job.out, "plate.json"), `${JSON.stringify(manifest, null, 1)}\n`);
     return manifest;
   } finally {
-    await browser.close();
-    server.close();
+    try {
+      if (browser) {
+        const proc = browser.process();
+        await Promise.race([
+          browser.close(),
+          new Promise((r) => setTimeout(r, 1500)),
+        ]);
+        if (proc && !proc.killed) {
+          try { proc.kill("SIGKILL"); } catch {}
+        }
+      }
+    } catch {}
+    try {
+      if (server) {
+        if (server.closeAllConnections) server.closeAllConnections();
+        server.close();
+      }
+    } catch {}
   }
 }
 
-bake(args(process.argv.slice(2))).then((m) => console.log(JSON.stringify(m)), (e) => {
+bake(args(process.argv.slice(2))).then((m) => {
+  console.log(JSON.stringify(m));
+  process.exit(0);
+}, (e) => {
   console.error(e.message);
   process.exit(1);
 });
