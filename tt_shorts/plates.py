@@ -229,6 +229,49 @@ def library():
     return sorted(out, key=lambda m: m["mtime"])
 
 
+# ---------------------------------------------------------------- what `engine options` and `engine plate check` say
+
+# What a kind's own files may never contain: a clock, unseeded random, text drawn into pixels, a network address.
+LINT = (("Math.random", "unseeded random: use plates/lib/seeded.mjs"),
+        ("Date.now", "a clock: a frame is a function of t"), ("new Date", "a clock: a frame is a function of t"),
+        ("performance.now", "a clock: a frame is a function of t"),
+        ("fillText", "text in a plate: words stay in the DOM"), ("strokeText", "text in a plate: words stay in the DOM"),
+        ("http://", "a network address: a plate reads local files only"),
+        ("https://", "a network address: a plate reads local files only"))
+
+
+def check_kind(kind):
+    """Problems of one kind's folder (the contract in plates/README.md that a program can read): [] when clean."""
+    d = PLATES / kind
+    if not (d / "index.html").is_file():
+        return [f"{kind}: no index.html"]
+    out = []
+    for f in sorted(d.rglob("*")):
+        if f.suffix not in (".html", ".js", ".mjs") or not f.is_file():
+            continue
+        text = f.read_text(encoding="utf-8", errors="replace")
+        for needle, why in LINT:
+            if needle in text:
+                out.append(f"{kind}/{f.relative_to(d).as_posix()}: {needle}: {why}")
+    if "window.setup" not in (d / "index.html").read_text(encoding="utf-8") and not any(
+            "window.setup" in f.read_text(encoding="utf-8", errors="replace") for f in d.rglob("*.*")
+            if f.suffix in (".js", ".mjs") and f.is_file()):
+        out.append(f"{kind}: no window.setup(spec, ctx) / window.step(t)")
+    return out
+
+
+def options():
+    """The `plates` section of `engine options`: how to ask, what comes back, what is refused, what is on the shelf."""
+    return {"about": "grey clips baked once, toned into the pack's canvas and ink, played behind a scene: one line, "
+                     "`engine plate <kind> --seconds n --seed n`; a second call answers from the cache",
+            "kinds": kinds(), "command": "python -m tt_shorts.engine plate <kind|list|check> [--seconds 6] [--seed 1]",
+            "tool": "veasy_plate", "skill": "veasy:plates", "fps": FPS, "size": [WIDTH, HEIGHT],
+            "refused": {"programs": list(REFUSED_PROGRAMS), "families": list(REFUSED_FAMILIES),
+                        "words": "deaths, crime and incidents (REFUSED_WORDS)"},
+            "queue": "a queue job never bakes: it picks among baked plates (variety) and warns when none is there",
+            "baked": len(library())}
+
+
 # ---------------------------------------------------------------- the story's ledger
 
 

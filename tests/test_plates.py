@@ -82,6 +82,66 @@ class Refusals(unittest.TestCase):
         self.assertIsNone(plates.refusal(program="explainer", family="tech", text="როგორ მუშაობს ბატარეა"))
 
 
+def run_engine(*argv):
+    import contextlib
+    import io
+    from tt_shorts import engine
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        code = engine.main(list(argv))
+    return code, json.loads(buf.getvalue())
+
+
+class Command(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"VEASY_HOME": self.tmp.name})
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+        self.tmp.cleanup()
+
+    def test_the_command_refuses_news_crime_and_deaths_before_baking(self):
+        for flags in (["--program", "news"], ["--family", "crime"], ["--text", "ორი ადამიანი დაიღუპა"]):
+            code, got = run_engine("plate", "example", *flags)
+            self.assertEqual(code, 1, flags)
+            self.assertIn("refused", got)
+        self.assertEqual(plates.library(), [])  # nothing was baked
+
+    def test_unknown_kind_is_a_problem_not_a_crash(self):
+        code, got = run_engine("plate", "nope")
+        self.assertEqual(code, 1)
+        self.assertTrue(got["problems"])
+
+    def test_list_and_check_read_only(self):
+        code, got = run_engine("plate", "list")
+        self.assertEqual((code, got["plates"]), (0, []))
+        self.assertIn("example", got["kinds"])
+        code, got = run_engine("plate", "check")
+        self.assertEqual((code, got["problems"]), (0, []))
+
+    def test_options_has_a_plates_section(self):
+        from tt_shorts import engine
+        o = engine.options(section="plates")["plates"]
+        self.assertIn("example", o["kinds"])
+        self.assertEqual(o["refused"]["programs"], ["news"])
+        self.assertEqual(o["tool"], "veasy_plate")
+
+    def test_check_kind_finds_a_clock_and_text(self):
+        d = plates.PLATES / "zz_bad"
+        d.mkdir()
+        try:
+            (d / "index.html").write_text("<script>window.setup=()=>{};window.step=()=>Math.random()+Date.now();"
+                                          "ctx.fillText('x')</script>")
+            got = " ".join(plates.check_kind("zz_bad"))
+            for needle in ("Math.random", "Date.now", "fillText"):
+                self.assertIn(needle, got)
+        finally:
+            import shutil
+            shutil.rmtree(d)
+
+
 class Ledger(unittest.TestCase):
     def test_entry_has_kind_hash_seed_licence(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"VEASY_HOME": tmp}):
