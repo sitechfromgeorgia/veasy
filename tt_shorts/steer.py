@@ -415,14 +415,10 @@ def steer(target: str | pathlib.Path, scene: int | str | None = None,
     all_edits = slot_res["edits"] + verb_res["edits"]
 
     meta_info = resolved["meta"] or {}
-    fmt = formats.resolve(
-        before_story,
-        format_name or meta_info.get("format"),
-        look=look or meta_info.get("look"),
-        director=director,
-        renderer=renderer or meta_info.get("renderer"),
-    )
-    film_engine = "hyperframes" if (project or fmt.get("engine") == "hyperframes") else "remotion"
+    from tt_shorts import engine as eng_mod
+    fmt = formats.get(format_name or meta_info.get("format") or eng_mod.program_format(str(story_path)),
+                      look=look or meta_info.get("look"))
+    film_engine = "hyperframes" if project else eng_mod.film_engine(str(story_path), fmt, director, renderer)
 
     locked_props = None
     if resolved["props_path"] and resolved["props_path"].exists():
@@ -438,10 +434,11 @@ def steer(target: str | pathlib.Path, scene: int | str | None = None,
         after_story, fmt, engine=engine, locked_from=before_props, director=director
     )
 
-    from tt_shorts import engine as eng_mod
-    story_problems = eng_mod.check_story(after_story)
+    # Only what this change introduced stops it: a film's older problems are `check`'s to report, not steer's.
+    story_problems = [x for x in eng_mod.check_story(after_story) if x not in set(eng_mod.check_story(before_story))]
     motion_after = motion_rules.check(after_props)
-    problems = list(story_problems) + list(motion_after["holds"])
+    motion_before = set(motion_rules.check(before_props)["holds"])
+    problems = list(story_problems) + [h for h in motion_after["holds"] if h not in motion_before]
 
     before_scenes = before_props.get("scenes") or []
     after_scenes = after_props.get("scenes") or []
@@ -532,7 +529,7 @@ def steer(target: str | pathlib.Path, scene: int | str | None = None,
     if dry or problems:
         return summary
 
-    if write_story or resolved["video_path"] is None:
+    if True:  # a steer is saved: the next one starts from this story
         story_path.write_text(json.dumps(after_story, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
 
     target_mp4 = (
@@ -573,11 +570,9 @@ def steer(target: str | pathlib.Path, scene: int | str | None = None,
         )
         summary["file"] = hf_res.get("file", str(target_mp4))
         summary["problems"] = hf_res.get("problems", [])
-        room_file = room.write_room(
-            after_story, after_props, video_path=target_mp4, project=proj_dir, engine=engine
-        )
-        summary["room"] = str(room_file)
         summary["elapsed_seconds"] = round(time.perf_counter() - t0, 3)
+        target_mp4.with_suffix(".json").write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
+        summary["room"] = room.write_room(target_mp4, story_path=story_path, engine_override="hyperframes")["room_html"]
         return summary
 
     # Remotion lane: ensure cached segments exist for clean scenes if steering an already-rendered video
@@ -620,8 +615,7 @@ def steer(target: str | pathlib.Path, scene: int | str | None = None,
         summary["misses"] = seg_manifest.get("misses", [])
         summary["splice_mode"] = seg_manifest.get("splice_mode")
 
-    room_file = room.write_room(after_story, after_props, video_path=target_mp4, engine=engine)
-    summary["room"] = str(room_file)
     summary["elapsed_seconds"] = round(time.perf_counter() - t0, 3)
     target_mp4.with_suffix(".json").write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
+    summary["room"] = room.write_room(target_mp4, story_path=story_path, engine_override="remotion")["room_html"]
     return summary

@@ -10,7 +10,7 @@ import json
 import pathlib
 import subprocess
 
-from tt_shorts import brand as packs, catalog, compose, dry_run, motion_rules, probe, segments, speech
+from tt_shorts import brand as packs, catalog, compose, costs, motion_rules, probe, segments, speech, store
 
 FPS = speech.FPS
 EDITABLE_FIELDS = (
@@ -23,6 +23,13 @@ EDITABLE_FIELDS = (
 def room_path(target) -> pathlib.Path:
     """Return `<render>.room.html` beside a render MP4/JSON or story JSON."""
     p = pathlib.Path(target).resolve()
+    if p.suffix == ".json" and not p.name.endswith((".props.json", ".segments.json")) and not p.with_suffix(".mp4").exists():
+        try:  # a story file with no render beside it: the page goes to the work folder, never into the repo
+            raw = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(raw, dict) and "scenes" in raw and "narration" in raw:
+                return store.work_dir("rooms") / f"{p.stem}.room.html"
+        except (OSError, ValueError):
+            pass
     for suffix in (".room.html", ".props.json", ".segments.json", ".json", ".mp4"):
         if p.name.endswith(suffix):
             stem = p.name[:-len(suffix)]
@@ -272,7 +279,7 @@ def build_room_model(target, story_path=None, engine_override=None, out_html=Non
             still_files.append(svg_p)
 
     narration_chars = len(story.get("narration", ""))
-    tts_dollars = round((narration_chars / 1000.0) * dry_run.GEMINI_TTS_PRICE_PER_1K_CHARS, 4)
+    tts_dollars = round(float(costs.tts_usd(max(1, narration_chars // 3), round(len(words) and words[-1].get('end', 0) * costs.AUDIO_TOKENS_PER_SECOND or 0)) or 0), 4)
     total_frames = int(p.get("durationInFrames") or 0)
     total_secs = round(total_frames / FPS, 2)
     story_arg = str(ctx["story_path"])
