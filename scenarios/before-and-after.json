@@ -1,0 +1,74 @@
+{
+  "id": "before-and-after",
+  "title": "Before and After",
+  "label": "მანამდე და შემდეგ",
+  "about": "A transformation arc comparing the prior status quo against the new reality, detailing what changed and why.",
+  "eligible": [
+    {
+      "comparisons": 1,
+      "facts": 2
+    },
+    {
+      "dates": 1,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": ["hook"],
+      "word_budget": [10, 20],
+      "sound": "whoosh",
+      "payoff_held": true
+    },
+    {
+      "id": "before_state",
+      "job": "setup",
+      "scene_types": ["points", "pair", "stat"],
+      "word_budget": [12, 22],
+      "sound": "tick",
+      "payoff_held": true
+    },
+    {
+      "id": "the_catalyst",
+      "job": "complication",
+      "scene_types": ["change", "timeline", "points"],
+      "word_budget": [10, 20],
+      "sound": "pop",
+      "payoff_held": true
+    },
+    {
+      "id": "after_payoff",
+      "job": "payoff",
+      "scene_types": ["pair", "versus", "change", "stat"],
+      "word_budget": [12, 22],
+      "sound": "thud",
+      "payoff_held": false
+    },
+    {
+      "id": "takeaway",
+      "job": "resolution",
+      "scene_types": ["end", "points"],
+      "word_budget": [6, 16],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": 80,
+    "min_seconds": 25.0,
+    "max_seconds": 45.0
+  },
+  "brief": [
+    "Hook on the scale of the change.",
+    "Describe the prior situation clearly.",
+    "Show the pivot or decision that triggered the shift.",
+    "Deliver the new after state with comparative contrast.",
+    "End with practical advice or takeaway."
+  ]
+}

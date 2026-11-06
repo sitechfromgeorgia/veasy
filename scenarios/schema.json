@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://veasy.ge/schemas/scenario.json",
+  "title": "Veasy Scenario",
+  "description": "Declarative plot and narrative arc specification for Veasy videos",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "label",
+    "about",
+    "eligible",
+    "never",
+    "beats",
+    "pacing"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Unique scenario identifier matching the filename <id>.json"
+    },
+    "title": {
+      "type": "string",
+      "description": "English name for the scenario"
+    },
+    "label": {
+      "type": "string",
+      "description": "Georgian display label drawn on screen or in UI chips"
+    },
+    "about": {
+      "type": "string",
+      "description": "English description of the narrative arc and purpose for agents"
+    },
+    "eligible": {
+      "type": "array",
+      "description": "List of alternative declarative condition objects (OR of ANDs)",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "minProperties": 1
+      }
+    },
+    "never": {
+      "type": "array",
+      "description": "List of declarative exclusion conditions (any match rules the scenario out)",
+      "items": {
+        "type": "object",
+        "minProperties": 1
+      }
+    },
+    "beats": {
+      "type": "array",
+      "description": "Ordered list of narrative beats for the story",
+      "minItems": 3,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "job",
+          "scene_types",
+          "word_budget"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+$",
+            "description": "Identifier for the beat (e.g. hook, setup, turn, payoff)"
+          },
+          "job": {
+            "type": "string",
+            "enum": [
+              "promise",
+              "setup",
+              "context",
+              "complication",
+              "false_lead",
+              "evidence",
+              "turn",
+              "payoff",
+              "resolution"
+            ],
+            "description": "Dramaturgical role of the beat"
+          },
+          "scene_types": {
+            "oneOf": [
+              {
+                "type": "string",
+                "const": "any"
+              },
+              {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Allowed brush names (brushes/*.json) or 'any'"
+          },
+          "word_budget": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "[min_words, max_words] spoken during this beat"
+          },
+          "sound": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "click",
+              "pop",
+              "whoosh",
+              "tick",
+              "thud",
+              "blip",
+              null
+            ],
+            "description": "Synthesized sound cue for the beat entrance/accent"
+          },
+          "fact_gates": {
+            "type": "object",
+            "description": "Required facts present in this beat (e.g. {'numbers': 1})"
+          },
+          "payoff_held": {
+            "type": "boolean",
+            "description": "If true, the core reveal/payoff fact must not appear before this beat"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "pacing": {
+      "type": "object",
+      "required": [
+        "target_words",
+        "min_seconds",
+        "max_seconds"
+      ],
+      "properties": {
+        "target_words": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 10
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 10
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          ],
+          "description": "Target narration words (e.g. 80 or [70, 95])"
+        },
+        "min_seconds": {
+          "type": "number",
+          "minimum": 10.0,
+          "description": "Minimum film duration in seconds"
+        },
+        "max_seconds": {
+          "type": "number",
+          "minimum": 10.0,
+          "description": "Maximum film duration in seconds"
+        }
+      },
+      "additionalProperties": false
+    },
+    "brief": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "English lines for the writer prompt"
+    },
+    "requires_correction": {
+      "type": "boolean",
+      "description": "Whether this scenario requires document-verified correction (e.g. myth-vs-fact)"
+    }
+  },
+  "additionalProperties": false
+}

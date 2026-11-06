@@ -121,5 +121,162 @@ class FormatKey(unittest.TestCase):
             formats.get("news", sfx="loud")
 
 
+class ScenarioCues(unittest.TestCase):
+    def test_job_mappings(self):
+        # 1. Promise (hook) -> whoosh / pop
+        self.assertEqual(sfx.sound_for_beat("promise"), "whoosh")
+        self.assertEqual(sfx.sound_for_beat("promise", alternate=True), "pop")
+        self.assertEqual(sfx.allowed_sounds_for_beat("promise"), ("whoosh", "pop"))
+
+        # 2. Setup / Context -> click / whoosh
+        self.assertEqual(sfx.sound_for_beat("setup"), "click")
+        self.assertEqual(sfx.sound_for_beat("setup", alternate=True), "whoosh")
+        self.assertEqual(sfx.sound_for_beat("context"), "click")
+        self.assertEqual(sfx.allowed_sounds_for_beat("context"), ("click", "whoosh"))
+
+        # 3. False lead -> blip / click
+        self.assertEqual(sfx.sound_for_beat("false_lead"), "blip")
+        self.assertEqual(sfx.sound_for_beat("false_lead", alternate=True), "click")
+        self.assertEqual(sfx.sound_for_beat("false lead"), "blip")
+        self.assertEqual(sfx.allowed_sounds_for_beat("false_lead"), ("blip", "click"))
+
+        # 4. Complication / Evidence -> tick / blip
+        self.assertEqual(sfx.sound_for_beat("complication"), "tick")
+        self.assertEqual(sfx.sound_for_beat("complication", alternate=True), "blip")
+        self.assertEqual(sfx.sound_for_beat("evidence"), "tick")
+        self.assertEqual(sfx.allowed_sounds_for_beat("evidence"), ("tick", "blip"))
+
+        # 5. Turn (peripeteia) -> pop / whoosh
+        self.assertEqual(sfx.sound_for_beat("turn"), "pop")
+        self.assertEqual(sfx.sound_for_beat("turn", alternate=True), "whoosh")
+        self.assertEqual(sfx.sound_for_beat("peripeteia"), "pop")
+        self.assertEqual(sfx.allowed_sounds_for_beat("peripeteia"), ("pop", "whoosh"))
+
+        # 6. Payoff (climax / answer) -> thud / pop
+        self.assertEqual(sfx.sound_for_beat("payoff"), "thud")
+        self.assertEqual(sfx.sound_for_beat("payoff", alternate=True), "pop")
+        self.assertEqual(sfx.sound_for_beat("climax"), "thud")
+        self.assertEqual(sfx.sound_for_beat("answer"), "thud")
+        self.assertEqual(sfx.allowed_sounds_for_beat("payoff"), ("thud", "pop"))
+
+        # 7. Resolution -> click / pop
+        self.assertEqual(sfx.sound_for_beat("resolution"), "click")
+        self.assertEqual(sfx.sound_for_beat("resolution", alternate=True), "pop")
+        self.assertEqual(sfx.sound_for_beat("resolve"), "click")
+        self.assertEqual(sfx.allowed_sounds_for_beat("resolution"), ("click", "pop"))
+
+    def test_explicit_sound_override(self):
+        self.assertEqual(sfx.sound_for_beat("promise", sound="pop"), "pop")
+        self.assertEqual(sfx.sound_for_beat("payoff", sound="pop"), "pop")
+        self.assertEqual(sfx.sound_for_beat("setup", sound="whoosh"), "whoosh")
+        # Invalid sound name falls back to job default
+        self.assertEqual(sfx.sound_for_beat("payoff", sound="screaming_guitar"), "thud")
+
+    def test_scenario_timeline_synchronization(self):
+        # A 7-beat complete dramatic arc story
+        p = {
+            "durationInFrames": 1200,
+            "transition": "line",
+            "scenario": {
+                "id": "mystery_reveal",
+                "beats": [
+                    {"job": "promise", "sound_cue": "whoosh"},
+                    {"job": "setup", "sound_cue": "click"},
+                    {"job": "false_lead", "sound_cue": "blip"},
+                    {"job": "complication", "sound_cue": "tick"},
+                    {"job": "turn", "sound_cue": "pop"},
+                    {"job": "payoff", "sound_cue": "thud"},
+                    {"job": "resolution", "sound_cue": "click"},
+                ]
+            },
+            "scenes": [
+                {"type": "hook", "from": 0, "duration": 120, "mark": {"at": 60}},
+                {"type": "text", "from": 120, "duration": 150, "mark": {"at": 45}},
+                {"type": "text", "from": 270, "duration": 150, "mark": {"at": 45}},
+                {"type": "text", "from": 420, "duration": 150, "mark": {"at": 45}},
+                {"type": "text", "from": 570, "duration": 150, "mark": {"at": 45}},
+                {"type": "stat", "from": 720, "duration": 150, "mark": {"at": 60}},
+                {"type": "end", "from": 870, "duration": 180, "mark": {"at": 30}},
+            ]
+        }
+        c = sfx.cues(p)
+        # 1. Promise: whoosh at t=0.0 (opening sweep)
+        self.assertEqual(c[0], {"t": 0.0, "name": "whoosh"})
+        # Hook mark at frame 60 (2.0s): pop
+        self.assertIn({"t": 2.0, "name": "pop"}, c)
+
+        # 2. Setup: cut at frame 120 (4.0s) clicks instead of whoosh
+        self.assertIn({"t": 4.0, "name": "click"}, c)
+
+        # 3. False lead: cut at frame 270 whooshes (270/30 - 0.1 = 8.9s); mark at 270+45=315 frames (10.5s) blips!
+        self.assertIn({"t": 8.9, "name": "whoosh"}, c)
+        self.assertIn({"t": 10.5, "name": "blip"}, c)
+
+        # 4. Complication: mark at 420+45=465 frames (15.5s) ticks!
+        self.assertIn({"t": 15.5, "name": "tick"}, c)
+
+        # 5. Turn: mark at 570+45=615 frames (20.5s) pops!
+        self.assertIn({"t": 20.5, "name": "pop"}, c)
+
+        # 6. Payoff: mark at 720+60=780 frames (26.0s) thuds!
+        self.assertIn({"t": 26.0, "name": "thud"}, c)
+
+        # 7. Resolution: cut at 870 frames (29.0s) clicks!
+        self.assertIn({"t": 29.0, "name": "click"}, c)
+
+        # Verify determinism, ascending time, and minimum gap
+        times = [x["t"] for x in c]
+        self.assertEqual(times, sorted(times))
+        for a, b in zip(c, c[1:]):
+            self.assertGreaterEqual(b["t"] - a["t"], sfx.MIN_GAP - 1e-9)
+
+    def test_scene_level_beat_tags(self):
+        # Scenes tagged individually with beat jobs
+        p = {
+            "durationInFrames": 600,
+            "transition": "line",
+            "scenes": [
+                {"type": "hook", "from": 0, "duration": 150, "beat": "promise"},
+                {"type": "text", "from": 150, "duration": 150, "beat": {"job": "payoff", "sound_cue": "thud"}, "mark": {"at": 45}},
+                {"type": "end", "from": 300, "duration": 180, "beat": "resolution"},
+            ]
+        }
+        c = sfx.cues(p)
+        # Promise at t=0
+        self.assertEqual(c[0], {"t": 0.0, "name": "whoosh"})
+        # Payoff mark at (150+45)/30 = 6.5s thuds
+        self.assertIn({"t": 6.5, "name": "thud"}, c)
+        # Resolution cut at 300/30 = 10.0s clicks
+        self.assertIn({"t": 10.0, "name": "click"}, c)
+
+    def test_sync_modes(self):
+        # sync="cut" forces cue to the scene cut
+        p_cut = {
+            "durationInFrames": 400,
+            "transition": "line",
+            "scenes": [
+                {"type": "hook", "from": 0, "duration": 120},
+                {"type": "text", "from": 120, "duration": 150, "beat": {"job": "payoff", "sound_cue": "thud", "sync": "cut"}, "mark": {"at": 30}}
+            ]
+        }
+        c = sfx.cues(p_cut)
+        # Cut at 120/30 = 4.0s gets thud, mark at 150/30 = 5.0s stays pop
+        self.assertIn({"t": 4.0, "name": "thud"}, c)
+        self.assertIn({"t": 5.0, "name": "pop"}, c)
+
+        # sync="mark" keeps cut transition and directs beat cue to mark
+        p_mark = {
+            "durationInFrames": 400,
+            "transition": "line",
+            "scenes": [
+                {"type": "hook", "from": 0, "duration": 120},
+                {"type": "text", "from": 120, "duration": 150, "beat": {"job": "setup", "sound_cue": "click", "sync": "mark"}, "mark": {"at": 30}}
+            ]
+        }
+        c_m = sfx.cues(p_mark)
+        self.assertIn({"t": 3.9, "name": "whoosh"}, c_m)  # cut at 4.0 - 0.1 lead
+        self.assertIn({"t": 5.0, "name": "click"}, c_m)   # mark at 5.0 gets click
+
+
 if __name__ == "__main__":
     unittest.main()

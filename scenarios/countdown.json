@@ -1,0 +1,72 @@
+{
+  "id": "countdown",
+  "title": "Countdown",
+  "label": "ტოპ რეიტინგი",
+  "about": "A countdown sequence climbing from lower items up to the #1 reveal, maintaining suspense at every step.",
+  "eligible": [
+    {
+      "quantities": 2,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": ["hook"],
+      "word_budget": [10, 20],
+      "sound": "whoosh",
+      "payoff_held": true
+    },
+    {
+      "id": "tier_three",
+      "job": "evidence",
+      "scene_types": ["points", "ranking", "stat", "pair"],
+      "word_budget": [10, 20],
+      "sound": "blip",
+      "payoff_held": true
+    },
+    {
+      "id": "tier_two",
+      "job": "evidence",
+      "scene_types": ["points", "ranking", "stat", "pair"],
+      "word_budget": [10, 20],
+      "sound": "blip",
+      "payoff_held": true
+    },
+    {
+      "id": "number_one",
+      "job": "payoff",
+      "scene_types": ["stat", "ranking"],
+      "word_budget": [10, 20],
+      "sound": "thud",
+      "fact_gates": {
+        "numbers": 1
+      },
+      "payoff_held": false
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": ["end", "points"],
+      "word_budget": [6, 16],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": 75,
+    "min_seconds": 25.0,
+    "max_seconds": 45.0
+  },
+  "brief": [
+    "Hook with the theme of the countdown and what is at stake.",
+    "Present items with rapid, focused pacing.",
+    "Hold the top spot until the number_one beat.",
+    "Reveal #1 with impact and resolve cleanly."
+  ]
+}

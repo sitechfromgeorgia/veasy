@@ -1,0 +1,73 @@
+{
+  "id": "myth-vs-fact",
+  "title": "Myth vs Fact",
+  "label": "მითი თუ რეალობა",
+  "about": "Confronts a common misconception, shows why people believe it, then delivers the documented correction with hard evidence.",
+  "eligible": [
+    {
+      "verified_correction": true,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "verified_correction": false
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": ["hook"],
+      "word_budget": [10, 20],
+      "sound": "whoosh",
+      "payoff_held": true
+    },
+    {
+      "id": "myth_lead",
+      "job": "false_lead",
+      "scene_types": ["points", "pair", "quote"],
+      "word_budget": [12, 22],
+      "sound": "tick",
+      "payoff_held": true
+    },
+    {
+      "id": "turn_reveal",
+      "job": "turn",
+      "scene_types": ["change", "versus", "stat"],
+      "word_budget": [10, 20],
+      "sound": "pop",
+      "payoff_held": false
+    },
+    {
+      "id": "proof",
+      "job": "evidence",
+      "scene_types": ["points", "bars", "quote"],
+      "word_budget": [12, 22],
+      "sound": "thud",
+      "fact_gates": {
+        "numbers": 1
+      }
+    },
+    {
+      "id": "resolution",
+      "job": "resolution",
+      "scene_types": ["end", "points"],
+      "word_budget": [6, 16],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": 80,
+    "min_seconds": 25.0,
+    "max_seconds": 45.0
+  },
+  "requires_correction": true,
+  "brief": [
+    "State the widespread myth directly in the opening hook.",
+    "Detail why the false lead is commonly accepted.",
+    "Turn decisively using the source document's explicit correction.",
+    "Prove the reality with verified figures.",
+    "Conclude on what the truth means for the viewer."
+  ]
+}

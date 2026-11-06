@@ -1,0 +1,72 @@
+{
+  "id": "guess-the-number",
+  "title": "Guess the Number",
+  "label": "გამოიცანი რიცხვი",
+  "about": "A mystery number hooks the viewer; clues build anticipation until the payoff reveal in a stat scene.",
+  "eligible": [
+    {
+      "big_numbers": 1,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": ["hook"],
+      "word_budget": [10, 20],
+      "sound": "whoosh",
+      "payoff_held": true
+    },
+    {
+      "id": "context",
+      "job": "context",
+      "scene_types": ["points", "pair"],
+      "word_budget": [12, 22],
+      "sound": "pop",
+      "payoff_held": true
+    },
+    {
+      "id": "clues",
+      "job": "evidence",
+      "scene_types": ["bars", "change", "points", "pair"],
+      "word_budget": [12, 22],
+      "sound": "tick",
+      "payoff_held": true
+    },
+    {
+      "id": "reveal",
+      "job": "payoff",
+      "scene_types": ["stat"],
+      "word_budget": [10, 20],
+      "sound": "thud",
+      "fact_gates": {
+        "numbers": 1
+      },
+      "payoff_held": false
+    },
+    {
+      "id": "resolution",
+      "job": "resolution",
+      "scene_types": ["end", "points"],
+      "word_budget": [6, 16],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": 80,
+    "min_seconds": 25.0,
+    "max_seconds": 45.0
+  },
+  "brief": [
+    "Hook with a gripping question concealing the target figure.",
+    "Present supporting context and clues without spoiling the exact number.",
+    "Deliver the core number reveal on the stat scene.",
+    "Close with practical impact and next steps."
+  ]
+}
