@@ -423,6 +423,9 @@ def scene_word_counts(story):
 # ---------------------------------------------------------------- ranking and fit
 
 
+GENERIC_FACTS = ("numbers", "quantities", "big_numbers", "facts", "percents")
+
+
 def seconds_of(narration):
     """Spoken seconds of a narration at the silent engine's pace (speech.estimate_words), as `plan` times it."""
     from tt_shorts import speech
@@ -471,8 +474,9 @@ def fit(story_or_data, facts=None, seconds=None):
         score, reasons = 1.0, []
         for k, w in sc["prefers"].items():
             have = facts.get(k, 0)
-            if have:
-                score += w
+            if have:  # a rare, telling fact (a rule, a step, a quote) outweighs plain figures every story has
+                n = 1 if isinstance(have, bool) else min(have, 3)
+                score += w * n / (6 if k in GENERIC_FACTS else 1.5)
                 reasons.append(f"{have} {k}" if not isinstance(have, bool) else k)
         if used:
             usable = sum(1 for b in sc["beats"] if b["scene_types"] == "any" or set(b["scene_types"]) & set(used))

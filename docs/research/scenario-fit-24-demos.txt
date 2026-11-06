@@ -1,0 +1,25 @@
+before-and-after           rank 2 of 16  top: day-in-a-life, before-and-after, reverse-chronology
+cause-and-effect           rank 1 of 13  top: cause-and-effect, rise-and-peak, step-by-step
+chase-through-document     rank 1 of 9  top: chase-through-document, says-and-shows, three-clues
+cold-open                  rank 1 of 13  top: cold-open, cause-and-effect, head-to-head
+countdown                  rank 2 of 8  top: guess-the-number, countdown, cold-open
+day-in-a-life              rank 1 of 11  top: day-in-a-life, reverse-chronology, step-by-step
+deadline                   rank 1 of 6  top: deadline, reverse-chronology, what-changes-for-you
+false-lead                 rank 1 of 12  top: false-lead, head-to-head, three-clues
+guess-the-number           rank 1 of 12  top: guess-the-number, countdown, chase-through-document
+head-to-head               rank 1 of 12  top: head-to-head, false-lead, three-clues
+map-tour                   rank 1 of 5  top: map-tour, object-biography, cause-and-effect
+money-trail                rank 1 of 8  top: money-trail, three-clues, guess-the-number
+myth-vs-fact               rank 1 of 9  top: myth-vs-fact, head-to-head, three-clues
+object-biography           rank 2 of 11  top: map-tour, object-biography, three-clues
+profile                    rank 1 of 10  top: profile, says-and-shows, chase-through-document
+reverse-chronology         rank 1 of 15  top: reverse-chronology, cold-open, deadline
+rise-and-peak              rank 1 of 8  top: rise-and-peak, three-clues, guess-the-number
+rule-and-exception         rank 1 of 13  top: rule-and-exception, what-is-it, countdown
+says-and-shows             rank 1 of 10  top: says-and-shows, three-clues, chase-through-document
+step-by-step               rank 1 of 13  top: step-by-step, money-trail, reverse-chronology
+three-clues                rank 1 of 14  top: three-clues, rise-and-peak, deadline
+two-voices                 rank 1 of 10  top: two-voices, chase-through-document, says-and-shows
+what-changes-for-you       rank 1 of 14  top: what-changes-for-you, reverse-chronology, deadline
+what-is-it                 rank 2 of 11  top: chase-through-document, what-is-it, head-to-head
+20 first of 24
