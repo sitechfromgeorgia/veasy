@@ -134,6 +134,18 @@ class Shapes(unittest.TestCase):
         self.assertTrue(p({"type": "route", "stops": ["თბილისი"]}))  # needs >= 2
         self.assertEqual(p({"type": "budget", "items": [{"label": "ა", "value": 10}, {"label": "ბ", "value": 20}]}), [])
         self.assertTrue(p({"type": "budget", "items": [{"label": "ა", "value": -5}, {"label": "ბ", "value": 20}]}))
+        self.assertEqual(p({"type": "chart", "items": [{"label": "ა", "value": 3}, {"label": "ბ", "value": 9.5}]}), [])
+        self.assertTrue(p({"type": "chart", "items": [{"label": "ა", "value": 0}, {"label": "ბ", "value": 2}]}))  # from zero
+        self.assertTrue(p({"type": "chart", "items": [{"label": "ა"}, {"label": "ბ", "value": 2}]}))
+        self.assertEqual(p({"type": "sparkline", "values": [3, 5, 4, 8, 7, 9]}), [])
+        self.assertEqual(p({"type": "sparkline", "values": [3, 5, 4, 8, 7, 9], "delta": -2}), [])
+        self.assertTrue(p({"type": "sparkline", "values": [3, "5", 4]}))  # a series of numbers
+        self.assertTrue(p({"type": "sparkline", "values": [3, 3, 3, 3]}))  # a flat line says nothing
+        self.assertTrue(p({"type": "sparkline", "values": [3, 5, 4], "delta": "2"}))
+        self.assertEqual(p({"type": "gauge", "value": 62, "label": "წილი"}), [])
+        self.assertEqual(p({"type": "gauge", "value": 0, "label": "წილი"}), [])
+        self.assertTrue(p({"type": "gauge", "value": 101, "label": "წილი"}))  # a percent of a whole
+        self.assertTrue(p({"type": "gauge", "value": -1, "label": "წილი"}))
 
     def test_chart_numbers_must_be_in_the_articles(self):  # N2 reads numbers at any depth now
         s = story(type="bars", items=[{"label": "ა", "value": 120}, {"label": "ბ", "value": 7.5}])
@@ -160,7 +172,7 @@ class Shapes(unittest.TestCase):
         used = set()
         for name in ("veasy-demo", "veasy-scenes", "veasy-icons", "sitech-cybercartel", "veasy-brushes",
                      "digest-2026-11-01", "../tests/fixtures/rubric-agree", "veasy-new-01", "veasy-new-02",
-                     "visual-motion-demo"):  # agree: a synthetic test fixture
+                     "visual-motion-demo", "visual-data-demo"):  # agree: a synthetic test fixture
             s = json.loads((ROOT / "stories" / f"{name}.json").read_text(encoding="utf-8"))
             self.assertEqual(engine.check_story(s), [], name)
             used |= {x["type"] for x in s["scenes"]}

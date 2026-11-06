@@ -91,7 +91,7 @@ def cues(props):
                 out.append({"t": (a + f) / FPS, "name": "click" if flap else "tick"})
             if end > COUNT_DELAY:
                 out.append({"t": (a + end) / FPS, "name": "thud"})
-        if t in ("bars", "compare"):
+        if t in ("bars", "compare", "chart"):
             for k in range(len(s.get("items") or [])):
                 f = 6 + k * CHART_STEP
                 if f < s.get("duration", 0):

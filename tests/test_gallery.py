@@ -14,7 +14,7 @@ class Gallery(unittest.TestCase):
             self.assertTrue(target.is_file())
             self.assertEqual(res["styles"], 18)
             self.assertEqual(res["looks"], 3)
-            self.assertEqual(res["scenes"], 33)
+            self.assertEqual(res["scenes"], 36)
             self.assertEqual(res["directors"], 8)
 
             content = target.read_text(encoding="utf-8")
