@@ -14,7 +14,8 @@
     "gate": "hold",
     "rule": "reading_speed_floor",
     "metric": "shown_time < 0.5s + 0.3s * words",
-    "description": "Heavy text requiring 3.5s reading time compressed into 1.0s scene (violates read rule -> MUST HOLD)"
+    "description": "A 24-word quote needs more reading time than its 4.5 s scene shows it (read rule: must hold)",
+    "catch": "read"
   },
   "narration": "საქართველოს პარლამენტმა ახალი კანონპროექტი მესამე მოსმენით დაამტკიცა. კანონი ძალაში ოფიციალურად გამოქვეყნებისთანავე შევა. დეტალები tbilisi.today-ზე. გაიგე მეტი tbilisi.today-ზე.",
   "scenes": [
@@ -33,9 +34,8 @@
       "at": "კანონი ძალაში",
       "kicker": "კანონმდებლობა",
       "headline": "პარლამენტის გადაწყვეტილება",
-      "text": "საქართველოს პარლამენტმა ახალი კანონპროექტი მესამე მოსმენით ერთხმად მიიღო და დაამტკიცა",
-      "by": "საკანონმდებლო მაცნე",
-      "duration": 30
+      "text": "საქართველოს პარლამენტმა ახალი კანონპროექტი მესამე მოსმენით ერთხმად მიიღო და დაამტკიცა, ხოლო მისი ძალაში შესვლის წესები და ყველა გარდამავალი დებულება დეტალურად განისაზღვრა",
+      "by": "საკანონმდებლო მაცნე"
     },
     {
       "type": "end",

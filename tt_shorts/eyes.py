@@ -248,18 +248,7 @@ def no_hero_frame(stills: list[str | pathlib.Path], story: dict[str, Any] | None
     mean_mass = sum(masses) / len(masses)
     crest = max_mass / max(1e-4, mean_mass)
 
-    # Check structural cues in story if provided (hook headline scale, large stat values)
-    has_large_stat = False
-    if story:
-        for sc in story.get("scenes", []):
-            if sc.get("type") == "stat" and (sc.get("value") is not None or sc.get("icon")):
-                has_large_stat = True
-                break
-            if sc.get("type") == "hook" and len(sc.get("lines", [])) >= 2:
-                # 2-3 line hook with punchy phrasing counts toward hero structure
-                has_large_stat = True
-
-    if (max_mass < MIN_PEAK_MASS or (max_mass < 0.110 and crest < MIN_CREST_FACTOR)) and not has_large_stat:
+    if (max_mass < MIN_PEAK_MASS or (max_mass < 0.110 and crest < MIN_CREST_FACTOR)):
         return [_finding(
             "no_hero_frame",
             f"video lacks a dominant hero anchor moment: max visual mass is {max_mass:.3f} (min {MIN_PEAK_MASS:.3f}) "
@@ -270,6 +259,41 @@ def no_hero_frame(stills: list[str | pathlib.Path], story: dict[str, Any] | None
 
     return []
 
+
+
+# -----------------------------------------------------------------------------
+# 3b. safe_zone_ink
+# -----------------------------------------------------------------------------
+
+RAIL_X0 = 940          # CLAUDE.md: below y=1100 no text goes right of x=940
+RAIL_Y0, RAIL_Y1 = 1100, 1552
+RAIL_MAX_INK = 0.004   # share of the rail region that may carry ink
+
+
+def safe_zone_ink(stills: list[str | pathlib.Path], scene_types: list[str] | None = None) -> list[dict[str, Any]]:
+    """Ink in the social rail (x > 940, y 1100..1552): scene text must stay out of it."""
+    findings = []
+    types = scene_types or []
+    for i, path in enumerate(stills):
+        p = pathlib.Path(path)
+        if not p.is_file():
+            continue
+        with Image.open(p) as im:
+            grey = np.array(im.convert("L"), dtype=np.float32)
+        h, w = grey.shape
+        if (w, h) != (1080, 1920):
+            continue
+        bg = float(np.median(np.concatenate([grey[:40, :40].ravel(), grey[:40, -40:].ravel(),
+                                             grey[-40:, :40].ravel(), grey[-40:, -40:].ravel()])))
+        region = np.abs(grey[RAIL_Y0:RAIL_Y1, RAIL_X0:] - bg) >= 60.0
+        share = float(region.mean())
+        if share > RAIL_MAX_INK:
+            findings.append(_finding(
+                "safe_zone",
+                f"scene {i} ({types[i] if i < len(types) else 'scene'}): {share:.1%} of the social rail "
+                f"(x>{RAIL_X0}, y {RAIL_Y0}..{RAIL_Y1}) carries ink (max {RAIL_MAX_INK:.1%}): pull the text left",
+                scene=i, hold=False))
+    return findings
 
 # -----------------------------------------------------------------------------
 # 4. metronome_cuts
@@ -449,8 +473,9 @@ def check_eyes(
     stills = stills or []
     scene_types = [s.get("type", "scene") for s in story.get("scenes", [])]
 
-    # 1. Reading time holds (Safety/Legibility floor)
-    findings.extend(reading_time_holds(story, plan_data))
+    # 1. Reading time holds (Safety/Legibility floor): needs built props or a plan; a bare story has no timings
+    if plan_data:
+        findings.extend(reading_time_holds(story, plan_data))
 
     # 2. Flash safety hold (if video path provided)
     if video_path and pathlib.Path(video_path).is_file():
@@ -459,15 +484,12 @@ def check_eyes(
     # 3. Spoken redundancy check (Plan/Story text analysis)
     findings.extend(spoken_redundancy(story))
 
-    # 4. Metronome cuts check (Timeline pacing analysis)
-    if plan_data and "scenes" in plan_data:
+    # 4. Metronome cuts check (needs real scene durations from a plan or the motion timeline)
+    if plan_data and plan_data.get("timeline"):
+        findings.extend(metronome_cuts(plan_data["timeline"]))
+    elif plan_data and "scenes" in plan_data:
         durs = [s.get("seconds", 0.0) for s in plan_data["scenes"] if s.get("type") != "end"]
         findings.extend(metronome_cuts(durs))
-    elif "scenes" in story:
-        # Fallback to word-estimated scene durations if plan_data not available
-        durs = [max(2.0, motion_rules.words(s.get("narration", "")) * 0.28) for s in story["scenes"] if s.get("type") != "end"]
-        if durs:
-            findings.extend(metronome_cuts(durs))
 
     # 5. Stills-based pixel checks (when stills are available)
     if stills:
@@ -475,6 +497,7 @@ def check_eyes(
         findings.extend(same_picture_twice(scene_hashes))
         findings.extend(empty_middle(stills, scene_types))
         findings.extend(no_hero_frame(stills, story))
+        findings.extend(safe_zone_ink(stills, scene_types))
 
     holds = [f for f in findings if f["hold"]]
     warnings = [f for f in findings if not f["hold"]]

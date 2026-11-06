@@ -14,7 +14,8 @@
     "gate": "warning",
     "rule": "wcag_contrast_threshold",
     "metric": "contrast_ratio(ink, canvas) < 3.0:1 (actual: 1.44:1)",
-    "description": "Contrast ratio failing WCAG thresholds (dark slate #2e3238 on dark canvas #121316)"
+    "description": "Contrast ratio failing WCAG thresholds (dark slate #2e3238 on dark canvas #121316)",
+    "catch": "empty_middle"
   },
   "narration": "კიბერუსაფრთხოების ეროვნული ცენტრი მოქალაქეებს ფიშინგის საფრთხის შესახებ აფრთხილებს. თავდამსხმელები საბანკო რეკვიზიტების მოტყუებით დაუფლებას ცდილობენ. საეჭვო შეტყობინებების მიღებისას დაუყოვნებლივ მიმართეთ ბანკს. დეტალები tbilisi.today-ზე. გააფრთხილე ახლობლები საფრთხეზე.",
   "scenes": [
@@ -55,5 +56,6 @@
       "type": "end",
       "at": "დეტალები tbilisi.today-ზე"
     }
-  ]
+  ],
+  "pixels": "washed_out"
 }

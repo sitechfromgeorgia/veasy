@@ -14,7 +14,8 @@
     "gate": "warning",
     "rule": "alternating_transition_direction",
     "metric": "cuts_pattern == A-B-A or opposite_direction_vectors",
-    "description": "Cuts alternating wipe-slide-wipe (A-B-A pingpong sequence) with opposing direction vectors"
+    "description": "Cuts alternating wipe-slide-wipe (A-B-A pingpong sequence) with opposing direction vectors",
+    "catch": "pingpong"
   },
   "narration": "აჭარაში ტურისტული სეზონი წარმატებით მიმდინარეობს. სასტუმროების დატვირთულობამ ოთხმოცდახუთ პროცენტს მიაღწია. საერთაშორისო ფრენების რაოდენობა ოცდაათი პროცენტით გაიზარდა. ვიზიტორთა უმრავლესობა ევროპის ქვეყნებიდან შემოდის. დეტალები tbilisi.today-ზე. გააზიარე ახალი ამბავი.",
   "scenes": [

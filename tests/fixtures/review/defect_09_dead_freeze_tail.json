@@ -14,9 +14,10 @@
     "gate": "warning",
     "rule": "stillness_after_settle",
     "metric": "quiet_duration_after_settle > 4.0s (STILL_MAX = 3.0s)",
-    "description": "Scene 1 remains completely static for >4.0s after settling with no beats or changes"
+    "description": "The quote scene holds for 7.5 s with nothing changing after it settles",
+    "catch": "still"
   },
-  "narration": "კახეთში არქეოლოგებმა უძველესი ნამოსახლარი აღმოაჩინეს. ექსპედიციის ხელმძღვანელის თქმით ეს აღმოჩენა რეგიონის ისტორიას ახლებურად წარმოაჩენს. კვლევები სიღნაღის მუნიციპალიტეტში აქტიურად გრძელდება. დეტალები tbilisi.today-ზე. გაიგე მეტი tbilisi.today-ზე.",
+  "narration": "კახეთში არქეოლოგებმა უძველესი ნამოსახლარი აღმოაჩინეს. ექსპედიციის ხელმძღვანელის თქმით ეს ნამდვილად დიდი და ძალიან მნიშვნელოვანი და უნიკალური და ბევრისთვის მოულოდნელი და ყველასთვის საინტერესო ეს აღმოჩენა რეგიონის ისტორიას ახლებურად წარმოაჩენს. კვლევები სიღნაღის მუნიციპალიტეტში აქტიურად გრძელდება. დეტალები tbilisi.today-ზე. გაიგე მეტი tbilisi.today-ზე.",
   "scenes": [
     {
       "type": "hook",

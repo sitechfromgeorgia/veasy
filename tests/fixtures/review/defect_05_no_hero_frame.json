@@ -14,7 +14,8 @@
     "gate": "warning",
     "rule": "visual_climax_hierarchy",
     "metric": "max(scene_visual_prominence) / median(prominence) < 1.30",
-    "description": "Flat, low-weight cards throughout all scenes without a visual climax or anchor hero frame"
+    "description": "Flat, low-weight cards throughout all scenes without a visual climax or anchor hero frame",
+    "catch": "no_hero_frame"
   },
   "narration": "საჯარო რეესტრის მომსახურების სამუშაო განრიგი იცვლება. ახალი რეგულაცია პირველი დეკემბრიდან ყველა ფილიალში ამოქმედდება. მომსახურების მიღება შესაძლებელია იუსტიციის სახლის ონლაინ პორტალზე. დამატებითი კონსულტაციისთვის მოქმედებს ერთიანი ცხელი ხაზი. დეტალები tbilisi.today-ზე. გაუზიარე მეგობრებს ინფორმაცია.",
   "scenes": [
@@ -63,5 +64,6 @@
       "type": "end",
       "at": "დეტალები tbilisi.today-ზე"
     }
-  ]
+  ],
+  "pixels": "flat_low_mass"
 }

@@ -13,21 +13,21 @@
     "name": "metronome_cuts",
     "gate": "warning",
     "rule": "cut_duration_variance",
-    "metric": "std_dev(scene_durations) < 0.20s across 4+ cuts",
-    "description": "5 consecutive scenes have identical durations (2.50s / 75 frames each, std dev = 0.0s)"
+    "metric": "std_dev(scene_durations) < 0.40s and CV < 7.5%, or 4 cuts within 0.20s",
+    "description": "4 scenes of the film run 4.9-5.0 s each (std dev under 0.1 s): a metronome",
+    "catch": "metronome_cuts"
   },
-  "narration": "საქართველოს სავალუტო რეზერვები რეკორდულ მაჩვენებლამდე გაიზარდა. ეროვნული ბანკის მონაცემებით აქტივების მოცულობა მყარდება. სარეზერვო აქტივებმა ხუთ მილიარდ დოლარს გადააჭარბა. საერთაშორისო შეფასებით საბანკო სისტემა სრულად სტაბილურია. დეტალები tbilisi.today-ზე. გამოიწერეთ ჩვენი არხი.",
+  "narration": "საქართველოს რეზერვები რეკორდულ მაჩვენებლამდე გაიზარდა. ეროვნული ბანკის მონაცემებით აქტივების მოცულობა მყარდება. სარეზერვო აქტივებმა ხუთ მილიარდ დოლარს კი გადააჭარბა. საერთაშორისო შეფასებით საბანკო სისტემა სრულად სტაბილურია. დეტალები tbilisi.today-ზე. გამოიწერეთ ჩვენი არხი.",
   "scenes": [
     {
       "type": "hook",
-      "at": "საქართველოს სავალუტო",
+      "at": "საქართველოს რეზერვები",
       "kicker": "ეკონომიკა · რეზერვები",
       "lines": [
         "სავალუტო რეზერვები",
         "რეკორდულად",
         "გაიზარდა"
-      ],
-      "duration": 75
+      ]
     },
     {
       "type": "stat",
@@ -35,8 +35,7 @@
       "kicker": "აქტივები",
       "headline": "მთლიანი მოცულობა",
       "value": 5,
-      "label": "მილიარდი დოლარი რეზერვებში",
-      "duration": 75
+      "label": "მილიარდი დოლარი რეზერვებში"
     },
     {
       "type": "points",
@@ -47,8 +46,7 @@
         "სავალუტო შემოდინება",
         "ექსპორტის ზრდა",
         "ფულადი გზავნილები"
-      ],
-      "duration": 75
+      ]
     },
     {
       "type": "where",
@@ -56,13 +54,11 @@
       "kicker": "სტაბილურობა",
       "headline": "საფინანსო სექტორი",
       "place": "თბილისი",
-      "sub": "ეროვნული ბანკი",
-      "duration": 75
+      "sub": "ეროვნული ბანკი"
     },
     {
       "type": "end",
-      "at": "დეტალები tbilisi.today-ზე",
-      "duration": 75
+      "at": "დეტალები tbilisi.today-ზე"
     }
   ]
 }

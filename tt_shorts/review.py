@@ -25,7 +25,7 @@ import time
 from collections import Counter
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from tt_shorts import brand, catalog, formats, motion_rules, news_check, plan, probe, props, speech, store, swipe, variety
+from tt_shorts import brand, catalog, eyes, formats, motion_rules, news_check, plan, probe, props, speech, store, swipe, variety
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -1300,6 +1300,7 @@ DATE_KEYS = ("date", "start", "end", "time", "weekday", "when")
 NAME_KEYS = ("who", "person", "speaker", "author", "place", "source_name")
 CODE_KEYS = ("type", "at", "icon", "verb", "em", "style", "show", "media", "rank", "status", "state")
 
+REPAIRABLE = ("motion repeat", "motion pingpong", "safe_zone")  # warnings a transform can fix
 MAX_MACHINE_ROUNDS_CAP = 3
 MAX_LOOK_ROUNDS_CAP = 2
 
@@ -1548,6 +1549,10 @@ def audit_story(story: dict[str, Any], fmt_name: str = "news", look: str | None 
         warnings.extend(motion.get("warnings") or [])
         findings.extend(motion.get("findings") or [])
 
+        for f in eyes.metronome_cuts(motion.get("timeline") or []) + eyes.spoken_redundancy(story):
+            findings.append(f)
+            warnings.append(f"eyes {f['rule']}: {f['detail']}")
+
         nov_warning = (built_props.get("novelty") or {}).get("warning")
         if nov_warning:
             warnings.append(f"variety novelty: {nov_warning}")
@@ -1781,8 +1786,9 @@ class ReviewLoop:
             }
             self.history.append(packet)
 
-            # Check Success condition: No holds remain!
-            if not holds:
+            # Check Success condition: no holds and nothing the transforms can still repair
+            repairable = [w for w in warnings if any(k in w for k in REPAIRABLE)]
+            if not holds and (not repairable or (self.machine_round >= self.max_machine and self.look_round >= self.max_look)):
                 status = "fixed" if self.applied_transforms else "passed"
                 return {
                     "status": status,
@@ -1952,3 +1958,92 @@ def review_story(
 
     return result
 
+
+
+# -----------------------------------------------------------------------------
+# Seeded defects: what the eyes catch (tests/fixtures/review/)
+# -----------------------------------------------------------------------------
+
+def synth_pixels(recipe: str, outdir: str | pathlib.Path) -> dict[str, Any]:
+    """Deterministic frames for the pixel defects a story file cannot carry: {"stills": [paths]} or {"frames": array}.
+
+    Canvas and ink follow the pack's dark-canvas, light-ink rule; nothing here is random.
+    """
+    import numpy as np
+    from PIL import Image
+
+    out = pathlib.Path(outdir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    def frame(blocks: list[tuple[int, int, int, int, tuple[int, int, int]]]) -> "np.ndarray":
+        arr = np.zeros((1920, 1080, 3), dtype=np.uint8)
+        arr[:] = (18, 19, 22)
+        arr[90:150, 100:980] = (236, 236, 232)  # chrome: the source and time line
+        arr[1760:1820, 100:980] = (168, 170, 176)
+        for y0, y1, x0, x1, rgb in blocks:
+            arr[y0:y1, x0:x1] = rgb
+        return arr
+
+    ink = (236, 236, 232)
+    good = [
+        [(420, 640, 120, 960, ink), (760, 900, 160, 820, ink)],
+        [(380, 560, 120, 700, ink), (700, 780, 120, 900, ink), (860, 940, 120, 800, ink)],
+        [(300, 880, 120, 960, ink)],
+    ]
+
+    def save(name: str, arr: "np.ndarray") -> str:
+        path = out / f"{name}.png"
+        Image.fromarray(arr).save(path)
+        return str(path)
+
+    if recipe == "strobe":
+        frames = np.zeros((60, 27 * 48, 3), dtype=np.uint8)
+        frames[::6] = 255  # a full-screen strobe at 5 Hz
+        return {"frames": frames}
+    if recipe == "same_picture":
+        a = save("a", frame(good[0]))
+        return {"stills": [a, save("b", frame(good[1])), a, save("c", frame(good[0]))]}
+    if recipe == "empty_middle":
+        return {"stills": [save("a", frame(good[0])), save("dead", frame([])), save("c", frame(good[1]))]}
+    if recipe == "flat_low_mass":
+        # four different, equally light layouts: ink is there (no dead middle) but nothing is the climax
+        shapes = [(500, 620, 150, 650), (760, 880, 400, 900), (420, 520, 200, 800), (900, 1030, 300, 780)]
+        return {"stills": [save(f"flat{i}", frame([(y0, y1, x0, x1, ink)])) for i, (y0, y1, x0, x1) in enumerate(shapes)]}
+    if recipe == "rail_text":
+        return {"stills": [save("a", frame(good[0])), save("rail", frame([(1150, 1300, 400, 1040, ink)]))]}
+    if recipe == "washed_out":
+        dim = (44, 46, 52)
+        return {"stills": [save("a", frame(good[0])), save("dim", frame([(380, 560, 120, 700, dim), (700, 780, 120, 900, dim), (860, 940, 120, 800, dim)]))]}
+    raise ValueError(f"unknown pixel recipe: {recipe}")
+
+
+def detect(story: dict[str, Any], workdir: str | pathlib.Path) -> dict[str, Any]:
+    """Run every free check a fixture asks for -> {"rules": sorted rule names, "holds": [...], "warnings": [...]}.
+
+    A fixture's optional "pixels" key names a synth_pixels recipe for defects that live in frames, not in the story.
+    """
+    audit = audit_story(story)
+    findings = list(audit["findings"])
+    holds = list(audit["holds"])
+    warnings = list(audit["warnings"])
+    rules = {f["rule"] for f in findings}
+    for h in holds:
+        if h.startswith("timing:"):
+            rules.add("timing")
+    recipe = story.get("pixels")
+    if recipe:
+        px = synth_pixels(recipe, workdir)
+        types = [s.get("type", "scene") for s in story.get("scenes", [])]
+        found: list[dict[str, Any]] = []
+        if "frames" in px:
+            found += eyes.flash_holds(px["frames"])
+        else:
+            stills = px["stills"]
+            found += eyes.same_picture_twice(eyes.hashes_of_stills(stills))
+            found += eyes.empty_middle(stills, types)
+            found += eyes.no_hero_frame(stills, story)
+            found += eyes.safe_zone_ink(stills, types)
+        for f in found:
+            rules.add(f["rule"])
+            (holds if f["hold"] else warnings).append(f"eyes {f['rule']}: {f['detail']}")
+    return {"rules": sorted(rules), "holds": holds, "warnings": warnings}

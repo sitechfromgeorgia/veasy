@@ -14,7 +14,8 @@
     "gate": "warning",
     "rule": "verbatim_narration_mirroring",
     "metric": "token_overlap(screen_texts, spoken_narration) == 1.0",
-    "description": "Scene 1 on-screen text verbatim repeats 100% of the spoken narration without synthesis"
+    "description": "Scene 1 on-screen text verbatim repeats 100% of the spoken narration without synthesis",
+    "catch": "spoken_redundancy"
   },
   "narration": "საქართველოს ეკონომიკური ზრდის ტემპი წარმატებით გრძელდება. საქართველოს ეკონომიკა მესამე კვარტალში ცხრა პროცენტით გაიზარდა. ზრდა ძირითადად მშენებლობასა და მომსახურების სექტორში დაფიქსირდა. საერთაშორისო სავალუტო ფონდი საქართველოს ეკონომიკურ პროგნოზს აუმჯობესებს. დეტალები tbilisi.today-ზე. მოიწონე და გაუზიარე მეზობლებს.",
   "scenes": [
@@ -39,12 +40,10 @@
     {
       "type": "points",
       "at": "ზრდა ძირითადად",
-      "kicker": "დარგები",
-      "headline": "ზრდის წამყვანი სექტორები",
+      "kicker": "ზრდა დაფიქსირდა",
+      "headline": "მშენებლობასა და მომსახურების",
       "items": [
-        "სამშენებლო სექტორი",
-        "სასტუმროები და რესტორნები",
-        "სატრანსპორტო გადაზიდვები"
+        "ზრდა ძირითადად მშენებლობასა და მომსახურების სექტორში დაფიქსირდა"
       ]
     },
     {

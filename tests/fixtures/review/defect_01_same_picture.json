@@ -14,7 +14,8 @@
     "gate": "warning",
     "rule": "dhash_similarity",
     "metric": "hamming_distance_dhash <= 3",
-    "description": "Two consecutive scenes have identical visual layout, typography, and card composition (dHash distance <= 3)"
+    "description": "Two consecutive scenes have identical visual layout, typography, and card composition (dHash distance <= 3)",
+    "catch": "same_picture_twice"
   },
   "narration": "თბილისის მეტროში მგზავრთა ნაკადი საგრძნობლად გაიზარდა. სატრანსპორტო კომპანიის მონაცემებით დღიური მაჩვენებელი 450 ათასს აღწევს. იგივე 450 ათასი მგზავრი ფიქსირდება მეორე მონაკვეთზეც. ყველაზე დატვირთული მონაკვეთი პირველი, ახმეტელი-ვარკეთილის ხაზია. დეტალები tbilisi.today-ზე. მოიწონე და გაუზიარე მეზობლებს.",
   "scenes": [
@@ -56,5 +57,6 @@
       "type": "end",
       "at": "დეტალები tbilisi.today-ზე"
     }
-  ]
+  ],
+  "pixels": "same_picture"
 }

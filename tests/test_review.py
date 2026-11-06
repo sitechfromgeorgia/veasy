@@ -465,3 +465,39 @@ class ReviewLoopTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SeededDefectTest(unittest.TestCase):
+    """Done-when 1: 12 seeded-broken stories sit in tests/fixtures/review/ and every one is caught by its own rule."""
+
+    FIX = sorted((ROOT / "tests" / "fixtures" / "review").glob("defect_*.json"))
+
+    def setUp(self):
+        import tempfile
+        self.home = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"VEASY_HOME": self.home.name})
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+        self.home.cleanup()
+
+    def test_twelve_fixtures(self):
+        self.assertEqual(len(self.FIX), 12)
+        self.assertEqual(sorted({p.name[7:9] for p in self.FIX}), [f"{i:02d}" for i in range(1, 13)])
+
+    def test_every_defect_is_caught_by_its_own_rule(self):
+        import tempfile
+        missed = []
+        for path in self.FIX:
+            story = json.loads(path.read_text(encoding="utf-8"))
+            with tempfile.TemporaryDirectory() as tmp:
+                got = review.detect(story, tmp)
+            want = story["defect"]["catch"]
+            if want not in got["rules"]:
+                missed.append((path.name, want, got["rules"]))
+            if story["defect"]["gate"] == "hold":
+                self.assertTrue(got["holds"], path.name)
+            else:
+                self.assertFalse(got["holds"], f"{path.name} is a warning-only defect but held: {got['holds']}")
+        self.assertEqual(missed, [])
