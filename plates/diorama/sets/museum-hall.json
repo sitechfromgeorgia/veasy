@@ -1,0 +1,619 @@
+{
+  "$schema": "./schema.json",
+  "id": "museum-hall",
+  "name": "The Grand Museum Colonnade Hall",
+  "description": "Monumental exhibition hall featuring towering classical paper colonnades, multi-tiered vaulted groin arches, high-angle clerestory window grilles casting sharp paper raking shadows, and stepped display plinths with folded-paper artifact standees.",
+  "duration": 6.0,
+  "tone": "greys-blacks-paper-whites",
+  "environment": {
+    "background_color": "#050505",
+    "fog": {
+      "type": "linear",
+      "color": "#080808",
+      "near": 7.0,
+      "far": 22.0
+    },
+    "lighting": {
+      "ambient": {
+        "sky_tone": "#4a4a48",
+        "ground_tone": "#141414",
+        "intensity": 0.85
+      },
+      "key_light": {
+        "type": "directional",
+        "color": "#ffffff",
+        "intensity": 2.8,
+        "position": [-6.0, 9.5, 4.0],
+        "target": [0.2, 0.8, -1.5],
+        "description": "Steep diagonal raking beam piercing high clerestory apertures, carving crisp shadow bands across paper floor panels and faceted plinths."
+      },
+      "fill_light": {
+        "type": "directional",
+        "color": "#787878",
+        "intensity": 0.55,
+        "position": [5.5, 4.0, 2.0],
+        "target": [0.0, 1.2, -1.0],
+        "description": "Soft lateral bounce preserving crease details and cut paper edges in shaded alcoves."
+      }
+    }
+  },
+  "camera": {
+    "move": "push-through",
+    "duration": 6.0,
+    "easing": "cubic-bezier(0.42, 0.0, 0.18, 1.0)",
+    "path": {
+      "start": {
+        "position": [0.0, 2.5, 6.2],
+        "target": [0.0, 1.35, -2.2],
+        "fov": 38.0
+      },
+      "end": {
+        "position": [0.0, 1.65, 1.8],
+        "target": [0.0, 1.25, -2.5],
+        "fov": 34.0
+      }
+    },
+    "choreography_notes": "The shot begins framed through a layered foreground paper proscenium arch. The camera executes a slow, deliberate forward push-through down the nave aisle, sweeping past twin rows of fluted paper columns, settling into a heroic low-angle hero framing of the central pedestal artifact."
+  },
+  "depth_layers": {
+    "foreground": {
+      "z_range": [3.2, 6.0],
+      "role": "Ornate cut-paper proscenium archway and monumental entry columns creating deep framing vignette and pronounced parallax wipe upon entrance."
+    },
+    "midground": {
+      "z_range": [-1.8, 3.0],
+      "role": "Stepped gallery aisle flanked by four symmetrical column bays, stepped display plinths with folded paper artifact standees, and safety stanchions."
+    },
+    "background": {
+      "z_range": [-9.5, -2.0],
+      "role": "Receding vaulted ceiling ribs, raised dais flight of stairs, and rear clerestory window wall with intricate layered cutout tracery."
+    }
+  },
+  "anchors": [
+    {
+      "id": "dot",
+      "position": [0.0, 2.35, -0.9],
+      "description": "Primary hero anchor for DOM accent dot hovering precisely over the principal exhibit artifact."
+    },
+    {
+      "id": "headline_label",
+      "position": [0.0, 3.2, -0.9],
+      "description": "Primary DOM title banner anchor centered in the upper clerestory architectural clearance."
+    },
+    {
+      "id": "stat_callout_left",
+      "position": [-1.75, 1.9, 0.4],
+      "description": "Left flank anchor tracking the secondary exhibition plinth for metric badges."
+    },
+    {
+      "id": "stat_callout_right",
+      "position": [1.75, 1.9, 0.4],
+      "description": "Right flank anchor tracking the historical archive plinth."
+    },
+    {
+      "id": "vanishing_point",
+      "position": [0.0, 1.5, -8.5],
+      "description": "Architectural perspective vanishing point at the center of the rear hall alcove."
+    }
+  ],
+  "standees": [
+    {
+      "id": "hero_artifact_qvevri",
+      "motif": "wine-qvevri",
+      "drawing_path": "assets/drawings/wine-qvevri.json",
+      "layer": "midground",
+      "position": [0.0, 1.22, -0.9],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [1.1, 1.1, 1.1],
+      "paper_layers": 3,
+      "extrusion_depth": 0.05,
+      "base_bracket": {
+        "type": "slotted-plinth-mount",
+        "width": 0.65,
+        "depth": 0.35,
+        "tone": "#e6e6e2"
+      },
+      "tone": "#fbfbf8",
+      "description": "Hero archeological vessel standee elevated upon the grand tiered plinth."
+    },
+    {
+      "id": "left_artifact_court",
+      "motif": "court",
+      "drawing_path": "assets/drawings/court.json",
+      "layer": "midground",
+      "position": [-1.75, 0.95, 0.4],
+      "rotation": [0.0, 18.0, 0.0],
+      "scale": [0.85, 0.85, 0.85],
+      "paper_layers": 2,
+      "extrusion_depth": 0.04,
+      "base_bracket": {
+        "type": "pedestal-slot",
+        "width": 0.5,
+        "depth": 0.3,
+        "tone": "#d2d2ce"
+      },
+      "tone": "#f0f0ec",
+      "description": "Classical civic institution miniature exhibited on the west wing plinth."
+    },
+    {
+      "id": "right_artifact_money",
+      "motif": "money",
+      "drawing_path": "assets/drawings/money.json",
+      "layer": "midground",
+      "position": [1.75, 0.95, 0.4],
+      "rotation": [0.0, -18.0, 0.0],
+      "scale": [0.85, 0.85, 0.85],
+      "paper_layers": 2,
+      "extrusion_depth": 0.04,
+      "base_bracket": {
+        "type": "pedestal-slot",
+        "width": 0.5,
+        "depth": 0.3,
+        "tone": "#d2d2ce"
+      },
+      "tone": "#f0f0ec",
+      "description": "Historical numismatic treasure standee displayed on the east wing plinth."
+    },
+    {
+      "id": "rear_dais_graduation",
+      "motif": "graduation",
+      "drawing_path": "assets/drawings/graduation.json",
+      "layer": "background",
+      "position": [0.0, 1.48, -5.2],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [0.72, 0.72, 0.72],
+      "paper_layers": 2,
+      "extrusion_depth": 0.035,
+      "base_bracket": {
+        "type": "dais-tab",
+        "width": 0.45,
+        "depth": 0.25,
+        "tone": "#b8b8b4"
+      },
+      "tone": "#e2e2dd",
+      "description": "Academic honor emblem standee situated atop the elevated rear sanctuary dais."
+    }
+  ],
+  "components": [
+    {
+      "id": "proscenium_arch_frame",
+      "type": "arch",
+      "layer": "foreground",
+      "position": [0.0, 2.7, 4.8],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 4,
+        "edge_cut": "beveled",
+        "tone": "mid-grey",
+        "hex": "#8a8a86"
+      },
+      "geometry_params": {
+        "span": 4.6,
+        "height": 4.2,
+        "arch_radius": 2.3,
+        "thickness": 0.12,
+        "reveal_border": 0.25
+      }
+    },
+    {
+      "id": "colonnade_pillar_fg_left",
+      "type": "column",
+      "layer": "foreground",
+      "position": [-2.35, 1.8, 3.8],
+      "rotation": [0.0, 15.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "beveled",
+        "tone": "light-grey",
+        "hex": "#c4c4bf"
+      },
+      "geometry_params": {
+        "shaft_radius": 0.28,
+        "height": 4.0,
+        "capital_style": "ionic-cutout",
+        "base_plinth_height": 0.45
+      }
+    },
+    {
+      "id": "colonnade_pillar_fg_right",
+      "type": "column",
+      "layer": "foreground",
+      "position": [2.35, 1.8, 3.8],
+      "rotation": [0.0, -15.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "beveled",
+        "tone": "light-grey",
+        "hex": "#c4c4bf"
+      },
+      "geometry_params": {
+        "shaft_radius": 0.28,
+        "height": 4.0,
+        "capital_style": "ionic-cutout",
+        "base_plinth_height": 0.45
+      }
+    },
+    {
+      "id": "hall_floor_pavement",
+      "type": "pavement-plane",
+      "layer": "midground",
+      "position": [0.0, 0.0, -1.0],
+      "rotation": [-90.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 2,
+        "edge_cut": "clean",
+        "tone": "dark-grey",
+        "hex": "#282827"
+      },
+      "geometry_params": {
+        "width": 6.8,
+        "depth": 15.0,
+        "grid_divisions_x": 8,
+        "grid_divisions_z": 16,
+        "seam_emboss": 0.015
+      }
+    },
+    {
+      "id": "central_hero_plinth",
+      "type": "plinth",
+      "layer": "midground",
+      "position": [0.0, 0.45, -0.9],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 4,
+        "edge_cut": "beveled",
+        "tone": "paper-white",
+        "hex": "#f5f5f0"
+      },
+      "geometry_params": {
+        "tier_count": 3,
+        "base_width": 1.4,
+        "base_depth": 1.1,
+        "top_width": 0.95,
+        "top_depth": 0.75,
+        "total_height": 0.9,
+        "cornice_bevel": 0.05
+      }
+    },
+    {
+      "id": "left_flank_plinth",
+      "type": "plinth",
+      "layer": "midground",
+      "position": [-1.75, 0.35, 0.4],
+      "rotation": [0.0, 18.0, 0.0],
+      "scale": [0.85, 0.85, 0.85],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "clean",
+        "tone": "light-grey",
+        "hex": "#dcdcd7"
+      },
+      "geometry_params": {
+        "tier_count": 2,
+        "base_width": 0.9,
+        "base_depth": 0.75,
+        "top_width": 0.7,
+        "top_depth": 0.55,
+        "total_height": 0.7,
+        "cornice_bevel": 0.03
+      }
+    },
+    {
+      "id": "right_flank_plinth",
+      "type": "plinth",
+      "layer": "midground",
+      "position": [1.75, 0.35, 0.4],
+      "rotation": [0.0, -18.0, 0.0],
+      "scale": [0.85, 0.85, 0.85],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "clean",
+        "tone": "light-grey",
+        "hex": "#dcdcd7"
+      },
+      "geometry_params": {
+        "tier_count": 2,
+        "base_width": 0.9,
+        "base_depth": 0.75,
+        "top_width": 0.7,
+        "top_depth": 0.55,
+        "total_height": 0.7,
+        "cornice_bevel": 0.03
+      }
+    },
+    {
+      "id": "colonnade_row_left_1",
+      "type": "column",
+      "layer": "midground",
+      "position": [-2.1, 1.8, 1.6],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [0.95, 0.95, 0.95],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "beveled",
+        "tone": "light-grey",
+        "hex": "#d4d4cf"
+      },
+      "geometry_params": {
+        "shaft_radius": 0.24,
+        "height": 3.8,
+        "capital_style": "ionic-cutout",
+        "base_plinth_height": 0.4
+      }
+    },
+    {
+      "id": "colonnade_row_right_1",
+      "type": "column",
+      "layer": "midground",
+      "position": [2.1, 1.8, 1.6],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [0.95, 0.95, 0.95],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "beveled",
+        "tone": "light-grey",
+        "hex": "#d4d4cf"
+      },
+      "geometry_params": {
+        "shaft_radius": 0.24,
+        "height": 3.8,
+        "capital_style": "ionic-cutout",
+        "base_plinth_height": 0.4
+      }
+    },
+    {
+      "id": "colonnade_row_left_2",
+      "type": "column",
+      "layer": "midground",
+      "position": [-2.1, 1.8, -0.6],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [0.92, 0.92, 0.92],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "beveled",
+        "tone": "mid-grey",
+        "hex": "#bebeb8"
+      },
+      "geometry_params": {
+        "shaft_radius": 0.23,
+        "height": 3.7,
+        "capital_style": "ionic-cutout",
+        "base_plinth_height": 0.38
+      }
+    },
+    {
+      "id": "colonnade_row_right_2",
+      "type": "column",
+      "layer": "midground",
+      "position": [2.1, 1.8, -0.6],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [0.92, 0.92, 0.92],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "beveled",
+        "tone": "mid-grey",
+        "hex": "#bebeb8"
+      },
+      "geometry_params": {
+        "shaft_radius": 0.23,
+        "height": 3.7,
+        "capital_style": "ionic-cutout",
+        "base_plinth_height": 0.38
+      }
+    },
+    {
+      "id": "colonnade_row_left_3",
+      "type": "column",
+      "layer": "midground",
+      "position": [-2.0, 1.8, -2.8],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [0.88, 0.88, 0.88],
+      "paper_properties": {
+        "sheets": 2,
+        "edge_cut": "clean",
+        "tone": "mid-grey",
+        "hex": "#a6a6a1"
+      },
+      "geometry_params": {
+        "shaft_radius": 0.22,
+        "height": 3.6,
+        "capital_style": "ionic-cutout",
+        "base_plinth_height": 0.35
+      }
+    },
+    {
+      "id": "colonnade_row_right_3",
+      "type": "column",
+      "layer": "midground",
+      "position": [2.0, 1.8, -2.8],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [0.88, 0.88, 0.88],
+      "paper_properties": {
+        "sheets": 2,
+        "edge_cut": "clean",
+        "tone": "mid-grey",
+        "hex": "#a6a6a1"
+      },
+      "geometry_params": {
+        "shaft_radius": 0.22,
+        "height": 3.6,
+        "capital_style": "ionic-cutout",
+        "base_plinth_height": 0.35
+      }
+    },
+    {
+      "id": "dais_stairs_rear",
+      "type": "stairs",
+      "layer": "background",
+      "position": [0.0, 0.25, -4.8],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "beveled",
+        "tone": "mid-grey",
+        "hex": "#92928d"
+      },
+      "geometry_params": {
+        "step_count": 4,
+        "step_width": 3.4,
+        "step_height": 0.12,
+        "step_depth": 0.28
+      }
+    },
+    {
+      "id": "vaulted_arch_rib_1",
+      "type": "arch",
+      "layer": "background",
+      "position": [0.0, 3.8, 0.5],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "beveled",
+        "tone": "mid-grey",
+        "hex": "#7d7d78"
+      },
+      "geometry_params": {
+        "span": 4.2,
+        "height": 2.2,
+        "arch_radius": 2.1,
+        "rib_profile": "groin-vault-crease",
+        "thickness": 0.08
+      }
+    },
+    {
+      "id": "vaulted_arch_rib_2",
+      "type": "arch",
+      "layer": "background",
+      "position": [0.0, 3.8, -2.2],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [0.95, 0.95, 0.95],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "clean",
+        "tone": "dark-grey",
+        "hex": "#62625d"
+      },
+      "geometry_params": {
+        "span": 4.0,
+        "height": 2.1,
+        "arch_radius": 2.0,
+        "rib_profile": "groin-vault-crease",
+        "thickness": 0.08
+      }
+    },
+    {
+      "id": "vaulted_arch_rib_3",
+      "type": "arch",
+      "layer": "background",
+      "position": [0.0, 3.8, -4.8],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [0.9, 0.9, 0.9],
+      "paper_properties": {
+        "sheets": 2,
+        "edge_cut": "clean",
+        "tone": "dark-grey",
+        "hex": "#4e4e4a"
+      },
+      "geometry_params": {
+        "span": 3.8,
+        "height": 2.0,
+        "arch_radius": 1.9,
+        "rib_profile": "groin-vault-crease",
+        "thickness": 0.06
+      }
+    },
+    {
+      "id": "clerestory_window_wall_rear",
+      "type": "wall",
+      "layer": "background",
+      "position": [0.0, 3.2, -8.2],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "clean",
+        "tone": "dark-grey",
+        "hex": "#30302e"
+      },
+      "geometry_params": {
+        "width": 7.4,
+        "height": 6.8,
+        "thickness": 0.15,
+        "alcove_depth": 0.35
+      }
+    },
+    {
+      "id": "clerestory_aperture_center",
+      "type": "window",
+      "layer": "background",
+      "position": [0.0, 4.4, -8.1],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "deckled",
+        "tone": "paper-white",
+        "hex": "#ffffff"
+      },
+      "geometry_params": {
+        "width": 1.4,
+        "height": 2.8,
+        "arch_top": true,
+        "tracery_bars_x": 3,
+        "tracery_bars_y": 6,
+        "light_leak_mask": true
+      }
+    },
+    {
+      "id": "clerestory_aperture_left",
+      "type": "window",
+      "layer": "background",
+      "position": [-2.2, 4.2, -8.1],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [0.9, 0.9, 0.9],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "deckled",
+        "tone": "paper-white",
+        "hex": "#f0f0ec"
+      },
+      "geometry_params": {
+        "width": 1.1,
+        "height": 2.4,
+        "arch_top": true,
+        "tracery_bars_x": 2,
+        "tracery_bars_y": 5,
+        "light_leak_mask": true
+      }
+    },
+    {
+      "id": "clerestory_aperture_right",
+      "type": "window",
+      "layer": "background",
+      "position": [2.2, 4.2, -8.1],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [0.9, 0.9, 0.9],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "deckled",
+        "tone": "paper-white",
+        "hex": "#f0f0ec"
+      },
+      "geometry_params": {
+        "width": 1.1,
+        "height": 2.4,
+        "arch_top": true,
+        "tracery_bars_x": 2,
+        "tracery_bars_y": 5,
+        "light_leak_mask": true
+      }
+    }
+  ]
+}

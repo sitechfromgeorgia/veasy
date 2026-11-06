@@ -1,0 +1,301 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VeasyDioramaSetSpec",
+  "description": "Declarative JSON specification for the Veasy Paper Stage diorama engine (plates/diorama/).",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "description",
+    "duration",
+    "tone",
+    "environment",
+    "camera",
+    "depth_layers",
+    "anchors",
+    "standees",
+    "components"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "duration": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 60.0
+    },
+    "tone": {
+      "type": "string",
+      "enum": ["greys-blacks-paper-whites"]
+    },
+    "environment": {
+      "type": "object",
+      "required": ["background_color", "fog", "lighting"],
+      "properties": {
+        "background_color": { "type": "string" },
+        "fog": {
+          "type": "object",
+          "required": ["type", "color", "near", "far"],
+          "properties": {
+            "type": { "type": "string", "enum": ["linear", "exponential"] },
+            "color": { "type": "string" },
+            "near": { "type": "number" },
+            "far": { "type": "number" }
+          }
+        },
+        "lighting": {
+          "type": "object",
+          "required": ["ambient", "key_light", "fill_light"],
+          "properties": {
+            "ambient": {
+              "type": "object",
+              "required": ["sky_tone", "ground_tone", "intensity"],
+              "properties": {
+                "sky_tone": { "type": "string" },
+                "ground_tone": { "type": "string" },
+                "intensity": { "type": "number" }
+              }
+            },
+            "key_light": {
+              "type": "object",
+              "required": ["type", "color", "intensity", "position", "target"],
+              "properties": {
+                "type": { "type": "string", "enum": ["directional", "spot", "point"] },
+                "color": { "type": "string" },
+                "intensity": { "type": "number" },
+                "position": {
+                  "type": "array",
+                  "items": { "type": "number" },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "target": {
+                  "type": "array",
+                  "items": { "type": "number" },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "description": { "type": "string" }
+              }
+            },
+            "fill_light": {
+              "type": "object",
+              "required": ["type", "color", "intensity", "position", "target"],
+              "properties": {
+                "type": { "type": "string", "enum": ["directional", "spot", "point"] },
+                "color": { "type": "string" },
+                "intensity": { "type": "number" },
+                "position": {
+                  "type": "array",
+                  "items": { "type": "number" },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "target": {
+                  "type": "array",
+                  "items": { "type": "number" },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "description": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "camera": {
+      "type": "object",
+      "required": ["move", "duration", "easing", "path", "choreography_notes"],
+      "properties": {
+        "move": {
+          "type": "string",
+          "enum": ["dolly", "crane", "push-through", "reveal-behind", "wipe-cut", "foreground-pass"]
+        },
+        "duration": { "type": "number" },
+        "easing": { "type": "string" },
+        "path": {
+          "type": "object",
+          "required": ["start", "end"],
+          "properties": {
+            "start": {
+              "type": "object",
+              "required": ["position", "target", "fov"],
+              "properties": {
+                "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+                "target": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+                "fov": { "type": "number" }
+              }
+            },
+            "end": {
+              "type": "object",
+              "required": ["position", "target", "fov"],
+              "properties": {
+                "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+                "target": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+                "fov": { "type": "number" }
+              }
+            }
+          }
+        },
+        "choreography_notes": { "type": "string" }
+      }
+    },
+    "depth_layers": {
+      "type": "object",
+      "required": ["foreground", "midground", "background"],
+      "properties": {
+        "foreground": {
+          "type": "object",
+          "required": ["z_range", "role"],
+          "properties": {
+            "z_range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+            "role": { "type": "string" }
+          }
+        },
+        "midground": {
+          "type": "object",
+          "required": ["z_range", "role"],
+          "properties": {
+            "z_range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+            "role": { "type": "string" }
+          }
+        },
+        "background": {
+          "type": "object",
+          "required": ["z_range", "role"],
+          "properties": {
+            "z_range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+            "role": { "type": "string" }
+          }
+        }
+      }
+    },
+    "anchors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "position", "description"],
+        "properties": {
+          "id": { "type": "string" },
+          "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "standees": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "motif",
+          "drawing_path",
+          "layer",
+          "position",
+          "rotation",
+          "scale",
+          "paper_layers",
+          "extrusion_depth",
+          "base_bracket",
+          "tone",
+          "description"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "motif": { "type": "string" },
+          "drawing_path": { "type": "string" },
+          "layer": { "type": "string", "enum": ["foreground", "midground", "background"] },
+          "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "rotation": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "scale": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "paper_layers": { "type": "integer", "minimum": 1 },
+          "extrusion_depth": { "type": "number", "minimum": 0.001 },
+          "base_bracket": { "type": "object" },
+          "tone": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "layer",
+          "position",
+          "rotation",
+          "scale",
+          "paper_properties",
+          "geometry_params"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "wall",
+              "arch",
+              "column",
+              "plinth",
+              "stairs",
+              "window",
+              "tree",
+              "hill",
+              "facade",
+              "shopfront",
+              "canopy-stall",
+              "awning",
+              "crate",
+              "barrel",
+              "desk",
+              "tiered-desks",
+              "chalkboard",
+              "bookshelf",
+              "lectern",
+              "stone-bridge",
+              "embankment-step",
+              "streetlamp",
+              "pavement-plane",
+              "cobblestone-plane",
+              "riverbed-plane"
+            ]
+          },
+          "layer": { "type": "string", "enum": ["foreground", "midground", "background"] },
+          "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "rotation": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "scale": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "paper_properties": {
+            "type": "object",
+            "required": ["sheets", "edge_cut", "tone", "hex"],
+            "properties": {
+              "sheets": { "type": "integer", "minimum": 1 },
+              "edge_cut": { "type": "string", "enum": ["clean", "beveled", "deckled"] },
+              "tone": {
+                "type": "string",
+                "enum": ["paper-white", "light-grey", "mid-grey", "dark-grey", "charcoal", "ink-black"]
+              },
+              "hex": { "type": "string" }
+            }
+          },
+          "geometry_params": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

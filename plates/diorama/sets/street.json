@@ -1,0 +1,476 @@
+{
+  "$schema": "./schema.json",
+  "id": "street",
+  "name": "The Layered Urban Streetscape",
+  "description": "A deep perspective streetscape engineered with layered paper townhouse facades, cantilevered shopfront awnings, scored cobblestone roadway, silhouette streetlamps, cutout deciduous trees, and a distant vanishing point cross-vista.",
+  "duration": 6.0,
+  "tone": "greys-blacks-paper-whites",
+  "environment": {
+    "background_color": "#060606",
+    "fog": {
+      "type": "linear",
+      "color": "#0a0a0a",
+      "near": 6.5,
+      "far": 20.0
+    },
+    "lighting": {
+      "ambient": {
+        "sky_tone": "#3c3c3a",
+        "ground_tone": "#121212",
+        "intensity": 0.8
+      },
+      "key_light": {
+        "type": "directional",
+        "color": "#ffffff",
+        "intensity": 2.6,
+        "position": [7.5, 6.5, 3.5],
+        "target": [-0.8, 0.6, -2.5],
+        "description": "Raking cross-street key light grazing cobblestone grooves and projecting long facade shadows across the pavement."
+      },
+      "fill_light": {
+        "type": "directional",
+        "color": "#6a6a66",
+        "intensity": 0.6,
+        "position": [-5.0, 4.0, 2.0],
+        "target": [0.5, 1.0, -1.0],
+        "description": "Gentle front-left fill revealing layered paper cutouts under store awnings and porch reveals."
+      }
+    }
+  },
+  "camera": {
+    "move": "reveal-behind",
+    "duration": 6.0,
+    "easing": "cubic-bezier(0.4, 0.0, 0.2, 1.0)",
+    "path": {
+      "start": {
+        "position": [-1.75, 1.55, 4.2],
+        "target": [0.15, 1.15, -4.5],
+        "fov": 37.0
+      },
+      "end": {
+        "position": [-0.35, 1.3, 1.6],
+        "target": [0.2, 1.25, -5.2],
+        "fov": 33.0
+      }
+    },
+    "choreography_notes": "The move opens partially masked behind a foreground paper streetlamp and leafy branch on the left flank. The camera tracks laterally right while pushing steadily forward, gliding past the foreground silhouette in an organic object-wipe that unmasks the deep cobblestone avenue and vibrant shop facades."
+  },
+  "depth_layers": {
+    "foreground": {
+      "z_range": [2.6, 5.0],
+      "role": "Cut-paper tree trunk with hanging canopy branch, detailed streetlamp with multi-pane lantern cutout, and elevated sidewalk curb creating an intimate framing proscenium."
+    },
+    "midground": {
+      "z_range": [-1.8, 2.5],
+      "role": "Scored cobblestone street surface, pedestrian sidewalks, shopfronts with accordion paper awnings, storefront display windows, and vehicle standees."
+    },
+    "background": {
+      "z_range": [-9.5, -2.0],
+      "role": "Tiered multi-storey townhouse elevations with punched windows, mansard rooflines, chimney stacks, and the terminal street crossing facade defining the vanishing point."
+    }
+  },
+  "anchors": [
+    {
+      "id": "dot",
+      "position": [0.15, 1.35, 0.2],
+      "description": "Hero DOM dot anchor hovering over the active roadway center line."
+    },
+    {
+      "id": "shop_banner_title",
+      "position": [1.4, 2.35, 0.6],
+      "description": "DOM header text anchor attached above the main midground shopfront awning."
+    },
+    {
+      "id": "transit_stat_callout",
+      "position": [-0.85, 1.65, -0.6],
+      "description": "Secondary anchor tracking the midground public transit standee."
+    },
+    {
+      "id": "sidewalk_kiosk_anchor",
+      "position": [-1.45, 1.7, 1.2],
+      "description": "Sidewalk civic fixture anchor for informational badge overlays."
+    },
+    {
+      "id": "vanishing_point",
+      "position": [0.1, 1.35, -8.8],
+      "description": "Central perspective vanishing point of the converging street curbs."
+    }
+  ],
+  "standees": [
+    {
+      "id": "street_bus",
+      "motif": "bus",
+      "drawing_path": "assets/drawings/bus.json",
+      "layer": "midground",
+      "position": [-0.85, 0.72, -0.6],
+      "rotation": [0.0, 8.0, 0.0],
+      "scale": [1.05, 1.05, 1.05],
+      "paper_layers": 3,
+      "extrusion_depth": 0.045,
+      "base_bracket": {
+        "type": "chassis-slot",
+        "width": 0.9,
+        "depth": 0.4,
+        "tone": "#d8d8d4"
+      },
+      "tone": "#fbfbf8",
+      "description": "Mid-street transit bus standee representing municipal urban activity."
+    },
+    {
+      "id": "curbside_car",
+      "motif": "car",
+      "drawing_path": "assets/drawings/car.json",
+      "layer": "midground",
+      "position": [0.8, 0.52, 1.1],
+      "rotation": [0.0, -12.0, 0.0],
+      "scale": [0.8, 0.8, 0.8],
+      "paper_layers": 2,
+      "extrusion_depth": 0.04,
+      "base_bracket": {
+        "type": "wheel-stand",
+        "width": 0.7,
+        "depth": 0.3,
+        "tone": "#c8c8c4"
+      },
+      "tone": "#ecece7",
+      "description": "Passenger vehicle parked neatly along the shopfront sidewalk."
+    },
+    {
+      "id": "sidewalk_phone_kiosk",
+      "motif": "phone",
+      "drawing_path": "assets/drawings/phone.json",
+      "layer": "foreground",
+      "position": [-1.4, 0.78, 1.8],
+      "rotation": [0.0, 20.0, 0.0],
+      "scale": [0.75, 0.75, 0.75],
+      "paper_layers": 2,
+      "extrusion_depth": 0.035,
+      "base_bracket": {
+        "type": "bollard-base",
+        "width": 0.35,
+        "depth": 0.35,
+        "tone": "#b0b0ac"
+      },
+      "tone": "#f2f2ee",
+      "description": "Vintage communications kiosk standee positioned on the pedestrian pathway."
+    },
+    {
+      "id": "ev_charger_fixture",
+      "motif": "electric-charger",
+      "drawing_path": "assets/drawings/electric-charger.json",
+      "layer": "midground",
+      "position": [1.3, 0.68, 1.9],
+      "rotation": [0.0, -15.0, 0.0],
+      "scale": [0.7, 0.7, 0.7],
+      "paper_layers": 2,
+      "extrusion_depth": 0.035,
+      "base_bracket": {
+        "type": "curb-anchor",
+        "width": 0.3,
+        "depth": 0.25,
+        "tone": "#a8a8a4"
+      },
+      "tone": "#e6e6e2"
+      ,
+      "description": "Urban infrastructure charger standee mounted beside the sidewalk curb."
+    }
+  ],
+  "components": [
+    {
+      "id": "fg_street_tree",
+      "type": "tree",
+      "layer": "foreground",
+      "position": [-1.9, 1.9, 3.4],
+      "rotation": [0.0, 25.0, 0.0],
+      "scale": [1.1, 1.1, 1.1],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "deckled",
+        "tone": "charcoal",
+        "hex": "#2c2c2a"
+      },
+      "geometry_params": {
+        "trunk_height": 2.2,
+        "trunk_radius": 0.12,
+        "canopy_layers": 4,
+        "canopy_spread": 2.2,
+        "foliage_style": "cutout-silhouette-leaves"
+      }
+    },
+    {
+      "id": "fg_streetlamp_left",
+      "type": "streetlamp",
+      "layer": "foreground",
+      "position": [-1.6, 1.6, 2.9],
+      "rotation": [0.0, 10.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "clean",
+        "tone": "light-grey",
+        "hex": "#dcdcd7"
+      },
+      "geometry_params": {
+        "post_height": 2.8,
+        "post_radius": 0.06,
+        "arm_bracket_curve": "scrollwork",
+        "lantern_panes": 6,
+        "lantern_glow_core": "#ffffff"
+      }
+    },
+    {
+      "id": "cobblestone_road_plane",
+      "type": "cobblestone-plane",
+      "layer": "midground",
+      "position": [0.0, 0.0, -2.5],
+      "rotation": [-90.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 2,
+        "edge_cut": "clean",
+        "tone": "dark-grey",
+        "hex": "#242422"
+      },
+      "geometry_params": {
+        "width": 3.8,
+        "depth": 16.0,
+        "pattern": "arched-fan-cobblestone",
+        "groove_depth": 0.02,
+        "crown_camber": 0.04
+      }
+    },
+    {
+      "id": "sidewalk_left",
+      "type": "pavement-plane",
+      "layer": "midground",
+      "position": [-2.2, 0.1, -2.0],
+      "rotation": [-90.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "beveled",
+        "tone": "mid-grey",
+        "hex": "#747470"
+      },
+      "geometry_params": {
+        "width": 1.6,
+        "depth": 15.0,
+        "curb_height": 0.12,
+        "slab_joint_spacing": 1.2
+      }
+    },
+    {
+      "id": "sidewalk_right",
+      "type": "pavement-plane",
+      "layer": "midground",
+      "position": [2.2, 0.1, -2.0],
+      "rotation": [-90.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "beveled",
+        "tone": "mid-grey",
+        "hex": "#747470"
+      },
+      "geometry_params": {
+        "width": 1.6,
+        "depth": 15.0,
+        "curb_height": 0.12,
+        "slab_joint_spacing": 1.2
+      }
+    },
+    {
+      "id": "shopfront_facade_right_1",
+      "type": "shopfront",
+      "layer": "midground",
+      "position": [2.35, 1.5, 0.8],
+      "rotation": [0.0, -90.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 4,
+        "edge_cut": "beveled",
+        "tone": "paper-white",
+        "hex": "#f5f5f0"
+      },
+      "geometry_params": {
+        "width": 3.2,
+        "height": 2.8,
+        "showcase_window_width": 2.2,
+        "showcase_window_height": 1.6,
+        "recessed_door_depth": 0.35,
+        "cornice_molding": true
+      }
+    },
+    {
+      "id": "shop_awning_right_1",
+      "type": "awning",
+      "layer": "midground",
+      "position": [1.75, 2.05, 0.8],
+      "rotation": [18.0, -90.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 2,
+        "edge_cut": "deckled",
+        "tone": "light-grey",
+        "hex": "#d2d2cc"
+      },
+      "geometry_params": {
+        "width": 2.6,
+        "depth": 0.85,
+        "scalloped_valance": true,
+        "rib_stripes": 6
+      }
+    },
+    {
+      "id": "shopfront_facade_right_2",
+      "type": "shopfront",
+      "layer": "midground",
+      "position": [2.35, 1.5, -2.6],
+      "rotation": [0.0, -90.0, 0.0],
+      "scale": [0.95, 0.95, 0.95],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "beveled",
+        "tone": "mid-grey",
+        "hex": "#b0b0aa"
+      },
+      "geometry_params": {
+        "width": 3.4,
+        "height": 2.7,
+        "showcase_window_width": 2.0,
+        "showcase_window_height": 1.5,
+        "recessed_door_depth": 0.3,
+        "cornice_molding": true
+      }
+    },
+    {
+      "id": "mid_streetlamp_right",
+      "type": "streetlamp",
+      "layer": "midground",
+      "position": [1.5, 1.3, -1.8],
+      "rotation": [0.0, -30.0, 0.0],
+      "scale": [0.85, 0.85, 0.85],
+      "paper_properties": {
+        "sheets": 2,
+        "edge_cut": "clean",
+        "tone": "light-grey",
+        "hex": "#c8c8c4"
+      },
+      "geometry_params": {
+        "post_height": 2.6,
+        "post_radius": 0.05,
+        "arm_bracket_curve": "scrollwork",
+        "lantern_panes": 4,
+        "lantern_glow_core": "#ffffff"
+      }
+    },
+    {
+      "id": "townhouse_elevation_left_1",
+      "type": "facade",
+      "layer": "background",
+      "position": [-2.45, 3.6, 0.2],
+      "rotation": [0.0, 90.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "clean",
+        "tone": "mid-grey",
+        "hex": "#888884"
+      },
+      "geometry_params": {
+        "width": 4.5,
+        "height": 6.8,
+        "floors": 4,
+        "window_bays": 3,
+        "pediment_style": "triangular-entablature",
+        "sill_depth": 0.08
+      }
+    },
+    {
+      "id": "townhouse_elevation_left_2",
+      "type": "facade",
+      "layer": "background",
+      "position": [-2.45, 3.4, -4.2],
+      "rotation": [0.0, 90.0, 0.0],
+      "scale": [0.92, 0.92, 0.92],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "clean",
+        "tone": "dark-grey",
+        "hex": "#5e5e5a"
+      },
+      "geometry_params": {
+        "width": 4.5,
+        "height": 6.5,
+        "floors": 4,
+        "window_bays": 3,
+        "pediment_style": "segmental-arch",
+        "sill_depth": 0.06
+      }
+    },
+    {
+      "id": "townhouse_elevation_right_upper",
+      "type": "facade",
+      "layer": "background",
+      "position": [2.4, 4.2, -1.0],
+      "rotation": [0.0, -90.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "clean",
+        "tone": "mid-grey",
+        "hex": "#767672"
+      },
+      "geometry_params": {
+        "width": 7.0,
+        "height": 5.4,
+        "floors": 3,
+        "window_bays": 5,
+        "pediment_style": "cornice-bracketed",
+        "sill_depth": 0.06
+      }
+    },
+    {
+      "id": "roofline_mansard_dormers",
+      "type": "facade",
+      "layer": "background",
+      "position": [2.2, 5.8, -1.0],
+      "rotation": [22.0, -90.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 2,
+        "edge_cut": "deckled",
+        "tone": "dark-grey",
+        "hex": "#40403e"
+      },
+      "geometry_params": {
+        "width": 7.0,
+        "height": 1.6,
+        "dormer_count": 4,
+        "chimney_count": 3
+      }
+    },
+    {
+      "id": "vanishing_point_backdrop_facade",
+      "type": "facade",
+      "layer": "background",
+      "position": [0.0, 2.9, -8.8],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "paper_properties": {
+        "sheets": 3,
+        "edge_cut": "clean",
+        "tone": "charcoal",
+        "hex": "#282826"
+      },
+      "geometry_params": {
+        "width": 6.2,
+        "height": 5.8,
+        "central_arch_gate": true,
+        "gate_span": 2.2,
+        "gate_height": 2.5,
+        "clock_tower_crest": true
+      }
+    }
+  ]
+}
