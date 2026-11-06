@@ -1,0 +1,26 @@
+{
+ "type": "map-focus",
+ "order": 46,
+ "what": "one region of Georgia on the real map, highlighted (the where scene's own paths, projection and camera, tt_shorts/geo.py), with the region's name and an optional number and label beside it",
+ "use_when": "the story is about one region, and the map says where that region is",
+ "avoid_when": "the story names no region, or several regions equally",
+ "pairs_with": ["where", "kpi-grid", "stat"],
+ "slots": {
+  "region": {"kind": "text", "max": 40, "required": true},
+  "value": {"kind": "num"},
+  "label": {"kind": "text", "max": 40},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 2.8,
+ "min_words": 6,
+ "em": {"fields": [], "kinds": []},
+ "schema": {"type": "map-focus", "at": "...", "kicker": "...", "region": "...", "value": 0, "label": "..."},
+ "rules": [
+  "\"region\": the region's Georgian name (კახეთი, იმერეთი, შიდა ქართლი) or its id (kakheti); an unknown one comes back",
+  "  the same 12 regions as the map: აფხაზეთი, აჭარა, გურია, იმერეთი, კახეთი, მცხეთა-მთიანეთი, რაჭა-ლეჩხუმი და ქვემო სვანეთი, სამეგრელო-ზემო სვანეთი, სამცხე-ჯავახეთი, ქვემო ქართლი, შიდა ქართლი, თბილისი",
+  "\"value\" with \"label\" only when the articles state the number and what it counts"
+ ],
+ "example": {"type": "map-focus", "at": "კახეთში", "kicker": "სად", "region": "კახეთი", "value": 310000, "label": "მოსახლეობა, 2024"}
+}

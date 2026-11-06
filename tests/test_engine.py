@@ -120,7 +120,7 @@ class Options(unittest.TestCase):
     def test_engine_scene_types_match_the_remotion_scenes(self):
         tsx = (ROOT / "remotion" / "src" / "scenes" / "index.tsx").read_text(encoding="utf-8")
         record = re.search(r"export const SCENES[^{]*\{([^}]*)\}", tsx).group(1)
-        drawn = set(re.findall(r"(\w+):", record))
+        drawn = set(re.findall(r'"?([\w-]+)"?:', record))
         self.assertEqual(set(engine.SCENES), drawn)
 
 

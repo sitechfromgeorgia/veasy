@@ -159,7 +159,8 @@ class Shapes(unittest.TestCase):
     def test_sample_stories_pass(self):  # the demos use every scene type, old and new
         used = set()
         for name in ("veasy-demo", "veasy-scenes", "veasy-icons", "sitech-cybercartel", "veasy-brushes",
-                     "digest-2026-11-01", "../tests/fixtures/rubric-agree", "veasy-new-01", "veasy-new-02"):  # agree: a synthetic test fixture
+                     "digest-2026-11-01", "../tests/fixtures/rubric-agree", "veasy-new-01", "veasy-new-02",
+                     "visual-context-demo"):  # agree: a synthetic test fixture
             s = json.loads((ROOT / "stories" / f"{name}.json").read_text(encoding="utf-8"))
             self.assertEqual(engine.check_story(s), [], name)
             used |= {x["type"] for x in s["scenes"]}

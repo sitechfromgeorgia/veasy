@@ -129,6 +129,41 @@ def area_problems(area):
         return [str(e)]
 
 
+def region_id(text):
+    """A region id ("kakheti"), or a Georgian name, alias or place in any case (კახეთი, კახეთში, თელავი) -> the region
+    it names, or None. The map-focus scene's region: the same 12 regions the map draws."""
+    s = str(text or "").strip()
+    if not s:
+        return None
+    if s.lower() in data()["regions"]:
+        return s.lower()
+    toks = tokens(s)
+    for rid, r in data()["regions"].items():
+        if any(tokens(name) == toks for name in [r["name"], *r.get("aliases", [])]):
+            return rid
+    loc = locate(s)
+    return loc["region"] if loc and loc["region"] else None
+
+
+def region_problems(region):
+    """engine.shape_problems: the map-focus scene names one of Georgia's regions."""
+    if region_id(region):
+        return []
+    return [f"region {region!r} is not one of Georgia's regions: use a Georgian name (კახეთი, იმერეთი, შიდა ქართლი) "
+            f"or one of {', '.join(data()['regions'])}"]
+
+
+def focus_map(scene):
+    """A map-focus scene -> (the map it draws, the region's own name), or (None, None) for an unknown region.
+    The whole outline, the one region highlighted, the camera on it; never a pin (it marks no place)."""
+    rid = region_id(scene.get("region"))
+    if not rid:
+        return None, None
+    name = data()["regions"][rid]["name"]
+    loc = {"region": rid, "regions": [rid], "point": None, "name": name, "kind": "region", "places": []}
+    return view(loc), name
+
+
 def _place(p):
     return {"id": p["id"], "name": p["name"], "kind": p["kind"], "region": p["region"], "point": p["point"]}
 
@@ -228,12 +263,19 @@ def scene_map(scene, family=None):
 
 
 def attach(scenes, family=None):
-    """props.py: every where scene whose place is in Georgia gets its map (in place); returns the scenes."""
+    """props.py: every where scene whose place is in Georgia gets its map, and every map-focus scene the map with its
+    region highlighted and the region's own Georgian name in `place` (the writer may give a slug or another case
+    ending: the screen always shows the data's name); returns the scenes."""
     for s in scenes:
         if s.get("type") == "where":
             m = scene_map(s, family)
             if m:
                 s["map"] = m
+        elif s.get("type") == "map-focus":
+            m, name = focus_map(s)
+            if m:
+                s["map"] = m
+                s["place"] = name
     return scenes
 
 

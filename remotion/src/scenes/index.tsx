@@ -3,6 +3,7 @@ import { interpolate, useCurrentFrame } from "remotion";
 import { CANVAS, fill, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, QR_LIGHT, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import type { Scene } from "../types";
 import { MapWhere } from "./map";
+import { KpiGrid, Ticker } from "./context";
 import { Agree, Chapter } from "./rubrics";
 import { Mark, marked } from "../marker";
 import { Compare, flapSize, Link, Rail, Share, StatNumber } from "./brushes";
@@ -166,6 +167,12 @@ export const Timeline: React.FC<P> = ({ s, inner = INNER }) => {
 
 /** A place in Georgia (props carry s.map, tt_shorts/geo.py) is shown on the real map; any other on the grid. */
 export const Where: React.FC<P> = (p) => (p.s.map ? <MapWhere {...p} /> : <GridWhere {...p} />);
+
+/** One region of Georgia, highlighted: the where scene's map and camera in its focus mode (no second map). An
+ *  unknown region never reaches a render (engine.shape_problems), and one that slips through keeps the grid. */
+export const MapFocus: React.FC<P> = (p) => (p.s.map
+  ? <MapWhere {...p} mode="focus" />
+  : <GridWhere {...p} s={{ ...p.s, place: p.s.place ?? p.s.region }} />);
 
 const GridWhere: React.FC<P> = ({ s, inner = INNER }) => {
   const frame = useCurrentFrame();
@@ -371,4 +378,5 @@ export const SCENES: Record<string, React.FC<P>> = {
   hook: Hook, stat: Stat, timeline: Timeline, where: Where, who: Who, points: Points, quote: Quote, sources: Sources, draw: Draw,
   pair: Pair, steps: Steps, bars: Bars, trend: Trend, change: Change, sign: Sign, share: Share, rail: Rail, compare: Compare,
   link: Link, agree: Agree, chapter: Chapter, ranking: Ranking, versus: Versus, countdown: Countdown, calendar: Calendar, glossary: Glossary, checklist: Checklist, impact: Impact, route: Route, budget: Budget, end: End,
+  "map-focus": MapFocus, "kpi-grid": KpiGrid, ticker: Ticker,
 };

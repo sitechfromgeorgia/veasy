@@ -53,7 +53,7 @@ KEYS = ("type", "order", "what", "use_when", "avoid_when", "pairs_with", "slots"
 KINDS = ("text", "num", "enum", "list", "obj", "icon", "verb", "svg", "area")
 MARKS = ("underline", "box", "circle", "highlight", "bracket")  # @remotion/rough-notation's, as code picks them
 UNIVERSAL = ("type", "at", "em", "show")
-NO_MEDIA = ("where", "end", "chapter")  # assets.py: these types never carry a picture
+NO_MEDIA = ("where", "map-focus", "end", "chapter")  # assets.py: these types never carry a picture
 MIN_SECONDS_DEFAULT = 2.5
 MIN_WORDS_DEFAULT = 6
 
@@ -140,7 +140,7 @@ def validate(name, b):
     missing = [k for k in KEYS if k not in b]
     need(not missing, f"missing {missing}")
     need(not set(b) - set(KEYS), f"unknown keys {sorted(set(b) - set(KEYS))}")
-    need(b["type"] == name and re.fullmatch(r"[a-z]+", name), "type is its file name (lowercase letters)")
+    need(b["type"] == name and re.fullmatch(r"[a-z][a-z-]*", name), "type is its file name (lowercase letters, hyphen between words)")
     need(isinstance(b["order"], int) and not isinstance(b["order"], bool) and b["order"] > 0, "order is a positive number")
     for k in ("what", "use_when", "avoid_when"):
         need(isinstance(b[k], str) and b[k].strip(), f"{k} is one line")

@@ -344,6 +344,15 @@ def shape_problems(s):
         out += art.scene_problems(s["svg"])
     if t == "where" and s.get("area") is not None:
         out += geo.area_problems(s["area"])
+    if t == "map-focus" and s.get("region") is not None:
+        out += geo.region_problems(s["region"])
+    if t == "kpi-grid":
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not _number(it.get("value")):
+                out.append(f"items[{k}]: needs {{value, label}} with a number value")
+    if t == "ticker":
+        if any(not isinstance(it, str) or not it.strip() for it in items or []):
+            out.append("items: each headline is a short text")
     if t in ("sign", "stat"):
         out += icons.scene_problems(s)
     if t == "ranking":
