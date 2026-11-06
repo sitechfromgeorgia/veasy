@@ -258,8 +258,12 @@ def mix_audio(work, props, video, out):
     return out
 
 
-def render_video(work, props, out):
+def render_video(work, props, out, segmented=None):
     out = pathlib.Path(out).resolve()
+    use_segments = (os.environ.get("SHORTS_SEGMENTS", "1") != "0") if segmented is None else bool(segmented)
+    if use_segments and props.get("scenes"):
+        from tt_shorts import segments
+        return segments.render_remotion(work, props, out)
     raw = work / "raw.mp4"
     _remotion(["render", "src/index.ts", "NewsShort", str(raw), "--muted", f"--concurrency={speech.workers()}"], work)
     out.parent.mkdir(parents=True, exist_ok=True)

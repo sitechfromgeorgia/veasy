@@ -1884,13 +1884,19 @@ def render(story_path, fmt, brand=None, project=None, engine="gemini", out_path=
     target.parent.mkdir(parents=True, exist_ok=True)
     raw = (pathlib.Path(work) / "composed.mp4").resolve()
     t0 = time.time()
-    r = hyperframes(["render", str(project), "--output", str(raw), "--quality", RENDER["quality"], "--workers",
-                     RENDER["workers"], "--fps", RENDER["fps"],
-                     "--browser-gpu" if RENDER["browser_gpu"] else "--no-browser-gpu", "--strict", "--quiet"],
-                    timeout=3600)
-    if r.returncode != 0 or not raw.exists():
-        return {**base, "rendered": False, "problems": [f"hyperframes render failed ({r.returncode}): "
-                                                        f"{(r.stderr or r.stdout)[-600:]}"]}
+    if os.environ.get("SHORTS_SEGMENTS", "1") != "0":
+        from tt_shorts import segments
+        ok, err, _ = segments.render_hyperframes(project, p, t, raw, target)
+        if not ok:
+            return {**base, "rendered": False, "problems": [err]}
+    else:
+        r = hyperframes(["render", str(project), "--output", str(raw), "--quality", RENDER["quality"], "--workers",
+                         RENDER["workers"], "--fps", RENDER["fps"],
+                         "--browser-gpu" if RENDER["browser_gpu"] else "--no-browser-gpu", "--strict", "--quiet"],
+                        timeout=3600)
+        if r.returncode != 0 or not raw.exists():
+            return {**base, "rendered": False, "problems": [f"hyperframes render failed ({r.returncode}): "
+                                                            f"{(r.stderr or r.stdout)[-600:]}"]}
     render_s = round(time.time() - t0, 1)
     cues = _mix(work, p, raw, target, t, fmt.get("sfx", "off"))
     secs = p["durationInFrames"] / FPS

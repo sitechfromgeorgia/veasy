@@ -14,7 +14,7 @@ Returns a pre-run cost plan (`"4.0 s of picture (scene 1 of 11, frames 116-235),
 | :-: | :--- | :---: | :--- |
 | 1 | Research committed before build (`docs/research/edit-room.md`: 15+ real sources with links, what each teaches Veasy, licence table, ranked backlog with value & effort) | **DONE** | `docs/research/edit-room.md` (21 real sources across 5 domains, commercial licence table, ranked 4-unit backlog) |
 | 2 | Changing one label in `demo/film-partia.json` is timed before and after, and the saving is stated | Pending Unit 2/4 | To be populated in Unit 2/4 |
-| 3 | Frame hashes outside the changed scene equal a full render | Pending Unit 1 | To be populated in Unit 1 (`tests/test_steer.py`) |
+| 3 | Frame hashes outside the changed scene equal a full render | **DONE** | `tt_shorts/segments.py` + `tests/test_steer.py` (`TestFrameHashIdentity.test_remotion_segmented_splice_matches_full_render_outside_changed_scene` — `OK`, 6/6 tests green; bit-identical `sha256` across segmented renders outside changed scene + exact `video_frame_dhashes` full-frame & scene-band match against monolithic render) |
 | 4 | `--dry` is right on a text change, a timing change and a narration change, each tested | Pending Unit 2 | To be populated in Unit 2 (`tests/test_steer.py`) |
 | 5 | The room page (`<render>.room.html`) opens, and a sub-agent fixed a scene from it alone | Pending Unit 3/4 | To be populated in Unit 3/4 |
 | 6 | `selftest` is green, and skill `veasy:steer` and a tool (`veasy_steer`) exist | Pending Unit 4 | To be populated in Unit 4 |
@@ -23,13 +23,15 @@ Returns a pre-run cost plan (`"4.0 s of picture (scene 1 of 11, frames 116-235),
 
 ## Commit List (Branch `goal/edit-room`)
 
-1. `docs(edit-room): add edit-room research and initialize result ledger`
+1. `c4eda21` — `docs(edit-room): add edit-room research and initialize result ledger`
+2. `feat(segments): add content-addressed scene segment cache and splice for Remotion and HyperFrames`
 
 ---
 
 ## Shared Files Touched (Additive Only)
 
-*(None yet — will list exact line additions to `tt_shorts/props.py`, `tt_shorts/compose.py`, `tt_shorts/engine.py`, `plugin.yaml`, and `__init__.py` as each unit lands.)*
+- `tt_shorts/props.py`: 1 additive branch in `render_video(work, props, out, segmented=True)` delegating to `segments.render_remotion`.
+- `tt_shorts/compose.py`: 1 additive branch in `render(..., segmented=True)` delegating to `segments.render_hyperframes`.
 
 ---
 
