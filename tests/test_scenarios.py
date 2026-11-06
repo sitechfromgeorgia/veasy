@@ -266,5 +266,36 @@ class TestFrontDoor(unittest.TestCase):
         self.assertEqual(res["status"], "error")  # an unreadable --length is said, not dropped
 
 
+class TestSoundCues(unittest.TestCase):
+    """The beats' own cues, from the story's scenario: synthesized names only, one constant level (sfx.py)."""
+
+    def props(self):
+        story = demo()
+        scenes, f = [], 0
+        for s in story["scenes"]:
+            scenes.append({"type": s["type"], "from": f, "duration": 150})
+            f += 150
+        return {"scenes": scenes, "transition": "line", "scenario": story["scenario"]}
+
+    def test_beat_cues_are_laid_from_the_scenario(self):
+        from tt_shorts import sfx
+        cues = sfx.cues(self.props())
+        names = {c["name"] for c in cues}
+        self.assertTrue(names <= set(sfx.NAMES), names)
+        self.assertEqual(cues[0]["name"], "whoosh")  # the promise opens with its cue
+        self.assertEqual(cues, sorted(cues, key=lambda c: c["t"]))
+
+    def test_a_beat_with_no_cue_has_none(self):
+        from tt_shorts import sfx
+        p = self.props()
+        p["scenario"] = {"id": "x", "beats": [{"job": "promise", "sound": None}] + [{"job": "setup", "sound": None}] * 4}
+        self.assertFalse([c for c in sfx.cues(p) if c["t"] < 0.01])
+
+    def test_props_pass_the_scenario_to_the_cues(self):
+        import inspect
+        from tt_shorts import props
+        self.assertIn('"scenario": story.get("scenario")', inspect.getsource(props))
+
+
 if __name__ == "__main__":
     unittest.main()

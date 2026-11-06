@@ -190,7 +190,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     if beats != "off":  # a visible change every 1.5-3 s inside each scene, landed on the words (beats.py)
         beat_track.attach(props["scenes"], words)
     props["chapters"] = chapters_of.split(props["scenes"], marks[-1], chapters)  # "01 / 03" (chapters.py), or None
-    props["sfx"] = effects.cues(props) if sfx == "on" else []  # the accents' times (sfx.py); ffmpeg mixes them
+    props["sfx"] = effects.cues({**props, "scenario": story.get("scenario")}) if sfx == "on" else []  # the accents' times (sfx.py); ffmpeg mixes them
     (work / "props.json").write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
     return work, props
 

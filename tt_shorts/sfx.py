@@ -246,7 +246,10 @@ def cues(props):
         a = s["from"]
         b = beat_for_scene(i, s, beats)
         b_job = normalize_job(b.get("job")) if b else None
-        b_snd = sound_for_beat(b_job, b.get("sound_cue") or b.get("sfx")) if b else None
+        if b and "sound" in b and b["sound"] is None:  # a scenario beat that declares no cue has none
+            b_snd = None
+        else:
+            b_snd = sound_for_beat(b_job, b.get("sound_cue") or b.get("sfx") or b.get("sound")) if b else None
         b_sync = b.get("sync", "auto") if b else "auto"
 
         # 1. Entrance / cut cue
