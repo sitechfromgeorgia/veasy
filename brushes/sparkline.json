@@ -1,0 +1,24 @@
+{
+ "type": "sparkline",
+ "order": 131,
+ "what": "6-24 values over time as one line that draws itself left to right, the last point on the dot with its value, an optional stated change and a label",
+ "use_when": "6-24 values in time order from the articles: a series whose direction matters more than any single point",
+ "avoid_when": "3-5 labelled points (trend), one value then and now (change), values that are not in time order (bars, chart)",
+ "pairs_with": ["trend", "change", "stat"],
+ "slots": {
+  "values": {"kind": "list", "count": [6, 24], "of": {"kind": "num"}, "required": true},
+  "label": {"kind": "text", "max": 48},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40},
+  "delta": {"kind": "num"}
+ },
+ "families_deny": [],
+ "min_seconds": 3.2,
+ "min_words": 7,
+ "em": {"fields": ["label", "headline"], "kinds": ["underline"]},
+ "schema": {"type": "sparkline", "at": "...", "kicker": "...", "label": "...", "values": [1.2, 1.3, 1.4, 1.5, 1.6, 1.7], "delta": 0.5},
+ "rules": [
+  "\"sparkline\": 6-24 values in time order, one unit, every point stated in the article; \"delta\" is a change the article states (an arrow follows its sign), never a difference you computed;"
+ ],
+ "example": {"type": "sparkline", "at": "გაზრდილი მგზავრთნაკადი", "kicker": "მგზავრები", "label": "მგზავრთნაკადი თვეების მიხედვით", "values": [118, 121, 119, 125, 130, 136, 140], "delta": 22}
+}

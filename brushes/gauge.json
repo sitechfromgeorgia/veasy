@@ -1,0 +1,24 @@
+{
+ "type": "gauge",
+ "order": 132,
+ "what": "one percent of a whole (0-100) as a ring that fills clockwise from the top, the number counting up in the centre and the label under it",
+ "use_when": "an article states a percent with the % sign and that share is the whole story (turnout, approval, a part of a budget)",
+ "avoid_when": "a count, not a percent (stat); several percents side by side (budget, bars); the tenths of a hundred the grid tells better (share)",
+ "pairs_with": ["share", "stat", "budget"],
+ "slots": {
+  "value": {"kind": "num", "min": 0, "max": 100, "required": true},
+  "label": {"kind": "text", "max": 48, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40},
+  "suffix": {"kind": "text", "max": 4}
+ },
+ "families_deny": [],
+ "min_seconds": 3.0,
+ "min_words": 7,
+ "em": {"fields": ["value", "label", "headline"], "kinds": ["circle", "underline"]},
+ "schema": {"type": "gauge", "at": "...", "kicker": "...", "value": 62, "label": "..."},
+ "rules": [
+  "\"gauge\": one percent of a whole an article states with the % sign (value 62 means 62%), never computed; \"suffix\" replaces the % only when the whole is something else;"
+ ],
+ "example": {"type": "gauge", "at": "ამომრჩეველთა 62 პროცენტი", "kicker": "აქტივობა", "value": 62, "label": "ამომრჩეველთა მივიდა არჩევნებზე", "em": "62"}
+}

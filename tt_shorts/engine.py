@@ -326,6 +326,25 @@ def shape_problems(s):
         if hi / lo > COMPARE_RATIO:
             out.append(f"the ratio is {hi / lo:.0f}, more than {COMPARE_RATIO}: the small square would be a speck, "
                        "show the two values as bars")
+    if t == "chart":
+        for k, it in enumerate(items or []):
+            if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not _number(it.get("value")):
+                out.append(f"items[{k}]: needs {{label, value}} with a number value")
+            elif it["value"] <= 0:
+                out.append(f"items[{k}]: a bar's value is above zero (the axis starts at zero)")
+    if t == "sparkline":
+        vals = s.get("values")
+        if not isinstance(vals, list) or not all(_number(v) for v in vals):
+            out.append("values: sparkline needs a list of numbers (one series, in time order)")
+        elif len(set(vals)) < 2:
+            out.append("values: the series needs at least two different values (a flat line says nothing)")
+        if s.get("delta") is not None and not _number(s["delta"]):
+            out.append("delta: needs a number (the change an article states)")
+    if t == "gauge":
+        if not _number(s.get("value")):
+            out.append("value: gauge needs a number")
+        elif not 0 <= s["value"] <= 100:
+            out.append(f"value: {s['value']:g} is not a percent of a whole (0-100)")
     if t in ("who", "link"):
         for k, it in enumerate(items or []):
             if not isinstance(it, dict) or not isinstance(it.get("name"), str) or not it["name"].strip():

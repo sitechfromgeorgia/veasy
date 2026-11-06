@@ -1,0 +1,23 @@
+{
+ "type": "chart",
+ "order": 121,
+ "what": "2-6 values of one unit as vertical bars growing from a zero line, each value counted up over its bar and its label under the baseline",
+ "use_when": "2-6 values of one kind compared from zero, where the set as a shape is the story (a week of prices, a count per district)",
+ "avoid_when": "one value (stat), two values only (compare), values over time (trend, sparkline), parts of a whole (share, budget)",
+ "pairs_with": ["bars", "stat", "trend"],
+ "slots": {
+  "items": {"kind": "list", "count": [2, 6], "of": {"label": {"kind": "text", "max": 16, "required": true}, "value": {"kind": "num", "required": true}}, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40},
+  "unit": {"kind": "text", "max": 8}
+ },
+ "families_deny": [],
+ "min_seconds": 3.2,
+ "min_words": 7,
+ "em": {"fields": ["headline"], "kinds": ["underline"]},
+ "schema": {"type": "chart", "at": "...", "kicker": "...", "unit": "...", "items": [{"label": "...", "value": 120}, {"label": "...", "value": 80}]},
+ "rules": [
+  "\"chart\": 2-6 values the article states, above zero, one unit, no computed differences; a label is one or two short words that fit under its bar;"
+ ],
+ "example": {"type": "chart", "at": "ფასები ასე იცვლება", "kicker": "ფასები", "unit": "ლარი", "items": [{"label": "პური", "value": 1.5}, {"label": "რძე", "value": 3.2}, {"label": "ყველი", "value": 12.4}]}
+}

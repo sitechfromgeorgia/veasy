@@ -131,6 +131,8 @@ export type Scene = SceneBase & {
   area?: string; // where: ge, ge:<region> or ge:<place>, when the place text alone doesn't say it
   map?: GeoMap; // where: set by tt_shorts/geo.py when the place is in Georgia
   items?: Item[];
+  values?: number[]; // sparkline: one series over time, in order (6-24 points the articles state)
+  delta?: number; // sparkline: the change an article states (its sign draws the arrow), never computed
   art?: ArtNode[]; // draw: the drawing, sanitized by tt_shorts/art.py
   between?: string; // pair: the word on the divider
   unit?: string; // bars, trend, change
