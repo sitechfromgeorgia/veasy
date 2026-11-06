@@ -20,6 +20,7 @@ provides_tools:
   - veasy_critique
   - veasy_dry_run
   - veasy_brand
+  - veasy_review
 provides_hooks:
   - pre_llm_call
 requires_env: []

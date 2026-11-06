@@ -501,3 +501,45 @@ class SeededDefectTest(unittest.TestCase):
             else:
                 self.assertFalse(got["holds"], f"{path.name} is a warning-only defect but held: {got['holds']}")
         self.assertEqual(missed, [])
+
+
+class RealFixTest(unittest.TestCase):
+    """Done-when 3: three films get a real repair and the facts diff stays empty."""
+
+    FILMS = ("defect_10_pingpong_cuts.json", "fixable_02_double_points.json", "fixable_03_short_read.json")
+
+    def setUp(self):
+        import tempfile
+        self.home = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"VEASY_HOME": self.home.name})
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+        self.home.cleanup()
+
+    def test_three_films_are_repaired_without_touching_a_fact(self):
+        for name in self.FILMS:
+            story = json.loads((ROOT / "tests" / "fixtures" / "review" / name).read_text(encoding="utf-8"))
+            before = review.audit_story(story)
+            res = review.review_story(story, rounds=2)
+            self.assertEqual(res["status"], "fixed", name)
+            self.assertTrue(res["applied_transforms"], name)
+            self.assertEqual(res["facts_diff"], [], name)
+            self.assertEqual(res["holds"], [], name)
+            after = review.audit_story(res["story"])
+            self.assertLess(len(after["warnings"]) + len(after["holds"]),
+                            len(before["warnings"]) + len(before["holds"]), name)
+
+    def test_a_repair_that_needs_a_new_fact_stays_held(self):
+        story = json.loads((ROOT / "tests" / "fixtures" / "review" / "defect_06_unreadable_text_hold.json")
+                           .read_text(encoding="utf-8"))
+        res = review.review_story(story, rounds=2)
+        self.assertEqual(res["status"], "held")
+        self.assertEqual(res["facts_diff"], [])
+
+    def test_notes_carry_a_time_and_follow_the_format(self):
+        note = review.convert_raw_string("motion repeat: scenes 1 and 2 are both quote: one type twice in a row",
+                                         [{"start": 0.0}, {"start": 6.1, "type": "quote"}, {"start": 9.0}])["formatted"]
+        self.assertTrue(review.NOTE_REGEX.match(note), note)
+        self.assertTrue(note.startswith("t=6.1s"), note)

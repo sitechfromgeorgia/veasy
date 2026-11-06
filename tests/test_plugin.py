@@ -11,7 +11,7 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SKILLS = ("make-video", "write-script", "qa", "formats", "queue", "brands", "package", "programs", "directors", "rubrics",
-          "media", "compose", "styles", "direct")
+          "media", "compose", "styles", "direct", "review")
 
 
 def load_plugin():

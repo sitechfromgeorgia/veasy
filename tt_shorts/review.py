@@ -391,7 +391,7 @@ def convert_raw_string(problem_str: str, scenes: Optional[List[Dict[str, Any]]] 
         }
 
     # Extract scene index if mentioned: "scene 3 (points)" or "scene 3:"
-    m_sc = re.search(r"scene\s+(?P<idx>\d+)(?:\s*\((?P<typ>[^)]+)\))?", line, re.IGNORECASE)
+    m_sc = re.search(r"scenes?\s+(?P<idx>\d+)(?:\s*\((?P<typ>[^)]+)\))?", line, re.IGNORECASE)
     scene_idx = int(m_sc.group("idx")) if m_sc else None
     scene_typ = m_sc.group("typ") if (m_sc and m_sc.group("typ")) else None
 
@@ -432,6 +432,42 @@ def convert_raw_string(problem_str: str, scenes: Optional[List[Dict[str, Any]]] 
         problem = "reading load exceeds 1.0"
         change = "shorten on-screen copy or pace narration"
         priority = "P1"
+    elif " both " in line.lower() or "repeat" in line.lower() and "narration" not in line.lower():
+        problem = "the same scene type twice in a row"
+        change = "swap the second for another type (points -> pair or steps) or merge the two"
+        priority = "P1"
+    elif "pingpong" in line.lower():
+        problem = "cuts go back and forth (A-B-A or opposite directions)"
+        change = "use one transition family or a steady direction"
+        priority = "P1"
+    elif "metronome" in line.lower():
+        problem = "scenes cut on a steady beat"
+        change = "vary scene lengths: move an anchor so one scene holds longer"
+        priority = "P2"
+    elif "spoken_redundancy" in line.lower() or "repeats spoken" in line.lower():
+        problem = "the screen only repeats the words spoken"
+        change = "give the screen the number, name or a short label the voice does not say"
+        priority = "P1"
+    elif "empty_middle" in line.lower() or "central safe zone" in line.lower():
+        problem = "the middle of the frame is empty or washed out"
+        change = "put the content in the scene band or raise the ink contrast"
+        priority = "P0"
+    elif "hero" in line.lower():
+        problem = "no frame carries the film"
+        change = "make one scene a clear climax: a big number or a bold hook"
+        priority = "P2"
+    elif "same_picture" in line.lower() or "same picture" in line.lower():
+        problem = "two scenes look the same"
+        change = "change the layout or merge the scenes"
+        priority = "P1"
+    elif "safe_zone" in line.lower() and "hook line" in line.lower():
+        problem = "a hook line is long enough to reach the social rail"
+        change = "break the line shorter (26 characters or fewer)"
+        priority = "P1"
+    elif "flash" in line.lower():
+        problem = "the film flashes more than 3 times a second"
+        change = "slow the cuts or inversions"
+        priority = "P0"
     elif "duplicate" in line.lower() or "match previous" in line.lower():
         problem = "numbers match previous frame"
         change = "vary card layout or consolidate"
@@ -1298,7 +1334,8 @@ GEORGIAN_WEEKDAYS = (
 NUMERIC_KEYS = ("value", "pct", "change", "total", "n", "of", "rank", "start_val", "end_val")
 DATE_KEYS = ("date", "start", "end", "time", "weekday", "when")
 NAME_KEYS = ("who", "person", "speaker", "author", "place", "source_name")
-CODE_KEYS = ("type", "at", "icon", "verb", "em", "style", "show", "media", "rank", "status", "state")
+CODE_KEYS = ("type", "at", "icon", "verb", "em", "style", "show", "media", "rank", "status", "state",
+             "transition", "flow", "enter", "layout", "motif", "look", "beats", "duration", "art", "mark", "plate")
 
 REPAIRABLE = ("motion repeat", "motion pingpong", "safe_zone")  # warnings a transform can fix
 MAX_MACHINE_ROUNDS_CAP = 3
@@ -1675,12 +1712,25 @@ def transform_scene_types(story: dict[str, Any], defect: str, style_state: dict[
                 return updated, new_style, f"swapped duplicate scene {second_idx} from 'pair' to 'points'"
 
     if "pingpong" in defect:
-        current_trans = new_style.get("transition", "line")
-        transitions = variety.TRANSITIONS.get("editorial", ("line", "wipe", "slide"))
-        for t in transitions:
-            if t != current_trans:
-                new_style["transition"] = t
-                return updated, new_style, f"adjusted transition to '{t}' to resolve cut pingpong"
+        # the cuts are the scenes' own "transition": give a back-and-forth run one steady family
+        explicit = [(i, sc.get("transition")) for i, sc in enumerate(scenes) if sc.get("transition")]
+        flows = [(i, list(sc["flow"])) for i, sc in enumerate(scenes) if sc.get("flow")]
+        done = []
+        if explicit:
+            names = [t for _, t in explicit]
+            keep = max(sorted(set(names)), key=names.count)
+            for i, t in explicit:
+                if t != keep:
+                    scenes[i]["transition"] = keep
+                    done.append(f"scene {i} to '{keep}'")
+        if flows:
+            way = flows[0][1]
+            for i, f in flows:
+                if f != way:
+                    scenes[i]["flow"] = list(way)
+                    done.append(f"scene {i} flow to {way}")
+        if done:
+            return updated, new_style, "steadied the cuts (" + "; ".join(done) + ") to stop the back and forth"
 
     if "novelty" in defect or "monotony" in defect:
         hook_options = variety.OPTIONS["hook"]
@@ -1879,7 +1929,7 @@ class ReviewLoop:
                 new_key = self._state_hash(candidate_story, candidate_style)
                 if new_key in self.visited_hashes:
                     return {
-                        "status": "held",
+                        "status": ("held" if holds else ("fixed" if self.applied_transforms else "passed")),
                         "rounds_executed": current_round,
                         "machine_rounds": self.machine_round,
                         "look_rounds": self.look_round,
@@ -2047,3 +2097,34 @@ def detect(story: dict[str, Any], workdir: str | pathlib.Path) -> dict[str, Any]
             rules.add(f["rule"])
             (holds if f["hold"] else warnings).append(f"eyes {f['rule']}: {f['detail']}")
     return {"rules": sorted(rules), "holds": holds, "warnings": warnings}
+
+
+def review_cli(story_path: str, rounds: int = 2, format_name: str = "news", look: str | None = None,
+               director: str | None = None, stills: str | None = None, packet: bool = False,
+               save: bool = False) -> dict[str, Any]:
+    """`engine review`: the loop, the pixel checks on given stills, notes in the skill's format, JSON-sized output."""
+    res = review_story(story_path, rounds=rounds, format_name=format_name, look=look, director=director, save=save)
+    story = res.pop("story", None)
+    res.pop("style", None)
+    if story is None:
+        return res
+    final = audit_story(story, fmt_name=format_name, look=look, director=director)
+    rows = []
+    if final.get("props"):
+        rows = [{"start": r["from"] / 30.0, "type": r["type"]}
+                for r in motion_rules.timeline(motion_rules._laid_out(final["props"]))]
+    lines = list(res.get("holds") or []) + list(res.get("warnings") or [])
+    if stills:
+        folder = pathlib.Path(stills)
+        files = sorted(folder.glob("*.png"), key=lambda p: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", p.name)])
+        px = eyes.check_eyes(story, stills=[str(f) for f in files])
+        res["pixel_checks"] = {"stills": len(files), "metrics": px["metrics"]}
+        res["holds"] = list(res.get("holds") or []) + px["holds"]
+        lines += px["holds"] + px["warnings"]
+        if px["holds"] and res.get("status") != "held":
+            res["status"] = "held"
+    res["notes"] = [convert_raw_string(line, rows)["formatted"] for line in lines]
+    res["facts_diff"] = res.get("facts_diff") or []
+    if packet:
+        res["packet"] = build_review_packet(story_path, fmt_name=format_name, look=look, director=director)
+    return res
