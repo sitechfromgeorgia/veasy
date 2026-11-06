@@ -782,7 +782,7 @@ class Blocks(unittest.TestCase):
         from tt_shorts import blocks
         all_blocks = blocks.list_all()
         expected = {"kinetic-headline", "number-reveal", "map-pin", "comparison",
-                    "icon-grid", "quote", "process", "chapter-card", "end-card"}
+                    "icon-grid", "quote", "process", "chapter-card", "end-card", "plate"}
         self.assertEqual(set(all_blocks.keys()), expected)
         for bid in expected:
             m, tpl = blocks.get(bid)

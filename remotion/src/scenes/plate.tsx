@@ -11,10 +11,15 @@ import { marked } from "../marker";
 import type { Scene } from "../types";
 import { Dot, fitSize, In, Kicker, useTheme } from "../ui";
 
-const BAND = SCENE_BOTTOM - SCENE_TOP;
 const INNER = W - 2 * SIDE;
 const CARD = 0.92; // the card's opacity: solid enough that any plate pixel under it keeps the text at >= 13:1
 const PAD = 40;
+const SCRIM = 0.45; // the canvas over the clip: a plate's white is the pack's ink, and a ground that bright overpowers the card
+// Where the scene's own box sits on the page, and the box the clip fills (page pixels). The clip is drawn at page
+// coordinates, so a plate pixel (x, y) shows at the page's (x, y) in every look; only the clipping box differs:
+// editorial and kinetic: the scene band across the frame's width; cards: the card down to its footer line.
+const ORIGIN = { flat: [SIDE, SCENE_TOP], cards: [98, 298] } as const; // NewsShort.tsx: SIDE - 16 + border + CARD_PAD
+const CLIP = { flat: [0, SCENE_TOP, W, SCENE_BOTTOM], cards: [50, 250, 1030, 1274] } as const; // x0, y0, x1, y1
 
 export const Plate: React.FC<{ s: Scene; inner?: number }> = ({ s, inner = INNER }) => {
   const { v } = useTheme();
@@ -23,22 +28,26 @@ export const Plate: React.FC<{ s: Scene; inner?: number }> = ({ s, inner = INNER
   const base = v === "cards" ? PANEL : CANVAS;
   const layout = p?.layout ?? "mid";
   // below y=1100 no text goes right of x=940 (the like/share rail): the low card ends left of it
-  const width = layout === "low" ? Math.min(inner, RAIL_X - SIDE) : inner;
+  const [ox, oy] = v === "cards" ? ORIGIN.cards : ORIGIN.flat;
+  const [x0, y0, x1, y1] = v === "cards" ? CLIP.cards : CLIP.flat;
+  const width = layout === "low" ? Math.min(inner, RAIL_X - ox) : inner;
   const text = s.headline ?? "";
   const size = fitSize([text], width - 2 * PAD, 96, 48);
   const place: React.CSSProperties =
     layout === "top" ? { top: 24 } : layout === "low" ? { bottom: 24 } : { top: "50%", transform: "translateY(-50%)" };
   const local = p ? frame % Math.max(1, p.frames) : 0;
   const dot = p?.tracks?.dot?.[Math.min(local, (p.tracks.dot?.length ?? 1) - 1)];
-  const dx = dot ? dot[0] - SIDE : 0, dy = dot ? dot[1] - SCENE_TOP : 0;
-  const shown = !!dot && dy >= 0 && dy <= BAND && dx >= -SIDE && dx <= W - SIDE;
+  const dx = dot ? dot[0] - ox : 0, dy = dot ? dot[1] - oy : 0;
+  const shown = !!dot && dot[0] >= x0 && dot[0] <= x1 && dot[1] >= y0 && dot[1] <= y1;
   const fade = interpolate(frame, [0, 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const clip = p && <OffthreadVideo src={staticFile(p.src)} muted style={{ position: "absolute", left: 0, top: -SCENE_TOP, width: W, height: H }} />;
+  const clip = p && <OffthreadVideo src={staticFile(p.src)} muted style={{ position: "absolute", left: -x0, top: -y0, width: W, height: H }} />;
   return (
     <>
       {p && (
-        <div style={{ position: "absolute", left: -SIDE, width: W, top: 0, height: BAND, overflow: "hidden", opacity: fade }}>
+        <div style={{ position: "absolute", left: x0 - ox, top: y0 - oy, width: x1 - x0, height: y1 - y0, overflow: "hidden", opacity: fade,
+          borderRadius: v === "cards" ? `${RADIUS}px ${RADIUS}px 0 0` : 0 }}>
           {s.duration > p.frames ? <Loop durationInFrames={p.frames}>{clip}</Loop> : clip}
+          <div style={{ position: "absolute", inset: 0, background: alpha(base, SCRIM) }} />
         </div>
       )}
       {shown && (

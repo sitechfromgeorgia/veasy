@@ -162,13 +162,16 @@ def demo(**over):
     return st
 
 
-def fake_shelf(home, *hashes):
+def fake_shelf(home, *hashes, dot=None):
     for h in hashes:
         d = pathlib.Path(home) / "cache" / "plates" / h
         d.mkdir(parents=True)
         (d / "plate.mp4").write_bytes(h.encode())
         (d / "plate.json").write_text(json.dumps({"kind": "example", "hash": h, "seed": 1, "seconds": 4, "scale": 1,
-                                                  "fps": 30, "frames": 120, "ms_per_frame": 200, "anchors": []}))
+                                                  "fps": 30, "frames": 120, "ms_per_frame": 200,
+                                                  "anchors": ["dot"] if dot else []}))
+        if dot:
+            (d / "anchors.json").write_text(json.dumps({"fps": 30, "tracks": {"dot": [list(dot)] * 120}}))
 
 
 class InTheStory(unittest.TestCase):
@@ -223,6 +226,18 @@ class InTheStory(unittest.TestCase):
         self.assertEqual((e["licence"], e["provider"], e["seed"]), ("own", "plates", 1))
         self.assertEqual(assets.problems(story), [])
         self.assertEqual(plates.story_problems(story), [])
+
+    def test_free_layouts_leave_the_dot_uncovered(self):
+        self.assertEqual(plates.free_layouts({"dot": [[540, 960]] * 3}), ["top"])
+        self.assertEqual(plates.free_layouts({"dot": [[540, 300]] * 3}), ["mid", "low"])
+        self.assertEqual(plates.free_layouts({}), ["top", "mid", "low"])
+        self.assertEqual(plates.free_layouts({"dot": [[540, 300], [540, 1200]]}), ["top", "mid", "low"])  # none free: all
+
+    def test_the_card_never_sits_on_the_plates_dot(self):
+        fake_shelf(self.tmp.name, "aaaaaaaaaaaaaaaa", dot=(540, 960))
+        for n in range(6):
+            story, _ = plates.resolve(demo(id=f"d{n}"))
+            self.assertEqual(next(s for s in story["scenes"] if s["type"] == "plate")["plate"]["layout"], "top")
 
     def test_resolve_is_stable_and_never_bakes(self):
         fake_shelf(self.tmp.name, "aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb")

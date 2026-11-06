@@ -179,10 +179,13 @@ def pick_plate(brand, story, hashes):
     return same or _least_used(list(hashes), [r["hash"] for r in rows], story, "plate")
 
 
-def pick_plate_layout(brand, story, scene=0):
+def pick_plate_layout(brand, story, scene=0, allowed=None):
+    """Where a plate scene's card sits: the one it had before if still allowed, else the least used lately by the brand
+    among `allowed` (the layouts that leave the plate's anchor uncovered; default all)."""
+    pool = [x for x in PLATE_LAYOUTS if allowed is None or x in allowed] or list(PLATE_LAYOUTS)
     rows = _plate_rows(brand)
-    same = next((r["layout"] for r in rows if r["story"] == str(story) and r["scene"] == scene), None)
-    return same or _least_used(list(PLATE_LAYOUTS), [r["layout"] for r in rows], f"{story}|{scene}", "plate-layout")
+    same = next((r["layout"] for r in rows if r["story"] == str(story) and r["scene"] == scene and r["layout"] in pool), None)
+    return same or _least_used(pool, [r["layout"] for r in rows], f"{story}|{scene}", "plate-layout")
 
 
 def record_plate(brand, story, scene, hash16, layout):

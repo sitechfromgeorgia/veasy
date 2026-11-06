@@ -577,19 +577,7 @@ def media_cmd(a):
 
 def plate_cmd(a):
     """Bake (or answer from the cache) a plate and tone it for every pack; `list` and `check` read only."""
-    if a.kind == "list":
-        return out({"plates": [{k: m[k] for k in ("kind", "hash", "seed", "seconds", "ms_per_frame", "master")}
-                               for m in plates.library()], "kinds": plates.kinds()})
-    if a.kind == "check":
-        problems = [x for k in plates.kinds() for x in plates.check_kind(k)]
-        return out({"kinds": plates.kinds(), "problems": problems}, 1 if problems else 0)
-    why = plates.refusal(program=a.program, family=a.family, text=a.text or "")
-    if why:
-        return out({"kind": a.kind, "refused": why, "problems": [why]}, 1)
-    problems = plates.check_kind(a.kind)
-    if problems:
-        return out({"kind": a.kind, "problems": problems}, 1)
-    return out(plates.make(a.kind, a.seconds, a.seed, a.scale, a.spec, [a.brand] if a.brand else None))
+    return out(*plates.command(a))
 
 
 def selftest_cmd(a):

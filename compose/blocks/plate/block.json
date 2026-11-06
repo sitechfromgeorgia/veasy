@@ -1,0 +1,26 @@
+{
+  "id": "plate",
+  "label": "პლეიტი",
+  "about": "A headline on a solid card over a baked plate (plates/, engine plate): a slow tone-only clip in the pack's canvas and ink. The clip, where the card sits and the accent dot that follows the plate are Veasy's (compose.plates); the words are slots. Never for news, crime, incidents or deaths.",
+  "slots": {
+    "kicker": {
+      "kind": "words",
+      "label": "თემა",
+      "example": "როგორ მუშაობს"
+    },
+    "headline": {
+      "kind": "words",
+      "label": "სათაური",
+      "example": "ენერგია ინახება ქიმიაში"
+    },
+    "label": {
+      "kind": "words",
+      "label": "მცირე ხაზი",
+      "example": "ბატარეის მოდელი"
+    }
+  },
+  "beats": [
+    {"id": "plate", "show": "plate", "at": null}
+  ],
+  "recommended_seconds": [3.0, 6.0]
+}

@@ -229,6 +229,50 @@ def library():
     return sorted(out, key=lambda m: m["mtime"])
 
 
+# ---------------------------------------------------------------- the command (engine plate, or python -m tt_shorts.plates)
+
+
+def command(a):
+    """`plate <kind|list|check>` -> (JSON object, exit code). a: kind, seconds, seed, scale, spec, brand, program, family,
+    text (the engine's argparse namespace, or this module's)."""
+    if a.kind == "list":
+        return {"plates": [{k: m[k] for k in ("kind", "hash", "seed", "seconds", "ms_per_frame", "master")}
+                           for m in library()], "kinds": kinds()}, 0
+    if a.kind == "check":
+        problems = [x for k in kinds() for x in check_kind(k)]
+        return {"kinds": kinds(), "problems": problems}, 1 if problems else 0
+    why = refusal(program=a.program, family=a.family, text=a.text or "")
+    if why:
+        return {"kind": a.kind, "refused": why, "problems": [why]}, 1
+    problems = check_kind(a.kind)
+    if problems:
+        return {"kind": a.kind, "problems": problems}, 1
+    try:
+        return make(a.kind, a.seconds, a.seed, a.scale, a.spec, [a.brand] if a.brand else None), 0
+    except PlateError as e:
+        return {"kind": a.kind, "problems": [str(e)]}, 1
+
+
+def main(argv=None):
+    """The same command without the engine's imports (a cache answer in well under a second)."""
+    import argparse
+    import sys
+    ap = argparse.ArgumentParser(prog="python -m tt_shorts.plates")
+    ap.add_argument("kind")
+    ap.add_argument("--seconds", type=float, default=6)
+    ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--scale", type=float, default=1)
+    ap.add_argument("--spec")
+    ap.add_argument("--brand")
+    ap.add_argument("--program")
+    ap.add_argument("--family")
+    ap.add_argument("--text")
+    obj, code = command(ap.parse_args(argv))
+    sys.stdout.write(json.dumps(obj, ensure_ascii=False, indent=1) + chr(10))
+    return code
+
+
+
 # ---------------------------------------------------------------- what `engine options` and `engine plate check` say
 
 # What a kind's own files may never contain: a clock, unseeded random, text drawn into pixels, a network address.
@@ -346,6 +390,19 @@ def story_problems(story):
     return out
 
 
+CARD_Y = {"top": (272, 700), "mid": (600, 1030), "low": (940, 1360)}  # page y a card of each layout may cover
+
+
+def free_layouts(tracks):
+    """The layouts whose card leaves the plate's accent dot uncovered (a dot under its card is a dot nobody sees); all of
+    them for a plate with no `dot` anchor, and all when none is free."""
+    ys = [p[1] for p in (tracks or {}).get("dot") or []]
+    if not ys:
+        return list(CARD_Y)
+    lo, hi = min(ys) - 60, max(ys) + 60
+    return [k for k, (a, b) in CARD_Y.items() if hi < a or lo > b] or list(CARD_Y)
+
+
 def resolve(story, b=None):
     """Give every plate scene without one a baked plate from the shelf, and its ledger entry -> (story, report).
     Reads the library only: a queue job never bakes. An empty shelf, or a refused story, is a warning in the report and
@@ -370,7 +427,7 @@ def resolve(story, b=None):
             report["warnings"].append(f"scene {i} (plate): no baked plate on the shelf (engine plate example): the scene "
                                       "is drawn on the plain canvas")
             continue
-        layout = variety.pick_plate_layout(pack["name"], story.get("id"), i)
+        layout = variety.pick_plate_layout(pack["name"], story.get("id"), i, free_layouts(tracks_of(h)))
         e = ledger_entry(shelf[h])
         if e["id"] not in have:
             ledger.append(e)
@@ -393,7 +450,13 @@ def resolve_file(path):
     return report
 
 
-def for_props(story, b, public):
+def tracks_of(hash16):
+    """The anchors a plate wrote ({name: [[x, y] per frame]}, page pixels at 30 fps), or {}."""
+    f = store.home() / "cache" / "plates" / hash16 / "anchors.json"
+    return json.loads(f.read_text(encoding="utf-8")).get("tracks", {}) if f.is_file() else {}
+
+
+def for_props(story, b, public, flat=False):
     """Copy each plate scene's toned clip into public/plates/ -> {asset id: {src, frames, tracks}} (props.py). The clip
     is toned for the applied theme's canvas and ink (cached beside the master; toning is seconds, never a bake)."""
     ledger = {e["id"]: e for e in story.get("assets") or [] if isinstance(e, dict) and e.get("kind") == "plate"}
@@ -410,11 +473,12 @@ def for_props(story, b, public):
         clip = d / clip_name(canvas, ink)
         if not clip.is_file():
             tone_clip(d / "plate.mp4", clip, hex_rgb(canvas), hex_rgb(ink))
-        dest = pathlib.Path(public) / "plates" / f"{aid}-{clip.stem}.mp4"
+        dest = pathlib.Path(public) / "plates" / (f"{aid}.mp4" if flat else f"{aid}-{clip.stem}.mp4")
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(clip, dest)
-        tracks = {}
-        if (d / "anchors.json").is_file():
-            tracks = json.loads((d / "anchors.json").read_text(encoding="utf-8")).get("tracks", {})
+        tracks = tracks_of(ledger[aid]["hash"])
         out[aid] = {"src": f"plates/{dest.name}", "frames": manifest["frames"], "tracks": tracks}
     return out
+
+if __name__ == "__main__":
+    raise SystemExit(main())
