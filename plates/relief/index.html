@@ -1,0 +1,680 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000000;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+</style>
+<body>
+<script type="module">
+import * as THREE from "/node_modules/three/build/three.module.js";
+import { seeded } from "/lib/seeded.mjs";
+
+const MOVES = new Set(["descend", "ridge", "reveal"]);
+const FORBIDDEN_TOKENS = new Set(["news", "crime", "incident", "incidents", "death", "deaths"]);
+
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
+const lerp = (a, b, u) => a + (b - a) * u;
+const smootherstep = (p) => {
+  const u = clamp01(p);
+  return u * u * u * (u * (u * 6 - 15) + 10);
+};
+const easeOutQuint = (p) => 1 - Math.pow(1 - clamp01(p), 5);
+const easeInOutCubic = (p) => {
+  const u = clamp01(p);
+  return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+};
+
+let stepImpl = () => {};
+let anchorsImpl = () => ({});
+
+window.step = (t) => stepImpl(t);
+window.anchors = (t) => anchorsImpl(t);
+
+function validateSpec(spec, meta) {
+  if (!spec || typeof spec !== "object") {
+    throw new Error("relief plate requires a JSON spec object");
+  }
+  for (const field of ["program", "category", "family", "kind", "topic", "story_kind"]) {
+    const val = String(spec[field] || "").toLowerCase().trim();
+    if (FORBIDDEN_TOKENS.has(val)) {
+      throw new Error(`relief plate refuses ${field}="${spec[field]}": never used for news, crime, incidents, or deaths`);
+    }
+  }
+  if (spec.crime === true || spec.news === true) {
+    throw new Error("relief plate refuses news and crime stories");
+  }
+  const move = spec.move || "descend";
+  if (!MOVES.has(move)) {
+    throw new Error(`relief plate unknown move "${move}": expected descend, ridge, or reveal`);
+  }
+  if (spec.region && !meta.regions[spec.region]) {
+    throw new Error(`relief plate unknown region "${spec.region}": must be one of the 12 regions of Georgian law`);
+  }
+  for (const key of ["place", "from", "to", "via", "anchor"]) {
+    const val = spec[key];
+    if (typeof val === "string" && val.length > 0) {
+      if (!meta.places[val] && !meta.landmarks[val] && !meta.regions[val]) {
+        throw new Error(`relief plate unknown Georgian gazetteer place or region "${val}" in spec.${key}`);
+      }
+    }
+  }
+}
+
+function loadMaskImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load ${url}`));
+    img.src = url;
+  });
+}
+
+function resolveNode(idOrCoords, meta) {
+  if (!idOrCoords) return null;
+  if (Array.isArray(idOrCoords) && idOrCoords.length >= 3) {
+    return { id: "custom", world: idOrCoords.map(Number) };
+  }
+  const key = String(idOrCoords);
+  if (meta.places[key]) return meta.places[key];
+  if (meta.landmarks[key]) return meta.landmarks[key];
+  if (meta.regions[key]) return meta.regions[key];
+  return null;
+}
+
+window.setup = async (spec = {}, ctx = {}) => {
+  const [metaResp, demResp, maskImg] = await Promise.all([
+    fetch("/relief/data/relief_meta.json"),
+    fetch("/relief/data/georgia_dem.bin"),
+    loadMaskImage("/relief/data/georgia_mask.png"),
+  ]);
+  if (!metaResp.ok || !demResp.ok) {
+    throw new Error("Missing relief data in /relief/data/. Run `python tools/build_relief.py` first.");
+  }
+  const meta = await metaResp.json();
+  validateSpec(spec, meta);
+
+  const demBuf = await demResp.arrayBuffer();
+  const demDm = new Uint16Array(demBuf);
+  const gw = meta.grid.width;   // 800
+  const gh = meta.grid.height;  // 418
+  const worldW = meta.projection.viewBox[2] / meta.projection.world_scale; // 100.0
+  const worldH = meta.projection.viewBox[3] / meta.projection.world_scale; // 52.33
+  const baseVEx = meta.projection.vert_exag; // 1.8
+
+  // Extract raw RGBA bytes from georgia_mask.png
+  const maskCanvas = document.createElement("canvas");
+  maskCanvas.width = gw;
+  maskCanvas.height = gh;
+  const mctx = maskCanvas.getContext("2d", { willReadFrequently: true });
+  mctx.drawImage(maskImg, 0, 0, gw, gh);
+  const maskBytes = new Uint8Array(mctx.getImageData(0, 0, gw, gh).data.buffer);
+
+  const maskTex = new THREE.DataTexture(maskBytes, gw, gh, THREE.RGBAFormat, THREE.UnsignedByteType);
+  maskTex.wrapS = THREE.ClampToEdgeWrapping;
+  maskTex.wrapT = THREE.ClampToEdgeWrapping;
+  maskTex.magFilter = THREE.LinearFilter;
+  maskTex.minFilter = THREE.LinearFilter;
+  maskTex.flipY = false;
+  maskTex.needsUpdate = true;
+
+  // Build float32 elevation array in meters + pack 800x418 uElevTex (R=hiByte, G=loByte, B=nx, A=nz)
+  const elevMeters = new Float32Array(gw * gh);
+  for (let i = 0; i < demDm.length; i++) {
+    elevMeters[i] = demDm[i] * 0.1;
+  }
+
+  const elevPacked = new Uint8Array(gw * gh * 4);
+  const cellW = worldW / (gw - 1);
+  const cellH = worldH / (gh - 1);
+  for (let iy = 0; iy < gh; iy++) {
+    const yPrev = Math.max(0, iy - 1);
+    const yNext = Math.min(gh - 1, iy + 1);
+    for (let ix = 0; ix < gw; ix++) {
+      const xPrev = Math.max(0, ix - 1);
+      const xNext = Math.min(gw - 1, ix + 1);
+      const idx = iy * gw + ix;
+      const dm = demDm[idx];
+
+      // Central difference analytical normal in world units
+      const dzdx = ((elevMeters[iy * gw + xNext] - elevMeters[iy * gw + xPrev]) * 0.001 * baseVEx) / (2.0 * cellW);
+      const dzdy = ((elevMeters[yNext * gw + ix] - elevMeters[yPrev * gw + ix]) * 0.001 * baseVEx) / (2.0 * cellH);
+      const nx = -dzdx;
+      const ny = 1.0;
+      const nz = -dzdy;
+      const nl = Math.hypot(nx, ny, nz) || 1.0;
+
+      const p4 = idx * 4;
+      elevPacked[p4] = (dm >> 8) & 0xff;
+      elevPacked[p4 + 1] = dm & 0xff;
+      elevPacked[p4 + 2] = Math.max(0, Math.min(255, Math.round(((nx / nl) * 0.5 + 0.5) * 255)));
+      elevPacked[p4 + 3] = Math.max(0, Math.min(255, Math.round(((nz / nl) * 0.5 + 0.5) * 255)));
+    }
+  }
+
+  const elevTex = new THREE.DataTexture(elevPacked, gw, gh, THREE.RGBAFormat, THREE.UnsignedByteType);
+  elevTex.wrapS = THREE.ClampToEdgeWrapping;
+  elevTex.wrapT = THREE.ClampToEdgeWrapping;
+  elevTex.magFilter = THREE.NearestFilter;
+  elevTex.minFilter = THREE.NearestFilter;
+  elevTex.flipY = false;
+  elevTex.needsUpdate = true;
+
+  function sampleWorldY(wx, wz, vExScale = 1.0) {
+    const u = (wx / worldW + 0.5) * (gw - 1);
+    const v = (wz / worldH + 0.5) * (gh - 1);
+    const x0 = Math.max(0, Math.min(gw - 1, Math.floor(u)));
+    const y0 = Math.max(0, Math.min(gh - 1, Math.floor(v)));
+    const x1 = Math.min(gw - 1, x0 + 1);
+    const y1 = Math.min(gh - 1, y0 + 1);
+    const fx = Math.max(0, Math.min(1, u - x0));
+    const fy = Math.max(0, Math.min(1, v - y0));
+    const e00 = elevMeters[y0 * gw + x0];
+    const e10 = elevMeters[y0 * gw + x1];
+    const e01 = elevMeters[y1 * gw + x0];
+    const e11 = elevMeters[y1 * gw + x1];
+    const em = (e00 * (1 - fx) + e10 * fx) * (1 - fy) + (e01 * (1 - fx) + e11 * fx) * fy;
+    return (em / 1000.0) * baseVEx * vExScale;
+  }
+
+  // Build 400x209 terrain vertex mesh (4x fewer vertices for fast <150ms SwiftShader rendering while
+  // fragment shader evaluates full 800x418 C2 bicubic B-spline contours and analytical normals)
+  const mw = 400;
+  const mh = 209;
+  const geom = new THREE.PlaneGeometry(worldW, worldH, mw - 1, mh - 1);
+  geom.rotateX(-Math.PI / 2);
+  const posAttr = geom.attributes.position;
+  const uvAttr = geom.attributes.uv;
+
+  for (let iy = 0; iy < mh; iy++) {
+    const v = iy / (mh - 1);
+    const wz = (v - 0.5) * worldH;
+    for (let ix = 0; ix < mw; ix++) {
+      const u = ix / (mw - 1);
+      const wx = (u - 0.5) * worldW;
+      const idx = iy * mw + ix;
+      posAttr.setY(idx, sampleWorldY(wx, wz, 1.0));
+      uvAttr.setXY(idx, u, v);
+    }
+  }
+  posAttr.needsUpdate = true;
+  uvAttr.needsUpdate = true;
+
+  const primaryNode =
+    resolveNode(spec.anchor, meta) ||
+    resolveNode(spec.place, meta) ||
+    resolveNode(spec.to, meta) ||
+    resolveNode(spec.from, meta) ||
+    resolveNode(spec.region, meta) ||
+    meta.places["mtskheta"];
+  const activeRegionKey = spec.region || primaryNode.region || "";
+  const activeRegionAlpha = meta.regions[activeRegionKey]
+    ? meta.regions[activeRegionKey].alpha_code / 255.0
+    : -1.0;
+
+  const uniforms = {
+    uMaskTex: { value: maskTex },
+    uElevTex: { value: elevTex },
+    uTexSize: { value: new THREE.Vector2(gw, gh) },
+    uResolution: { value: new THREE.Vector2(ctx.width, ctx.height) },
+    uSunDir: { value: new THREE.Vector3(-0.55, 0.42, -0.72).normalize() },
+    uCamPos: { value: new THREE.Vector3() },
+    uTargetPos: { value: new THREE.Vector3(...primaryNode.world) },
+    uFromPos: { value: new THREE.Vector3(...(resolveNode(spec.from, meta) || primaryNode).world) },
+    uVExScale: { value: 1.0 },
+    uContourAlpha: { value: 1.0 },
+    uFogDensity: { value: 0.016 },
+    uRegionAlpha: { value: activeRegionAlpha },
+    uPulsePhase: { value: 0.0 },
+  };
+
+  const material = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: `
+      uniform float uVExScale;
+      varying vec2 vUv;
+      varying vec3 vWorldPos;
+
+      void main() {
+        vUv = uv;
+        vec3 displaced = vec3(position.x, position.y * uVExScale, position.z);
+        vec4 worldPos = modelMatrix * vec4(displaced, 1.0);
+        vWorldPos = worldPos.xyz;
+        gl_Position = projectionMatrix * viewMatrix * worldPos;
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D uMaskTex;
+      uniform sampler2D uElevTex;
+      uniform vec2 uTexSize;
+      uniform vec2 uResolution;
+      uniform vec3 uSunDir;
+      uniform vec3 uCamPos;
+      uniform vec3 uTargetPos;
+      uniform vec3 uFromPos;
+      uniform float uVExScale;
+      uniform float uContourAlpha;
+      uniform float uFogDensity;
+      uniform float uRegionAlpha;
+      uniform float uPulsePhase;
+
+      varying vec2 vUv;
+      varying vec3 vWorldPos;
+
+      // Decode elevation (meters) and analytical normal from uElevTex at integer texel coordinate
+      vec3 sampleElevAndNormal(vec2 ij) {
+        vec2 clamped = clamp(ij, vec2(0.0), uTexSize - vec2(1.0));
+        vec2 uv = (clamped + 0.5) / uTexSize;
+        vec4 raw = texture2D(uElevTex, uv);
+        float dm = floor(raw.r * 255.0 + 0.5) * 256.0 + floor(raw.g * 255.0 + 0.5);
+        float elevM = dm * 0.1;
+        float nx = raw.b * 2.0 - 1.0;
+        float nz = raw.a * 2.0 - 1.0;
+        return vec3(elevM, nx, nz);
+      }
+
+      // True C2 Bicubic B-Spline interpolation of elevation & normal so contour lines are silky curves
+      vec3 sampleBicubicTerrain(vec2 uv) {
+        vec2 coord = uv * (uTexSize - 1.0);
+        vec2 base = floor(coord);
+        vec2 f = coord - base;
+
+        // Cubic B-spline basis weights
+        vec2 f2 = f * f;
+        vec2 f3 = f2 * f;
+        vec2 w0 = (1.0 - 3.0 * f + 3.0 * f2 - f3) / 6.0;
+        vec2 w1 = (4.0 - 6.0 * f2 + 3.0 * f3) / 6.0;
+        vec2 w2 = (1.0 + 3.0 * f + 3.0 * f2 - 3.0 * f3) / 6.0;
+        vec2 w3 = f3 / 6.0;
+
+        vec3 sum = vec3(0.0);
+        float wx[4];
+        wx[0] = w0.x; wx[1] = w1.x; wx[2] = w2.x; wx[3] = w3.x;
+        float wy[4];
+        wy[0] = w0.y; wy[1] = w1.y; wy[2] = w2.y; wy[3] = w3.y;
+
+        for (int j = -1; j <= 2; j++) {
+          float wj = wy[j + 1];
+          for (int i = -1; i <= 2; i++) {
+            float weight = wx[i + 1] * wj;
+            sum += sampleElevAndNormal(base + vec2(float(i), float(j))) * weight;
+          }
+        }
+        return sum;
+      }
+
+      float contourLine(float elev, float interval, float widthPx) {
+        float scaled = elev / interval;
+        float dist = abs(fract(scaled - 0.5) - 0.5);
+        float fw = max(1e-4, fwidth(scaled));
+        float densityFade = 1.0 - smoothstep(0.28, 0.62, fw);
+        return (1.0 - smoothstep(0.0, widthPx * fw, dist)) * densityFade;
+      }
+
+      void main() {
+        vec4 m = texture2D(uMaskTex, vUv);
+        float land = m.r;
+        // Hard map rule: nothing outside Georgia's outline from georgia.json is drawn as a claim
+        if (land < 0.06) {
+          discard;
+        }
+
+        vec3 terrain = sampleBicubicTerrain(vUv);
+        float elev = terrain.x;
+        float nx = terrain.y * uVExScale;
+        float nz = terrain.z * uVExScale;
+        vec3 N = normalize(vec3(nx, sqrt(max(0.08, 1.0 - nx * nx - nz * nz)), nz));
+
+        // Imhof oblique + zenithal analytical hillshade
+        float diffOblique = clamp(dot(N, uSunDir), 0.0, 1.0);
+        float diffZenith = clamp(N.y, 0.0, 1.0);
+        float hypso = smoothstep(50.0, 4200.0, elev);
+        float shade = 0.07 + 0.25 * diffOblique + 0.06 * diffZenith + 0.09 * hypso;
+
+        // Tanaka illumination factor: contours on sun-facing slopes glow brighter
+        vec2 horizN = N.xz;
+        vec2 horizSun = normalize(uSunDir.xz + vec2(1e-5));
+        float tanaka = clamp(dot(horizN, horizSun) * 1.65 + 0.52, 0.18, 1.0);
+
+        // Multi-scale curved contour lines: 50m lowland, 125m intermediate, 500m bold index contours
+        // Fade contours gently in the outermost 2px border transition so boundary cliffs never bunch lines
+        float borderInterior = smoothstep(0.15, 0.65, land);
+        float c50  = contourLine(elev, 50.0,  1.05) * (1.0 - smoothstep(450.0, 1100.0, elev)) * 0.36;
+        float c125 = contourLine(elev, 125.0, 1.25) * 0.68;
+        float c500 = contourLine(elev, 500.0, 1.85) * 1.00;
+        float contour = max(c50, max(c125, c500)) * uContourAlpha * borderInterior;
+
+        float lum = shade + contour * (0.11 + 0.27 * tanaka);
+
+        // Rivers & internal regional boundaries from B channel of georgia_mask.png
+        float hydro = m.b;
+        lum = mix(lum, lum * 0.68 + 0.09, hydro * 0.55);
+
+        // Crisp Georgia outer border outline & interior SDF from G channel
+        float borderStroke = smoothstep(0.08, 0.32, land) * (1.0 - smoothstep(0.32, 0.72, land));
+        lum += borderStroke * 0.28;
+
+        // Smooth 9-tap feathered active region spotlight (eliminates texel stair-stepping on region borders)
+        if (uRegionAlpha > 0.0) {
+          vec2 texel = 2.5 / uTexSize;
+          float regSum = 0.0;
+          for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+              float aSample = texture2D(uMaskTex, vUv + vec2(float(dx), float(dy)) * texel).a;
+              regSum += 1.0 - smoothstep(0.006, 0.018, abs(aSample - uRegionAlpha));
+            }
+          }
+          float regMatch = regSum / 9.0;
+          lum *= mix(0.74, 1.15, regMatch);
+        }
+
+        // Topographic target beacon wave hugging the 3D terrain around the primary anchor
+        float dTarget = length(vWorldPos.xz - uTargetPos.xz);
+        float ring1 = smoothstep(0.18, 0.0, abs(dTarget - 0.65));
+        float ring2 = smoothstep(0.22, 0.0, abs(dTarget - (1.45 + 0.65 * fract(uPulsePhase)))) * (1.0 - fract(uPulsePhase));
+        float targetHalo = exp(-dTarget * dTarget / 28.0);
+        lum += (ring1 * 0.28 + ring2 * 0.22) + targetHalo * (0.05 + 0.09 * contour);
+
+        // Secondary subtle beacon at start anchor if distinct
+        float dFrom = length(vWorldPos.xz - uFromPos.xz);
+        float fromRing = smoothstep(0.16, 0.0, abs(dFrom - 0.55)) * step(1.2, length(uFromPos.xz - uTargetPos.xz));
+        lum += fromRing * 0.16;
+
+        // Atmospheric distance fog toward #000000
+        float camDist = length(vWorldPos - uCamPos);
+        float fogFactor = exp(-pow(camDist * uFogDensity, 1.85));
+        float edgeFeather = smoothstep(0.06, 0.26, land);
+
+        // Vertical safe-zone vignette: keep top header/headline band (y < 300) and bottom caption/footer band (y > 1420) calm
+        float screenY = 1.0 - (gl_FragCoord.y / max(1.0, uResolution.y));
+        float topSafe = smoothstep(0.03, 0.22, screenY);
+        float botSafe = 1.0 - 0.55 * smoothstep(0.72, 0.96, screenY);
+
+        lum = clamp(lum * fogFactor * edgeFeather * topSafe * botSafe, 0.0, 0.86);
+
+        // Strictly monochrome grey (R == G == B)
+        gl_FragColor = vec4(lum, lum, lum, 1.0);
+      }
+    `,
+  });
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+  renderer.setPixelRatio(1);
+  renderer.setSize(ctx.width, ctx.height, false);
+  renderer.setClearColor(0x000000, 1);
+  document.body.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const terrainMesh = new THREE.Mesh(geom, material);
+  scene.add(terrainMesh);
+
+  const camera = new THREE.PerspectiveCamera(38, ctx.width / ctx.height, 0.2, 260);
+
+  const rand = seeded(ctx.seed || 1);
+  const seedJitter = (rand() - 0.5) * 0.04;
+
+  const fromNode = resolveNode(spec.from, meta) || primaryNode;
+  const toNode = resolveNode(spec.to, meta) || primaryNode;
+  const viaNode = resolveNode(spec.via, meta);
+
+  const namedAnchorNodes = new Map();
+  namedAnchorNodes.set("dot", primaryNode);
+  if (primaryNode.id && primaryNode.id !== "custom") {
+    namedAnchorNodes.set(primaryNode.id, primaryNode);
+  }
+  if (Array.isArray(spec.anchors)) {
+    for (const ak of spec.anchors) {
+      const n = resolveNode(ak, meta);
+      if (n) namedAnchorNodes.set(String(ak), n);
+    }
+  }
+  for (const k of ["place", "from", "to", "anchor", "region"]) {
+    if (typeof spec[k] === "string" && spec[k]) {
+      const n = resolveNode(spec[k], meta);
+      if (n) namedAnchorNodes.set(spec[k], n);
+    }
+  }
+
+  let currentVExScale = 1.0;
+  let activeDotWorld = [...primaryNode.world];
+
+  function computeCameraAndScene(t) {
+    const duration = Math.max(0.001, ctx.seconds || 6);
+    const p = clamp01(t / duration);
+    const s = smootherstep(p);
+
+    const lerp3 = (A, B, u) => [lerp(A[0], B[0], u), lerp(A[1], B[1], u), lerp(A[2], B[2], u)];
+    const quadBez3 = (P0, P1, P2, u) => {
+      const v = 1 - u;
+      return [
+        v * v * P0[0] + 2 * v * u * P1[0] + u * u * P2[0],
+        v * v * P0[1] + 2 * v * u * P1[1] + u * u * P2[1],
+        v * v * P0[2] + 2 * v * u * P1[2] + u * u * P2[2],
+      ];
+    };
+
+    let camPos, lookPos, roll = 0, fov = 38, vExScale = 1.0, fogDensity = 0.015, contourAlpha = 1.0;
+    let sunAz = -0.68 + 0.28 * s + seedJitter;
+    let sunEl = 0.38;
+
+    if (spec.preset === "kazbegi-jvari") {
+      // Signature Flight 1 (move: descend):
+      // Sweeps down from high above the Aragvi/Tergi corridor looking North-Northwest so BOTH Mtskheta/Jvari
+      // in the foreground valley AND Stepantsminda / Mt. Kazbek on the Greater Caucasus crest stay in frame!
+      const pStep = meta.places["stepantsminda"].world; // [18.49, 3.17, -6.58]
+      const pJvari = meta.landmarks["jvari-pass"].world; // [16.01, 4.28, -3.79]
+      const pMtsk = meta.places["mtskheta"].world;       // [19.63, 0.86, +9.51]
+      activeDotWorld = quadBez3(pStep, pJvari, pMtsk, s);
+      camPos = [
+        lerp(22.5, 20.8, s),
+        lerp(13.8, 6.2, easeOutQuint(p)),
+        lerp(24.5, 21.8, s),
+      ];
+      // Look across Mtskheta toward Jvari Pass & Kazbek so the northern Caucasus border silhouette crests at y~380px
+      lookPos = [
+        lerp(18.2, 19.3, s),
+        lerp(1.8, 0.5, s),
+        lerp(-1.5, 5.2, s),
+      ];
+      roll = -0.042 * Math.sin(2 * Math.PI * s);
+      fov = lerp(37, 39, s);
+      fogDensity = 0.013;
+    } else if (spec.preset === "svaneti") {
+      // Signature Flight 2 (move: ridge):
+      // Flies East-Southeast along the Svaneti Range overlooking Mestia -> Ushguli with Ushba, Tetnuldi & Shkhara rising behind
+      const pMestia = meta.places["mestia"].world;   // [-9.50, 2.58, -14.19]
+      const pUshguli = meta.places["ushguli"].world; // [-5.25, 3.92, -11.71]
+      activeDotWorld = lerp3(pMestia, pUshguli, s);
+      camPos = [
+        lerp(-14.2, -3.8, s),
+        lerp(9.6, 8.8, s) + 0.45 * Math.sin(Math.PI * s),
+        lerp(0.5, 1.8, s) - 0.55 * Math.sin(Math.PI * s),
+      ];
+      lookPos = [
+        lerp(pMestia[0], pUshguli[0], s),
+        lerp(1.8, 2.4, s),
+        lerp(pMestia[2] - 1.2, pUshguli[2] - 1.2, s),
+      ];
+      roll = 0.055 * Math.sin(Math.PI * s);
+      fov = 38;
+      fogDensity = 0.014;
+    } else if (spec.preset === "kakheti") {
+      // Signature Flight 3 (move: reveal):
+      // Kakheti rises out of dark shadow as camera sweeps from Telavi across the Alazani basin to Sighnaghi on Gombori Ridge
+      const pTelavi = meta.places["telavi"].world;       // [30.63, 1.29, 8.00]
+      const pSighnaghi = meta.places["sighnaghi"].world; // [37.18, 1.31, 13.95]
+      vExScale = lerp(0.26, 1.0, easeOutQuint(p / 0.74));
+      const rawDot = lerp3(pTelavi, pSighnaghi, s);
+      activeDotWorld = [rawDot[0], rawDot[1] * vExScale, rawDot[2]];
+      camPos = [
+        lerp(24.0, 34.5, s),
+        lerp(5.8, 9.8, easeInOutCubic(p)),
+        lerp(24.0, 28.5, s),
+      ];
+      lookPos = [
+        lerp(pTelavi[0], pSighnaghi[0] - 1.5, s),
+        lerp(0.6, 0.9, s) * vExScale,
+        lerp(pTelavi[2] - 1.5, pSighnaghi[2] - 2.5, s),
+      ];
+      roll = -0.036 * Math.sin(Math.PI * s);
+      fov = lerp(40, 36, s);
+      sunEl = lerp(0.16, 0.42, s);
+      contourAlpha = smootherstep(clamp01((p - 0.06) / 0.65));
+      fogDensity = lerp(0.022, 0.013, s);
+    } else {
+      // General camera choreography for move: "descend" | "ridge" | "reveal" across all 12 regions & 149 places
+      const A0 = fromNode.world;
+      const A1 = toNode.world;
+      const rawA = viaNode ? quadBez3(A0, viaNode.world, A1, s) : lerp3(A0, A1, s);
+
+      // Azimuth angle chosen so the camera looks across Georgia's interior relief & border silhouette
+      const interiorBiasAz = ((rawA[0]) / 65.0) * 0.42 + seedJitter;
+      const move = spec.move || "descend";
+
+      if (move === "descend") {
+        activeDotWorld = [...rawA];
+        const rStart = spec.rStart ?? 18.5;
+        const rEnd = spec.rEnd ?? 11.2;
+        const hStart = spec.hStart ?? 11.0;
+        const hEnd = spec.hEnd ?? 5.2;
+        const R = lerp(rStart, rEnd, s);
+        const H = lerp(hStart, hEnd, easeOutQuint(p));
+        const alpha = (spec.alpha0 ?? (0.22 + interiorBiasAz)) + (spec.dAlpha ?? -0.34) * s;
+        camPos = [rawA[0] + R * Math.sin(alpha), rawA[1] + H, rawA[2] + R * Math.cos(alpha)];
+        lookPos = [rawA[0], rawA[1] - 0.04 * R, rawA[2] - 1.2];
+        roll = -0.035 * Math.sin(Math.PI * s);
+        fov = lerp(37, 39, s);
+      } else if (move === "ridge") {
+        activeDotWorld = [...rawA];
+        const dx = A1[0] - A0[0];
+        const dz = A1[2] - A0[2];
+        const chord = Math.hypot(dx, dz);
+        let tx = 0.90, tz = 0.43;
+        if (chord > 0.5) {
+          tx = dx / chord;
+          tz = dz / chord;
+        }
+        let nx = -tz, nz = tx;
+        if (nz < 0) {
+          nx = -nx;
+          nz = -nz;
+        }
+        const standoff = (spec.standoff ?? 12.8) + 0.55 * Math.sin(2 * Math.PI * s);
+        const sweepAlong = chord < 0.5 ? (s - 0.5) * 5.2 : 0.0;
+        camPos = [
+          rawA[0] + nx * standoff + tx * sweepAlong,
+          rawA[1] + 6.4 + 0.50 * Math.sin(Math.PI * s),
+          rawA[2] + nz * standoff + tz * sweepAlong,
+        ];
+        lookPos = [rawA[0], rawA[1] - 0.45, rawA[2] - 1.0];
+        roll = 0.050 * Math.sin(2 * Math.PI * s) * Math.sin(Math.PI * p);
+        fov = 38;
+      } else {
+        // move === "reveal"
+        vExScale = lerp(0.24, 1.0, easeOutQuint(p / 0.74));
+        activeDotWorld = [rawA[0], rawA[1] * vExScale, rawA[2]];
+        const R = lerp(spec.rStart ?? 11.5, spec.rEnd ?? 16.8, s);
+        const H = lerp(spec.hStart ?? 4.2, spec.hEnd ?? 8.4, easeInOutCubic(p));
+        const alpha = (spec.alpha0 ?? (-0.22 + interiorBiasAz)) + 0.34 * s;
+        camPos = [
+          activeDotWorld[0] + R * Math.sin(alpha),
+          activeDotWorld[1] + H,
+          activeDotWorld[2] + R * Math.cos(alpha),
+        ];
+        lookPos = [activeDotWorld[0], activeDotWorld[1] - lerp(0.25, 0.75, s), activeDotWorld[2] - 1.2];
+        roll = -0.032 * Math.sin(Math.PI * s);
+        fov = lerp(40, 36, s);
+        sunEl = lerp(0.16, 0.44, s);
+        contourAlpha = smootherstep(clamp01((p - 0.06) / 0.65));
+        fogDensity = lerp(0.024, 0.014, s);
+      }
+    }
+
+    currentVExScale = vExScale;
+
+    // Guarantee camera clears local terrain surface
+    const groundAtCam = sampleWorldY(camPos[0], camPos[2], vExScale);
+    if (camPos[1] < groundAtCam + 2.2) {
+      camPos[1] = groundAtCam + 2.2;
+    }
+
+    uniforms.uVExScale.value = vExScale;
+    uniforms.uContourAlpha.value = contourAlpha;
+    uniforms.uFogDensity.value = fogDensity;
+    uniforms.uPulsePhase.value = p * 2.0;
+    uniforms.uCamPos.value.set(camPos[0], camPos[1], camPos[2]);
+    uniforms.uTargetPos.value.set(activeDotWorld[0], activeDotWorld[1], activeDotWorld[2]);
+    uniforms.uSunDir.value.set(
+      Math.sin(sunAz) * Math.cos(sunEl),
+      Math.sin(sunEl),
+      Math.cos(sunAz) * Math.cos(sunEl)
+    ).normalize();
+
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
+    camera.position.set(camPos[0], camPos[1], camPos[2]);
+
+    const fx = lookPos[0] - camPos[0];
+    const fy = lookPos[1] - camPos[1];
+    const fz = lookPos[2] - camPos[2];
+    const fl = Math.hypot(fx, fy, fz) || 1;
+    const Fn = [fx / fl, fy / fl, fz / fl];
+    const rl = Math.hypot(Fn[2], Fn[0]) || 1;
+    const Rn = [-Fn[2] / rl, 0, Fn[0] / rl];
+    const Up = [
+      Rn[1] * Fn[2] - Rn[2] * Fn[1],
+      Rn[2] * Fn[0] - Rn[0] * Fn[2],
+      Rn[0] * Fn[1] - Rn[1] * Fn[0],
+    ];
+    const cR = Math.cos(roll);
+    const sR = Math.sin(roll);
+    camera.up.set(
+      Up[0] * cR + Rn[0] * sR,
+      Up[1] * cR + Rn[1] * sR,
+      Up[2] * cR + Rn[2] * sR
+    );
+    camera.lookAt(lookPos[0], lookPos[1], lookPos[2]);
+    camera.updateMatrixWorld(true);
+  }
+
+  function projectWorldPoint(worldPt) {
+    const v = new THREE.Vector3(worldPt[0], worldPt[1], worldPt[2]);
+    v.project(camera);
+    const x = ((v.x + 1) * 0.5) * ctx.width;
+    const y = ((1 - v.y) * 0.5) * ctx.height;
+    return [
+      Math.max(0, Math.min(ctx.width, +x.toFixed(1))),
+      Math.max(0, Math.min(ctx.height, +y.toFixed(1))),
+    ];
+  }
+
+  stepImpl = (t) => {
+    computeCameraAndScene(t);
+    renderer.render(scene, camera);
+  };
+
+  anchorsImpl = (t) => {
+    computeCameraAndScene(t);
+    const out = {};
+    out.dot = projectWorldPoint(activeDotWorld);
+    for (const [key, node] of namedAnchorNodes.entries()) {
+      if (key === "dot") continue;
+      const w = node.world;
+      out[key] = projectWorldPoint([w[0], w[1] * currentVExScale, w[2]]);
+    }
+    return out;
+  };
+};
+</script>
+</body>

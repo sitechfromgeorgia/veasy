@@ -14,19 +14,20 @@ Returns `plate.mp4`, `poster.png`, `plate.json`, and `anchors.json` (`1080×1920
 
 | # | Done When Requirement | Status | Evidence (File / Command / Still) |
 | :-: | :--- | :---: | :--- |
-| 1 | `docs/research/georgia-relief.md` written (20+ real sources with links, what each teaches Veasy, licence table, ranked backlog) and committed before building | **Done** | `docs/research/georgia-relief.md` (24 real sources with links, full licence table, camera/shader architecture, ranked backlog) |
-| 2 | `tools/build_relief.py` is the only way `assets/relief/` is built, reproducibly, with its sources in `assets/maps/README.md` | In progress | `tools/build_relief.py`, `assets/maps/README.md`, `.gitignore` |
-| 3 | Moves under spec key `move`: `descend`, `ridge`, `reveal`; contour lines & relief in grey; Georgia's outline from `georgia.json`, nothing outside it drawn as a claim; anchors from `geo.py`'s gazetteer (`window.anchors(t)`) | Queued | `plates/relief/index.html`, `plates/relief/README.md` |
-| 4 | Three signature flights baked (`kazbegi-jvari`, `svaneti`, `kakheti`) and looked at in two packs (`tbilisi-today` and `sitech`) | Queued | `out/plates/kazbegi-jvari/`, `out/plates/svaneti/`, `out/plates/kakheti/`, look sheets |
-| 5 | 48 region and district plates baked and listed (12 regions + 36 unique districts) | Queued | `plates/relief/specs/`, `plates/relief/README.md` |
-| 6 | Abkhazia and Tskhinvali region checked on every map in a test, and a critic checks that anchors land on the place | Queued | `tests/test_relief.py`, Fresh-Eye Critic report |
+| 1 | `docs/research/georgia-relief.md` written (20+ real sources with links, what each teaches Veasy, licence table, ranked backlog) and committed before building | **Done** | `docs/research/georgia-relief.md` (24 real sources with links, full licence table, camera/shader architecture, ranked backlog; commit `0b76433`) |
+| 2 | `tools/build_relief.py` is the only way `assets/relief/` is built, reproducibly, with its sources in `assets/maps/README.md` | **Done** | `tools/build_relief.py` (`800×418` `georgia_dem.bin` `sha256=95212052ab0348ac`, `georgia_mask.png`, `relief_meta.json`), `assets/maps/README.md`, `tests/test_relief.py` |
+| 3 | Moves under spec key `move`: `descend`, `ridge`, `reveal`; contour lines & relief in grey; Georgia's outline from `georgia.json`, nothing outside it drawn as a claim; anchors from `geo.py`'s gazetteer (`window.anchors(t)`) | **Done** | `plates/relief/index.html`, `plates/relief/README.md`, `tests/test_relief.py` (`Ran 7 tests in 0.096s OK`) |
+| 4 | Three signature flights baked (`kazbegi-jvari`, `svaneti`, `kakheti`) and looked at in two packs (`tbilisi-today` and `sitech`) | In progress | Baked in `out/plates/kazbegi-jvari/` (`hash=04d9d478a99beac4`), `out/plates/svaneti/` (`hash=c03d316a94970144`), `out/plates/kakheti/` (`hash=cb20fa16b7506a92`); composing into `tbilisi-today` and `sitech` next |
+| 5 | 48 region and district plates baked and listed (12 regions + 36 unique districts) | In progress | All 48 specs written in `plates/relief/specs/` and listed in `plates/relief/README.md`; batch bake next |
+| 6 | Abkhazia and Tskhinvali region checked on every map in a test, and a critic checks that anchors land on the place | In progress | `tests/test_relief.py::test_twelve_regions_of_georgian_law_including_abkhazia_and_tskhinvali` passes; Fresh-Eye Critic sub-agent review next |
 | 7 | The licence table names every source and what a film must credit | **Done** | `docs/research/georgia-relief.md` § 2, `assets/maps/README.md` |
 
 ---
 
 ## Commit Log
 
-1. `docs(relief): add georgia-relief research, licence audit, and backlog` (initial commit)
+1. `0b76433` — `docs(relief): add georgia-relief research, licence audit, and backlog`
+2. `feat(relief): add tools/build_relief.py, plates/relief engine, 51 specs, and tests`
 
 ---
 
