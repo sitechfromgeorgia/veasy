@@ -57,7 +57,12 @@ window.setup = async (spec, c) => {
   const s = meta.blockSize * 0.94;
   blocks = new THREE.InstancedMesh(new THREE.BoxGeometry(s, s, s), new THREE.MeshLambertMaterial({ color: 0xffffff }), count);
   const col = new THREE.Color();
-  for (let i = 0; i < count; i++) blocks.setColorAt(i, col.setHex(GROUP_TONES[assignments[i].groupIndex % GROUP_TONES.length]));
+  // one group: bands of a tenth of the blocks alternate in tone, so a climb past a tall column can be seen
+  const banded = meta.groups.length === 1 && form === "too-tall";
+  for (let i = 0; i < count; i++) {
+    const tone = banded ? GROUP_TONES[Math.floor((i * 10) / count) % 2 ? 2 : 0] : GROUP_TONES[assignments[i].groupIndex % GROUP_TONES.length];
+    blocks.setColorAt(i, col.setHex(tone));
+  }
   scene.add(blocks);
 };
 

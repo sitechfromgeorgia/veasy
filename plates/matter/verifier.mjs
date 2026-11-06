@@ -183,8 +183,8 @@ export function resolveStoryKey(story, key = "value") {
     }
   }
 
-  if (key.includes(".")) {
-    const parts = key.split(".");
+  if (key.includes(".") || key.includes("[")) {
+    const parts = key.replace(/\[(\d+)\]/g, ".$1").split(".");
     let cur = story;
     for (const p of parts) {
       if (cur == null) break;
@@ -291,6 +291,16 @@ export function verifySpec(spec, options = {}) {
   if (!spec || typeof spec !== "object") {
     throw new Error("Spec must be an object");
   }
+  // `scale` lifts a story's decimal (8.0 billion, 3.2 billion) to whole units (80, 32 tenths of a billion).
+  // It must land on an integer: a decimal that doesn't is refused, never rounded.
+  const scale = spec.scale === undefined ? 1 : Number(spec.scale);
+  if (!Number.isFinite(scale) || scale <= 0) throw new InvalidFactError(`scale must be a positive number, got ${spec.scale}`);
+  const lift = (v, what) => {
+    if (scale === 1) return v;
+    const x = Math.round(v * scale * 1e6) / 1e6;
+    if (!Number.isInteger(x)) throw new InvalidFactError(`${what} ${v} x scale ${scale} = ${x} is not a whole number`);
+    return x;
+  };
 
   // 1. Refuse forbidden categories on spec / options
   checkForbidden(spec, options);
@@ -304,6 +314,7 @@ export function verifySpec(spec, options = {}) {
   } else {
     throw new InvalidFactError("Spec must define 'fact' or 'fact_ref'");
   }
+  if (typeof fact === "number" && Number.isFinite(fact)) fact = lift(fact, "fact");
 
   // 3. Validate fact is a positive integer
   if (typeof fact !== "number" || !Number.isFinite(fact)) {
@@ -376,6 +387,7 @@ export function verifySpec(spec, options = {}) {
         } else {
           throw new InvalidFactError(`Group "${group.name || idx}" missing 'fact' or 'fact_ref'`);
         }
+        if (typeof gFact === "number" && Number.isFinite(gFact)) gFact = lift(gFact, `group "${group.name || idx}" fact`);
 
         if (typeof gFact !== "number" || !Number.isFinite(gFact) || gFact <= 0 || !Number.isInteger(gFact)) {
           throw new InvalidFactError(`Group "${group.name || idx}" fact must be a positive integer, got ${gFact}`);

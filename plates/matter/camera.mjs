@@ -120,7 +120,8 @@ function choreographSplit(p, b, options) {
   const u = smootherstep(p);
 
   // Macro start: focused on the dividing seam
-  const macroPos = [seamX + 0.4, seamY + 1.6, 6.8];
+  const macroDist = Math.max(8.5, b.size[0] * 1.6 + 4.0, b.size[2] * 1.6 + 4.0);
+  const macroPos = [seamX + 0.4, seamY + 1.6 + macroDist * 0.25, macroDist];
   const macroTarget = [seamX, seamY * 0.9, seamZ];
 
   // Wide end: calibrated for 9:16 vertical framing of both shares
@@ -149,25 +150,18 @@ function choreographSplit(p, b, options) {
  * Starts at the base framing unit 0, smoothly cranes/tilts upward to climb the towering column.
  */
 function choreographTooTall(p, b, options) {
-  // Column climbs from y=0 to colHeight
+  // The column does not fit the frame: start low and far, looking up at it running off the top, then climb it.
   const colHeight = Math.max(b.size[1], 8.0);
-  const u = smootherstep(p); // Monotonic, zero-jerk climbing curve
-
-  // Base framing: close to unit 0 at bottom
-  const startCamY = 1.0;
-  const startTargetY = 0.45;
-
-  // Top framing: near the summit of the tower
-  const endCamY = colHeight * 0.90 + 1.0;
-  const endTargetY = colHeight * 0.92;
-
+  const hold = 0.12; // a beat at the base so the viewer sees what is being climbed
+  const u = smootherstep(clamp01((p - hold) / (1 - hold)));
+  const width = Math.max(b.size[0], b.size[2], 1.0);
+  const camZ = Math.max(9.0, width * 3.2 + 5.0);
+  const startCamY = 1.4;
+  const endCamY = colHeight - 3.0;
   const camY = lerp(startCamY, endCamY, u);
-  const targetY = lerp(startTargetY, endTargetY, u);
-
-  // Maintain steady distance framing the vertical column
-  const camX = 1.2 + 0.4 * Math.sin(Math.PI * u);
-  const camZ = 4.8;
-
+  const lookAhead = lerp(camZ * 0.55, 1.0, u); // looking up at the start, level at the summit
+  const targetY = camY + lookAhead;
+  const camX = 1.8 + 0.8 * Math.sin(Math.PI * u);
   return {
     position: [camX, camY, camZ],
     target: [0, targetY, 0],
