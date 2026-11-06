@@ -67,6 +67,30 @@ class Tone(unittest.TestCase):
         self.assertTrue(seen <= pts, "a pixel left the 256 points of the line")
 
 
+    @unittest.skipUnless(TOOLS, "ffmpeg needed")
+    def test_banding_in_a_dark_gradient_is_dithered_not_stepped(self):
+        # 17 grey levels across 1080 px (62 px a step) is what a dark gradient is after 8 bits: gradfun turns each hard
+        # edge into a dithered one (measured: 16 value changes a row without it, 185 with it)
+        import numpy as np
+        w, h = 1080, 64  # gradfun needs a frame at least 64 rows high
+        raw = np.tile(np.round(5 + 16 * np.arange(w) / (w - 1)).astype(np.uint8), (h, 1)).tobytes()
+        c, i = plates.hex_rgb("#05080F"), plates.hex_rgb("#F8FAFC")
+
+        def changes(vf):
+            r = subprocess.run([plates.ffmpeg(), "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "gray", "-s",
+                                f"{w}x{h}", "-i", "-", "-vf", vf, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                               input=raw, capture_output=True)
+            px = np.frombuffer(r.stdout, np.uint8).reshape(h, w, 3).astype(int).sum(axis=2)
+            return float((np.diff(px, axis=1) != 0).sum(axis=1).mean()), r.stdout
+
+        full = plates.tone_filter(c, i).split(",scale=")[0]
+        plain = full.replace("gradfun=strength=1.2:radius=16,", "")
+        stepped, _ = changes(plain)
+        dithered, rgb = changes(full)
+        self.assertGreater(dithered, 4 * stepped, (stepped, dithered))
+        self.assertLessEqual(plates.line_stats(rgb, c, i)["max"], 3 ** 0.5 / 2 + 1e-9)  # and still on the line
+
+
 class Refusals(unittest.TestCase):
     def test_news_is_refused(self):
         self.assertIn("news", plates.refusal(program="news"))
