@@ -130,7 +130,8 @@ export const Timeline: React.FC<P> = ({ s, inner = INNER }) => {
   const run = stepped(s, frame, interpolate(frame, [12, 44], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
     easing: (x) => 1 - Math.pow(1 - x, 3) }), 16);
   const tight = inner < INNER - 40; // inside a card there is less height
-  const size = fitSize([a.time, b.time], inner - 160, tight ? 176 : 220, 112);
+  // keep the right-hand date clear of the like/share rail (x=940): fit inside the text column, not the frame
+  const size = fitSize([a.time, b.time], inner - 260, tight ? 176 : 220, 96);
   const H_ = tight ? 440 : 600;
   const block = (d: { day: string; time: string }, muted: boolean, delay: number) => (
     <In delay={delay}>
@@ -148,7 +149,7 @@ export const Timeline: React.FC<P> = ({ s, inner = INNER }) => {
           <circle cx={28} cy={H_ - 44} r={18} fill="none" stroke={LINE_STRONG} strokeWidth={4} />
           <circle cx={28} cy={44 + (H_ - 88) * run} r={24} fill={RED} />
         </svg>
-        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: H_ }}>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: H_, maxWidth: inner - 160 }}>
           {block(a, false, 4)}
           {block(b, run < 0.98, 18)}
         </div>

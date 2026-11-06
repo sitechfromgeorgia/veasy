@@ -97,5 +97,12 @@ class Tokens(unittest.TestCase):
                          "მან ოთხმოცდასამი პროცენტი აჩვენა, ექიმებმა კი ოცდათექვსმეტი პროცენტი. გამოიწერე თბილისი თუდეი.")
 
 
+    def test_company_names(self):
+        # Owner's rule: a Georgian company is read by its Georgian name, not by Latin letters.
+        self.assertEqual(speech("TBC-ის აქციები და PSP-მ სერვისი გაუშვა"),
+                         "თიბისის აქციები და პი ეს პიმ სერვისი გაუშვა")
+        self.assertEqual(speech("BOG-ის მოგება"), "საქართველოს ბანკის მოგება")
+
+
 if __name__ == "__main__":
     unittest.main()

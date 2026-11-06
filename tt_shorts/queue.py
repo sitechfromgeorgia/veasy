@@ -164,6 +164,9 @@ def add(brand=None, source=None, ref=None, fmt=None, overrides=None, story=None,
     brand = brand or brand_pack.DEFAULT
     brand_pack.load(brand)  # and a brand pack that doesn't exist
     jid = job_id(brand, source, ref, fmt, overrides, program)
+    # An embargoed story (private: true) is never picked up by a worker: it waits as held
+    # until the owner promotes it himself.
+    held = bool(data and (data.get("private") is True or data.get("visibility") == "private"))
     with _conn() as con:
         old = con.execute("select * from jobs where id=?", (jid,)).fetchone()
         if old:
@@ -171,7 +174,7 @@ def add(brand=None, source=None, ref=None, fmt=None, overrides=None, story=None,
         con.execute("insert into jobs(id,name,brand,source,ref,format,overrides,story,state,priority,created,updated,"
                     "program) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (jid, store.job_name(brand, label, fmt), brand, source, str(ref), fmt,
-                     json.dumps(overrides or {}), str(story) if story else None, "queued", priority, now(), now(),
+                     json.dumps(overrides or {}), str(story) if story else None, "held" if held else "queued", priority, now(), now(),
                      program))
         store.log("queued", job=jid, brand=brand, program=program, source=source, ref=str(ref), format=fmt)
         return _row(con.execute("select * from jobs where id=?", (jid,)).fetchone()), True

@@ -187,6 +187,52 @@ def _prompt(cluster: dict, articles: list[str], avoid: list[str] | None = None, 
             f"ნებადართული რიცხვები (მხოლოდ ეს): {allowed_line}\n\n{body}")
 
 
+def _fix_anchors(story: dict) -> None:
+    """Re-anchor a scene whose „at“ differs from the narration only in punctuation or quotes.
+
+    The writer often keeps „…“ or a comma in the anchor while the narration has none. The cut
+    depends on the anchor being a real substring, so the honest repair is to replace it with
+    the matching slice of the narration, not to fail the job."""
+    if not _repair_enabled():
+        return
+    narration = story.get("narration") or ""
+    if not narration:
+        return
+
+    def norm_map(text):
+        out, idx, prev_space = [], [], False
+        for i, ch in enumerate(text):
+            if ch.isspace():
+                if not prev_space:
+                    out.append(" "); idx.append(i); prev_space = True
+                continue
+            prev_space = False
+            if ch.lower() in "„“\"'«».,;:!?…":
+                continue
+            out.append(ch.lower()); idx.append(i)
+        return "".join(out), idx
+
+    flat, idx = norm_map(narration)
+    pos = 0
+    for sc in story.get("scenes") or []:
+        at = str(sc.get("at") or "").strip()
+        if not at:
+            continue
+        fat, _ = norm_map(at)
+        if not fat:
+            continue
+        p = flat.find(fat, pos)
+        if p < 0:
+            continue
+        start = idx[p]
+        want = len(fat.split())
+        # take the same number of words from the original text
+        words = list(re.finditer(r"\S+", narration[start:]))
+        end = start + words[min(want, len(words)) - 1].end() if words else start + len(at)
+        sc["at"] = narration[start:end]
+        pos = p + len(fat)
+
+
 def _anchors_ok(story: dict) -> bool:
     """Every scene anchor must sit in the narration, in order (props.cut depends on it)."""
     narration = story.get("narration", "")
@@ -465,6 +511,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _wrap_hook(story)  # the first pass too
     _clamp_texts(story)
     _repair_scenes(story, articles)
+    _fix_anchors(story)
     _drop_short_scenes(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
     # identity is added once, after every model pass (see below)
     problems = checks_of(story, articles, cluster)
@@ -491,6 +538,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _wrap_hook(story)
         _clamp_texts(story)
         _repair_scenes(story, articles)
+        _fix_anchors(story)
         _drop_short_scenes(story)
         problems = checks_of(story, articles, cluster)
         if not _anchors_ok(story):
