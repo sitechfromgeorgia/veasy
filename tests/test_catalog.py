@@ -14,7 +14,8 @@ from tt_shorts import catalog, engine, ka_check, news_check, speech, writer
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BEFORE = json.loads((ROOT / "tests" / "fixtures" / "scenes_before.json").read_text(encoding="utf-8"))
 OLD = list(BEFORE["scenes"])
-NEW = ("share", "rail", "compare", "link", "agree", "chapter", "ranking", "versus", "countdown", "calendar", "glossary", "checklist", "impact", "route", "budget")
+NEW = ("share", "rail", "compare", "link", "agree", "chapter", "ranking", "versus", "countdown", "calendar", "glossary", "checklist", "impact", "route", "budget",
+       "kinetic", "odometer")
 # The changes made on purpose: stat takes a style (count, wheel, flap); the draw line's SVG quotes are escaped, so
 # the line the writer copies is JSON.
 STAT_STYLE = "style"

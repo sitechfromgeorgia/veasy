@@ -1,0 +1,23 @@
+{
+ "type": "kinetic",
+ "order": 12,
+ "what": "a headline revealed word by word from behind a mask, then still",
+ "use_when": "one short, strong headline carries the scene and the words themselves are the picture",
+ "avoid_when": "the scene has a number, a list or a picture to show; the words need longer than one breath",
+ "pairs_with": ["odometer", "stat", "end"],
+ "slots": {
+  "lines": {"kind": "list", "count": [1, 3], "of": {"kind": "text", "max": 40}},
+  "kicker": {"kind": "text", "max": 24},
+  "text": {"kind": "text", "max": 180}
+ },
+ "families_deny": [],
+ "min_seconds": 2,
+ "min_words": 2,
+ "em": {"fields": [], "kinds": []},
+ "schema": {"type": "kinetic", "at": "...", "kicker": "...", "lines": ["...", "..."]},
+ "rules": [
+  "a \"kinetic\" scene shows 1-3 lines (each at most 40 characters) or one \"text\" of up to 180 characters, split into at most 3 lines; the words come in one after another, about five frames apart, and then stay still;",
+  "use it for the sentence that deserves to be read slowly, not for facts that need a number or a list."
+ ],
+ "example": {"type": "kinetic", "at": "ქალაქი იცვლის", "kicker": "დღის თემა", "lines": ["ქალაქი", "იცვლის", "ტემპს"]}
+}

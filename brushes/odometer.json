@@ -1,0 +1,26 @@
+{
+ "type": "odometer",
+ "order": 22,
+ "what": "one whole number that rolls up digit by digit like a mechanical counter, with its label",
+ "use_when": "a large count where the rolling itself carries the weight: a total, a sum, a price",
+ "avoid_when": "a percent of a whole (share), a before and after (change) or one of several numbers (bars)",
+ "pairs_with": ["kinetic", "where", "change"],
+ "slots": {
+  "value": {"kind": "num", "min": 0, "max": 999999999999, "required": true},
+  "label": {"kind": "text", "max": 56, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40},
+  "prefix": {"kind": "text", "max": 4},
+  "suffix": {"kind": "text", "max": 4}
+ },
+ "families_deny": [],
+ "min_seconds": 2.5,
+ "min_words": 6,
+ "em": {"fields": ["value", "label"], "kinds": ["circle", "box", "underline"]},
+ "schema": {"type": "odometer", "at": "...", "kicker": "...", "value": 6400, "label": "..."},
+ "rules": [
+  "an \"odometer\" scene takes a whole number (zero or more, never a fraction): every digit rolls from 0 to its own, so even a zero spins a full turn;",
+  "the number is grouped the Georgian way, with a space between thousands (6 400), and a short \"prefix\" or \"suffix\" may stand beside it."
+ ],
+ "example": {"type": "odometer", "at": "აბონენტებს", "kicker": "რიცხვი", "value": 6400, "label": "აბონენტს დროებით შეუწყდა გაზის მიწოდება"}
+}

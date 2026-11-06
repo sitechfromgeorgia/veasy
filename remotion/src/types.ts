@@ -60,8 +60,11 @@ export type Verb = "rises" | "falls" | "stops" | "opens" | "closes" | "moves" | 
 // icon motion vocabulary (icons.MOTIONS)
 export type IconMotion = "draw" | "pop" | "pulse" | "count" | "morph" | "sketch";
 
-// the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python
-export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter" | "fade" | "shutter" | "split" | "corner" | "iris" | "blind";
+// the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python. maskwipe: a soft-edged
+// horizontal mask sweep · gridsplit: the outgoing frame breaks into four panels that slide apart · scalethrough:
+// the outgoing frame scales up and fades through the new one
+export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter" | "fade" | "shutter" | "split" | "corner" | "iris" | "blind"
+  | "maskwipe" | "gridsplit" | "scalethrough";
 
 // the ending (tt_shorts/swipe.py OUTROS): the end card, a QR/link/CTA chip over the last scene, or a seamless loop
 export type Outro = "card" | "overlay" | "loop";

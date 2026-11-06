@@ -9,6 +9,7 @@ import { Compare, flapSize, Link, Rail, Share, StatNumber } from "./brushes";
 import { Bars, Change, Draw, Pair, Steps, Trend } from "./more";
 import { isoSpan, Isotype, railWidth, Sign } from "./sign";
 import { Budget, Calendar, Checklist, Countdown, Glossary, Impact, Ranking, Route, Versus } from "./extra";
+import { Kinetic, Odometer } from "./motion";
 import {
   beat, Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, measure, stepped, useIn, useOpening, useStyle, useTheme,
 } from "../ui";
@@ -371,4 +372,5 @@ export const SCENES: Record<string, React.FC<P>> = {
   hook: Hook, stat: Stat, timeline: Timeline, where: Where, who: Who, points: Points, quote: Quote, sources: Sources, draw: Draw,
   pair: Pair, steps: Steps, bars: Bars, trend: Trend, change: Change, sign: Sign, share: Share, rail: Rail, compare: Compare,
   link: Link, agree: Agree, chapter: Chapter, ranking: Ranking, versus: Versus, countdown: Countdown, calendar: Calendar, glossary: Glossary, checklist: Checklist, impact: Impact, route: Route, budget: Budget, end: End,
+  kinetic: Kinetic, odometer: Odometer,
 };

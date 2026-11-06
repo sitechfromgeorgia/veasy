@@ -107,7 +107,10 @@ def options(brand_name=None, section=None):
                         "split": "an ink split wipe reveals the new scene outward from the center",
                         "corner": "a diagonal geometric wipe sweeps across from the corner",
                         "iris": "a circular ink iris opens from the center of the scene band",
-                        "blind": "vertical ink louver blinds rotate and wipe across the scene"},
+                        "blind": "vertical ink louver blinds rotate and wipe across the scene",
+                        "maskwipe": "a soft-edged horizontal mask sweeps the new scene in along the current",
+                        "gridsplit": "the old frame breaks into four panels that slide apart over the next scene",
+                        "scalethrough": "the old scene scales up and fades through the new one"},
         "outros": dict(swipe.ABOUT),
         "themes": {"about": "a pack's palettes (brand.json themes; brands.<pack>.themes lists them): a format's or "
                             "--theme's default (the pack's default theme: nothing changes), auto (variety: the least "
@@ -263,6 +266,8 @@ def structure_problems(story):
             p.append(f"story: missing {k!r}")
     if story.get("brand") and story["brand"] not in packs.names():
         p.append(f"story: unknown brand {story['brand']!r} (known: {', '.join(packs.names())})")
+    if story.get("transition") not in (None, "auto") and story["transition"] not in formats.TRANSITIONS:
+        p.append(f"story: transition {story['transition']!r} is not one of {', '.join(formats.TRANSITIONS)}")
     scenes = story.get("scenes") or []
     if not scenes or scenes[0].get("type") != "hook":
         p.append("story: the first scene must be a hook")
@@ -344,6 +349,14 @@ def shape_problems(s):
         out += art.scene_problems(s["svg"])
     if t == "where" and s.get("area") is not None:
         out += geo.area_problems(s["area"])
+    if t == "kinetic":
+        lines = s.get("lines")
+        if lines is not None and (not isinstance(lines, list) or not all(isinstance(x, str) for x in lines)):
+            out.append("lines: a list of 1-3 texts")
+        elif not lines and not (isinstance(s.get("text"), str) and s["text"].strip()):
+            out.append("needs lines (1-3) or a text")
+    if t == "odometer" and (not _number(s.get("value")) or s["value"] < 0 or s["value"] != int(s["value"])):
+        out.append("value: odometer needs a whole number, zero or more")
     if t in ("sign", "stat"):
         out += icons.scene_problems(s)
     if t == "ranking":
