@@ -18,8 +18,8 @@ Returns `plate.mp4`, `poster.png`, `plate.json`, and `anchors.json` (`1080×1920
 | 2 | `tools/build_relief.py` is the only way `assets/relief/` is built, reproducibly, with its sources in `assets/maps/README.md` | **Done** | `tools/build_relief.py` (`800×418` `georgia_dem.bin` `sha256=95212052ab0348ac`, `georgia_mask.png`, `relief_meta.json`), `assets/maps/README.md`, `tests/test_relief.py` |
 | 3 | Moves under spec key `move`: `descend`, `ridge`, `reveal`; contour lines & relief in grey; Georgia's outline from `georgia.json`, nothing outside it drawn as a claim; anchors from `geo.py`'s gazetteer (`window.anchors(t)`) | **Done** | `plates/relief/index.html`, `plates/relief/README.md`, `tests/test_relief.py` (`Ran 7 tests in 0.096s OK`) |
 | 4 | Three signature flights baked (`kazbegi-jvari`, `svaneti`, `kakheti`) and looked at in two packs (`tbilisi-today` and `sitech`) | **Done** (see note) | Baked in `out/plates/kazbegi-jvari/` (`hash=04d9d478a99beac4`), `out/plates/svaneti/` (`hash=c03d316a94970144`), `out/plates/kakheti/` (`hash=cb20fa16b7506a92`); plate placed behind scene `where` of story 24835 in both packs (`compose check` problems: [] in each; plate under a `--canvas` scrim at .8 because the probe bounds any picture to white); `compose look` sheets: `docs/research/georgia-relief-evidence/{sitech,tbilisi-today}-beats.jpg`, posters `poster-*.png`. Note: only kazbegi-jvari was composed into films; svaneti and kakheti were baked and their posters looked at. The plate is grey, so the packs differ only in DOM chrome. |
-| 5 | 48 region and district plates baked and listed (12 regions + 36 unique districts) | In progress | All 48 specs written in `plates/relief/specs/` and listed in `plates/relief/README.md`; batch bake next |
-| 6 | Abkhazia and Tskhinvali region checked on every map in a test, and a critic checks that anchors land on the place | In progress | `tests/test_relief.py::test_twelve_regions_of_georgian_law_including_abkhazia_and_tskhinvali` passes; Fresh-Eye Critic sub-agent review next |
+| 5 | 48 region and district plates baked and listed (12 regions + 36 unique districts) | **Done** | All 48 baked (6 s, seed 1, full scale, 0 failures) into git-ignored `out/plates/`; list with hashes in `docs/research/georgia-relief-plates.md` |
+| 6 | Abkhazia and Tskhinvali region checked on every map in a test, and a critic checks that anchors land on the place | **Partly done** | Abkhazia/Tskhinvali test passes (`tests/test_relief.py`, 7 OK). All 51 `anchors.json` tracks checked numerically: none mostly off-screen. Critic (sonnet, stills `docs/research/georgia-relief-evidence/<plate>.png` with the dot drawn, place names only): kazbegi-jvari, kakheti, abkhazia/Sokhumi plausible; svaneti/Ushguli and imereti/Kutaisi doubtful (relief too abstract to tell); adjara/Batumi doubtful-to-wrong (dot on a ridge flank, coast not visible). So "anchors land on the place" is **not confirmed** for Adjara; the other five are consistent, not proven. |
 | 7 | The licence table names every source and what a film must credit | **Done** | `docs/research/georgia-relief.md` § 2, `assets/maps/README.md` |
 
 ---
@@ -27,7 +27,7 @@ Returns `plate.mp4`, `poster.png`, `plate.json`, and `anchors.json` (`1080×1920
 ## Commit Log
 
 1. `0b76433` — `docs(relief): add georgia-relief research, licence audit, and backlog`
-2. `feat(relief): add tools/build_relief.py, plates/relief engine, 51 specs, and tests`
+2. `1ec527b` — `feat(relief): add tools/build_relief.py, plates/relief engine, 51 specs, and tests`
 
 ---
 
@@ -41,3 +41,11 @@ Returns `plate.mp4`, `poster.png`, `plate.json`, and `anchors.json` (`1080×1920
 
 - `.gitignore`: added `assets/relief/` and `plates/relief/data/` at the end of the ignored directories list.
 - `assets/maps/README.md`: (pending in Unit 2) additive section documenting `assets/relief/` sources, licences, and `tools/build_relief.py`.
+
+3. `657d404`, `fb40942` — evidence for line 4
+
+## Open (for the owner or the next session)
+
+- Adjara anchor: re-check the lat/lon to world projection in `plates/relief/index.html` against the coast (Batumi should sit at the land edge). Not fixed here.
+- Full suite after this lane's work: `Ran 780 tests`, OK (skipped=2). `selftest` and `tsc` not run: this lane touches neither engine nor remotion.
+- Goal 1 (`engine plate`) not merged: plates bake through `plates/run.mjs`.
