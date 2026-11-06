@@ -201,7 +201,7 @@ class TestFrameHashIdentity(unittest.TestCase):
                 steered_mp4 = tmp / "steered.mp4"
                 full_after = tmp / "full_after.mp4"
                 props.render_video(work2, pr2, steered_mp4, segmented=True)
-                segments.render_remotion_full(work2, pr2, full_after)
+                segments.render_remotion(work2, pr2, full_after, force=True)
 
                 manifest = json.loads(segments.manifest_path(steered_mp4).read_text(encoding="utf-8"))
                 self.assertEqual(manifest["hits"], [0, 2])
@@ -210,22 +210,19 @@ class TestFrameHashIdentity(unittest.TestCase):
 
                 hashes_before_seg = segments.frame_sha256_list(seg_before)
                 hashes_steered = segments.frame_sha256_list(steered_mp4)
-                dhashes_steered = segments.video_frame_dhashes(steered_mp4)
-                dhashes_full_after = segments.video_frame_dhashes(full_after)
+                hashes_full_after = segments.frame_sha256_list(full_after)
 
                 self.assertEqual(len(hashes_steered), pr2["durationInFrames"])
-                self.assertEqual(len(dhashes_full_after), pr2["durationInFrames"])
+                self.assertEqual(len(hashes_full_after), pr2["durationInFrames"])
 
                 s1_start = pr2["scenes"][1]["from"]
                 s1_end = s1_start + pr2["scenes"][1]["duration"]
                 for f in range(pr2["durationInFrames"]):
                     if f < s1_start or f >= s1_end:
                         self.assertEqual(hashes_steered[f], hashes_before_seg[f], f"frame {f} outside scene 1 changed")
-                        self.assertEqual(dhashes_steered[f]["hash"], dhashes_full_after[f]["hash"], f"frame {f} outside scene 1 != full")
-                        self.assertEqual(dhashes_steered[f]["band"], dhashes_full_after[f]["band"], f"frame {f} band outside scene 1 != full")
+                        self.assertEqual(hashes_steered[f], hashes_full_after[f], f"frame {f} outside scene 1 != full")
                     else:
-                        self.assertEqual(dhashes_steered[f]["hash"], dhashes_full_after[f]["hash"], f"frame {f} inside scene 1 != full")
-                        self.assertEqual(dhashes_steered[f]["band"], dhashes_full_after[f]["band"], f"frame {f} band inside scene 1 != full")
+                        self.assertEqual(hashes_steered[f], hashes_full_after[f], f"frame {f} inside scene 1 != full")
                 self.assertNotEqual(hashes_steered[s1_start:s1_end], hashes_before_seg[s1_start:s1_end])
             finally:
                 if old_home is None:

@@ -622,7 +622,7 @@ def render_remotion_full(work: pathlib.Path, props: dict, out: pathlib.Path) -> 
     return out
 
 
-def render_remotion(work: pathlib.Path, props: dict, out: pathlib.Path) -> pathlib.Path:
+def render_remotion(work: pathlib.Path, props: dict, out: pathlib.Path, force: bool = False) -> pathlib.Path:
     """Render a Remotion film via per-scene cached segments, stitch into raw.mp4, and mix audio once."""
     from tt_shorts import props as props_mod
     work = pathlib.Path(work).resolve()
@@ -630,7 +630,7 @@ def render_remotion(work: pathlib.Path, props: dict, out: pathlib.Path) -> pathl
     plan = plan_remotion(props, work)
     pending = []
     for seg in plan["segments"]:
-        if not seg["cached"]:
+        if force or not seg["cached"]:
             tmp = work / f"seg-{seg['index']:02d}-{seg['sha']}.mp4"
             pending.append({
                 "index": seg["index"],

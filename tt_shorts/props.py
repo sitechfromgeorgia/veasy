@@ -150,6 +150,9 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     trim = swipe.lead_trim(words, swipe.leading_silence(audio)) if audio else 0.0  # the voice starts at once
     words = swipe.shift(words, trim)  # mix_audio cuts the same seconds from the track
     shown, marks, chip = swipe.plan(story, words, outro)
+    if story.get("steer"):
+        from tt_shorts import steer as _steer
+        marks = _steer.apply_story_steer(story, shown, marks)
     bed = next((f for f in loops if f.name == st["music"]), loops[0] if loops else None)
     for f in (audio, bed):
         if f:
