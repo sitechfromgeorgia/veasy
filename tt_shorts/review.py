@@ -1362,7 +1362,7 @@ def extract_facts(story: dict[str, Any]) -> dict[str, Any]:
                 val = str(sc[k])
                 for token in re.findall(r"[\w]+", val):
                     if len(token) >= 4:
-                        known_name_stems.add(_stem(token))
+                        known_name_stems.add(token.lower()[:max(4, len(token) - 3)])
 
     narration = str(story.get("narration") or "")
     if narration:
@@ -1377,9 +1377,11 @@ def extract_facts(story: dict[str, Any]) -> dict[str, Any]:
         for latin in LATIN_NAME.findall(narration):
             facts["proper_names"][latin] += 1
         for w in narration.split():
-            st = _stem(w)
-            if st in known_name_stems:
-                facts["proper_names"][st] += 1
+            wl = w.strip(".,:;!?„“\"'()«»").lower()
+            for st in known_name_stems:
+                if wl.startswith(st):
+                    facts["proper_names"][st] += 1
+                    break
         for m in GEORGIAN_MONTHS:
             if m in narration:
                 facts["dates"][m] += len(re.findall(rf"\b\w*{m}\w*\b", narration))

@@ -1,5 +1,7 @@
 """Tests for tt_shorts/review.py: Review Packet Builder for Veasy's film-eyes lane."""
 import json
+import os
+from unittest import mock
 import pathlib
 import unittest
 
@@ -429,14 +431,19 @@ class ReviewLoopTest(unittest.TestCase):
     def test_review_story_repairs_duplicate_scenes(self):
         import copy
         story = copy.deepcopy(self.story)
-        story["scenes"].insert(3, {
-            "type": "points",
-            "at": "მიზეზი გაზსადენის",
-            "items": ["პირველი დეტალი", "მეორე დეტალი"]
-        })
+        story["narration"] = story["narration"].replace(
+            "მისამართების სრული სია ბმულზეა.",
+            "მისამართების სრული სია ბმულზეა. აბონენტებს ურჩევენ წინასწარ მოამზადონ წყალი და თბილი ტანსაცმელი. "
+            "ამასთან მომსახურების ცენტრი ღამითაც უპასუხებს ყველა ზარს და დაგეხმარებათ.",
+        )
         story["scenes"].insert(4, {
             "type": "points",
             "at": "მისამართების სრული",
+            "items": ["პირველი დეტალი", "მეორე დეტალი"]
+        })
+        story["scenes"].insert(5, {
+            "type": "points",
+            "at": "აბონენტებს ურჩევენ წინასწარ",
             "items": ["მესამე დეტალი", "მეოთხე დეტალი"]
         })
         res = review.review_story(story, rounds=2)
