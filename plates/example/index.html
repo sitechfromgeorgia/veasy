@@ -1,0 +1,56 @@
+<!doctype html>
+<!-- The smallest plate: a field of blocks, a slow push in, one anchor to follow. Copy this page to start a kind. -->
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+<script type="importmap">{"imports": {"three": "/node_modules/three/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from "three";
+import { seeded } from "/lib/seeded.mjs";
+
+let renderer, scene, camera, ctx;
+const target = new THREE.Vector3(0, 1.2, 0);
+
+window.setup = (spec, c) => {
+  ctx = c;
+  renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(1);
+  renderer.setSize(c.width, c.height);
+  document.body.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x000000);
+  scene.fog = new THREE.Fog(0x000000, 8, 22);
+  camera = new THREE.PerspectiveCamera(38, c.width / c.height, 0.1, 60);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x000000, 1.1));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+  sun.position.set(-4, 7, 3);
+  scene.add(sun);
+
+  const random = seeded(c.seed);
+  const count = spec.count || 900;
+  const blocks = new THREE.InstancedMesh(new THREE.BoxGeometry(0.42, 1, 0.42), new THREE.MeshLambertMaterial({ color: 0xffffff }), count);
+  const place = new THREE.Object3D();
+  for (let i = 0; i < count; i++) {
+    const x = (i % 30) - 14.5, z = Math.floor(i / 30) - 15;
+    const height = 0.2 + 1.6 * random() ** 3 + 0.9 * Math.exp(-(x * x + z * z) / 30);
+    place.position.set(x * 0.5, height / 2, z * 0.5);
+    place.scale.set(1, height, 1);
+    place.updateMatrix();
+    blocks.setMatrixAt(i, place.matrix);
+  }
+  scene.add(blocks);
+};
+
+window.step = (t) => { // a pure function of t: no clock, no state carried from the frame before
+  const p = t / ctx.seconds;
+  camera.position.set(2.6 - 1.2 * p, 3.4 - 0.9 * p, 9.5 - 2.5 * p);
+  camera.lookAt(target);
+  camera.updateMatrixWorld();
+  renderer.render(scene, camera);
+};
+
+window.anchors = () => { // where the film's DOM dot goes, in this page's pixels
+  const at = target.clone().project(camera);
+  return { dot: [(at.x + 1) / 2 * ctx.width, (1 - at.y) / 2 * ctx.height] };
+};
+</script>

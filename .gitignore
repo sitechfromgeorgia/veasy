@@ -10,6 +10,7 @@ assets/music/*.wav
 assets/sfx/*.wav
 remotion/node_modules
 compose/node_modules
+plates/node_modules
 __pycache__/
 *.pyc
 .pytest_cache/

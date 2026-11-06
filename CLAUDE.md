@@ -114,9 +114,13 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
 - **Media** (`tt_shorts/assets.py`, one module per provider in `tt_shorts/media/`): engine-free. Python resolves a
   scene's `show` hint (the writer's only say) into a local file and the story's code-owned `assets` ledger; an
   engine draws only local files, never a URL. Only licences allowing commercial use (`assets.LICENCES`); a new
-  provider is one module with a test in `tests/test_assets.py` (no network in tests). No AI generation until the
-  owner decides (`media/ai.py` stays disabled). N13 (`news_check.imagery`): the pack's „საილუსტრაციო" label, no
+  provider is one module with a test in `tests/test_assets.py` (no network in tests). No AI generation at render
+  time (`media/ai.py` stays disabled); an image baked once by an agent into a local library, with its ledger, is allowed
+  (owner, 2026-11-06). N13 (`news_check.imagery`): the pack's „საილუსტრაციო" label, no
   imagery for crime/incidents/deaths, screenshots only from the pack's/program's allow-list.
+- **Plates** (`plates/run.mjs`, `plates/README.md`): grey clips baked once in the browser on software GL and played behind
+  a scene as local files, so neither engine changes and text stays in the DOM. Tone only, no text, no accent,
+  deterministic. Never for `news`, crime, incidents or deaths, never a picture of a real place. A queue job never bakes.
 - **Sound effects** (`tt_shorts/sfx.py`, `tools/compose_sfx.py`, format key `sfx`, default off): cues come from the
   timeline, one constant level, mixed in ffmpeg like the music; no ducking, no risers.
 - **Icons** (`tt_shorts/icons.py`):
