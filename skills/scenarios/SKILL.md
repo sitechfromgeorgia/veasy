@@ -23,6 +23,11 @@ and code stamps the scenario. `--length short|standard|long|45` moves the rankin
 
 ## Commands (all free)
 
+Every `engine ...` below is `python -m tt_shorts.engine ...` (or the plugin tool `veasy_scenario`). `stamp` sets a plot on
+a story that has none (a story that already has `scenario` keeps it: edit or remove the key to change it). `fit`
+also compares the story's total words with the plot's window; a miss only lowers the rank, while `check` holds each
+beat to its own word budget.
+
 | command | what it does |
 |---|---|
 | `engine scenario list` | the 24 plots: label, beats, word window, what facts they need |
