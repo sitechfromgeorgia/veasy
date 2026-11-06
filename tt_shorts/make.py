@@ -261,9 +261,10 @@ def _make_film(
     except scenarios.ScenarioError as e:
         return {"status": "error", "stage": "length", "problems": [str(e)], "request": request}
     if intent.get("write") and scenario:
-        if (intent.get("program") or programs.DEFAULT) == programs.DEFAULT:
+        why = scenarios.refusal(intent.get("program") or programs.DEFAULT)
+        if why:
             return {"status": "error", "stage": "scenario", "request": request,
-                    "problems": ["program 'news' refuses scenarios: ask for an explainer (a URL, pdf or text source)"]}
+                    "problems": [why + ": ask for an explainer (a URL, pdf or text source)"]}
         if preview_storyboard:  # the plot's storyboard, before the writer (the one paid step) runs
             return _scenario_preview(intent, scenario, seconds, b_name, request, questions_log)
     if intent.get("write"):

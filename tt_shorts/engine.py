@@ -797,8 +797,8 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
             raise ValueError(f"rubric {r['id']} is a {r['program']} rubric, not {program}")
         program = r["program"]
     prog = programs.get(program)
-    if scenario and prog["name"] == programs.DEFAULT:  # before any fetch or model call
-        raise ValueError("program 'news' refuses scenarios (a news story has no plot of its own)")
+    if scenario and scenarios.refusal(prog["name"]):  # before any fetch or model call
+        raise ValueError(scenarios.refusal(prog["name"]))
     source = source or prog["sources"][0]
     programs.check_source(prog, source)  # and a source the program doesn't take
     data = src.fetch(source, ref)
@@ -843,8 +843,6 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
             {**s, "program": prog["name"], "concept": idea["concept"]})
     chosen_sc = None
     if scenario:
-        if prog["name"] == programs.DEFAULT:
-            raise ValueError("program 'news' refuses scenarios (a news story has no plot of its own)")
         sfacts = scenarios.facts_of_text(data["articles"], category, prog["name"])
         ranked = scenarios.fit({"program": prog["name"]}, facts=sfacts)
         if scenario == "auto":
@@ -990,7 +988,7 @@ def scenario_cmd(a):
             return out({"story": str(path), "program": programs.name_of(story),
                         "facts": {k: v for k, v in scenarios.story_facts(story).items() if v},
                         "ranked": ranked,
-                        **({"refused": "program 'news' refuses scenarios"} if programs.name_of(story) == "news" else {})},
+                        **({"refused": scenarios.refusal(programs.name_of(story))} if scenarios.refusal(programs.name_of(story)) else {})},
                        0 if ranked else 1)
         want = a.scenario or "auto"  # stamp
         if want == "auto":

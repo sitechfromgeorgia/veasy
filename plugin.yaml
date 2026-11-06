@@ -14,6 +14,7 @@ provides_tools:
   - veasy_write
   - veasy_concept
   - veasy_rubrics
+  - veasy_scenario
   - veasy_queue
   - veasy_compose
   - veasy_doctor

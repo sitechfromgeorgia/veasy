@@ -89,6 +89,21 @@ CORRECTION_MARKERS = (
 )
 
 
+# Programs that take no scenario: news (no plot of its own: hard rule), digest (built by code from checked stories,
+# never by a model) and story (fiction: its plot is the writer's, not drawn from a document's facts).
+REFUSED_PROGRAMS = ("news", "digest", "story")
+
+
+def refusal(program):
+    """The reason a program takes no scenario, or None."""
+    if program in REFUSED_PROGRAMS:
+        why = {"news": "a news story has no plot of its own (news follows the facts as the articles give them)",
+               "digest": "a digest is built by code from checked stories",
+               "story": "a fiction story's plot is its own"}[program]
+        return f"program {program!r} refuses scenarios: {why}"
+    return None
+
+
 class ScenarioError(ValueError):
     """Raised when a scenario file or scenario evaluation fails validation."""
     pass
@@ -309,7 +324,7 @@ def holds(scenario, facts, program="explainer"):
     Hard rule: 'news' program universally refuses scenarios.
     Returns True when at least one eligible condition holds and no never-condition holds.
     """
-    if program == "news" or facts.get("program") == "news":
+    if refusal(program) or refusal(facts.get("program")):
         return False
 
     sc = get(scenario) if isinstance(scenario, str) else scenario
@@ -325,7 +340,7 @@ def holds(scenario, facts, program="explainer"):
 
 def eligible(facts, program="explainer"):
     """List of scenario IDs that hold for these facts and program."""
-    if program == "news" or facts.get("program") == "news":
+    if refusal(program) or refusal(facts.get("program")):
         return []
     return [sc_id for sc_id, sc in load_all().items() if holds(sc, facts, program=program)]
 
@@ -434,7 +449,7 @@ def fit(story_or_data, facts=None, seconds=None):
     "score", "why", "beats"}], best first; news gets [] (it takes no scenario).
     """
     program = programs.name_of(story_or_data) if isinstance(story_or_data, dict) and "narration" in story_or_data         else (story_or_data.get("program", "explainer") if isinstance(story_or_data, dict) else "explainer")
-    if program == "news":
+    if refusal(program):
         return []
 
     if facts is None:
@@ -538,8 +553,8 @@ def check_plan_beats(story, scenario=None):
     problems = []
 
     program = programs.name_of(story)
-    if program == "news":
-        return ["program 'news' refuses scenarios (news follows strict factual reporting without plotted dramaturgy)"]
+    if refusal(program):
+        return [refusal(program)]
 
     if scenario is None:
         sc_id = story.get("scenario")
@@ -707,8 +722,8 @@ def brief_block(sc):
 def stamp(story, scenario_id):
     """Set the story's scenario (code-owned, like rubric). The scenario must exist and the program take one."""
     sc = get(scenario_id)
-    if programs.name_of(story) == "news":
-        raise ScenarioError("program 'news' refuses scenarios")
+    if refusal(programs.name_of(story)):
+        raise ScenarioError(refusal(programs.name_of(story)))
     story["scenario"] = sc["id"]
     return story
 

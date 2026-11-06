@@ -89,6 +89,14 @@ class TestEligibility(unittest.TestCase):
         story["program"] = "news"
         self.assertTrue(any("refuses scenarios" in p for p in scenarios.story_problems(story)))
 
+    def test_code_built_and_fiction_programs_take_none(self):
+        for prog in ("digest", "story"):
+            story = demo()
+            story["program"] = prog
+            self.assertTrue(any("refuses scenarios" in p for p in scenarios.story_problems(story)), prog)
+            self.assertEqual(scenarios.fit(story), [])
+            self.assertFalse(scenarios.holds(scenarios.get("countdown"), {"quantities": 9, "facts": 9}, program=prog))
+
     def test_news_stamp_is_refused(self):
         story = demo()
         story["program"] = "news"
