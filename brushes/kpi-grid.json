@@ -1,0 +1,31 @@
+{
+ "type": "kpi-grid",
+ "order": 22,
+ "what": "four numbers in a 2x2 grid, each counting up as it arrives, with a short caption under it and thin dividers",
+ "use_when": "four comparable facts of the story (counts, sums, shares) that read well side by side",
+ "avoid_when": "fewer or more than four numbers, or numbers no article states",
+ "pairs_with": ["stat", "bars", "map-focus"],
+ "slots": {
+  "items": {"kind": "list", "count": [4, 4], "required": true, "of": {
+   "value": {"kind": "num", "required": true},
+   "label": {"kind": "text", "max": 40, "required": true}
+  }},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 3.2,
+ "min_words": 7,
+ "em": {"fields": [], "kinds": []},
+ "schema": {"type": "kpi-grid", "at": "...", "kicker": "...", "items": [{"value": 0, "label": "..."}, {"value": 0, "label": "..."}, {"value": 0, "label": "..."}, {"value": 0, "label": "..."}]},
+ "rules": [
+  "exactly four numbers with a caption each: what it counts, in 2-4 words (a unit belongs in the caption: 34,5 percent is value 34.5, label \"პროცენტი\")",
+  "\"value\" is a number, never a text: 4200, not \"4 200\""
+ ],
+ "example": {"type": "kpi-grid", "at": "ოთხი ციფრი", "kicker": "ციფრები", "items": [
+  {"value": 4200, "label": "ბენეფიციარი"},
+  {"value": 37, "label": "პროექტი"},
+  {"value": 12, "label": "მუნიციპალიტეტი"},
+  {"value": 85, "label": "პროცენტი დაფინანსებით"}
+ ]}
+}

@@ -157,12 +157,12 @@ class Assignment(unittest.TestCase):
         p = writer._prompt({"headline": "x"}, FIXTURES["24835"], director=d, facts=f)
         self.assertIn(d["brief"][0], p)
         self.assertIn("6400", p.split("Direction for this video")[1])
-        shown = set(re.findall(r'\{"type": "(\w+)"', p))
+        shown = set(re.findall(r'\{"type": "([\w-]+)"', p))
         self.assertEqual(shown, set(directors.scene_types(d)) - {"sources"})  # sources has no example line
         plain = writer._prompt({"headline": "x"}, FIXTURES["24835"])
         self.assertNotIn("Direction for this video", plain)
         # sources, agree and chapter have no example line (code fills them; agree comes with its rubric's brief)
-        self.assertEqual(set(re.findall(r'\{"type": "(\w+)"', plain)), set(engine.SCENES) - {"sources", "agree", "chapter"})
+        self.assertEqual(set(re.findall(r'\{"type": "([\w-]+)"', plain)), set(engine.SCENES) - {"sources", "agree", "chapter"})
 
     def test_a_writer_set_director_is_dropped(self):
         answer = json.loads((ROOT / "stories" / "24835.json").read_text(encoding="utf-8"))

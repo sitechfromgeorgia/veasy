@@ -130,6 +130,7 @@ export type Scene = SceneBase & {
   start?: string;
   end?: string;
   place?: string;
+  region?: string; // map-focus: a region's Georgian name or id (tt_shorts/geo.py resolves it; the screen gets `place`)
   sub?: string;
   area?: string; // where: ge, ge:<region> or ge:<place>, when the place text alone doesn't say it
   map?: GeoMap; // where: set by tt_shorts/geo.py when the place is in Georgia

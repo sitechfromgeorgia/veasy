@@ -208,5 +208,44 @@ class Scene(unittest.TestCase):
         self.assertEqual([m["level"] for m in maps], ["region", "district", "region"])
 
 
+class Focus(unittest.TestCase):
+    """map-focus: one of the same 12 regions, by Georgian name or id, highlighted without a pin."""
+
+    def test_a_region_by_name_case_ending_or_id(self):
+        for text in ("კახეთი", "კახეთში", "kakheti", "KAKHETI"):
+            m, name = geo.focus_map({"region": text})
+            self.assertIsNotNone(m, text)
+            assert m is not None
+            self.assertEqual(name, "კახეთი", text)
+            self.assertEqual(m["level"], "region", text)
+            self.assertEqual(len(m["regions"]), 1, text)
+            self.assertEqual(m["pins"], [], text)
+            self.assertNotEqual(m["start"], m["focus"], text)  # the camera moves from the country onto the region
+            self.assertLess(m["focus"][0], m["focus"][2])
+
+    def test_a_long_region_name_is_the_data_s_name(self):
+        self.assertEqual(geo.focus_map({"region": "rachel"}), (None, None))
+        _, name = geo.focus_map({"region": "რაჭა-ლეჩხუმი"})
+        self.assertEqual(name, "რაჭა-ლეჩხუმი და ქვემო სვანეთი")
+
+    def test_an_unknown_region_is_named_by_the_check_and_never_breaks_a_render(self):
+        self.assertTrue(geo.region_problems("ატლანტის ოკეანე"))
+        self.assertEqual(geo.region_problems("იმერეთი"), [])
+        self.assertEqual(engine.shape_problems({"type": "map-focus", "region": "ატლანტის ოკეანე"}),
+                         [geo.region_problems("ატლანტის ოკეანე")[0]])
+        scenes = [{"type": "map-focus", "region": "ატლანტის ოკეანე"}]
+        self.assertEqual(geo.attach(scenes, "tech"), scenes)
+        self.assertNotIn("map", scenes[0])
+
+    def test_props_show_the_region_s_name_and_the_highlight(self):
+        scenes = [{"type": "map-focus", "from": 0, "duration": 90, "region": "kakheti", "value": 310000,
+                   "label": "მოსახლეობა"}]
+        geo.attach(scenes, "tech")
+        self.assertEqual(scenes[0]["place"], "კახეთი")
+        self.assertEqual(set(scenes[0]["map"]), {"viewBox", "land", "borders", "rivers", "regions", "start", "focus",
+                                                "pins", "level", "credit"})
+        self.assertLess(len(json.dumps(scenes[0]["map"], ensure_ascii=False)), 30_000)
+
+
 if __name__ == "__main__":
     unittest.main()

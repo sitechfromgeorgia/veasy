@@ -3,7 +3,7 @@ import pathlib
 import tempfile
 import unittest
 
-from tt_shorts import gallery
+from tt_shorts import catalog, gallery
 
 
 class Gallery(unittest.TestCase):
@@ -14,7 +14,7 @@ class Gallery(unittest.TestCase):
             self.assertTrue(target.is_file())
             self.assertEqual(res["styles"], 18)
             self.assertEqual(res["looks"], 3)
-            self.assertEqual(res["scenes"], 36)
+            self.assertEqual(res["scenes"], len(catalog.types()))
             self.assertEqual(res["directors"], 8)
 
             content = target.read_text(encoding="utf-8")

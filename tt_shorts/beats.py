@@ -47,6 +47,10 @@ DEVICES = {
     "stat": {"reveal": ["label"], "lit": [], "steps": "cells"},
     "timeline": {"reveal": ["label"], "lit": [], "steps": "run"},
     "where": {"reveal": ["sub"], "lit": [], "steps": "zoom"},
+    # map-focus is the where's map drawn for its region: the same camera steps, the label when it is said
+    "map-focus": {"reveal": ["label"], "lit": [], "steps": "zoom"},
+    # kpi-grid: a cell arrives when its caption is said (its number counts up from that frame)
+    "kpi-grid": {"reveal": "items", "match": "label", "lit": [], "steps": None},
     "points": {"reveal": "items", "match": "", "lit": [""], "steps": None},
     "steps": {"reveal": "items", "match": "", "lit": [""], "steps": None},
     "who": {"reveal": "items", "match": "name", "lit": ["role"], "steps": None},

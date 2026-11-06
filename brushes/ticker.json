@@ -1,0 +1,28 @@
+{
+ "type": "ticker",
+ "order": 65,
+ "what": "three to five short headlines running along the bottom of the scene band, with a label above them",
+ "use_when": "a digest: several headlines of the day, or the story's context lines, that a viewer scans",
+ "avoid_when": "one fact that must be read slowly, or a line longer than 48 characters",
+ "pairs_with": ["points", "chapter", "kpi-grid"],
+ "slots": {
+  "items": {"kind": "list", "count": [3, 5], "required": true, "of": {"kind": "text", "max": 48}},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 3.0,
+ "min_words": 6,
+ "em": {"fields": [], "kinds": []},
+ "schema": {"type": "ticker", "at": "...", "kicker": "...", "headline": "...", "items": ["...", "...", "..."]},
+ "rules": [
+  "\"kicker\": the line above the ticker (this brush draws it there, not at the top of the scene)",
+  "\"headline\": the lead above the running line, at most one line of 2-4 words; the items carry the rest",
+  "each item is one short headline with no closing full stop; three to five, in the order they should pass"
+ ],
+ "example": {"type": "ticker", "at": "დღის სამი ამბავი", "kicker": "დღის ამბები", "headline": "სამი მოკლე ამბავი", "items": [
+  "ბიუჯეტი 4,2 მლნ ლარი",
+  "ვადა 2027 წლის გაზაფხული",
+  "სამუშაოები ორ ეტაპად"
+ ]}
+}
