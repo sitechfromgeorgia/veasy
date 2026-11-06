@@ -1,0 +1,507 @@
+// The six materials. Each one decides what a hand would do with this drawing: which marks, in which order, on which
+// sheet. Nothing here filters a finished picture: every hatch, gouge and brush stroke is a mark of its own, laid on the
+// paper at its own moment. Light pigment on a dark sheet: the engine maps black to the pack's canvas, white to its ink.
+import { seeded } from "/lib/seeded.mjs";
+import { blur, brush, clamp, Deposit, length, Noise, pieces, plan, shake, smooth, sweep, walk } from "./core.mjs";
+
+export const LINE = 0, TONE = 1, SOFT = 2, BACK = 3; // the four layers of a bake, each with its own moment per pixel
+
+const KEEP = { INK: 1, MUTED: 0.74, LINE: 0.5 };
+const lines = (pl) => pl.strokes.filter((s) => s.line !== "none");
+const regions = (pl, min) => pl.regions.filter((r) => r.id && r.area >= min).sort((a, b) => a.order - b.order);
+
+class Sheet { // the paper a clip is painted on: tooth (fine), fibre (middle), mottle (wide)
+  constructor(W, H, S, noise) {
+    Object.assign(this, { W, H, S, noise });
+    this.T = new Float32Array(W * H); this.F = new Float32Array(W * H); this.M = new Float32Array(W * H);
+    this.ground = new Float32Array(W * H);
+    const fine = Math.max(1.15, 1.8 * S);
+    for (let y = 0, p = 0; y < H; y++) {
+      for (let x = 0; x < W; x++, p++) {
+        this.T[p] = clamp((noise.fbm(x / fine, y / fine, 2) - 0.5) * 2.6 + 0.5);
+        this.F[p] = clamp((noise.fbm(x / (11 * S), y / (11 * S), 3) - 0.5) * 2.2 + 0.5);
+        this.M[p] = clamp((noise.fbm(x / (210 * S), y / (210 * S), 4) - 0.5) * 2.4 + 0.5);
+      }
+    }
+  }
+}
+
+class Painter {
+  constructor(name, spec, ctx, drawing) {
+    const W = ctx.width, H = ctx.height, S = W / 1080;
+    Object.assign(this, { name, spec, ctx, W, H, S, seed: ctx.seed });
+    this.noise = new Noise(ctx.seed * 7 + 3);
+    this.rnd = seeded(ctx.seed * 31 + 11);
+    this.sheet = new Sheet(W, H, S, this.noise);
+    this.pl = plan(drawing, { W, H, S, box: spec.box || [40, 640, 1000], seed: ctx.seed });
+    this.marks = [];
+    this.passes = [];
+    this.dep = new Deposit(W, H);
+    this.boil = 1; this.hand = 2; this.handStep = 140; this.boilStep = 60; this.step = 1;
+  }
+  pass(share) { this.passes.push({ share, marks: [] }); return this.passes.length - 1; }
+  mark(pass, layer, pts, style, take, opts = {}) {
+    const m = { layer, pts, style, take, key: this.marks.length + 1, len: pts ? length(pts) : 0, ...opts };
+    this.marks.push(m); this.passes[pass].marks.push(m);
+    return m;
+  }
+  custom(pass, layer, len, draw, take) { // a mark that deposits by itself (a dot of a screen, a splash)
+    return this.mark(pass, layer, null, null, take, { draw, len });
+  }
+  schedule(start, draw) {
+    const total = this.passes.reduce((sum, p) => sum + p.share, 0);
+    let at = start;
+    for (const p of this.passes) {
+      const span = (draw * p.share) / total;
+      const weight = p.marks.reduce((sum, m) => sum + (m.weight = Math.pow(m.len, 0.72) + 6), 0) || 1;
+      let t = at;
+      for (const m of p.marks) {
+        const dur = (span * m.weight) / weight;
+        m.t0 = t; m.dur = dur * (m.lap || 1); t += dur;
+      }
+      at += span;
+    }
+  }
+  paint(variant) {
+    const { W, H, dep, noise, S } = this;
+    const layers = [0, 1, 2, 3].map(() => ({ c: new Float32Array(W * H), a: new Float32Array(W * H).fill(1e6) }));
+    for (const m of this.marks) {
+      if (m.draw) m.draw(dep, { t0: m.t0, dur: m.dur }, variant);
+      else {
+        const p = shake(walk(m.pts, this.step), noise, m.key, (m.hand ?? this.hand) * S, this.handStep * S, (m.boil ?? this.boil) * S, this.boilStep * S, variant);
+        brush(dep, p, m.style, { t0: m.t0, dur: m.dur }, m.key, noise);
+      }
+      dep.flush(layers[m.layer], m.take);
+    }
+    return layers;
+  }
+}
+
+// A pointed brush: a heavy landing, a thin neck where the hand speeds up, a press, a flick off the paper
+const pressure = (noise, key, base) => (u) => {
+  const press = 0.2 + 1.5 * noise.at(u * 2.6 + key, key * 0.7) ** 1.5;
+  return base * (0.24 + press * smooth(0, 0.04, u + 0.015) * (1 - 0.86 * smooth(0.72, 1, u)));
+};
+
+// Marks that follow a field's contours, evenly spaced (Jobard and Lefer's streamlines). Each one is a gouge: pointed at
+// both ends, wider where the tone asks for more light.
+function gouges(m, pass, layer, o) {
+  const { pl, S, W, H, rnd } = m;
+  const cell = 2, GW = Math.ceil(W / cell), occ = new Uint8Array(GW * Math.ceil(H / cell));
+  const field = o.field, stepLen = 2.5 * S;
+  const at = (x, y) => clamp(Math.round(x), 0, W - 1) + clamp(Math.round(y), 0, H - 1) * W;
+  const dir = (x, y) => {
+    const p = at(x, y), d = field[p];
+    if (d < o.near) {
+      const gx = field[at(x + 2, y)] - field[at(x - 2, y)], gy = field[at(x, y + 2)] - field[at(x, y - 2)], len = Math.hypot(gx, gy);
+      if (len > 0.3) return [-gy / len, gx / len];
+    }
+    const a = o.angle ? o.angle(p) : 0;
+    return [Math.cos(a), Math.sin(a)];
+  };
+  const seeds = [];
+  const gap = 5 * S;
+  for (let y = gap / 2; y < H; y += gap) {
+    for (let x = gap / 2; x < W; x += gap) {
+      const sx = x + (rnd() - 0.5) * gap, sy = y + (rnd() - 0.5) * gap, p = at(sx, sy);
+      if (o.keep(p)) seeds.push([sx, sy, rnd()]);
+    }
+  }
+  seeds.sort((a, b) => a[2] - b[2]);
+  const blocked = (x, y) => occ[Math.floor(x / cell) + Math.floor(y / cell) * GW];
+  const out = [];
+  for (const [sx, sy] of seeds) {
+    if (blocked(sx, sy)) continue;
+    const start = at(sx, sy), region = pl.id[start];
+    const tone = o.tone(start);
+    if (tone < 0.05) continue;
+    const sep = o.sep(tone), limit = o.min + (o.max - o.min) * rnd();
+    const line = [[sx, sy]];
+    for (const sign of [1, -1]) {
+      let [x, y] = [sx, sy], [px, py] = dir(sx, sy);
+      px *= sign; py *= sign;
+      for (let s = 0; s < limit / 2; s += stepLen) {
+        let [dx, dy] = dir(x, y);
+        if (dx * px + dy * py < 0) { dx = -dx; dy = -dy; }
+        x += dx * stepLen; y += dy * stepLen; px = dx; py = dy;
+        if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) break;
+        const p = at(x, y);
+        if (!o.keep(p) || pl.id[p] !== region || blocked(x, y)) break;
+        if (sign > 0) line.push([x, y]); else line.unshift([x, y]);
+      }
+    }
+    if ((line.length - 1) * stepLen < o.min) continue;
+    const reach = Math.ceil((sep * 0.5) / cell);
+    for (let i = 0; i < line.length; i += 2) {
+      const cx = Math.floor(line[i][0] / cell), cy = Math.floor(line[i][1] / cell);
+      for (let dy = -reach; dy <= reach; dy++) {
+        for (let dx = -reach; dx <= reach; dx++) {
+          if (dx * dx + dy * dy <= reach * reach && cx + dx >= 0 && cx + dx < GW && cy + dy >= 0) occ[cx + dx + (cy + dy) * GW] = 1;
+        }
+      }
+    }
+    if (o.broken && rnd() < 1 - o.broken * 1.4 * (tone + 0.35)) continue;
+    const pts = Float32Array.from(line.flat());
+    const widths = new Float32Array(line.length);
+    line.forEach(([x, y], i) => { widths[i] = sep * (0.14 + 0.86 * Math.pow(clamp(o.tone(at(x, y))), 1.1)); });
+    out.push({ pts, widths, order: region ? pl.regions[region].order : Math.atan2(sy - H / 2, sx - W / 2), y: sy });
+  }
+  out.sort((a, b) => a.order - b.order || a.y - b.y);
+  for (const g of out) {
+    const n = g.widths.length - 1, w = g.widths;
+    const lean = rnd(); // a knife enters steep and leaves shallow, at a different point each time
+    m.mark(pass, layer, g.pts, {
+      w: (u) => w[Math.round(u * n)] * Math.pow(Math.sin(Math.PI * clamp(Math.pow(u, 0.7 + 0.6 * lean))), 0.55), n: 1,
+    }, o.take, { lap: o.lap, hand: 0.5 });
+  }
+}
+
+const MATERIALS = {
+  ink_wash(m) {
+    const { sheet, pl, S, W, H, noise, rnd } = m, { T, F, M, ground } = sheet;
+    m.hand = 2.4; m.boil = 0.8; m.boilStep = 70;
+    for (let p = 0; p < W * H; p++) ground[p] = 0.03 + 0.03 * M[p] + 0.022 * F[p] * T[p];
+    const grain = (v, p) => v * (0.5 + 0.34 * T[p] + 0.42 * F[p]) * (0.72 + 0.5 * M[p]);
+    const air = m.pass(0.16), wash = m.pass(0.34), ink = m.pass(0.5);
+
+    // a loose stroke of thin pigment behind the object, wider than the drawing: the sheet has been worked on
+    const [bx, by, bw] = [pl.ox, pl.oy, 952 * pl.scale];
+    for (let i = 0; i < 3; i++) {
+      const y = by + (0.24 + 0.27 * i + 0.05 * rnd()) * 640 * pl.scale;
+      const pts = [];
+      for (let k = 0; k <= 8; k++) {
+        const u = k / 8;
+        pts.push(bx - 30 * S + (bw + 60 * S) * u, y + Math.sin(u * 3.1 + i * 1.7) * 26 * S);
+      }
+      const width = (118 + 40 * rnd()) * S, flow = 0.15 + 0.06 * rnd();
+      m.mark(air, BACK, Float32Array.from(pts), {
+        w: (u) => width * (0.72 + 0.34 * Math.sin(Math.PI * u)), n: 40, dry: 1.3, skip: 0.5, wander: 0.5, flow: () => flow, bleed: 0.2, body: 0.5,
+      }, grain, { hand: 8 });
+    }
+
+    // washes: a flat brush filling each shape, the pigment gathering along the wet edge
+    for (const r of regions(pl, 500 * S * S)) {
+      const size = clamp(Math.sqrt(r.area) * 0.42, 20 * S, 72 * S), flow = 0.08 + 0.8 * r.tone * r.tone;
+      const leak = 2.5 * S;
+      const take = (v, p) => {
+        const near = pl.edge[p];
+        const inside = pl.id[p] === r.id ? 1 : smooth(leak * (0.3 + 1.6 * F[p]), 0, near);
+        return grain(v, p) * inside * (1 + 1.5 * Math.exp(-near / (3.5 * S)) * (pl.id[p] === r.id ? 1 : 0.2));
+      };
+      const angle = r.angle * 0.35;
+      for (const seg of sweep(pl, r, W, angle, size * 0.72, rnd, { min: 10 * S })) {
+        const f = flow * (0.82 + 0.3 * rnd());
+        m.mark(wash, TONE, seg, { w: () => size, n: Math.max(6, Math.round(size / (2.2 * S))), dry: 0.7, skip: 0.2, wander: 0.45, flow: () => f, bleed: 0.34, body: 0.66 }, take, { hand: 3, lap: 1.5 });
+      }
+    }
+
+    // the line: a pointed brush, loaded at the start of a stroke, thin at the neck, running dry at the end
+    for (const s of lines(pl)) {
+      const keep = KEEP[s.line] ?? 1;
+      for (const pts of pieces(s, 0.8)) {
+        const key = m.marks.length * 1.7, base = s.w * (1.5 + 1.1 * keep);
+        m.mark(ink, LINE, pts, {
+          w: pressure(noise, key, base), n: Math.max(5, Math.round(base * 1.1)), dry: 0.7, skip: 0.2, wander: 0.3, bleed: 0.2, body: 0.8,
+          flow: (u) => keep * (0.82 + 0.22 * (1 - u)),
+        }, (v, p) => v * (0.84 + 0.16 * T[p]), { lap: 1.2 });
+      }
+    }
+    // a few drops off the loaded brush
+    for (let i = 0; i < 26; i++) {
+      const x = bx + rnd() * bw, y = by + rnd() * 640 * pl.scale, r = (0.6 + 2.8 * rnd() ** 3) * S, v = 0.25 + 0.5 * rnd();
+      m.custom(ink, SOFT, 4, (dep, time) => dep.dab(x, y, r, v, time.t0), grain);
+    }
+    return { gain: [1, 1, 1, 1], wet: [0.3, 0.35, 0.25, 0.1], rise: [0.05, 0.16, 0.05, 0.3] };
+  },
+
+  woodcut(m) {
+    const { sheet, pl, S, W, H, noise, rnd } = m, { T, M, ground } = sheet;
+    m.hand = 0.9; m.boil = 0.55; m.boilStep = 40;
+    // the plank: long grain with slow rings, felt in the bare wood and in every printed mass
+    const G = new Float32Array(W * H);
+    for (let y = 0, p = 0; y < H; y++) {
+      for (let x = 0; x < W; x++, p++) {
+        const X = x / S, Y = y / S, warp = 90 * noise.fbm(X / 620, Y / 300, 3);
+        const ring = 0.5 + 0.5 * Math.sin((Y + warp) * 0.135 + 7 * noise.fbm(X / 900, Y / 90, 2));
+        const hair = noise.fbm(X / 170 + 40, Y / 2.6, 3);
+        G[p] = clamp(0.2 + 0.5 * ring + 0.9 * (hair - 0.42));
+        ground[p] = 0.018 + 0.05 * G[p] * G[p] + 0.012 * M[p];
+      }
+    }
+    const take = (v, p) => {
+      const pressed = smooth(0.34, 0.52, v + (G[p] - 0.5) * 0.08);
+      const miss = smooth(0.7, 0.8, T[p] * 0.45 + G[p] * 0.62); // salt: where the block's ink didn't reach the paper
+      return pressed * (0.62 + 0.38 * G[p]) * (1 - 0.8 * miss) * 1.1;
+    };
+    const cut = m.pass(0.3), inner = m.pass(0.46), halo = m.pass(0.24);
+
+    // the outline, left standing by a knife: straight facets, each one a wedge
+    for (const s of lines(pl)) {
+      const keep = KEEP[s.line] ?? 1, base = s.w * (0.9 + 1.5 * keep);
+      for (const pts of pieces(s, 0.7)) {
+        const facet = [], L = length(pts), every = 26 * S;
+        const p = walk(pts, 2);
+        for (let d = 0; d < L; d += every * (0.7 + 0.8 * rnd())) {
+          const i = Math.min(p.n - 1, Math.round((d / L) * (p.n - 1)));
+          facet.push(p.x[i], p.y[i]);
+        }
+        facet.push(p.x[p.n - 1], p.y[p.n - 1]);
+        if (facet.length < 4) continue;
+        const key = rnd() * 90;
+        m.mark(cut, LINE, Float32Array.from(facet), {
+          w: (u) => base * (0.55 + 1.0 * noise.at(u * 5 + key, key)) * (0.72 + 0.28 * smooth(0, 0.05, u) * smooth(1, 0.95, u)), n: 1,
+        }, take);
+      }
+    }
+    // inside the shapes: cuts along the form, wider where the tone is lighter, so masses break into wedges
+    gouges(m, inner, TONE, {
+      keep: (p) => pl.id[p] > 0, tone: (p) => pl.tone[p], sep: (t) => (15 - 6 * t) * S, field: pl.edge, near: 30 * S,
+      angle: (p) => pl.regions[pl.id[p]].angle, min: 10 * S, max: 170 * S, take, lap: 1.5,
+    });
+    // around the object: the block cleared in rings that echo its silhouette, and thinning out
+    const R = 240 * S;
+    gouges(m, halo, BACK, {
+      keep: (p) => !pl.id[p] && !pl.line[p] && pl.sil[p] > 7 * S && pl.sil[p] < R, tone: (p) => 0.62 * Math.exp(-pl.sil[p] / (95 * S)),
+      sep: () => 14 * S, field: pl.sil, near: 1e9, min: 16 * S, max: 150 * S, take, broken: 0.55, lap: 1.5,
+    });
+    return { gain: [1, 1, 1, 1], wet: [0.15, 0.15, 0.15, 0.15], rise: [0.03, 0.05, 0.05, 0.05] };
+  },
+
+  blueprint(m) {
+    const { sheet, pl, S, W, H, noise, rnd } = m, { T, F, M, ground } = sheet;
+    m.hand = 0.3; m.boil = 0.32; m.boilStep = 90;
+    // a coated sheet: the brush's streaks in the coating, two folds, the weave of the linen
+    const foldX = W * 0.5, foldA = H * 0.34, foldB = H * 0.71;
+    for (let y = 0, p = 0; y < H; y++) {
+      for (let x = 0; x < W; x++, p++) {
+        const coat = noise.fbm(x / (640 * S), y / (15 * S), 3), weave = Math.sin((x / S) * 2.1) * Math.sin((y / S) * 2.1);
+        let v = 0.05 + 0.055 * M[p] + 0.05 * coat * coat + 0.008 * weave + 0.012 * T[p];
+        const fold = Math.min(Math.abs(x - foldX), Math.abs(y - foldA), Math.abs(y - foldB)) / S + (F[p] - 0.5) * 1.2;
+        v += 0.028 * Math.exp((-fold * fold) / 2.2) * (0.5 + F[p]) + 0.012 * Math.exp(-Math.abs(fold) / 22);
+        ground[p] = v;
+      }
+    }
+    const grid = m.pass(0.14), build = m.pass(0.22), ink = m.pass(0.46), section = m.pass(0.18);
+    const pen = (v, p) => v * (0.8 + 0.2 * T[p]) * (0.9 + 0.1 * F[p]);
+    const step = 54 * S;
+    for (let i = 1, x = (W % step) / 2; x < W; x += step, i++) {
+      const y0 = 40 * S + rnd() * 30 * S, f = i % 5 ? 0.09 : 0.2;
+      m.mark(grid, BACK, Float32Array.of(x, y0, x + 1.5 * S * (rnd() - 0.5), H - y0), { w: () => (i % 5 ? 0.9 : 1.2) * S, n: 1, flow: () => f, skip: 0.1 }, pen, { hand: 0.5 });
+    }
+    for (let i = 1, y = (H % step) / 2; y < H; y += step, i++) {
+      const x0 = 30 * S + rnd() * 26 * S, f = i % 5 ? 0.09 : 0.2;
+      m.mark(grid, BACK, Float32Array.of(x0, y, W - x0, y + 1.5 * S * (rnd() - 0.5)), { w: () => (i % 5 ? 0.9 : 1.2) * S, n: 1, flow: () => f, skip: 0.1 }, pen, { hand: 0.5 });
+    }
+    // light construction lines, run past their corners; then the inked line over them
+    for (const s of lines(pl)) {
+      const keep = KEEP[s.line] ?? 1;
+      for (const pts of pieces(s, 0.7)) {
+        const L = length(pts), n = pts.length;
+        const dx = pts[n - 2] - pts[0], dy = pts[n - 1] - pts[1], d = Math.hypot(dx, dy);
+        if (d > 24 * S && d > 0.97 * L) {
+          const a = (14 + 34 * rnd()) * S, b = (14 + 34 * rnd()) * S, ux = dx / d, uy = dy / d;
+          m.mark(build, SOFT, Float32Array.of(pts[0] - ux * a, pts[1] - uy * a, pts[n - 2] + ux * b, pts[n - 1] + uy * b), { w: () => 1.1 * S, n: 1, flow: () => 0.3 }, pen, { hand: 0.3 });
+        }
+        const base = Math.max(2.1 * S, s.w * (0.34 + 0.34 * keep));
+        m.mark(ink, SOFT, pts, { w: () => base * 5, n: 0, body: 0.09 * keep }, pen);
+        m.mark(ink, LINE, pts, { w: (u) => base * (1 + 0.42 * Math.exp(-(u * L) / (3 * S)) + 0.3 * Math.exp(-((1 - u) * L) / (3 * S))), n: 1, flow: () => 0.72 + 0.28 * keep }, pen);
+      }
+    }
+    // section lines in the solid parts: a ruled 45 degrees, even and exact
+    for (const r of regions(pl, 1400 * S * S)) {
+      if (r.fill === "none" && r.tone < 0.3) continue;
+      const gap = (15 - 7 * r.tone) * S, f = 0.32 + 0.28 * r.tone;
+      for (const seg of sweep(pl, r, W, -Math.PI / 4, gap, () => 0.5, { margin: 2.5 * S, min: 5 * S })) {
+        m.mark(section, TONE, seg, { w: () => 1.3 * S, n: 1, flow: () => f }, pen, { hand: 0.15 });
+      }
+    }
+    // the object's size, ruled below it, with no figure on it: the figure is the film's
+    let x0 = W, x1 = 0, y1 = 0;
+    for (const s of pl.strokes) {
+      for (let i = 0; i < s.pts.length; i += 2) {
+        x0 = Math.min(x0, s.pts[i]); x1 = Math.max(x1, s.pts[i]); y1 = Math.max(y1, s.pts[i + 1]);
+      }
+    }
+    const low = y1 + 58 * S, tick = 9 * S, thin = { w: () => 1.2 * S, n: 1, flow: () => 0.62 };
+    if (low < H - 80 * S) {
+      for (const x of [x0, x1]) m.mark(section, SOFT, Float32Array.of(x, y1 + 10 * S, x, low + 12 * S), thin, pen, { hand: 0.1 });
+      m.mark(section, SOFT, Float32Array.of(x0, low, x1, low), thin, pen, { hand: 0.1 });
+      for (const x of [x0, x1]) m.mark(section, LINE, Float32Array.of(x - tick, low + tick, x + tick, low - tick), { w: () => 2 * S, n: 1, flow: () => 0.8 }, pen, { hand: 0 });
+    }
+    return { gain: [1, 1, 1, 1], wet: [0.2, 0.2, 0.2, 0.1], rise: [0.04, 0.04, 0.05, 0.05] };
+  },
+
+  halftone(m) {
+    const { sheet, pl, S, W, H, noise, rnd } = m, { T, F, M, ground } = sheet;
+    m.hand = 0.8; m.boil = 0.3; m.boilStep = 80;
+    for (let p = 0; p < W * H; p++) ground[p] = 0.022 + 0.022 * M[p] + 0.02 * F[p] * T[p];
+    const printed = (v, p) => smooth(0.42, 0.58, v + (T[p] - 0.5) * 0.42 + (F[p] - 0.5) * 0.2) * (0.74 + 0.2 * F[p] + 0.16 * M[p]);
+    const key = m.pass(0.34), screen = m.pass(0.66);
+    // the key plate: a solid line, a little off register from the screen
+    for (const s of lines(pl)) {
+      const keep = KEEP[s.line] ?? 1, base = s.w * (0.8 + 1.0 * keep);
+      for (const pts of pieces(s, 0.8)) {
+        const k = rnd() * 50;
+        m.mark(key, LINE, pts, { w: (u) => base * (0.82 + 0.4 * noise.at(u * 7 + k, k)), n: 1, flow: () => 0.95 }, printed);
+      }
+    }
+    // the screen: 45 degrees, each dot a dab of ink that grows in place, dot gain from the tone
+    const pitch = 13 * S, c = Math.SQRT1_2, shiftX = 3.5 * S, shiftY = -2.5 * S, dots = [];
+    const span = Math.ceil((W + H) / pitch);
+    for (let i = -span; i <= span; i++) {
+      for (let j = -span; j <= span; j++) {
+        const x = (i - j) * pitch * c + W / 2, y = (i + j) * pitch * c + H / 2;
+        if (x < 0 || y < 0 || x >= W || y >= H) continue;
+        const px = Math.round(x - shiftX), py = Math.round(y - shiftY), p = clamp(px, 0, W - 1) + clamp(py, 0, H - 1) * W;
+        const inside = pl.id[p] > 0;
+        let q = inside ? pl.tone[p] : 0.5 * Math.exp(-pl.sil[p] / (135 * S)) * (0.8 + 0.5 * noise.at(x / (150 * S), y / (150 * S)));
+        q *= 0.9 + 0.2 * noise.at(x / (60 * S), y / (60 * S));
+        if (q < 0.04) continue;
+        const r = pitch * Math.sqrt(Math.pow(q, 1 / 1.35) / Math.PI) * 1.05;
+        dots.push({ x, y, r, order: inside ? pl.regions[pl.id[p]].order : 1e4 + pl.sil[p], back: !inside });
+      }
+    }
+    dots.sort((a, b) => a.order - b.order || a.y - b.y);
+    for (const d of dots) {
+      const lean = noise.at(d.x / 3 + 5, d.y / 3) * 0.6 * S;
+      m.custom(screen, d.back ? BACK : TONE, 5 + d.r * 0.2, (dep, time) => {
+        dep.dab(d.x, d.y, d.r * 0.5, 1, time.t0, 1.2 * S);
+        dep.dab(d.x + lean, d.y - lean, d.r * 0.78, 1, time.t0 + 0.09, 1.4 * S);
+        dep.dab(d.x, d.y + lean, d.r, 0.9, time.t0 + 0.2, 1.6 * S);
+      }, printed);
+    }
+    return { gain: [1, 1, 1, 1], wet: [0.1, 0.12, 0.12, 0.12], rise: [0.04, 0.05, 0.05, 0.05] };
+  },
+
+  chalk(m) {
+    const { sheet, pl, S, W, H, noise, rnd, dep } = m, { T, F, M, ground } = sheet;
+    m.hand = 2.2; m.boil = 0.9; m.boilStep = 55;
+    // a slate, wiped more than once: the old lessons are still there as long pale smears
+    const ghost = { c: new Float32Array(W * H), a: new Float32Array(W * H).fill(1e6) };
+    for (let i = 0; i < 22; i++) {
+      const y = rnd() * H, x = rnd() * W * 0.6, len = (240 + rnd() * 700) * S, tilt = (rnd() - 0.5) * 0.22, wid = (14 + 46 * rnd()) * S;
+      const pts = Float32Array.of(x, y, x + len * 0.5, y + (rnd() - 0.5) * 60 * S, x + len, y + tilt * len);
+      brush(dep, shake(walk(pts, 3), noise, i + 300, 8 * S, 120 * S, 0, 60, 0), { w: () => wid, n: 7, dry: 0.7, skip: 0.4, wander: 0.4, body: 0.35, flow: () => 0.5 }, { t0: 0, dur: 1 }, i + 300, noise);
+      dep.flush(ghost);
+    }
+    const smear = blur(ghost.c, W, H, 7 * S);
+    for (let y = 0, p = 0; y < H; y++) {
+      for (let x = 0; x < W; x++, p++) {
+        const swipe = noise.fbm(x / (800 * S), y / (26 * S), 3);
+        ground[p] = 0.036 + 0.05 * M[p] + 0.05 * swipe * swipe + 0.026 * T[p] * F[p] + 0.13 * smear[p] * (0.5 + 0.7 * T[p]);
+      }
+    }
+    // chalk stays on the slate's high points: the harder the press, the deeper it reaches
+    const dry = (v, p) => {
+      const high = T[p] * 0.66 + F[p] * 0.34;
+      return smooth(0.56, 0.72, v * 0.9 + high * 0.55) * (0.72 + 0.34 * high);
+    };
+    const side = m.pass(0.34), stick = m.pass(0.5), dust = m.pass(0.16);
+    for (const r of regions(pl, 700 * S * S)) {
+      const size = clamp(Math.sqrt(r.area) * 0.34, 16 * S, 44 * S), f = 0.26 + 0.5 * r.tone;
+      const clip = (v, p) => (pl.id[p] === r.id ? dry(v * (0.92 + 0.2 * pl.tone[p]), p) : 0);
+      for (const seg of sweep(pl, r, W, r.angle * 0.7, size * 0.7, rnd, { min: 8 * S })) {
+        const load = f * (0.8 + 0.35 * rnd());
+        m.mark(side, TONE, seg, { w: () => size, n: 9, body: 0.92, skip: 0.2, wander: 0.3, flow: () => load }, clip, { hand: 4, lap: 1.4 });
+      }
+    }
+    const lay = (pts, base, press, key) => {
+      m.mark(stick, LINE, pts, {
+        w: (u) => base * (0.72 + 0.56 * noise.at(u * 4 + key, key)), n: 3, body: 1, wander: 0.2,
+        flow: (u) => press * (0.72 + 0.5 * noise.at(u * 6 + key * 2, key + 3)) * smooth(0, 0.03, u) * (1 - 0.3 * smooth(0.9, 1, u)),
+      }, dry, { lap: 1.2 });
+      m.mark(stick, SOFT, pts, { w: () => base * 3.4, n: 0, body: 0.2 * press }, (v, p) => v * (0.3 + 0.8 * F[p]), { hand: 3 });
+    };
+    for (const s of lines(pl)) {
+      const keep = KEEP[s.line] ?? 1, base = Math.max(5 * S, s.w * (0.75 + 0.75 * keep));
+      for (const pts of pieces(s, 0.8)) {
+        lay(pts, base, 0.62 + 0.4 * keep, rnd() * 70);
+        if (keep === 1 && rnd() < 0.6) lay(pts, base * 0.8, 0.8, rnd() * 70);
+      }
+    }
+    // what falls off a stick: a few grains under the heavy lines
+    for (let i = 0; i < 260; i++) {
+      const s = pl.strokes[Math.floor(rnd() * pl.strokes.length)], at = Math.floor(rnd() * (s.pts.length / 2)) * 2;
+      const x = s.pts[at] + (rnd() - 0.5) * 34 * S, y = s.pts[at + 1] + rnd() * rnd() * 80 * S, r = (0.5 + rnd() * rnd() * 2) * S, v = 0.25 + 0.5 * rnd();
+      m.custom(dust, SOFT, 3, (d, time) => d.dab(x, y, r, v, time.t0));
+    }
+    return { gain: [1, 1, 1, 1], wet: [0.12, 0.1, 0.1, 0.05], rise: [0.03, 0.05, 0.08, 0.05] };
+  },
+
+  pencil_hatch(m) {
+    const { sheet, pl, S, W, noise, rnd } = m, { T, F, M, ground } = sheet;
+    m.hand = 1.6; m.boil = 0.7; m.boilStep = 50;
+    for (let p = 0; p < ground.length; p++) ground[p] = 0.026 + 0.02 * M[p] + 0.03 * T[p] * T[p];
+    const lead = (v, p) => smooth(0.3, 0.74, v * 0.92 + (T[p] * 0.8 + F[p] * 0.2) * 0.42) * (0.66 + 0.34 * T[p]);
+    const sketch = m.pass(0.14), outline = m.pass(0.34), hatch = m.pass(0.52);
+    const run = (pass, layer, pts, width, press, opts = {}) => {
+      const key = rnd() * 80;
+      return m.mark(pass, layer, pts, {
+        w: (u) => width * (0.7 + 0.6 * noise.at(u * 3 + key, key)), n: 1,
+        flow: (u) => press * (0.62 + 0.62 * noise.at(u * 3.3 + key * 1.3, key + 9)) * smooth(0, 0.05, u) * (1 - 0.82 * smooth(0.6, 1, u)),
+      }, lead, opts);
+    };
+    for (const s of lines(pl)) {
+      const keep = KEEP[s.line] ?? 1;
+      for (const pts of pieces(s, 0.75)) {
+        const n = pts.length, L = length(pts), p = walk(pts, 2);
+        if (L > 40 * S) { // the searching line, longer than the corner it finds
+          const a = Math.min(n - 2, 2), ax = pts[0] - pts[a], ay = pts[1] - pts[a + 1], ad = Math.hypot(ax, ay) || 1, b = (10 + 26 * rnd()) * S;
+          run(sketch, SOFT, Float32Array.from([pts[0] + (ax / ad) * b, pts[1] + (ay / ad) * b, ...pts]), 1.4 * S, 0.5);
+        }
+        // the line itself: overlapping pulls of the wrist, restated where it matters
+        for (let again = 0; again < (keep === 1 ? 3 : 2); again++) {
+          let from = 0;
+          while (from < p.n - 2) {
+            const reach = Math.round(((90 + 150 * rnd()) * S) / 2), to = Math.min(p.n - 1, from + reach), part = [];
+            const off = again ? (rnd() - 0.5) * 3.6 * S : 0;
+            for (let i = from; i <= to; i += 4) part.push(p.x[i] + p.nx[i] * off, p.y[i] + p.ny[i] * off);
+            part.push(p.x[to], p.y[to]);
+            if (part.length >= 4) run(outline, LINE, Float32Array.from(part), Math.max(1.7 * S, s.w * (0.3 + 0.2 * keep)), (0.55 + 0.5 * keep) * (again ? 0.72 : 1));
+            if (to === p.n - 1) break;
+            from = to - Math.round((8 + 14 * rnd()) * S);
+          }
+        }
+      }
+    }
+    // hatching: nested sets, so a darker tone adds strokes and never moves one (tonal art maps)
+    for (const r of regions(pl, 300 * S * S)) {
+      const sets = [[r.angle, 0.2], [r.angle + 0.92, 0.44], [r.angle - 0.42, 0.66]];
+      sets.forEach(([angle, from], set) => {
+        const gap = (8.5 - set) * S;
+        for (const seg of sweep(pl, r, W, angle, gap, rnd, { margin: 1.5 * S, min: 7 * S })) {
+          const x = Math.round((seg[0] + seg[2]) / 2), y = Math.round((seg[1] + seg[3]) / 2), t = pl.tone[x + y * W] || r.tone;
+          if (t < from || rnd() > 0.45 + 0.9 * (t - from)) continue;
+          const L = Math.hypot(seg[2] - seg[0], seg[3] - seg[1]), parts = Math.max(1, Math.round(L / ((70 + 90 * rnd()) * S)));
+          for (let k = 0; k < parts; k++) {
+            const a = k / parts, b = Math.min(1, (k + 1) / parts + 0.06), bow = (rnd() - 0.3) * 7 * S, nx = -(seg[3] - seg[1]) / L, ny = (seg[2] - seg[0]) / L;
+            const ax = seg[0] + (seg[2] - seg[0]) * a, ay = seg[1] + (seg[3] - seg[1]) * a, bx = seg[0] + (seg[2] - seg[0]) * b, by = seg[1] + (seg[3] - seg[1]) * b;
+            run(hatch, set ? SOFT : TONE, Float32Array.of(ax, ay, (ax + bx) / 2 + nx * bow, (ay + by) / 2 + ny * bow, bx, by), 1.7 * S, 0.5 + 0.55 * t, { hand: 0.8, lap: 2 });
+          }
+        }
+      });
+    }
+    return { gain: [1, 1, 1, 1], wet: [0.1, 0.1, 0.1, 0.1], rise: [0.03, 0.04, 0.04, 0.04] };
+  },
+};
+
+export const NAMES = Object.keys(MATERIALS);
+
+export function paint(name, spec, ctx, drawing) {
+  const m = new Painter(name, spec, ctx, drawing);
+  const look = MATERIALS[name](m);
+  const draw = spec.draw ?? ctx.seconds * 0.72;
+  m.schedule(spec.start ?? 0.15, draw);
+  const count = spec.boil === 0 ? 1 : 3;
+  const variants = [];
+  for (let v = 0; v < count; v++) {
+    const layers = m.paint(v);
+    const n = m.W * m.H, cov = new Uint8Array(n * 4), arr = new Float32Array(n * 4);
+    for (let l = 0; l < 4; l++) {
+      const { c, a } = layers[l];
+      for (let p = 0; p < n; p++) { cov[p * 4 + l] = Math.round(clamp(c[p]) * 255); arr[p * 4 + l] = a[p]; }
+    }
+    variants.push({ cov, arr });
+  }
+  return { ground: m.sheet.ground, variants, dots: m.pl.dots, marks: m.marks.length, ...look };
+}
