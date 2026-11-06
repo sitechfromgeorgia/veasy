@@ -231,5 +231,69 @@ class TestFrameHashIdentity(unittest.TestCase):
                     os.environ["VEASY_HOME"] = old_home
 
 
+class TestSteerDry(unittest.TestCase):
+    """`steer --dry` says what a change costs before anything runs: it renders nothing and spends nothing."""
+    STORY = ROOT / "demo" / "film-partia.json"
+
+    def _dry(self, **kw):
+        with tempfile.TemporaryDirectory() as d:
+            old = os.environ.get("VEASY_HOME")
+            os.environ["VEASY_HOME"] = d
+            try:
+                from tt_shorts import steer
+                return steer.steer(self.STORY, dry=True, **kw)
+            finally:
+                if old is None:
+                    os.environ.pop("VEASY_HOME", None)
+                else:
+                    os.environ["VEASY_HOME"] = old
+
+    def test_text_change_costs_one_scene_and_no_money(self):
+        r = self._dry(scene=1, set_kv=['label=21 სექტემბრიდან 2 ნოემბრამდე'])
+        self.assertEqual(r["kind"], "text")
+        self.assertEqual(r["dirty_scenes"], [1])
+        self.assertFalse(r["full_render"])
+        self.assertEqual(r["voice"], "cached")
+        self.assertEqual(r["dollars"], 0.0)
+        self.assertEqual(r["frames_to_render"], 144)  # scene 1 of film-partia: frames 297-440
+        self.assertTrue(r["cost"].startswith("4.8 s of picture (scene 1 of 11, frames 297-440), $0"), r["cost"])
+        self.assertEqual(r["saved_frames"], r["total_frames"] - 144)
+
+    def test_timing_change_costs_the_scene_and_its_neighbour_and_no_money(self):
+        r = self._dry(scene=3, tighter=True)
+        self.assertEqual(r["kind"], "timing")
+        self.assertEqual(r["dirty_scenes"], [3, 4])  # the cut moves, so the next scene starts earlier
+        self.assertFalse(r["full_render"])
+        self.assertEqual(r["dollars"], 0.0)
+        self.assertEqual(r["voice"], "cached")
+        self.assertLess(r["frames_to_render"], r["total_frames"] // 4)
+        self.assertEqual(r["problems"], [])
+
+    def test_narration_change_is_a_full_render_with_a_new_voice(self):
+        story = json.loads(self.STORY.read_text(encoding="utf-8"))
+        r = self._dry(scene=0, set_kv={"narration": story["narration"] + " გმადლობთ."})
+        self.assertEqual(r["kind"], "narration")
+        self.assertTrue(r["full_render"])
+        self.assertEqual(r["voice"], "new")
+        self.assertEqual(r["frames_to_render"], r["total_frames"])
+        self.assertEqual(r["saved_frames"], 0)
+        self.assertTrue(r["cost"].startswith("new voice, every frame"), r["cost"])
+        self.assertEqual(len(r["dirty_scenes"]), 11)
+
+    def test_dry_renders_nothing(self):
+        with tempfile.TemporaryDirectory() as d:
+            old = os.environ.get("VEASY_HOME")
+            os.environ["VEASY_HOME"] = d
+            try:
+                from tt_shorts import steer
+                steer.steer(self.STORY, scene=1, set_kv=["label=ახალი"], dry=True)
+                self.assertEqual(list(pathlib.Path(d).glob("renders/**/*.mp4")), [])
+            finally:
+                if old is None:
+                    os.environ.pop("VEASY_HOME", None)
+                else:
+                    os.environ["VEASY_HOME"] = old
+
+
 if __name__ == "__main__":
     unittest.main()
