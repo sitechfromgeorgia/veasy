@@ -66,4 +66,5 @@ needs a demo `stories/scenario-<id>.json` (the demo test covers it)."
 
 ## Tests
 
-Lane: `python -m unittest tests.test_scenarios tests.test_sfx` (36 + sfx) green. Full suite and tsc: see below.
+Lane: `python -m unittest tests.test_scenarios tests.test_sfx` green. Full suite (`unittest discover -s tests`): exit 0 (counts below). `npx tsc --noEmit` in remotion: no output (clean).
+Ran 814 tests in 675.893s OK (skipped=2) 
