@@ -282,18 +282,25 @@ const MeterRise: React.FC<{ duration: number }> = ({ duration }) => {
 
 const ENTER = 10; // frames a scene takes to come in (a director's motion.enter_frames replaces it)
 const enterFrames = (p: ShortProps) => p.style?.motion?.enter_frames ?? ENTER;
+// the cuts that move the scene itself (sceneMotion); a scene shorter than the move degrades to a cut
+const MOVES: Transition[] = ["maskwipe", "gridsplit", "scalethrough"];
+const CLAMP = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
 /** How the scene itself enters and leaves for a transition (frame is the scene's own, left is the slot's x).
  *  wipe: revealed left to right · slide: a short slide and fade · push: the old scene leaves left, the new one
- *  comes from the right · dot: an iris opens from the header's progress dot · cut, line, panel: the scene fades out. */
+ *  comes from the right · dot: an iris opens from the header's progress dot · cut, line, panel: the scene fades out.
+ *  maskwipe: a soft-edged horizontal mask sweeps the new scene in · scalethrough: the old scene scales up and fades
+ *  through · gridsplit: the old scene breaks into four panels that slide apart (SceneSlot draws them). */
 const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, last: boolean, total: number, left: number,
   p: ShortProps) => {
   const ease = (t: number) => 1 - Math.pow(1 - t, 3);
-  const enter = first ? 1 : ease(interpolate(frame, [0, enterFrames(p)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }));
-  const out = last || tr === "cut" ? 1
-    : interpolate(frame, [s.duration - EXIT, s.duration], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const n = enterFrames(p);
+  const plain = MOVES.indexOf(tr) >= 0 && s.duration < n; // too short for the move: a cut
+  const enter = first || plain ? 1 : ease(interpolate(frame, [0, n], [0, 1], CLAMP));
+  const out = last || tr === "cut" || plain ? 1
+    : interpolate(frame, [s.duration - EXIT, s.duration], [1, 0], CLAMP);
   const style: React.CSSProperties = {};
-  let dx = 0, opacity = out, dy = (1 - out) * -48;
+  let dx = 0, opacity = out, dy = (1 - out) * -48, scale = 1;
   // a director's current moves every directional cut one way; without one, today's: wipe to the right, slide and
   // push to the left
   const [wx, wy] = flowOf(p.style, [1, 0]);
@@ -328,7 +335,20 @@ const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, la
     const x = SIDE + (W - 2 * SIDE) * ((s.from + frame) / Math.max(1, total - 1)) - left; // the progress dot
     style.clipPath = `circle(${enter * 1600}px at ${x}px ${206 - SCENE_TOP}px)`;
   }
-  return { style, dx, dy, opacity, enter, out };
+  if (tr === "maskwipe" && enter < 1) {
+    // a soft edge (a 10% band) sweeps the new scene in along the current; the last 10% is clean canvas
+    const edge = Math.round(enter * 1000) / 10;
+    const solid = Math.max(0, edge - 10);
+    const mask = `linear-gradient(${wx < 0 ? 270 : 90}deg, #000 0%, #000 ${solid}%, transparent ${edge}%)`;
+    style.maskImage = mask;
+    style.WebkitMaskImage = mask;
+  }
+  if (tr === "scalethrough") {
+    scale = (0.94 + 0.06 * enter) * (1 + 0.16 * (1 - out)); // in from just under size, out growing past the frame
+    opacity = Math.min(enter, out);
+    dy = 0;
+  }
+  return { style, dx, dy, opacity, enter, out, scale };
 };
 
 const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
@@ -349,7 +369,7 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
     return (
       <div data-probe="card" style={{ position: "absolute", left, right: SIDE - 16, top: SCENE_TOP, bottom: H - SCENE_BOTTOM, background: PANEL,
         border: `2px solid ${LINE}`, borderRadius: RADIUS, opacity: shown, ...m.style,
-        transform: `translate(${m.dx}px, ${(1 - enter) * 120 + m.dy * (40 / 48)}px) scale(${own ? 0.96 + 0.04 * Math.min(enter, m.out) : 1})` }}>
+        transform: `translate(${m.dx}px, ${(1 - enter) * 120 + m.dy * (40 / 48)}px) scale(${(own ? 0.96 + 0.04 * Math.min(enter, m.out) : 1) * m.scale})` }}>
         <div data-probe="scene" style={{ position: "absolute", left: CARD_PAD, right: CARD_PAD, top: CARD_PAD, bottom: 120 }}>
           {Comp ? <Comp s={s} inner={W - 2 * (SIDE - 16) - 2 * CARD_PAD} /> : null}
         </div>
@@ -364,9 +384,27 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
     );
   }
   const m = sceneMotion(tr, frame, s, first, last, durationInFrames, SIDE, props);
+  if (tr === "gridsplit" && !last && s.duration >= enterFrames(props) && frame >= s.duration - EXIT) {
+    // the outgoing frame breaks into four panels that slide apart over the background, revealing what is next
+    const k = interpolate(frame, [s.duration - EXIT, s.duration], [0, 1], { ...CLAMP, easing: (x) => x * x });
+    const width = W - 2 * SIDE, height = SCENE_BOTTOM - SCENE_TOP, hw = width / 2, hh = height / 2;
+    return (
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+        {[0, 1].map((qy) => [0, 1].map((qx) => (
+          <div key={`${qx}${qy}`} style={{ position: "absolute", left: SIDE + qx * hw, top: SCENE_TOP + qy * hh,
+            width: hw, height: hh, overflow: "hidden",
+            transform: `translate(${(qx ? 1 : -1) * 72 * k}px, ${(qy ? 1 : -1) * 72 * k}px)` }}>
+            <div style={{ position: "absolute", left: -qx * hw, top: -qy * hh, width, height }}>
+              {Comp ? <Comp s={s} /> : null}
+            </div>
+          </div>
+        )))}
+      </div>
+    );
+  }
   return (
     <div data-probe="scene" style={{ position: "absolute", left: SIDE, right: SIDE, top: SCENE_TOP, height: SCENE_BOTTOM - SCENE_TOP, opacity: m.opacity,
-      transform: `translate(${m.dx}px, ${m.dy}px)`, ...m.style }}>
+      transform: `translate(${m.dx}px, ${m.dy}px) scale(${m.scale})`, transformOrigin: "center center", ...m.style }}>
       {Comp ? <Comp s={s} /> : null}
     </div>
   );

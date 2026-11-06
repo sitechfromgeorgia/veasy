@@ -33,7 +33,8 @@ NOTES = {"edge": "preview_edge", "silent": "preview_silent"}  # the pack's words
 CAPTIONS = os.environ.get("SHORTS_CAPTIONS", "page")  # page | roll (captions.py)
 
 
-TRANSITIONS = ("cut", "line", "panel", "wipe", "slide", "push", "dot", "meter", "fade", "shutter", "split", "corner", "iris", "blind")
+TRANSITIONS = ("cut", "line", "panel", "wipe", "slide", "push", "dot", "meter", "fade", "shutter", "split", "corner", "iris", "blind",
+               "maskwipe", "gridsplit", "scalethrough")
 DEFAULT_TRANSITION = {"editorial": "line", "cards": "line", "kinetic": "panel"}
 
 
@@ -106,7 +107,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
           sfx="off", theme="default", beats="on",
           chapters="off"):
     """Story -> (work dir, Remotion props). music: "family" (by category), a family name, or "off".
-    transition: "auto" (variety picks one that suits the look) or one of TRANSITIONS.
+    transition: "auto" (variety picks one that suits the look), one of TRANSITIONS, or the story's own
+    "transition" field when neither the format nor the flag names one.
     style: {hook, motif, enter, transition, music} to force; by default variety.choose() picks the least used, and its
     novelty guard re-rolls a plan too close to a recent video, all before the voice is made (props "novelty").
     outro: card | overlay | loop (swipe.py: the end card, a chip over the last scene, or a seamless loop).
@@ -118,6 +120,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     beats: on | off (beats.py: a change inside each scene every 1.5-3 s, on the words); chapters: auto | on | off
     (chapters.py: the "01 / 03" bar; auto: for a video of chapters.AUTO_SECONDS or more)."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
+    if transition in (None, "auto") and story.get("transition") in TRANSITIONS:
+        transition = story["transition"]  # the story's own cut; an explicit format or flag still wins
     story = brand.with_say(story)  # the pack's own names (SiTech -> საი-თეჩი) are spoken right
     sid = story["id"]
     b = brand.of(story)
