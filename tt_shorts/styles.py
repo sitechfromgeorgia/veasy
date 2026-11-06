@@ -256,5 +256,5 @@ def summary(style):
         "never_families": list(style.get("never_families", [])),
         "picks": dict(style.get("picks", {})),
         "uses": style["uses"],
-        "still": f"assets/stills/style-{style['slug']}.jpg",
+        "still": f"out/gallery/stills/style-{style['slug']}.jpg",  # `engine gallery --real` renders it (gallery.py)
     }
