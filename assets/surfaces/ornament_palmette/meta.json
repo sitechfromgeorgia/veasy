@@ -1,0 +1,15 @@
+{
+  "id": "ornament_palmette",
+  "name": "Anthemion Palmette Fan Relief",
+  "category": "ornament",
+  "description": "Original stylized architectural anthemion palmette fan flanked by acanthus volutes in low stone relief.",
+  "dimensions": [
+    512,
+    512
+  ],
+  "depth": 1.5,
+  "roughness": 0.65,
+  "height_sha256": "ef53a02551990b71c32c6c7199e775bf353b915a928600805272741cc54c8dd0",
+  "normal_sha256": "620209776f9815fe119c820631456e07d07b9a08441a3e378c7d17359d533fee",
+  "bytes": 777387
+}

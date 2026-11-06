@@ -1,0 +1,15 @@
+{
+  "id": "worn_plaster",
+  "name": "Worn Lime Plaster",
+  "category": "mineral",
+  "description": "Aged historical lime stucco with delicate hairline drying fissures and soft matte powdery tooth.",
+  "dimensions": [
+    512,
+    512
+  ],
+  "depth": 1.1,
+  "roughness": 0.85,
+  "height_sha256": "c51add27e303fb65eb276183d1a1c0533cf661c827eb179d5c0849dc7424b3ba",
+  "normal_sha256": "d2468e97bcbdbb76b38342d5ba0032aa0a026cf538381477c7a83582bddfeb08",
+  "bytes": 823666
+}
