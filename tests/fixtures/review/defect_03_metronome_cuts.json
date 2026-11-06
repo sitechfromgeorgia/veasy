@@ -1,0 +1,68 @@
+{
+  "id": "defect-03-metronome-cuts",
+  "brand": "tbilisi-today",
+  "lang": "ka",
+  "category": "economy",
+  "date": "2026-11-06T12:00:00Z",
+  "sources": [
+    "ეროვნული ბანკი"
+  ],
+  "cta": "გამოიწერეთ ჩვენი არხი",
+  "defect": {
+    "number": 3,
+    "name": "metronome_cuts",
+    "gate": "warning",
+    "rule": "cut_duration_variance",
+    "metric": "std_dev(scene_durations) < 0.20s across 4+ cuts",
+    "description": "5 consecutive scenes have identical durations (2.50s / 75 frames each, std dev = 0.0s)"
+  },
+  "narration": "საქართველოს სავალუტო რეზერვები რეკორდულ მაჩვენებლამდე გაიზარდა. ეროვნული ბანკის მონაცემებით აქტივების მოცულობა მყარდება. სარეზერვო აქტივებმა ხუთ მილიარდ დოლარს გადააჭარბა. საერთაშორისო შეფასებით საბანკო სისტემა სრულად სტაბილურია. დეტალები tbilisi.today-ზე. გამოიწერეთ ჩვენი არხი.",
+  "scenes": [
+    {
+      "type": "hook",
+      "at": "საქართველოს სავალუტო",
+      "kicker": "ეკონომიკა · რეზერვები",
+      "lines": [
+        "სავალუტო რეზერვები",
+        "რეკორდულად",
+        "გაიზარდა"
+      ],
+      "duration": 75
+    },
+    {
+      "type": "stat",
+      "at": "ეროვნული ბანკის",
+      "kicker": "აქტივები",
+      "headline": "მთლიანი მოცულობა",
+      "value": 5,
+      "label": "მილიარდი დოლარი რეზერვებში",
+      "duration": 75
+    },
+    {
+      "type": "points",
+      "at": "სარეზერვო აქტივებმა",
+      "kicker": "ფაქტორები",
+      "headline": "ზრდის ძირითადი წყაროები",
+      "items": [
+        "სავალუტო შემოდინება",
+        "ექსპორტის ზრდა",
+        "ფულადი გზავნილები"
+      ],
+      "duration": 75
+    },
+    {
+      "type": "where",
+      "at": "საერთაშორისო შეფასებით",
+      "kicker": "სტაბილურობა",
+      "headline": "საფინანსო სექტორი",
+      "place": "თბილისი",
+      "sub": "ეროვნული ბანკი",
+      "duration": 75
+    },
+    {
+      "type": "end",
+      "at": "დეტალები tbilisi.today-ზე",
+      "duration": 75
+    }
+  ]
+}

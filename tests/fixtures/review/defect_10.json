@@ -1,0 +1,78 @@
+{
+  "id": "defect-10-pingpong-cuts",
+  "brand": "tbilisi-today",
+  "lang": "ka",
+  "category": "society",
+  "date": "2026-11-06T12:00:00Z",
+  "sources": [
+    "ტურიზმის დეპარტამენტი"
+  ],
+  "cta": "გააზიარე ახალი ამბავი",
+  "defect": {
+    "number": 10,
+    "name": "pingpong_cuts",
+    "gate": "warning",
+    "rule": "alternating_transition_direction",
+    "metric": "cuts_pattern == A-B-A or opposite_direction_vectors",
+    "description": "Cuts alternating wipe-slide-wipe (A-B-A pingpong sequence) with opposing direction vectors"
+  },
+  "narration": "აჭარაში ტურისტული სეზონი წარმატებით მიმდინარეობს. სასტუმროების დატვირთულობამ ოთხმოცდახუთ პროცენტს მიაღწია. საერთაშორისო ფრენების რაოდენობა ოცდაათი პროცენტით გაიზარდა. ვიზიტორთა უმრავლესობა ევროპის ქვეყნებიდან შემოდის. დეტალები tbilisi.today-ზე. გააზიარე ახალი ამბავი.",
+  "scenes": [
+    {
+      "type": "hook",
+      "at": "აჭარაში ტურისტული",
+      "kicker": "ტურიზმი · აჭარა",
+      "lines": [
+        "ტურისტული სეზონი",
+        "წარმატებით",
+        "მიმდინარეობს"
+      ]
+    },
+    {
+      "type": "stat",
+      "at": "სასტუმროების დატვირთულობამ",
+      "kicker": "დატვირთულობა",
+      "headline": "სასტუმროების მაჩვენებელი",
+      "value": 85,
+      "label": "საშუალო დატვირთულობა რეგიონში",
+      "transition": "wipe",
+      "flow": [
+        1,
+        0
+      ]
+    },
+    {
+      "type": "where",
+      "at": "საერთაშორისო ფრენების",
+      "kicker": "ავიაცია",
+      "headline": "ფრენების ზრდა",
+      "place": "ბათუმის აეროპორტი",
+      "sub": "საერთაშორისო რეისები",
+      "transition": "slide",
+      "flow": [
+        -1,
+        0
+      ]
+    },
+    {
+      "type": "points",
+      "at": "ვიზიტორთა უმრავლესობა",
+      "kicker": "ვიზიტორები",
+      "headline": "ძირითადი ქვეყნები",
+      "items": [
+        "გერმანია და პოლონეთი",
+        "ისრაელი",
+        "დიდი ბრიტანეთი"
+      ],
+      "transition": "wipe",
+      "flow": [
+        1,
+        0
+      ]
+    },
+    {
+      "type": "end",
+      "at": "დეტალები tbilisi.today-ზე"
+    }
+  ]
+}
