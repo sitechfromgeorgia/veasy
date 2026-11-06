@@ -1,99 +1,47 @@
-"""Tests for Veasy Scenarios (Goal 6, tt_shorts/scenarios.py).
+"""Tests for Veasy scenarios (tt_shorts/scenarios.py, scenarios/*.json, stories/scenario-*.json).
 
-Covers:
-  - Data loading and declarative validation against brushes and brand families
-  - Bad scenario definitions refused (bad jobs, sound cues, word budgets, code expressions)
-  - Program gating: 'news' program strictly refused
-  - Eligibility and condition evaluation (reusing rubrics.holds grammar)
-  - Fit ranking with clear 'why' explanations
-  - Engine plan beat checks:
-      a) Scene types match beat scene_types
-      b) Word budget per beat is respected
-      c) Fact gates for each beat are satisfied
-      d) Early payoff check (payoff fact not spoiled before payoff beat)
-      e) myth-vs-fact gate (ensures document itself makes the correction)
+  - the data: 24 scenarios validate; a bad definition of each kind is refused
+  - eligibility is declarative (no code strings); news refuses every scenario; myth-vs-fact is gated
+  - fit ranks the plots a story's facts allow, with the reason
+  - the free checks at plan: beat order and brushes, word budgets, fact gates, an early payoff
+  - every scenario has a Georgian demo story that passes `check` and its own beats
 """
 import copy
 import json
 import pathlib
 import unittest
 
-from tt_shorts import catalog, scenarios
+from tt_shorts import engine, scenarios
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+STORIES = ROOT / "stories"
 
 
-def sample_story():
-    """A clean Georgian explainer story matching guess-the-number structure."""
-    return {
-        "id": "test-scenario-story",
-        "brand": "tbilisi-today",
-        "program": "explainer",
-        "category": "economy",
-        "date": "2026-11-06T12:00:00Z",
-        "scenario": "guess-the-number",
-        "sources": ["საქსტატი"],
-        "narration": (
-            "როგორ იცვლება წლიური ინფლაცია საქართველოში ბოლო თვეებში? "
-            "ფასების ზრდის ტემპი ეტაპობრივად დასტაბილურდა რამდენიმე სექტორში. "
-            "სურსათზე ფასები ოდნავ შეიცვალა და ბაზარზე სტაბილურობა შენარჩუნდა. "
-            "საბოლოო მაჩვენებელი სამ მთელ რვა მეათედ პროცენტს შეადგენს. "
-            "დეტალური ინფორმაცია ხელმისაწვდომია ოფიციალურ პორტალზე."
-        ),
-        "scenes": [
-            {
-                "type": "hook",
-                "at": "როგორ იცვლება",
-                "kicker": "ეკონომიკა",
-                "lines": ["როგორ იცვლება", "წლიური ინფლაცია", "საქართველოში"]
-            },
-            {
-                "type": "points",
-                "at": "ფასების ზრდის",
-                "kicker": "კონტექსტი",
-                "items": ["ეტაპობრივი დასტაბილურება", "სტაბილური ტენდენცია"]
-            },
-            {
-                "type": "bars",
-                "at": "სურსათზე ფასები",
-                "kicker": "მაჩვენებლები",
-                "items": [{"label": "სურსათი", "value": 2}, {"label": "მომსახურება", "value": 1}]
-            },
-            {
-                "type": "stat",
-                "at": "საბოლოო მაჩვენებელი",
-                "kicker": "ინფლაცია",
-                "value": 3.8,
-                "unit": "%",
-                "label": "წლიური მაჩვენებელი",
-                "em": "3.8"
-            },
-            {
-                "type": "end",
-                "at": "დეტალური ინფორმაცია"
-            }
-        ]
-    }
+def demo(name="guess-the-number"):
+    return json.loads((STORIES / f"scenario-{name}.json").read_text(encoding="utf-8"))
 
 
 class TestData(unittest.TestCase):
-    def test_scenarios_load_and_validate(self):
+    def test_there_are_24_scenarios_and_all_validate(self):
         every = scenarios.load_all()
-        self.assertIn("guess-the-number", every)
-        self.assertIn("myth-vs-fact", every)
-        self.assertIn("before-and-after", every)
-        self.assertIn("countdown", every)
+        self.assertEqual(len(every), 24)
+        for k, sc in every.items():
+            self.assertEqual(sc["id"], k)
+            self.assertTrue({b["job"] for b in sc["beats"]} & {"payoff", "turn"} or sc["id"] == "cold-open", k)
+            self.assertEqual(sc["beats"][-1]["scene_types"], ["end"], k)  # the end card carries the call to action
 
-        gn = scenarios.get("guess-the-number")
-        self.assertEqual(gn["title"], "Guess the Number")
-        self.assertEqual(gn["label"], "გამოიცანი რიცხვი")
-        self.assertEqual(len(gn["beats"]), 5)
-        self.assertEqual(gn["beats"][0]["job"], "promise")
-        self.assertEqual(gn["beats"][3]["job"], "payoff")
+    def test_each_plot_has_its_own_order_of_jobs(self):
+        orders = {tuple(b["job"] for b in sc["beats"]) for sc in scenarios.load_all().values()}
+        self.assertGreaterEqual(len(orders), 8)  # many scenarios share a few job orders, never all one
+
+    def test_sounds_are_synthesized_cues_only(self):
+        for sc in scenarios.load_all().values():
+            for b in sc["beats"]:
+                self.assertIn(b["sound"], scenarios.SOUNDS + (None,))
 
     def test_validation_catches_invalid_scenarios(self):
         good = scenarios.get("guess-the-number")
-
+        first = good["beats"][0]
         bad_cases = [
             ({"id": "Bad_ID"}, "uppercase or underscore in id"),
             ({"title": ""}, "empty title"),
@@ -102,137 +50,184 @@ class TestData(unittest.TestCase):
             ({"eligible": [{"unknown_fact": 1}]}, "unknown fact in eligible"),
             ({"never": [{"families": ["fantasy"]}]}, "unknown family in never"),
             ({"beats": good["beats"][:2]}, "fewer than 3 beats"),
-            ({"beats": [{**good["beats"][0], "job": "punchline"}] + good["beats"][1:]}, "invalid job"),
-            ({"beats": [{**good["beats"][0], "scene_types": ["nonexistent_brush"]}] + good["beats"][1:]}, "unknown brush"),
-            ({"beats": [{**good["beats"][0], "word_budget": [25, 10]}] + good["beats"][1:]}, "min_words > max_words"),
-            ({"beats": [{**good["beats"][0], "sound": "trumpet"}] + good["beats"][1:]}, "unknown sound"),
-            ({"beats": [{**good["beats"][0], "fact_gates": {"invalid_fact": 1}}] + good["beats"][1:]}, "unknown fact gate"),
+            ({"beats": [{**first, "job": "punchline"}] + good["beats"][1:]}, "invalid job"),
+            ({"beats": [{**first, "scene_types": ["nonexistent_brush"]}] + good["beats"][1:]}, "unknown brush"),
+            ({"beats": [{**first, "word_budget": [25, 10]}] + good["beats"][1:]}, "min_words > max_words"),
+            ({"beats": [{**first, "sound": "trumpet"}] + good["beats"][1:]}, "unknown sound"),
+            ({"beats": [{**first, "fact_gates": {"invalid_fact": 1}}] + good["beats"][1:]}, "unknown fact gate"),
             ({"pacing": {"target_words": 5, "min_seconds": 25.0, "max_seconds": 45.0}}, "target_words < 10"),
             ({"pacing": {"target_words": 80, "min_seconds": 50.0, "max_seconds": 45.0}}, "min_seconds > max_seconds"),
+            ({"prefers": {"numbers": 9}}, "weight over 3"),
+            ({"prefers": {"mood": 1}}, "unknown preferred fact"),
             ({"extra_unknown_key": True}, "unknown top-level key"),
         ]
-
         for patch, desc in bad_cases:
-            bad_data = copy.deepcopy(good)
-            bad_data.update(patch)
-            name = bad_data.get("id", "guess-the-number")
-            with self.assertRaises(scenarios.ScenarioError, msg=f"Should reject: {desc}"):
-                scenarios.validate(name, bad_data)
+            bad = {**copy.deepcopy(good), **patch}
+            with self.assertRaises(scenarios.ScenarioError, msg=f"should reject: {desc}"):
+                scenarios.validate(bad.get("id", "guess-the-number"), bad)
 
 
-class TestEligibilityAndHolds(unittest.TestCase):
+class TestEligibility(unittest.TestCase):
     def test_holds_evaluates_conditions(self):
         sc = scenarios.get("guess-the-number")
-        facts_ok = {"big_numbers": 1, "facts": 2, "deaths": False}
-        self.assertTrue(scenarios.holds(sc, facts_ok, program="explainer"))
+        self.assertTrue(scenarios.holds(sc, {"big_numbers": 1, "facts": 2}))
+        self.assertFalse(scenarios.holds(sc, {"big_numbers": 0, "facts": 2}))
+        self.assertFalse(scenarios.holds(sc, {"big_numbers": 1, "facts": 2, "deaths": True}))
 
-        facts_no_big = {"big_numbers": 0, "facts": 2, "deaths": False}
-        self.assertFalse(scenarios.holds(sc, facts_no_big, program="explainer"))
+    def test_news_refuses_every_scenario(self):
+        facts = {k: 9 for k in scenarios.FACTS}
+        for sc in scenarios.load_all().values():
+            self.assertFalse(scenarios.holds(sc, {**facts, "verified_correction": True}, program="news"), sc["id"])
+        self.assertEqual(scenarios.eligible(facts, program="news"), [])
 
-        facts_deaths = {"big_numbers": 1, "facts": 2, "deaths": True}
-        self.assertFalse(scenarios.holds(sc, facts_deaths, program="explainer"))
+    def test_news_story_with_a_scenario_is_a_problem(self):
+        story = demo()
+        del story["program"]  # a story with no program is news
+        self.assertTrue(any("refuses scenarios" in p for p in scenarios.story_problems(story)))
+        self.assertTrue(any("refuses scenarios" in p for p in engine.check_story(story)))
+        self.assertEqual(scenarios.fit(story), [])
+        story["program"] = "news"
+        self.assertTrue(any("refuses scenarios" in p for p in scenarios.story_problems(story)))
 
-    def test_news_program_strictly_refused(self):
-        sc = scenarios.get("guess-the-number")
-        facts_ok = {"big_numbers": 1, "facts": 2, "deaths": False}
-        self.assertFalse(scenarios.holds(sc, facts_ok, program="news"))
-        self.assertEqual(scenarios.eligible(facts_ok, program="news"), [])
+    def test_news_stamp_is_refused(self):
+        story = demo()
+        story["program"] = "news"
+        with self.assertRaises(scenarios.ScenarioError):
+            scenarios.stamp(story, "guess-the-number")
 
-    def test_myth_vs_fact_requires_verified_correction(self):
+    def test_myth_vs_fact_is_gated(self):
         mvf = scenarios.get("myth-vs-fact")
-        without_corr = {"verified_correction": False, "facts": 2}
-        with_corr = {"verified_correction": True, "facts": 2}
+        self.assertFalse(scenarios.holds(mvf, {"verified_correction": False, "facts": 2}))
+        self.assertTrue(scenarios.holds(mvf, {"verified_correction": True, "facts": 2}))
+        facts = {k: 9 for k in scenarios.FACTS}
+        self.assertNotIn("myth-vs-fact", scenarios.eligible({**facts, "verified_correction": False}))
+        self.assertIn("myth-vs-fact", scenarios.eligible({**facts, "verified_correction": True}))
 
-        self.assertFalse(scenarios.holds(mvf, without_corr, program="explainer"))
-        self.assertTrue(scenarios.holds(mvf, with_corr, program="explainer"))
+    def test_myth_vs_fact_refused_unless_the_document_corrects(self):
+        story = demo("myth-vs-fact")
+        self.assertEqual(scenarios.story_problems(story), [])
+        story = demo("guess-the-number")
+        story["scenario"] = "myth-vs-fact"  # a plot that needs a correction the story does not have
+        self.assertTrue(any("does not state a correction" in p for p in scenarios.check_plan_beats(story)))
 
-
-class TestFitAndRanking(unittest.TestCase):
-    def test_fit_ranks_fitting_scenarios(self):
-        story = sample_story()
-        ranked = scenarios.fit(story)
-        self.assertTrue(len(ranked) >= 1)
-        top = ranked[0]
-        self.assertEqual(top["scenario"], "guess-the-number")
-        self.assertTrue(top["score"] > 0)
-        self.assertIn("why", top)
-        self.assertTrue(len(top["why"]) > 0)
-
-    def test_fit_refuses_news_program(self):
-        story = sample_story()
-        story["program"] = "news"
-        ranked = scenarios.fit(story)
-        self.assertEqual(ranked, [])
+    def test_every_scenario_is_eligible_for_its_own_demo(self):
+        for name, sc in scenarios.load_all().items():
+            story = demo(name)
+            facts = scenarios.story_facts(story)
+            self.assertTrue(scenarios.holds(sc, facts, program="explainer"), f"{name}: {facts}")
 
 
-class TestCheckPlanBeats(unittest.TestCase):
-    def test_check_plan_beats_passes_valid_story(self):
-        story = sample_story()
-        problems = scenarios.check_plan_beats(story)
-        self.assertEqual(problems, [])
+class TestFit(unittest.TestCase):
+    def test_fit_ranks_with_a_reason(self):
+        ranked = scenarios.fit(demo())
+        self.assertGreaterEqual(len(ranked), 2)
+        self.assertEqual(ranked[0]["scenario"], "guess-the-number")
+        for r in ranked:
+            self.assertTrue(r["why"])
+            self.assertGreater(r["score"], 0)
+        self.assertEqual(ranked, sorted(ranked, key=lambda r: (-r["score"], r["scenario"])))
 
-    def test_check_plan_beats_refuses_news_program(self):
-        story = sample_story()
-        story["program"] = "news"
-        problems = scenarios.check_plan_beats(story)
-        self.assertTrue(any("refuses scenarios" in p for p in problems))
+    def test_length_moves_the_ranking(self):
+        short = {r["scenario"]: r["score"] for r in scenarios.fit(demo(), seconds=30)}
+        far = {r["scenario"]: r["score"] for r in scenarios.fit(demo(), seconds=300)}
+        self.assertGreater(short["guess-the-number"], far["guess-the-number"])
 
-    def test_check_plan_beats_catches_scene_type_mismatch(self):
-        story = sample_story()
-        # Change scene 3 (reveal) from stat to quote, which is not in ["stat"]
-        story["scenes"][3]["type"] = "quote"
-        story["scenes"][3]["text"] = "„ციტატა“"
-        problems = scenarios.check_plan_beats(story)
-        self.assertTrue(any("scene type 'quote' not in allowed types" in p for p in problems))
+    def test_parse_length(self):
+        self.assertEqual(scenarios.parse_length("45s"), 45.0)
+        self.assertEqual(scenarios.parse_length(40), 40.0)
+        self.assertEqual(scenarios.parse_length("short"), 30.0)
+        self.assertIsNone(scenarios.parse_length(None))
+        with self.assertRaises(scenarios.ScenarioError):
+            scenarios.parse_length("soon")
 
-    def test_check_plan_beats_catches_word_budget_violation(self):
-        story = sample_story()
-        # Inflate scene 0 words over max_words (budget [10, 20])
-        story["narration"] = (
-            "როგორ იცვლება წლიური ინფლაცია საქართველოში ბოლო თვეებში ძალიან სწრაფად "
-            "და მოულოდნელად როდესაც ფასები ყოველდღიურად იზრდება და მოსახლეობას უჭირს "
-            "გარკვევა რეალურ ეკონომიკურ ვითარებაში? "
-            + story["narration"]
-        )
-        problems = scenarios.check_plan_beats(story)
-        self.assertTrue(any("outside budget" in p for p in problems))
-
-    def test_check_plan_beats_catches_fact_gate_failure(self):
-        story = sample_story()
-        # Remove numbers from the reveal scene (requires numbers: 1)
-        story["scenes"][3]["value"] = None
-        story["scenes"][3].pop("value", None)
-        story["scenes"][3]["em"] = "ინფლაცია"
-        story["narration"] = story["narration"].replace("სამ მთელ რვა მეათედ", "სხვადასხვა")
-        problems = scenarios.check_plan_beats(story)
-        self.assertTrue(any("requires at least 1 numbers" in p for p in problems))
-
-    def test_check_plan_beats_catches_early_payoff(self):
-        story = sample_story()
-        # Spoil "3.8" in the opening hook sentence!
-        story["narration"] = "როგორ იცვლება 3.8% ინფლაცია საქართველოში? " + story["narration"]
-        problems = scenarios.check_plan_beats(story)
-        self.assertTrue(any("early payoff: fact '3.8' is spoken before payoff beat" in p for p in problems))
-
-    def test_check_plan_beats_catches_unverified_myth_vs_fact(self):
-        story = sample_story()
-        story["scenario"] = "myth-vs-fact"
-        story["doc_correction"] = False
-        problems = scenarios.check_plan_beats(story)
-        self.assertTrue(any("document itself does not state a correction" in p for p in problems))
+    def test_brief_names_every_beat(self):
+        sc = scenarios.get("false-lead")
+        block = scenarios.brief_block(sc)
+        for b in sc["beats"]:
+            self.assertIn(b["id"], block)
+        self.assertIn("NOT said", block)
 
 
-class TestStoryProblems(unittest.TestCase):
-    def test_story_problems_ignores_stories_without_scenario(self):
-        story = sample_story()
+class TestPlanChecks(unittest.TestCase):
+    def test_a_good_story_passes(self):
+        self.assertEqual(scenarios.check_plan_beats(demo()), [])
+
+    def test_scene_type_mismatch(self):
+        story = demo()
+        story["scenes"][3] = {"type": "quote", "at": story["scenes"][3]["at"], "kicker": "x", "text": "„ა“", "by": "ბ"}
+        self.assertTrue(any("scene type 'quote' not in allowed types" in p for p in scenarios.check_plan_beats(story)))
+
+    def test_scene_count_must_match_beats(self):
+        story = demo()
+        del story["scenes"][1]
+        self.assertTrue(any("requires 5 beats" in p for p in scenarios.check_plan_beats(story)))
+
+    def test_word_budget(self):
+        story = demo()
+        story["narration"] = story["narration"].replace("ჰყავს მას?", "ძალიან " * 20 + "ჰყავს მას?")
+        self.assertTrue(any("outside budget" in p for p in scenarios.check_plan_beats(story)))
+
+    def test_an_anchor_not_in_the_narration(self):
+        story = demo()
+        story["scenes"][2]["at"] = "ასეთი სიტყვები არ არის"
+        self.assertTrue(any("anchor not in narration" in p for p in scenarios.check_plan_beats(story)))
+
+    def test_fact_gate(self):
+        story = demo()
+        reveal = story["scenes"][3]
+        reveal.pop("value")
+        reveal["label"] = "მკითხველი"
+        reveal["em"] = "მკითხველი"
+        story["narration"] = story["narration"].replace("18 600", "ბევრმა")
+        self.assertTrue(any("requires at least 1 numbers" in p for p in scenarios.check_plan_beats(story)))
+
+    def test_early_payoff(self):
+        story = demo()
+        story["narration"] = story["narration"].replace("რამდენი მკითხველი ჰყავს მას?", "18 600 მკითხველი ჰყავს მას?")
+        self.assertTrue(any("early payoff" in p for p in scenarios.check_plan_beats(story)))
+
+    def test_early_payoff_spelled_with_groups(self):
+        story = demo()
+        story["narration"] = story["narration"].replace("ფონდში 240 000", "ფონდში 18600")
+        self.assertTrue(any("early payoff" in p for p in scenarios.check_plan_beats(story)))
+
+    def test_unknown_scenario(self):
+        story = demo()
+        story["scenario"] = "fictional-mystery"
+        self.assertTrue(any("unknown scenario 'fictional-mystery'" in p for p in scenarios.story_problems(story)))
+
+    def test_story_without_a_scenario_is_untouched(self):
+        story = demo()
         del story["scenario"]
         self.assertEqual(scenarios.story_problems(story), [])
 
-    def test_story_problems_flags_unknown_scenario(self):
-        story = sample_story()
-        story["scenario"] = "fictional-mystery"
-        problems = scenarios.story_problems(story)
-        self.assertTrue(any("unknown scenario 'fictional-mystery'" in p for p in problems))
+
+class TestDemoStories(unittest.TestCase):
+    def test_every_scenario_has_a_demo_that_passes_check_and_its_beats(self):
+        for name in scenarios.names():
+            path = STORIES / f"scenario-{name}.json"
+            self.assertTrue(path.exists(), f"missing {path.name}")
+            story = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(story["scenario"], name)
+            self.assertEqual(story["program"], "explainer")
+            self.assertEqual(engine.check_story(story), [], name)
+            self.assertEqual(scenarios.check_plan_beats(story), [], name)
+
+
+class TestEngineWiring(unittest.TestCase):
+    def test_writer_never_owns_the_scenario(self):
+        from tt_shorts import writer
+        self.assertIn("scenario", writer.OWNED)
+        story = {"scenario": "countdown", "rubric": "number"}
+        writer._drop_owned(story)
+        self.assertNotIn("scenario", story)
+
+    def test_options_list_the_scenarios(self):
+        self.assertEqual(sorted(engine.options(section="scenarios")["scenarios"]), sorted(scenarios.names()))
+
+    def test_write_story_refuses_news_with_a_scenario(self):
+        with self.assertRaises(ValueError):
+            engine.write_story("tbilisi-today", "1", scenario="countdown")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,107 @@
+{
+  "id": "what-changes-for-you",
+  "title": "What Changes for You",
+  "label": "რა იცვლება შენთვის",
+  "about": "A decision, who it touches, and what a person must do and by when.",
+  "eligible": [
+    {
+      "dates": 1,
+      "facts": 2
+    },
+    {
+      "rules": 1,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh"
+    },
+    {
+      "id": "decision",
+      "job": "setup",
+      "scene_types": [
+        "impact",
+        "points",
+        "glossary"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click"
+    },
+    {
+      "id": "who_is_touched",
+      "job": "complication",
+      "scene_types": [
+        "impact",
+        "pair",
+        "who",
+        "points"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "tick"
+    },
+    {
+      "id": "what_to_do",
+      "job": "payoff",
+      "scene_types": [
+        "steps",
+        "calendar",
+        "checklist"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud"
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "dates": 2,
+    "steps": 1,
+    "rules": 1
+  },
+  "brief": [
+    "Say what changed, who it touches and the date, all from the document.",
+    "No advice beyond what the document says to do."
+  ]
+}

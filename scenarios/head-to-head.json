@@ -1,0 +1,107 @@
+{
+  "id": "head-to-head",
+  "title": "Head to Head",
+  "label": "პირისპირ",
+  "about": "Two sides, measured one against the other, with the document's own gap figure.",
+  "eligible": [
+    {
+      "comparisons": 1,
+      "numbers": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh",
+      "payoff_held": true
+    },
+    {
+      "id": "side_a",
+      "job": "setup",
+      "scene_types": [
+        "who",
+        "stat",
+        "pair"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click",
+      "payoff_held": true
+    },
+    {
+      "id": "side_b",
+      "job": "complication",
+      "scene_types": [
+        "who",
+        "stat",
+        "pair"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "tick",
+      "payoff_held": true
+    },
+    {
+      "id": "gap",
+      "job": "payoff",
+      "scene_types": [
+        "versus",
+        "bars",
+        "change"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud",
+      "fact_gates": {
+        "numbers": 1
+      }
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "comparisons": 3,
+    "numbers": 1
+  },
+  "brief": [
+    "Present both sides equally and in the document's words.",
+    "The gap is the payoff; no verdict word of yours."
+  ]
+}

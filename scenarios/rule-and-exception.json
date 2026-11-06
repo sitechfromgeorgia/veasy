@@ -1,0 +1,106 @@
+{
+  "id": "rule-and-exception",
+  "title": "Rule and Exception",
+  "label": "წესი და გამონაკლისი",
+  "about": "The rule as the document states it, then who or what it does not cover.",
+  "eligible": [
+    {
+      "rules": 1,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh"
+    },
+    {
+      "id": "rule",
+      "job": "setup",
+      "scene_types": [
+        "points",
+        "glossary",
+        "quote"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click"
+    },
+    {
+      "id": "exception",
+      "job": "turn",
+      "scene_types": [
+        "pair",
+        "checklist",
+        "points",
+        "change"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "pop"
+    },
+    {
+      "id": "example",
+      "job": "evidence",
+      "scene_types": [
+        "stat",
+        "bars",
+        "pair"
+      ],
+      "word_budget": [
+        6,
+        18
+      ],
+      "sound": "tick",
+      "fact_gates": {
+        "numbers": 1
+      }
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "rules": 3,
+    "quotes": 1
+  },
+  "brief": [
+    "State the rule in the document's own words.",
+    "The exception must be in the document too.",
+    "Close the example with one number."
+  ]
+}

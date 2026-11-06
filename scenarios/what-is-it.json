@@ -1,0 +1,104 @@
+{
+  "id": "what-is-it",
+  "title": "What Is It",
+  "label": "რა არის ეს?",
+  "about": "A term defined in the document's words, an example, and one figure that shows its scale.",
+  "eligible": [
+    {
+      "facts": 2,
+      "numbers": 1
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh"
+    },
+    {
+      "id": "definition",
+      "job": "setup",
+      "scene_types": [
+        "glossary",
+        "points"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click"
+    },
+    {
+      "id": "example",
+      "job": "evidence",
+      "scene_types": [
+        "pair",
+        "points",
+        "who",
+        "where"
+      ],
+      "word_budget": [
+        6,
+        18
+      ],
+      "sound": "tick"
+    },
+    {
+      "id": "scale",
+      "job": "payoff",
+      "scene_types": [
+        "stat",
+        "bars",
+        "trend"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud",
+      "fact_gates": {
+        "numbers": 1
+      }
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "rules": 1,
+    "quotes": 1
+  },
+  "brief": [
+    "The definition is the document's, not a dictionary's.",
+    "One example from the document."
+  ]
+}

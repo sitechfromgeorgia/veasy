@@ -1,0 +1,101 @@
+{
+  "id": "step-by-step",
+  "title": "Step by Step",
+  "label": "ნაბიჯ-ნაბიჯ",
+  "about": "A procedure in the document's own order, ending with what the person gets.",
+  "eligible": [
+    {
+      "steps": 1,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh"
+    },
+    {
+      "id": "steps_overview",
+      "job": "setup",
+      "scene_types": [
+        "steps",
+        "points"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click"
+    },
+    {
+      "id": "catch",
+      "job": "complication",
+      "scene_types": [
+        "checklist",
+        "points",
+        "pair",
+        "calendar"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "tick"
+    },
+    {
+      "id": "result",
+      "job": "payoff",
+      "scene_types": [
+        "stat",
+        "calendar",
+        "change"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud"
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "steps": 3,
+    "rules": 1
+  },
+  "brief": [
+    "Keep the document's order of steps.",
+    "The catch (a deadline or requirement) must be stated in the document."
+  ]
+}

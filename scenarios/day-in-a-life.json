@@ -1,0 +1,105 @@
+{
+  "id": "day-in-a-life",
+  "title": "A Day in a Life",
+  "label": "ერთი დღე",
+  "about": "Follow one day or one process hour by hour, as the document lays it out.",
+  "eligible": [
+    {
+      "times": 2,
+      "facts": 2
+    },
+    {
+      "steps": 3,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh"
+    },
+    {
+      "id": "morning",
+      "job": "setup",
+      "scene_types": [
+        "timeline",
+        "steps"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click"
+    },
+    {
+      "id": "midday",
+      "job": "evidence",
+      "scene_types": [
+        "steps",
+        "points",
+        "timeline"
+      ],
+      "word_budget": [
+        6,
+        18
+      ],
+      "sound": "tick"
+    },
+    {
+      "id": "evening",
+      "job": "payoff",
+      "scene_types": [
+        "timeline",
+        "stat",
+        "calendar"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud"
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "times": 3,
+    "steps": 2
+  },
+  "brief": [
+    "Use only the times the document gives.",
+    "One part of the day per beat, in order.",
+    "The last part carries the result."
+  ]
+}

@@ -2,10 +2,10 @@
   "id": "countdown",
   "title": "Countdown",
   "label": "ტოპ რეიტინგი",
-  "about": "A countdown sequence climbing from lower items up to the #1 reveal, maintaining suspense at every step.",
+  "about": "A climb from the lower items to the first place, held back until the last step.",
   "eligible": [
     {
-      "quantities": 2,
+      "quantities": 3,
       "facts": 2
     }
   ],
@@ -18,55 +18,92 @@
     {
       "id": "hook",
       "job": "promise",
-      "scene_types": ["hook"],
-      "word_budget": [10, 20],
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
       "sound": "whoosh",
       "payoff_held": true
     },
     {
       "id": "tier_three",
       "job": "evidence",
-      "scene_types": ["points", "ranking", "stat", "pair"],
-      "word_budget": [10, 20],
-      "sound": "blip",
+      "scene_types": [
+        "points",
+        "ranking",
+        "bars",
+        "pair"
+      ],
+      "word_budget": [
+        6,
+        18
+      ],
+      "sound": "tick",
       "payoff_held": true
     },
     {
       "id": "tier_two",
       "job": "evidence",
-      "scene_types": ["points", "ranking", "stat", "pair"],
-      "word_budget": [10, 20],
-      "sound": "blip",
+      "scene_types": [
+        "points",
+        "ranking",
+        "bars",
+        "pair"
+      ],
+      "word_budget": [
+        6,
+        18
+      ],
+      "sound": "tick",
       "payoff_held": true
     },
     {
       "id": "number_one",
       "job": "payoff",
-      "scene_types": ["stat", "ranking"],
-      "word_budget": [10, 20],
+      "scene_types": [
+        "stat",
+        "ranking"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
       "sound": "thud",
       "fact_gates": {
         "numbers": 1
-      },
-      "payoff_held": false
+      }
     },
     {
       "id": "closing",
       "job": "resolution",
-      "scene_types": ["end", "points"],
-      "word_budget": [6, 16],
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
       "sound": null
     }
   ],
   "pacing": {
-    "target_words": 75,
-    "min_seconds": 25.0,
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
     "max_seconds": 45.0
   },
+  "prefers": {
+    "quantities": 2,
+    "comparisons": 1
+  },
   "brief": [
-    "Hook with the theme of the countdown and what is at stake.",
-    "Present items with rapid, focused pacing.",
-    "Hold the top spot until the number_one beat.",
-    "Reveal #1 with impact and resolve cleanly."
+    "Hook with the theme of the ranking.",
+    "Present the lower items briskly.",
+    "Hold the first place until number_one."
   ]
 }
