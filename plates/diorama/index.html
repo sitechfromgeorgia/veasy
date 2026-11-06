@@ -1,0 +1,34 @@
+<!doctype html>
+<!-- The paper stage: a set (sets/*.json) built from the part kit, one take through it. README.md has the spec keys. -->
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+<script type="importmap">{"imports": {"three": "/node_modules/three/build/three.module.js",
+  "three/addons/": "/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from "three";
+import { seeded } from "/lib/seeded.mjs";
+import { createCameraSystem } from "./lib/camera.mjs";
+import { buildStage } from "./lib/stage.mjs";
+
+let renderer, scene, rig;
+
+window.setup = async (spec, c) => {
+  renderer = new THREE.WebGLRenderer({ antialias: spec.antialias !== false, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(1);
+  renderer.setSize(c.width, c.height);
+  document.body.appendChild(renderer.domElement);
+  const drawings = spec.standees?.length ? await (await fetch("./drawings.json")).json() : {};
+  scene = buildStage(spec, { renderer, random: seeded(c.seed), drawings });
+  rig = createCameraSystem(spec, c);
+};
+
+window.step = (t) => { // a pure function of t: the set is static, only the camera moves
+  rig.evaluate(t);
+  renderer.render(scene, rig.camera);
+};
+
+window.anchors = (t) => {
+  rig.evaluate(t);
+  return rig.getAnchors();
+};
+</script>
