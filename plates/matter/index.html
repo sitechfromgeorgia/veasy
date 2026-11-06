@@ -45,8 +45,9 @@ window.setup = async (spec, c) => {
   scene.background = new THREE.Color(0x000000);
   scene.fog = new THREE.Fog(0x000000, 14, 46);
   camera = new THREE.PerspectiveCamera(38, c.width / c.height, 0.1, 120);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 0.9));
-  const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+  const ex = Number(spec.exposure ?? 0.4); // tone only: a dim master is also what flash safety wants (flash.py)
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 0.9 * ex));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2 * ex);
   sun.position.set(-5, 9, 4);
   scene.add(sun);
 
