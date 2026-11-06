@@ -9,7 +9,18 @@ cd plates && npm ci
 node plates/run.mjs example --seconds 4 --seed 7 --out out/plates/example
 ```
 
-The result is `plate.mp4`, `poster.png` (the middle frame), `plate.json` (what it is a function of, and its cost) and,
+From an agent or a script, the front door is one line, which bakes (or answers from the cache), tones the clip for every
+pack and theme, and says where everything is (skill `veasy:plates`, tool `veasy_plate`):
+
+```bash
+python -m tt_shorts.engine plate example --seconds 6 --seed 3     # or: python -m tt_shorts.plates example ...
+python -m tt_shorts.engine plate list | check
+```
+
+`node plates/run.mjs <kind> ... --hash` prints the plate's 16-hex content hash and exits (what the cache key is). The hash is
+a function of the kind's own files, the spec's contents (not its path), the seed, the seconds and the scale.
+
+The result of a bake is `plate.mp4`, `poster.png` (the middle frame), `plate.json` (what it is a function of, and its cost) and,
 if the page exports them, `anchors.json`.
 
 ## The contract of a kind
@@ -22,6 +33,10 @@ window.setup = async (spec, ctx) => {};   // ctx: {width, height, fps, seed, sec
 window.step = (t) => {};                  // draw the frame at t seconds
 window.anchors = (t) => ({dot: [x, y]});  // optional: page pixels of what the film's DOM must follow
 ```
+
+Both engines draw the clip at **page coordinates**: a plate's pixel (x, y) shows at the film's (x, y), so keep the subject
+in the scene band (y 248-1380) and write `anchors` in those pixels; the card of a plate scene (top, mid or low) is placed
+by code so it never sits on the dot (`plates.free_layouts`). A plate that is longer than its scene is cut; a shorter one loops.
 
 A plate:
 
