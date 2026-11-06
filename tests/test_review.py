@@ -543,3 +543,30 @@ class RealFixTest(unittest.TestCase):
                                          [{"start": 0.0}, {"start": 6.1, "type": "quote"}, {"start": 9.0}])["formatted"]
         self.assertTrue(review.NOTE_REGEX.match(note), note)
         self.assertTrue(note.startswith("t=6.1s"), note)
+
+
+class ApprovedDemosTest(unittest.TestCase):
+    """Done-when 2: approved demos raise no false hold (pixel numbers: docs/research/film-eyes-calibration.json)."""
+
+    STORIES = ("24835", "24725", "veasy-demo", "veasy-scenes")
+
+    def setUp(self):
+        import tempfile
+        self.home = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"VEASY_HOME": self.home.name})
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+        self.home.cleanup()
+
+    def test_no_hold_and_nothing_to_repair_on_approved_stories(self):
+        import tempfile
+        for name in self.STORIES:
+            story = json.loads((ROOT / "stories" / f"{name}.json").read_text(encoding="utf-8"))
+            with tempfile.TemporaryDirectory() as tmp:
+                got = review.detect(story, tmp)
+            self.assertEqual(got["holds"], [], name)
+            res = review.review_story(story, rounds=2)
+            self.assertIn(res["status"], ("passed", "fixed"), name)
+            self.assertEqual(res["facts_diff"], [], name)

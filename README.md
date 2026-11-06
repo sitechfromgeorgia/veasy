@@ -79,6 +79,7 @@ python -m tt_shorts.engine voices --story <story.json>             # Gemini tone
   python -m tt_shorts.engine compose look     <story> [--video FILE]             # free: its sheets and timeline
   python -m tt_shorts.engine compose render   <story> [--engine silent]          # pinned render, mix, QA
   python -m tt_shorts.engine compose promote  <project> --as <id>                # an approved film -> templates/<id>
+  python -m tt_shorts.engine review <story> [--rounds 2] [--stills DIR] [--packet]  # the film's eyes: free checks, capped repair loop, facts untouched
   ```
   - The project (`$VEASY_HOME/cache/compose/<brand>-<ref>/`) holds the agent's `index.html`, `compositions/*.html`
     and `beats.json`, and Veasy's files: `frame.md` and `assets/brand.css` from the pack, `facts.json`,
