@@ -24,13 +24,13 @@ export function arc(cx, cy, r, from, to, n = 18, ry = r) { // degrees
 export const archOutline = (cx, y0, width, spring) => [[cx + width / 2, y0],
   ...arc(cx, y0 + spring, width / 2, 0, 180), [cx - width / 2, y0]];
 
-function handCut(points, wobble) { // long edges get a small waver, as a knife gives
+function handCut(points, wobble) { // a knife wavers on a long edge and misses a curve a little
   const out = [];
   for (let i = 0; i < points.length; i++) {
     const [ax, ay] = points[i], [bx, by] = points[(i + 1) % points.length];
     const length = Math.hypot(bx - ax, by - ay);
-    const steps = Math.min(12, Math.floor(length / 0.45));
-    out.push([ax, ay]);
+    const steps = Math.min(24, Math.floor(length / 0.26));
+    out.push([ax + (random() - 0.5) * wobble * 0.4, ay + (random() - 0.5) * wobble * 0.4]);
     for (let s = 1; s < steps; s++) {
       const f = s / steps, push = (random() - 0.5) * wobble;
       out.push([ax + (bx - ax) * f + (by - ay) / length * push, ay + (by - ay) * f - (bx - ax) / length * push]);
@@ -55,13 +55,16 @@ function paint(geometry, tone, edge, glow) { // attribute ink: linear tone, then
   return geometry;
 }
 
-// Options: holes, z (the back of the card), depth, tone, edge, glow (lit from within: a window, a sky), wobble.
+// Options: holes, z (the back of the card), depth, tone, edge, glow (lit from within: a window, a sky), wobble, bevel.
+// The bevel is the cut edge seen from the front: a facet that takes the light on one side and loses it on the other.
 export function card(outline, o = {}) {
-  const { holes = [], z = 0, depth = 0.03, tone = 0.6, edge = Math.min(1, tone + 0.28), glow = 0, wobble = 0.007 } = o;
+  const { holes = [], z = 0, depth = 0.04, tone = 0.6, edge = Math.min(1, tone + 0.3), glow = 0, wobble = 0.016 } = o;
+  const { bevel = wobble ? 0.014 : 0.005 } = o;
   const toPoints = (pts) => (wobble ? handCut(pts, wobble) : pts).map(([x, y]) => new THREE.Vector2(x, y));
   const shape = new THREE.Shape(toPoints(outline));
   for (const hole of holes) shape.holes.push(new THREE.Path(toPoints(hole)));
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 1, steps: 1 });
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth, curveSegments: 1, steps: 1, bevelEnabled: bevel > 0, bevelSegments: 1,
+    bevelSize: bevel, bevelThickness: bevel, bevelOffset: -bevel });
   geometry.translate(0, 0, z);
   return new THREE.Mesh(paint(geometry, tone, edge, glow));
 }
@@ -69,7 +72,7 @@ export function card(outline, o = {}) {
 // A folded block: a card thick enough to stand, its sides shaded like its face.
 export function block(x0, y0, x1, y1, z0, z1, o = {}) {
   const { tone = 0.6 } = o;
-  return card(rect(x0, y0, x1, y1), { z: z0, depth: z1 - z0, edge: tone, wobble: 0, ...o });
+  return card(rect(x0, y0, x1, y1), { z: z0, depth: z1 - z0, edge: tone + 0.12, wobble: 0, ...o });
 }
 
 // A thin strip along a line of points: a rope, a wire, a crack, a chalk line.
@@ -81,7 +84,7 @@ export function strip(points, width, o = {}) {
     left.push([x + nx, y + ny]);
     right.unshift([x - nx, y - ny]);
   });
-  return card([...right, ...left], { wobble: 0, ...o });
+  return card([...right, ...left], { wobble: 0, bevel: 0, ...o });
 }
 
 export function group(parts, { at, turn, scale } = {}) {

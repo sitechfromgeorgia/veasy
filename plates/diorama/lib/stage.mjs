@@ -33,7 +33,7 @@ precision highp float;
 precision highp sampler2DShadow;
 uniform sampler2DShadow shade;
 uniform sampler2D grain;
-uniform float poolEdge;
+uniform float poolEdge, soft;
 in float vTone, vGlow, vKey, vAmbient, vFog;
 in vec4 vLight;
 in vec2 vPaper;
@@ -42,8 +42,13 @@ void main() {
   vec3 lit = vLight.xyz / vLight.w;
   float pool = 1.0 - smoothstep(poolEdge, 1.0, length(lit.xy * 2.0 - 1.0));
   float direct = vKey * pool;
-  if (direct > 0.002) direct *= texture(shade, vec3(lit.xy, lit.z - 0.00004));
-  float tone = vTone * (0.86 + 0.28 * texture(grain, vPaper).r) * (direct + vAmbient + vGlow);
+  if (direct > 0.002) { // four fetches, each already a bilinear compare: a soft edge at the cost of one per corner
+    float z = lit.z - 0.00006;
+    direct *= 0.25 * (texture(shade, vec3(lit.xy + vec2(soft, soft * 0.4), z)) + texture(shade, vec3(lit.xy + vec2(-soft * 0.4, soft), z))
+      + texture(shade, vec3(lit.xy + vec2(-soft, -soft * 0.4), z)) + texture(shade, vec3(lit.xy + vec2(soft * 0.4, -soft), z)));
+  }
+  float fibre = texture(grain, vPaper).r, mottle = texture(grain, vPaper * 0.11).r;
+  float tone = vTone * (0.62 + 0.42 * fibre + 0.34 * mottle) * (direct + vAmbient + vGlow);
   frag = vec4(vec3(sqrt(tone * vFog)), 1.0); // a quick gamma: a plate is tone, and fog falls to the canvas
 }`;
 
@@ -71,7 +76,7 @@ function grainTexture(random) { // paper fibre: tone noise with a few long strok
 }
 
 function bakeShadow(renderer, mesh, s) { // the one render of the light's view; the material reads its depth from now on
-  const { key = [-3.5, 15, 6], aim = [0, 1, -1], angle = 26, map = 4096 } = s;
+  const { key = [-3.5, 15, 6], aim = [0, 1, -1], angle = 26, map = 2048 } = s;
   const eye = new THREE.PerspectiveCamera(angle * 2, 1, s.shadowNear ?? 2, s.shadowFar ?? 40);
   eye.position.set(...key);
   eye.lookAt(...aim);
@@ -96,7 +101,7 @@ export function buildStage(spec, { renderer, random, drawings }) {
   for (const item of spec.parts || []) {
     const make = PARTS[item.part];
     if (!make) throw new Error(`no part "${item.part}"`);
-    root.add(make(item, { drawings }));
+    root.add(make(item, { drawings, random }));
   }
   const geometry = mergePaper(root);
   const scene = new THREE.Scene();
@@ -113,7 +118,7 @@ export function buildStage(spec, { renderer, random, drawings }) {
     uniforms: {
       lightMatrix: { value: shadow.matrix }, keyAt: { value: key }, keyPower: { value: s.power ?? 1.1 },
       fillFrom: { value: new THREE.Vector3(...(s.fillFrom || [0.3, 0.8, 0.5])).normalize() }, fill: { value: s.fill ?? 0.16 },
-      fogNear: { value: fogNear }, fogFar: { value: fogFar }, poolEdge: { value: s.pool ?? 0.55 },
+      fogNear: { value: fogNear }, fogFar: { value: fogFar }, poolEdge: { value: s.pool ?? 0.55 }, soft: { value: (s.soft ?? 1.6) / (s.map ?? 2048) },
       shade: { value: shadow.texture }, grain: { value: grainTexture(random) },
     },
     depthFunc: THREE.LessEqualDepth,

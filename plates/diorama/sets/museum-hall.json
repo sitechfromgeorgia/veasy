@@ -7,11 +7,11 @@
  "fromTarget": [0, 1.75, -4],
  "toTarget": [0, 1.62, -4],
  "stage": {
-  "key": [-3, 15, 5],
+  "key": [-6.5, 13, 8],
   "aim": [0, 1, -1],
-  "angle": 27,
-  "power": 1.7,
-  "fill": 0.16,
+  "angle": 28,
+  "power": 1.65,
+  "fill": 0.17,
   "fog": [6, 22],
   "pool": 0.5
  },
@@ -23,18 +23,6 @@
    "x": [-2.7, 2.7],
    "z": [-10.8, 10.8],
    "size": 0.9
-  },
-  {
-   "part": "side-wall",
-   "at": [-2.4, 0, 11],
-   "turn": 90,
-   "length": 22
-  },
-  {
-   "part": "side-wall",
-   "at": [2.4, 0, -11],
-   "turn": -90,
-   "length": 22
   },
   {
    "part": "ceiling",
@@ -93,22 +81,6 @@
    "w": 0.9,
    "h": 1.4,
    "kind": 1
-  },
-  {
-   "part": "painting",
-   "at": [-2.37, 2.3, 0.2],
-   "turn": 90,
-   "w": 1.6,
-   "h": 2,
-   "kind": 2
-  },
-  {
-   "part": "painting",
-   "at": [2.37, 2.3, 0.2],
-   "turn": -90,
-   "w": 1.6,
-   "h": 2,
-   "kind": 0
   },
   {
    "part": "pedestal",
