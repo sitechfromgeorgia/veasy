@@ -7,7 +7,10 @@ description: "Use after a Veasy story plans or renders and before it is shown or
 
 One line: `python -m tt_shorts.engine review <story.json>` (tool `veasy_review`). You get back `status`
 (`passed`, `fixed` or `held`), the `holds`, the `warnings`, what it changed (`applied_transforms`), `facts_diff`
-(always `[]`) and `notes` you can act on. It costs nothing but local work: no voice, no model, no network.
+(always `[]`) and `notes` you can act on. It costs nothing but local work: no voice, no model, no network. Without `--save` the story file is never
+changed: the repaired story is only reported (`applied_transforms`). `rounds_executed` counts audits; `machine_rounds`
+and `look_rounds` count repairs. Without `--stills` the pixel rules do not run, and the output says so by having no
+`pixel_checks` key.
 
 ## What it checks
 
