@@ -8,6 +8,7 @@
     #root .band { position: absolute; left: 0; top: 248px; width: 1080px; height: 1132px; overflow: hidden; }
     #root .band video { position: absolute; left: 0; top: -248px; width: 1080px; height: 1920px; }
     #root .band i.scrim { position: absolute; inset: 0; background: var(--canvas); opacity: .45; }
+    #root .band i.fade { position: absolute; left: 0; right: 0; bottom: 0; height: 140px; background: linear-gradient(to bottom, var(--canvas-0), var(--canvas)); }
     #root .dotf { position: absolute; left: 0; top: 0; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 14px; background: var(--accent); }
     #root .card { position: absolute; left: 64px; width: 876px; background: var(--canvas-90); border: 2px solid var(--line-strong);
       border-radius: 14px; padding: 40px; box-sizing: border-box; }
@@ -26,6 +27,7 @@
       <div class="band">
         <video id="{id}-v" src="assets/plates/{plate_id}.mp4" muted playsinline loop data-start="0"></video>
         <i class="scrim"></i>
+        <i class="fade"></i>
         <i id="{id}-dot" class="dotf"></i>
       </div>
       <!--/plate-->

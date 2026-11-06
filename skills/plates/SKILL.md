@@ -68,8 +68,8 @@ exists and a queue job never bakes: at 50 videos a day a fresh plate each would 
 
 Reading a plate (per film, measured on this machine while other jobs ran):
 - the cache answer: 0.2 s in process, 1.3-2.4 s as a command here (Python and node start-up under load);
-- Remotion (`OffthreadVideo`, frames pulled by ffmpeg): READ_REMOTION;
-- HyperFrames (a `<video>` seeked per frame): READ_HYPERFRAMES.
+- Remotion (`OffthreadVideo`, frames pulled by ffmpeg): about +0.3 s a frame of the plate's scene (a 29 s film: 218 s with a 5 s plate scene, 167 s without);
+- HyperFrames (a `<video>` seeked per frame): no measurable cost (the same film: 137 s with the plate playing 17 s, 146 s without); a plate shorter than its scene loops with `loop`.
 
 Tone: black becomes the pack's canvas and white its ink along the straight line between them (ffmpeg `gradfun` on the grey,
 then one lookup per channel): the toned frame holds colours of that line only (tested for both packs and both themes), the

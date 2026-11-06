@@ -25,13 +25,29 @@
 
 ## 3. What Was Not Done & Why
 
-*(Will be updated as backlog items progress)*
+- N13 label for a plate holding generated imagery: no plate kind holds an image (this lane ships none), so the ledger
+  entry has no label field. A future kind that bakes a generated image in must set `imagery: true` in its manifest and the
+  label then follows `assets.ILLUSTRATIVE`; not built, nothing to test.
+- The kinds other lanes add (`plates/<kind>/`): only `example` exists in this branch; `plate check` lints whatever is there.
+- Server numbers: the bake costs are this machine's (loaded, shared); the server's speed is not measured.
 
 ---
 
 ## 4. Owner Decisions
 
-*(Any items requiring owner confirmation)*
+1. `plate` is in the `explainer` program's scene list (so an explainer may carry plate scenes). `blog`, `story` and
+   `digest` take any scene (`"all"`), so they can too; `law` lists its scenes and does not. Say if a program should not.
+2. The `light` themes of both packs are toned too (previews: `allowed: false` stays, a render refuses them); only the
+   clip is cached, so it costs nothing until a film uses it.
+3. A plate's brightest grey is the pack's ink; both players lay a 45% canvas scrim over the clip so the card, not the plate,
+   is the brightest thing. Say if the owner wants the plate at full strength (one constant in each player).
+4. Proposed paragraph for CLAUDE.md (not edited): "**Plates** (`tt_shorts/plates.py`, `plates/run.mjs`, `veasy:plates`,
+   tool `veasy_plate`): `engine plate <kind>` bakes once (content-hash cache under `$VEASY_HOME/cache/plates`) and tones the
+   grey clip onto every pack's canvas-to-ink line; a `plate` scene (brush) and the compose `plate` block play it behind
+   a solid card, words stay DOM text. Refused for news, the crime family and words of deaths or incidents (command, checks,
+   N1). A queue job never bakes (`variety.pick_plate` takes the least used baked plate, a missing one is a warning). The
+   ledger kind is `plate`, licence `own`. A new kind is `plates/<kind>/` (contract in `plates/README.md`) and passes
+   `engine plate check`."
 
 ---
 
@@ -64,3 +80,18 @@
 (`plate` in its scene list), `remotion/src/types.ts`, `remotion/src/scenes/index.tsx`, `stories/veasy-plate.json` (the demo,
 program explainer), `tests/test_catalog.py` and `tests/test_scenes.py` (the news allowlist test now names the made-picture
 types; the demo list gets `veasy-plate`).
+
+## 8. Final evidence (2026-11-07)
+
+Frames: `docs/research/plates-core-frames/` (a Remotion film and a composed film with the plate behind real facts; the toned
+light previews). Full-film renders (silent voice, explainer format, scratch `VEASY_HOME`): `qa` and flash pass, probe passes
+(problems: none; the only QA line is "no audio track", as the voice was silent). Composed: `compose check` problems [], HyperFrames lint/
+runtime/layout/contrast errors 0; the plate loops (21 s vs 22 s frames differ).
+Reading cost: Remotion 218 s with the plate scene vs 167 s without; HyperFrames 137 s vs 146 s (no measurable cost). Machine
+was shared and loaded: indicative only.
+Banding: gradfun turns 16 value changes a row into 185 on a dark gradient, still on the line (`test_banding_...`).
+Fresh-eye critic (sonnet, frames only): plate calm and on-brand; asked for a fade at the clip's bottom edge (done in both
+players, frames not re-rendered after it), a dot with a job (the example plate's dot sits on a blank face: a property of that
+kind, not of the core) and quieter chrome (caption, watermark: not this lane's).
+Not met literally: `engine plate example --seconds 4` was run at 6 s and 1 s; the cache answer is 0.2 s in process
+(`test_second_call_...` holds <1 s) but 1.3-2.4 s as a CLI process on this loaded machine (interpreter start-up).

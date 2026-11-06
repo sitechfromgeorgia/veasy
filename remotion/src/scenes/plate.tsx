@@ -48,6 +48,7 @@ export const Plate: React.FC<{ s: Scene; inner?: number }> = ({ s, inner = INNER
           borderRadius: v === "cards" ? `${RADIUS}px ${RADIUS}px 0 0` : 0 }}>
           {s.duration > p.frames ? <Loop durationInFrames={p.frames}>{clip}</Loop> : clip}
           <div style={{ position: "absolute", inset: 0, background: alpha(base, SCRIM) }} />
+          <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, ${alpha(base, 0)} calc(100% - 140px), ${alpha(base, 1)} 100%)` }} />
         </div>
       )}
       {shown && (
