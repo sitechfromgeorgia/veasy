@@ -21,7 +21,7 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
 - **Where it runs:** the tbilisi.today agent server, 84.46.250.149. Setup is `ops/install.sh`.
   - Secrets live only in `data/.env` (chmod 600, git-ignored).
   - Timers, cron and anything installed on the server need the owner's OK.
-- **Entry point:** `python -m tt_shorts.engine` (options, check, plan, render, still, qa, probe, write, queue, gc,
+- **Entry point:** `python -m tt_shorts.engine` (options, check, plan, render, still, qa, probe, write, concept, queue, gc,
   voices, doctor, compose; JSON out). `plan` is the free storyboard to run before paying for a voice.
   The skills in `skills/` say how an agent uses it. Keep the engine, the skills and `options` in step: a new
   choice in code must appear in `engine.options()`, `formats.py` validation and the `veasy:formats` skill.
@@ -50,16 +50,22 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   `digest`) is built by code from checked stories, never by a model, and states its real story count.
 - **Two film engines** (`"engine": "remotion" | "hyperframes"`: director, else program, else format, else pack,
   else remotion; `compose.engine_for`). The HyperFrames lane is `tt_shorts/compose.py` (`engine compose
-  scaffold|check|render|promote`, skill `veasy:compose`, tool `veasy_compose`):
-  - HyperFrames runs only through `compose.hyperframes()` (telemetry and updates off, `REFUSED` subcommands), pinned
-    in `compose/package.json`; renders pinned in `compose.RENDER`.
+  scaffold|check|look|render|promote`, skill `veasy:compose`, tool `veasy_compose`):
+  - HyperFrames runs only through `compose.hyperframes()` (telemetry and updates off, `REFUSED` subcommands and
+    `OFFSITE` flags), pinned in `compose/package.json`; renders pinned in `compose.RENDER`.
+  - A composed film meets the novelty guard through `variety.assess_composed` (`COMPOSED_FIELDS`): a warning, never a
+    hold. `variety.FIELDS` stays the kit's.
   - The locked chrome and captions are versioned (`CHROME_VERSION`) and hashed; a change to them bumps the version.
   - A new lint rule goes in `compose.lint` and `LINT_RULES` with a case in `tests/test_compose.py`.
+  - `probe cut` (`compose.cut_problems`) reads every frame pair where two scene hosts overlap: text colliding is a
+    problem, drawings colliding a warning (a match cut does it on purpose). A change needs a case in `Cuts` there.
   - Facts are bound (`data-var-text`, `VEASY.fact`), never typed; every DOM text goes through the story's tier.
   - A composed film is held for review unless its format or program says `review: until:<n>` (queue.py).
   - The engines' own skills are installed by `ops/install.sh --skills`, never copied into this repo.
 - **Motion rules** (`tt_shorts/motion_rules.py`): warnings in `engine plan`; only unreadable text (0.5 s + 0.3 s a
   word) holds a render. A new rule needs a case in `tests/test_motion_rules.py`.
+- **Flash** (`tt_shorts/flash.py`, ITU BT.1702): safety, not style. `qa_file` holds a video that flashes more than 3
+  times a second over a quarter of the screen, whichever engine drew it. A change needs a case in `tests/test_flash.py`.
 - **Data flow:** source → story JSON → `tt_shorts/props.py` (voice, timings, data, the brand pack) → `remotion/`
   composition `NewsShort` → mp4.
   - The writer (an LLM) fills only text fields.
@@ -74,6 +80,11 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   - Videos are published without a human review. Any rule that code can check goes into `news_check.py` with a
     test in `tests/test_news_check.py`.
   - Never add an opinion scene. Never let the writer set `date` or `sources`.
+- **Ideas** (`tt_shorts/concept.py`, `concepts/`, `veasy:direct`): a program with `"concept"` gets one idea per story
+  before its script: the model writes from named rungs, code judges and chooses, the story keeps it (code-owned, never
+  on screen). `news` has no idea step and may not get one until the owner decides. A new filter needs a case in
+  `tests/test_concept.py`; a device names the scene types that can draw it today, or waits with none. History is
+  `variety.record_concept`, never a field of the novelty fingerprint.
 - **Programs** (`programs/*.json` + `programs/briefs/`, `tt_shorts/programs.py`): what a video is made from and
   what it may claim. `news` (no `"program"` in the story) must stay exactly as it is. A new program is a JSON file
   and a brief; a new rule tier goes in `tt_shorts/claims_check.py` with a test in `tests/test_programs.py`; a new

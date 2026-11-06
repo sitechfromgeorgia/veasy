@@ -41,6 +41,11 @@ its stored picks back without a re-roll.
 fingerprint, similarity, distance, nearest and spread are pure; assess() measures any style against the brand's
 history without re-rolling (for `engine plan`).
 
+A film an agent composed (compose.py) has none of the kit's picks, so two of them would match on every empty field.
+assess_composed() compares such a film only with the brand's other composed films and only on what one has
+(COMPOSED_FIELDS: its template, its scene kinds, its opening scene, the ease its scenes use most, its music loop),
+too close at COMPOSED_CLOSE. It only warns: the film is the agent's to change, nothing re-rolls it.
+
 The history is a table in $VEASY_HOME/veasy.db: each finished render's picks (the fingerprint's columns), and since
 the guard its distance to the nearest recent video and the re-rolls it took (MIGRATIONS adds the columns to an
 older database). recent_sequences() gives the writer the scene orders used lately, so it can choose a different
@@ -75,12 +80,19 @@ FIELDS = ("director", "scenes", "hook", "motif", "enter", "transition", "music")
 WEIGHTS = {k: 1.0 for k in FIELDS}
 TOO_CLOSE = 5.0  # similarity at or above this to one of the last RECENT videos: re-roll ("5 of 7")
 REROLLS = 64  # at most this many re-rolls per plan
+# a composed film (compose.film_style): the fields it has, and the kit's share of them (5 of 7) as its threshold
+COMPOSED = "composed"  # its look in the history
+COMPOSED_FIELDS = ("template", "scenes", "hook", "enter", "music")
+COMPOSED_CLOSE = 3.5
 
 SCHEMA = """
 create table if not exists variety(
   ts text, brand text, story text, look text, hook text, motif text, enter text, transition text, music text,
   scenes text);
 create index if not exists variety_brand on variety(brand, ts);
+create table if not exists concepts(
+  ts text, brand text, story text, family text, object text, device text, rung integer, idea text);
+create index if not exists concepts_brand on concepts(brand, ts);
 """
 MIGRATIONS = {  # columns added since the table was first made; an older veasy.db gets them on first use
     "director": "alter table variety add column director text",  # directors.py, before writing
@@ -181,20 +193,25 @@ def fingerprint(style, scenes=None, director=None):
            **{k: st.get(k) for k in ("hook", "motif", "enter", "transition", "music")}}
     if st.get("story") is not None:
         out["story"] = str(st["story"])
+    if st.get("template"):
+        out["template"] = st["template"]
     film_style = st.get("style_slug") or (st.get("style") if isinstance(st.get("style"), str) else None)
     if film_style:
         out["style"] = film_style
     return out
 
 
-def similarity(a, b):
+def similarity(a, b, fields=FIELDS):
     """How much two fingerprints share, 0-7 (WEIGHTS): each single field when equal, the scene orders as their
-    difflib ratio (nothing when either is unknown). When named film styles are present in both, they add +1.0."""
+    difflib ratio (nothing when either is unknown). When named film styles are present in both, they add +1.0.
+    fields: the fields compared (COMPOSED_FIELDS for composed films; "template" counts only when both have one)."""
     out = 0.0
-    for k in FIELDS:
+    for k in fields:
         if k == "scenes":
             if a.get(k) is not None and b.get(k) is not None:
                 out += WEIGHTS[k] * difflib.SequenceMatcher(None, list(a[k]), list(b[k]), autojunk=False).ratio()
+        elif k == "template":
+            out += 1.0 if a.get(k) and a.get(k) == b.get(k) else 0.0
         elif a.get(k) == b.get(k):
             out += WEIGHTS[k]
     if a.get("style") is not None and b.get("style") is not None and a["style"] == b["style"]:
@@ -211,12 +228,12 @@ def too_close(a, b):
     return similarity(a, b) >= TOO_CLOSE
 
 
-def nearest(fp, past):
+def nearest(fp, past, fields=FIELDS):
     """(similarity, the nearest fingerprint) of fp against past fingerprints, newest first; the newest wins a tie.
     (0.0, None) when past is empty."""
     best, near = 0.0, None
     for other in past:
-        s = similarity(fp, other)
+        s = similarity(fp, other, fields)
         if near is None or s > best:
             best, near = s, other
     return best, near
@@ -227,9 +244,9 @@ def _others(rows, story):
     return [fingerprint(r) for r in rows if str(r["story"]) != str(story)]
 
 
-def _report(sim, near, rerolls=0, kept=False, warning=None):
-    return {"similarity": sim, "distance": round(1 - sim / sum(WEIGHTS.values()), 3),
-            "nearest": (near or {}).get("story"), "too_close": sim >= TOO_CLOSE, "rerolls": rerolls, "kept": kept,
+def _report(sim, near, rerolls=0, kept=False, warning=None, total=None, close=TOO_CLOSE):
+    return {"similarity": sim, "distance": round(1 - sim / (total or sum(WEIGHTS.values())), 3),
+            "nearest": (near or {}).get("story"), "too_close": sim >= close, "rerolls": rerolls, "kept": kept,
             "warning": warning}
 
 
@@ -256,6 +273,18 @@ def assess(brand, story, style, scenes=None):
     """How close a style (and scene order) is to the brand's last RECENT videos, without re-rolling:
     {similarity, distance, nearest (a story id), too_close, rerolls 0, kept False, warning None}."""
     return _report(*nearest(fingerprint(style, scenes), _others(history(brand), story)))
+
+
+def assess_composed(brand, story, style, scenes):
+    """assess() for a film an agent composed: against the brand's other composed films among its last RECENT videos, on
+    COMPOSED_FIELDS. style, scenes: compose.film_style()'s. It warns and re-rolls nothing."""
+    past = [fingerprint(r) for r in history(brand) if r.get("look") == COMPOSED and str(r["story"]) != str(story)]
+    sim, near = nearest(fingerprint(style, scenes), past, COMPOSED_FIELDS)
+    warning = None
+    if sim >= COMPOSED_CLOSE:
+        warning = (f"novelty: this film shares {sim:g} of {len(COMPOSED_FIELDS)} with story {near.get('story')} "
+                   f"(too close at {COMPOSED_CLOSE:g}: scene kinds, opening scene, main ease, template, music)")
+    return _report(sim, near, warning=warning, total=len(COMPOSED_FIELDS), close=COMPOSED_CLOSE)
 
 
 # ---------------------------------------------------------------- picking
@@ -358,6 +387,22 @@ def record(brand, story, look, style, scenes, novelty=None):
                      style.get("hook"), style.get("motif"), style.get("enter"), style.get("transition"),
                      style.get("music"), json.dumps(list(scenes)), style.get("director"), nov.get("distance"),
                      nov.get("rerolls"), style.get("template"), style.get("theme"), film_style))
+
+
+def record_concept(brand, story, family, concept):
+    """A film's idea (concept.py), once per story. Its own table: the fingerprint's thresholds are calibrated."""
+    with _db() as con:
+        con.execute("delete from concepts where brand=? and story=?", (brand, story))
+        con.execute("insert into concepts(ts, brand, story, family, object, device, rung, idea) values(?,?,?,?,?,?,?,?)",
+                    (dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), brand, story, family,
+                     concept["object"], concept["device"], concept["rung"], concept["idea"]))
+
+
+def recent_concepts(brand, n=100):
+    """The brand's last ideas, newest first."""
+    with _db() as con:
+        rows = con.execute("select * from concepts where brand=? order by ts desc, rowid desc limit ?", (brand, n))
+        return [dict(r) for r in rows.fetchall()]
 
 
 def recent_sequences(brand, n=12):

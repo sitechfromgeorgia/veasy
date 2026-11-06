@@ -185,7 +185,20 @@ def ask_one_round(
     return resolved, questions_log, False
 
 
-def make_film(
+NEXT = {"needs_input": "answer the questions, then call again",
+        "queued": "the worker takes it: veasy_queue shows the job",
+        "preview": "look at the stills, then call again without preview_storyboard",
+        "error": "fix what problems name, then call again",
+        "rendered": "run veasy_qa on the file; publish only when it has no problems"}
+
+
+def make_film(request: str, **kw) -> dict:
+    """The front door, with where the work stands and what comes next, so an agent never has to guess."""
+    result = _make_film(request, **kw)
+    return {**result, "state": result.get("status"), "next": NEXT.get(result.get("status"))}
+
+
+def _make_film(
     request: str,
     brand: str | None = None,
     style: str | None = None,

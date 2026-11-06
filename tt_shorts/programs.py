@@ -42,7 +42,7 @@ DEFAULT = "news"
 TIERS = claims_check.TIERS
 PUBLISH = ("auto", "review")
 LINKS = ("brand", "source")
-KEYS = ("label", "about", "sources", "brief", "scenes", "rules", "format", "publish", "category", "link", "writer",
+KEYS = ("label", "about", "sources", "brief", "scenes", "rules", "format", "publish", "concept", "category", "link", "writer",
         "screenshots", "engine", "review", "chrome")
 WRITERS = ("model", "digest")
 CHROMES = ("news", "film")
@@ -111,6 +111,14 @@ def validate(name, p):
         formats.engine_value(p["engine"], f"program {name!r}", ProgramError)
     if "review" in p:
         formats.review_policy(p["review"], f"program {name!r}", ProgramError)
+    if "concept" in p:  # the idea step (concept.py): news never has it, by its own rule
+        from tt_shorts import concept
+        if name == DEFAULT:
+            bad("the news program stays as it is: it has no idea step")
+        try:
+            p = {**p, "concept": concept.validate(p["concept"], f"program {name!r}: concept")}
+        except concept.ConceptError as e:
+            raise ProgramError(str(e))
     chrome = p.get("chrome", "news")
     if chrome not in CHROMES:
         bad(f"chrome={chrome!r} is not one of {', '.join(CHROMES)}")
@@ -311,13 +319,13 @@ def prompt(p, cluster, articles, avoid=None, brand=None, director=None, found=No
 
 def writer_checks(p, story, articles, cluster, brand=None):
     """What the writer's draft must pass for this program (it goes back to the model with the problems)."""
-    from tt_shorts import art, brand as packs, ka_check
+    from tt_shorts import art, brand as packs, icons, ka_check
     joined = "\n\n".join(articles)
     article = {"title": cluster.get("headline", ""), "description": "", "text": joined}
     draft = {**story, "program": p["name"], "brand": brand or packs.DEFAULT, "sources": cluster.get("sources") or []}
     out = rule_problems(draft, articles, doc=doc_of(cluster)) + ka_check.problems(story, article) + \
         art.story_problems(story) + [x for x in story_problems(draft) if not x.startswith("story:")] + \
-        length_problems(story, p)
+        length_problems(story, p) + icons.motif_problems(story)
     cats = packs.load(brand)["categories"]
     if not p.get("category") and story.get("category") not in cats:
         out.append(f"story: category {story.get('category')!r} is not one of {', '.join(cats)}")
@@ -337,4 +345,4 @@ def write(p, data, brand=None, avoid=None, on_problems=None, director=None, fact
     checks = (lambda s, a, c: writer_checks(p, s, a, c, brand) + (more_checks(s) if more_checks else []))
     return writer.write(data["cluster"], data["articles"], avoid=avoid,
                         make_prompt=lambda c, a, av: prompt(p, c, a, av, brand, director, facts, extra),
-                        run_checks=checks, on_problems=on_problems)
+                        run_checks=checks, on_problems=on_problems, forgive=("concept:",))

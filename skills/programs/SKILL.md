@@ -5,6 +5,8 @@ description: "Use when a video should be made from something other than a news c
 
 # Programs: any source in
 
+A program with `"concept": {"rungs": [...], "ideas": 5}` gets its own idea per story before the script (`veasy:direct`).
+
 A **program** says what a video is made from and what it may claim; a **format** (`veasy:formats`) says how it looks
 and sounds. Every job and story has one; `news` is the default and is exactly what Veasy did before programs.
 

@@ -12,6 +12,65 @@ from tt_shorts import art, variety, writer
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
+class Composed(unittest.TestCase):
+    """A film an agent composed: judged on what it has, against other composed films, and only ever warned."""
+
+    def setUp(self):
+        self.home = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"VEASY_HOME": self.home.name})
+        self.env.start()
+        self.film = {"hook": "kinetic-headline", "enter": "expo.out", "music": "fable-1", "template": None,
+                     "transition": "composed"}
+        self.kinds = ["kinetic-headline", "quote", "process", "end-card"]
+
+    def tearDown(self):
+        self.env.stop()
+        self.home.cleanup()
+
+    def past(self, style=None, kinds=None, story="a", look=variety.COMPOSED):
+        variety.record("sitech", story, look, style or self.film, kinds or self.kinds)
+
+    def test_nothing_to_compare_with(self):
+        r = variety.assess_composed("sitech", "b", self.film, self.kinds)
+        self.assertEqual((r["similarity"], r["too_close"], r["warning"]), (0.0, False, None))
+
+    def test_the_same_blocks_ease_and_loop_are_too_close(self):
+        self.past()
+        r = variety.assess_composed("sitech", "b", self.film, self.kinds)
+        self.assertEqual((r["similarity"], r["too_close"], r["nearest"]), (4.0, True, "a"))
+        self.assertIn("novelty:", r["warning"])
+        self.assertEqual(r["rerolls"], 0)
+
+    def test_two_films_of_their_own_are_not_alike_for_sharing_empty_fields(self):
+        self.past({**self.film, "hook": "own-1"}, ["own-1", "own-2", "own-3"])  # no template, no director, no motif
+        r = variety.assess_composed("sitech", "b", {**self.film, "hook": "own-9"}, ["own-9", "own-8", "own-7"])
+        self.assertEqual(r["similarity"], 2.0)  # the ease and the loop, nothing else
+        self.assertFalse(r["too_close"])
+
+    def test_the_same_template_counts_no_template_does_not(self):
+        fp = variety.fingerprint({**self.film, "template": "tech-explainer"}, self.kinds)
+        self.assertEqual(variety.similarity(fp, fp, ("template",)), 1.0)
+        bare = variety.fingerprint(self.film, self.kinds)
+        self.assertEqual(variety.similarity(bare, bare, ("template",)), 0.0)
+
+    def test_its_own_earlier_render_and_the_kits_videos_dont_count(self):
+        self.past(story="b")
+        self.past(story="c", look="editorial")
+        self.assertEqual(variety.assess_composed("sitech", "b", self.film, self.kinds)["similarity"], 0.0)
+
+    def test_the_kits_fingerprint_and_threshold_are_unchanged(self):
+        self.assertEqual(variety.FIELDS, ("director", "scenes", "hook", "motif", "enter", "transition", "music"))
+        self.assertEqual(variety.TOO_CLOSE, 5.0)
+        self.assertNotIn("template", variety.fingerprint({"hook": "stack"}))
+        self.assertEqual(sum(variety.WEIGHTS.values()), 7)
+
+    def test_a_composed_row_cant_push_a_kit_video_too_close(self):
+        self.past()
+        kit = {"hook": "stack", "motif": "grid", "enter": "rise", "transition": "line", "music": "fable-1"}
+        r = variety.assess("sitech", "b", kit, ["hook", "stat", "end"])
+        self.assertFalse(r["too_close"])
+
+
 class Picks(unittest.TestCase):
     def setUp(self):
         self.home = tempfile.TemporaryDirectory()

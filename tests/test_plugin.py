@@ -11,7 +11,7 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SKILLS = ("make-video", "write-script", "qa", "formats", "queue", "brands", "package", "programs", "directors", "rubrics",
-          "media", "compose", "styles")
+          "media", "compose", "styles", "direct")
 
 
 def load_plugin():
@@ -129,6 +129,18 @@ class Plugin(unittest.TestCase):
         cr = json.loads(self.ctx.tools["veasy_critique"][1]({"story": "stories/24835.json"}))
         self.assertIn("grade", cr)
         self.assertIn("checklist", cr)
+
+    def test_compose_tool_offers_look_and_blocks(self):
+        schema, handler = self.ctx.tools["veasy_compose"]
+        self.assertLessEqual({"look", "blocks"}, set(schema["parameters"]["properties"]["action"]["enum"]))
+        self.assertIn('"kinetic-headline"', handler({"action": "blocks"}))
+        with mock.patch.object(self.plugin, "_engine", return_value="{}") as engine:
+            handler({"action": "look", "story": "stories/x.json", "video": "f.mp4", "project": "p"})
+            handler({"action": "scaffold", "story": "stories/x.json", "blocks": "quote,end-card"})
+        self.assertEqual(engine.call_args_list[0].args, ("compose", ["look", "stories/x.json", "--video", "f.mp4",
+                                                                     "--project", "p"]))
+        self.assertEqual(engine.call_args_list[1].args, ("compose", ["scaffold", "stories/x.json", "--blocks",
+                                                                     "quote,end-card"]))
 
     def test_check_tool_runs_the_checks(self):
         out = json.loads(self.ctx.tools["veasy_check"][1]({"story": "stories/24835.json",

@@ -248,6 +248,18 @@ TOOLS = {
                     "tbilisi-today, the D1 keys). Stored as stories/<brand>/<day>/<ref>.json under VEASY_HOME. "
                     "Returns the story path and any remaining problems.",
                     lambda a: _engine("write", _flags(a, ("program", "source", "ref", "cluster", "brand", "rubric", "style")))),
+    "veasy_concept": ({"type": "object", "properties": {
+                          "program": PROGRAM,
+                          "source": SOURCE,
+                          "ref": {"type": "string", "description": "The story's reference in its source."},
+                          "batch": {"type": "string", "description": "A JSON file of [{source, ref}]: a run."},
+                          "brand": BRAND,
+                          "ideas": {"type": "string", "description": "A JSON file of your own ideas: judged the same "
+                                                                     "way, with no model call."}}},
+                      "The idea step alone (skill veasy:direct): ideas from named rungs of a ladder, judged and chosen "
+                      "by code, before any script. Free of voice and render, nothing recorded. Returns every idea with "
+                      "its verdict and the chosen concept.",
+                      lambda a: _engine("concept", _flags(a, ("program", "source", "ref", "batch", "brand", "ideas")))),
     "veasy_rubrics": ({"type": "object", "properties": {
                           "action": {"type": "string", "enum": ["list", "facts", "stamp"]},
                           "story": {"type": "string", "description": "stamp: a hand-written story file (stamped in place)."},
@@ -290,13 +302,17 @@ TOOLS = {
                             "voice", "music", "platform", "beats", "chapters", "engine", "director", "rubric", "part", "renderer",
                             "style", "priority", "state", "max")))),
     "veasy_compose": ({"type": "object", "properties": {
-                          "action": {"type": "string", "enum": ["scaffold", "check", "render", "promote", "templates"]},
-                          "story": {"type": "string", "description": "scaffold/check/render: the story JSON."},
+                          "action": {"type": "string", "enum": ["scaffold", "check", "look", "render", "promote",
+                                                                "templates", "blocks"]},
+                          "story": {"type": "string", "description": "scaffold/check/look/render: the story JSON."},
                           "project": {"type": "string", "description": "The HyperFrames project folder (default: "
                                       "$VEASY_HOME/cache/compose/<brand>-<ref>); promote: the film to promote."},
                           "brand": BRAND,
                           "template": {"type": "string", "description": "scaffold/render: start from templates/<id> "
                                        "(auto: the least used for the brand)."},
+                          "blocks": {"type": "string", "description": "scaffold: block ids to assemble, comma-"
+                                     "separated (action blocks lists them)."},
+                          "video": {"type": "string", "description": "look: a rendered file to measure the sound of."},
                           "from": {"type": "string", "description": "scaffold: copy the agent's files (index.html, "
                                    "compositions/, beats.json) from this folder."},
                           "force": {"type": "boolean", "description": "scaffold: replace the project's own files."},
@@ -313,11 +329,14 @@ TOOLS = {
                       "(the pack's frame.md and tokens, facts.json, timing.json with the voice's words and the beats, "
                       "the locked chrome and captions), check it (our lint, the probe at every beat, the story's rules, "
                       "Georgian and kaeasy on every text the DOM shows, hyperframes check; problems must be empty), "
-                      "render it (pinned HyperFrames, the ffmpeg mix, QA), promote an approved film to a template.",
+                      "look at it (free: a sheet of its scenes and beats, a strip across every cut, the frames at "
+                      "phone width, its timeline), render it (pinned HyperFrames, the ffmpeg mix, QA), promote an "
+                      "approved film to a template.",
                       lambda a: _engine("compose", [a["action"]] + (
                           [a["project"]] if a["action"] == "promote" and a.get("project") else
                           [a["story"]] if a.get("story") else []) + _flags(
-                          a, ("brand", "template", "sources", "engine", "format", "style", "label")) +
+                          a, ("brand", "template", "blocks", "sources", "engine", "format", "style", "label",
+                              "video")) +
                           (["--project", a["project"]] if a.get("project") and a["action"] != "promote" else []) +
                           (["--from", a["from"]] if a.get("from") else []) + (["--as", a["as"]] if a.get("as") else []) +
                           (["--force"] if a.get("force") else []))),

@@ -28,6 +28,7 @@ FALLBACK = os.environ.get("SHORTS_WRITER_FALLBACK", "")
 # out without it. VEASY_WRITER_DRAW=0 turns drawing off.
 DRAW_ENV = "VEASY_WRITER_DRAW"
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
+THINKING_TOKENS = 24000  # a provider's model may think first, and that counts: too few and the answer comes back empty
 
 
 class ChecksFailed(ValueError):
@@ -43,16 +44,30 @@ class ChecksFailed(ValueError):
 SCHEMA = catalog.schema()
 
 
+def _provider() -> tuple[str, str, dict, str, dict]:
+    """(url, key, the request's extra keys, the key's name, extra headers): OpenRouter, or any OpenAI-format server
+    named by SHORTS_WRITER_URL with SHORTS_WRITER_KEY (read when used: daily.py loads data/.env after importing this).
+    The writer names itself there: an API behind Cloudflare refuses Python-urllib's default signature (error 1010)."""
+    url = os.environ.get("SHORTS_WRITER_URL", "").rstrip("/")
+    if not url:
+        return ENDPOINT, os.environ.get("OPENROUTER_API_KEY", ""), {"reasoning": {"enabled": False}}, \
+            "OPENROUTER_API_KEY", {}
+    if not url.endswith("/chat/completions"):
+        url += "/chat/completions"
+    return url, os.environ.get("SHORTS_WRITER_KEY", ""), {}, "SHORTS_WRITER_KEY", {"User-Agent": "veasy-writer"}
+
+
 def _call(prompt: str, model: str, max_tokens: int = 1800, tries: int = 3) -> str:
-    key = os.environ.get("OPENROUTER_API_KEY", "")
+    url, key, extra, name, headers = _provider()
     if not key:
-        raise RuntimeError("OPENROUTER_API_KEY is not set")
+        raise RuntimeError(f"{name} is not set")
     body = {"model": model, "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.3, "max_tokens": max_tokens, "reasoning": {"enabled": False}}
+            "temperature": 0.3, "max_tokens": max_tokens if url == ENDPOINT else max(max_tokens, THINKING_TOKENS), **extra}
     last = ""
     for attempt in range(tries):
-        req = urllib.request.Request(ENDPOINT, data=json.dumps(body).encode(),
-                                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+        req = urllib.request.Request(url, data=json.dumps(body).encode(),
+                                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
+                                              **headers})
         try:
             with urllib.request.urlopen(req, timeout=180) as r:
                 data = json.load(r)
@@ -62,7 +77,7 @@ def _call(prompt: str, model: str, max_tokens: int = 1800, tries: int = 3) -> st
             last = "empty answer"
         except urllib.error.HTTPError as e:
             last = f"HTTP {e.code}: {e.read()[:200]!r}"
-            if e.code == 429:
+            if e.code == 429 and url == ENDPOINT:
                 try:
                     return _nvidia(prompt, max_tokens)
                 except Exception as nv:
@@ -418,7 +433,7 @@ def _checks(story: dict, articles: list[str], cluster: dict):
             + icons.story_problems(story) + catalog.story_problems(story, meta.family(story.get("category", ""))))
 
 
-OWNED = ("rubric", "episode", "part", "digest")  # code sets them (rubrics.py, digest.py), like date and director
+OWNED = ("rubric", "episode", "part", "digest", "concept")  # code sets them (rubrics.py, digest.py, concept.py), like date
 
 
 def _drop_owned(story: dict) -> None:
@@ -429,12 +444,13 @@ def _drop_owned(story: dict) -> None:
 def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 2,
           avoid: list[str] | None = None, make_prompt=None, run_checks=None, mistakes: str = "",
           on_problems=None, director: dict | None = None, facts: dict | None = None, extra: str = "",
-          extra_types=()) -> dict:
+          extra_types=(), forgive: tuple = ()) -> dict:
     """avoid: the scene orders the latest videos used (variety.recent_sequences), so this one can differ.
     make_prompt(cluster, articles, avoid) / run_checks(story, articles, cluster): a program's own prompt and rule
     tier (programs.write); by default the news cluster's (_prompt, _checks). mistakes: the brand's recent failed
     rules (failures.prompt_block, news prompt only); on_problems(list): called with the problems of every pass
-    that goes back for a repair (failures.record)."""
+    that goes back for a repair (failures.record). forgive: prefixes of problems that go back for repairs like any
+    other but never lose the script (the idea step: the caller reads what is left)."""
     model = model or MODEL
     prompt_of = make_prompt or (lambda c, a, av: _prompt(c, a, av, mistakes, director, facts, extra, extra_types))
     checks_of = run_checks or _checks
@@ -488,8 +504,9 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
             problems = checks_of(story, articles, cluster)
             if not _anchors_ok(story):
                 problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
-    if problems:
-        raise ChecksFailed(problems)
+    hard = (lambda found: [x for x in found if not x.startswith(forgive)]) if forgive else (lambda found: found)
+    if hard(problems):
+        raise ChecksFailed(hard(problems))
     # The free writer's Georgian is serviceable but not publishable. One editor pass fixes
     # grammar and calques while the facts, numbers and anchors stay frozen; if the edit breaks
     # a check, the pre-edit script is kept.
@@ -497,7 +514,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     if edited:
         edited.pop("director", None)
         _drop_owned(edited)
-    if edited and _anchors_ok(edited) and not checks_of(edited, articles, cluster):
+    if edited and _anchors_ok(edited) and not hard(checks_of(edited, articles, cluster)):
         kaeasy.learn_edit(story.get("narration", ""), edited.get("narration", ""))  # every agent learns the fix
         story = edited
     # N6: identity, date and outlets come from the data, never from the writer.

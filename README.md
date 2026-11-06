@@ -76,6 +76,7 @@ python -m tt_shorts.engine voices --story <story.json>             # Gemini tone
   ```bash
   python -m tt_shorts.engine compose scaffold <story> [--brand sitech] [--template auto] [--from DIR]  # a project
   python -m tt_shorts.engine compose check    <story> [--sources <story>.sources.json] [--shots DIR]   # every check
+  python -m tt_shorts.engine compose look     <story> [--video FILE]             # free: its sheets and timeline
   python -m tt_shorts.engine compose render   <story> [--engine silent]          # pinned render, mix, QA
   python -m tt_shorts.engine compose promote  <project> --as <id>                # an approved film -> templates/<id>
   ```
@@ -91,6 +92,10 @@ python -m tt_shorts.engine voices --story <story.json>             # Gemini tone
     settled frame (`compose/probe.mjs`), the story's rule tier + K rules + kaeasy on every text the DOM shows, and
     `hyperframes check`. Problems hold the film; a film that would fetch, hide text or lose its chrome is not
     rendered.
+  - **`compose look`**: the film as a viewer gets it, before any voice is paid for: a sheet of its scenes and beats, a
+    strip across every cut, the frames at phone width, its timeline and, with a rendered file, its sound
+    (`hyperframes snapshot --review`, `keyframes`, `audio`, on this machine). The skill starts from an idea
+    (`STORYLINES.md`, `SPEC.md`) and ends with a fresh eye's notes on those sheets (`REVIEW.md`).
   - **Render**: `hyperframes render` with pinned settings (4 workers, software GL, `--quality looks`, 30 fps),
     then `props.mix_audio`, QA and the same result JSON as `engine render`. HyperFrames only runs through
     Veasy, with telemetry, update checks, skill installs and auto-installs off; `publish`, `cloud`, `lambda`, `tts`,

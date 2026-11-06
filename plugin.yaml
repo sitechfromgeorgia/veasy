@@ -12,6 +12,7 @@ provides_tools:
   - veasy_probe
   - veasy_plan
   - veasy_write
+  - veasy_concept
   - veasy_rubrics
   - veasy_queue
   - veasy_compose
