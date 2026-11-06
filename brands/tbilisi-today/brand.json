@@ -76,12 +76,12 @@
   "accent": "."
  },
  "link": {
-  "display": "tbilisi.today/stories/{id}",
-  "qr": "https://tbilisi.today/stories/{id}?utm_source={platform}&utm_medium=video"
+  "display": "tbilisi.today",
+  "qr": "https://tbilisi.today/?utm_source={platform}&utm_medium=video&story={id}"
  },
  "footer": {
-  "text": "SiTech-ის პროექტი · ",
-  "strong": "sitech.ge"
+  "text": "ყოველდღიური ამბები · ",
+  "strong": "tbilisi.today"
  },
  "media": {
   "own": [
