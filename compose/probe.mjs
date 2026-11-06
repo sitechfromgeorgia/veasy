@@ -10,7 +10,12 @@
 // GSAP injected (no CDN): every other request is refused and reported, so a probe run also proves the page needs no
 // network. Each time is sought with the runtime's renderSeek (the call `hyperframes render` makes), the brand font's
 // faces are awaited, and the page reports every text box. One JSON line per time on stdout:
-//   {"t": 0.7, "label": "hook", "probe": {frame, fonts, regions, texts}}   then {"done": true, "blocked": [urls]}
+//   {"t": 0.7, "label": "hook", "probe": {frame, fonts, regions, texts, generated}}   then {"done": true, "blocked": [urls]}
+//
+// A cut (spec "cuts": [{"a": "s2", "b": "s3", "times": [...]}], "cutGrid": px, "cutOpacity": 0..1) is read the same way,
+// frame by frame while both scenes are live, plus what a viewer can see of each: "cells" (the grid points each scene
+// shows something at, no further than the first solid thing above it) and a text's "hidden" (how much of it is under
+// something solid, a wipe's bars or a panel). One line per reading: {"cut": 0, "t": 10.3, "probe": {...}}.
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -64,7 +69,7 @@ const serve = (dir) => new Promise((resolve) => {
 });
 
 // ---- in the page: remotion/src/Probe.tsx's collect(), unchanged in what it measures
-function collect(t, label) {
+function collect(t, label, live, grid, faint) {
   const W = 1080;
   const r1 = (n) => Math.round(n * 10) / 10;
   const root = document.querySelector("[data-probe-root]");
@@ -122,6 +127,41 @@ function collect(t, label) {
       return g.map((v) => Math.round(v));
     });
   };
+  // at a cut: how an element paints, wherever the browser's hit test says it is (a stroke is hit on its line, not its box)
+  const DRAWN = new Set([...SHAPES, "line", "polyline"]);
+  const painted = new Map();
+  const paintOf = (e) => {
+    if (painted.has(e)) return painted.get(e);
+    const tag = e.tagName.toLowerCase();
+    const cs = getComputedStyle(e);
+    const strength = (paint, opacity) => {
+      if (!paint || paint === "none") return 0;
+      if (paint.startsWith("url(")) return 0.5; // a gradient: there, but never solid
+      return (parseColor(paint)?.[3] ?? 1) * parseFloat(opacity || "1");
+    };
+    let a = 0;
+    if (["img", "video", "canvas", "image"].includes(tag)) a = 1;
+    else if (e instanceof SVGElement) a = DRAWN.has(tag) ? strength(cs.fill, cs.fillOpacity) || strength(cs.stroke, cs.strokeOpacity) : 0;
+    else a = parseColor(cs.backgroundColor)?.[3] || (cs.backgroundImage !== "none" ? 0.5 : 0);
+    let p = null;
+    if (a > 0) {
+      const q = e.getBoundingClientRect();
+      const alpha = a * opacityOf(e);
+      p = { scene: e.closest("[data-composition-id]")?.getAttribute("data-composition-id") ?? null, alpha, solid: alpha >= 0.999,
+        backdrop: q.width * q.height >= 0.6 * R.width * R.height, decor: !!e.closest("[data-probe-decor]") }; // a scene's ground is no thing in it
+    }
+    painted.set(e, p);
+    return p;
+  };
+  const hiddenOf = (l, tp, r, b, el) => { // how much of a text is under something solid: what covers it is no collision
+    let under = 0;
+    for (let i = 0; i < 5; i++) for (let j = 0; j < 3; j++) {
+      const stack = document.elementsFromPoint(l + ((r - l) * (i + 0.5)) / 5, tp + ((b - tp) * (j + 0.5)) / 3);
+      const own = stack.findIndex((e) => e === el || e.contains(el));
+      if (stack.slice(0, Math.max(0, own)).some((e) => root.contains(e) && paintOf(e)?.solid)) under += 1;
+    }
+    return r1(under / 15);
+  };
   const regions = {};
   root.querySelectorAll("[data-probe]").forEach((el) => { (regions[el.dataset.probe] ??= []).push(box(el.getBoundingClientRect())); });
   const texts = [];
@@ -171,19 +211,52 @@ function collect(t, label) {
       }
       if (a === region) break;
     }
+    const comp = el.closest("[data-composition-id]")?.getAttribute("data-composition-id") ?? null;
     texts.push({ region: name, text, box: [r1((l - R.left) / k), r1((tp - R.top) / k), r1((r - l) / k), r1((b - tp) / k)],
       size: r1((parseFloat(cs.fontSize) * scale) / k), weight: cs.fontWeight, family: cs.fontFamily, color: svg ? cs.fill : cs.color, opacity: r1(opacity), svg,
       overflow: over.x || over.y ? over : null, clipOk: !!el.closest("[data-probe-clip]"), decor: !!el.closest("[data-probe-decor]"),
       ...(() => { const g = first ? groundAt(first.left + first.width / 2, first.top + first.height / 2, el) : [null];
         return { ground: g[0], ground2: g[1] ?? null }; })(),
       // which composition drew it, the fact it is bound to (data-var-text), and whether it is the data's (chrome)
-      comp: el.closest("[data-composition-id]")?.getAttribute("data-composition-id") ?? null,
+      comp, ...(live?.includes(comp) ? { hidden: hiddenOf(l, tp, r, b, el) } : {}),
       bound: el.closest("[data-var-text]")?.getAttribute("data-var-text") ?? null,
       code: !!el.closest("[data-veasy-code]") });
   }
+  // at a cut: the grid points each live scene shows something at, walking down from the top to the first solid thing
+  let cells = null;
+  if (live) {
+    cells = Object.fromEntries(live.map((id) => [id, []]));
+    const cols = Math.ceil(W / grid), rows = Math.ceil(R.height / k / grid);
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const shown = new Set();
+      for (const e of document.elementsFromPoint(R.left + (x + 0.5) * grid * k, R.top + (y + 0.5) * grid * k)) {
+        if (!root.contains(e)) continue;
+        const p = paintOf(e);
+        if (!p) continue;
+        if (p.scene in cells && p.alpha >= faint && !p.backdrop && !p.decor && !shown.has(p.scene)) {
+          shown.add(p.scene);
+          cells[p.scene].push(y * cols + x);
+        }
+        if (p.solid) break;
+      }
+    }
+  }
+  // text the walker can't see: what CSS or a script made the browser generate (compose.py: lint css-content, the files)
+  const generated = [];
+  root.querySelectorAll("*").forEach((el) => {
+    if (el.closest("template, script, style")) return;
+    const cs = getComputedStyle(el);
+    if (cs.display === "none" || cs.visibility === "hidden") return;
+    const made = ["::before", "::after"].map((p) => getComputedStyle(el, p).content)
+      .filter((c) => c && !["none", "normal", '""'].includes(c));
+    if (cs.display === "list-item" && !["none", "disc", "circle", "square"].includes(cs.listStyleType)) made.push(cs.listStyleType);
+    if (made.length && opacityOf(el) >= 0.05) {
+      generated.push({ comp: el.closest("[data-composition-id]")?.getAttribute("data-composition-id") ?? null, content: made[0] });
+    }
+  });
   const fonts = {};
   document.fonts.forEach((f) => { if (f.family.replace(/["']/g, "") === "Brand") fonts[String(f.weight)] = f.status; });
-  return { frame: Math.round(t * 30), scene: label, type: label, fonts, fontsAtRender: fonts, regions, texts };
+  return { frame: Math.round(t * 30), scene: label, type: label, fonts, fontsAtRender: fonts, regions, texts, generated, ...(cells ? { cells } : {}) };
 }
 
 const main = async () => {
@@ -205,16 +278,23 @@ const main = async () => {
     await page.goto(`${origin}/`, { waitUntil: "load" });
     await page.waitForFunction(() => window.__renderReady === true && !!window.__player, { timeout: 60000 });
     await page.evaluate(() => document.fonts.ready);
+    const seek = (at) => page.evaluate(async (s) => {
+      await window.__player.renderSeek(s);
+      if (window.__hfWaitForSeekCompletion) await window.__hfWaitForSeekCompletion();
+      await document.fonts.ready;
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    }, at);
     for (const [i, t] of spec.times.entries()) {
-      await page.evaluate(async (s) => {
-        await window.__player.renderSeek(s);
-        if (window.__hfWaitForSeekCompletion) await window.__hfWaitForSeekCompletion();
-        await document.fonts.ready;
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      }, t);
+      await seek(t);
       const probe = await page.evaluate(collect, t, spec.labels?.[i] ?? String(t));
       if (spec.shots) await page.screenshot({ path: path.join(spec.shots, `probe-${String(i).padStart(2, "0")}.png`) });
       emit({ t, label: spec.labels?.[i] ?? null, probe });
+    }
+    for (const [c, cut] of (spec.cuts ?? []).entries()) {
+      for (const t of cut.times) {
+        await seek(t);
+        emit({ cut: c, t, probe: await page.evaluate(collect, t, `${cut.a} to ${cut.b}`, [cut.a, cut.b], spec.cutGrid, spec.cutOpacity) });
+      }
     }
   } finally {
     await browser.close();

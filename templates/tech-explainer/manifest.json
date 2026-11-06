@@ -3,7 +3,7 @@
  "label": "ტექნოლოგიური ექსპლეინერი",
  "about": "Structured tech explainer with kinetic hook, big stat callout, step-by-step process timeline, and CTA card",
  "engine": "hyperframes",
- "chrome": 2,
+ "chrome": 3,
  "from": {
   "story": "claude-and-grok-among-ai-agents-used-to-automate-attacks-on-lati",
   "brand": "sitech",

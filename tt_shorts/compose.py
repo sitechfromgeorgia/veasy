@@ -8,6 +8,7 @@ the checks, QA, the queue.
 
     python -m tt_shorts.engine compose scaffold <story> [--brand] [--project DIR] [--from DIR | --template ID|auto]
     python -m tt_shorts.engine compose check    <story> [--brand] [--project DIR] [--sources FILE]
+    python -m tt_shorts.engine compose look     <story> [--brand] [--project DIR] [--video FILE]  # see it, free
     python -m tt_shorts.engine compose render   <story> [--brand] [--project DIR] [--format] [--engine silent]
     python -m tt_shorts.engine compose promote  <project> --as <id>        # an approved film -> templates/<id>/
     python -m tt_shorts.engine compose templates                           # the templates and their slots
@@ -27,25 +28,30 @@ date and time of the story) is a HyperFrames variable declared on index.html's <
 binds it with `data-var-text="num-1"` (or reads `window.__hyperframes.getVariables()`). Beats are variables too
 (`beat-<id>`: seconds), and a host may be timed by its beats (`data-beat="number" data-until="when"`, shifts in
 `data-beat-shift`/`data-until-shift`), so a film keeps its timing under another voice. `compose check` lints the
-agent's files (LINT), reads every text from the DOM at the beats' settled frames (compose/probe.mjs) and runs the
+agent's files (LINT), reads every text from the DOM at the beats' settled frames and through every cut, where two
+scenes are live at once and may sit on each other (compose/probe.mjs, cut_problems), and runs the
 story's rule tier (news, claims, law, story), ka_check and kaeasy on them, the layout probe's rules, and
 `hyperframes check`.
 
 HyperFrames runs only through hyperframes() here: telemetry, update checks, skill installs and auto-installs off
-(ENV), and the subcommands that upload, call HeyGen or fetch code refused (REFUSED). Renders are pinned (RENDER).
+(ENV), the subcommands that upload, call HeyGen or fetch code refused (REFUSED), and so are an allowed subcommand's
+flags that send a film out (OFFSITE). Renders are pinned (RENDER).
 """
+import collections
 import hashlib
 import json
+import math
 import os
 import pathlib
 import re
 import shutil
 import subprocess
 import time
+import zlib
 
 from tt_shorts import brand as packs
 from tt_shorts import blocks as blk
-from tt_shorts import formats, frame_md, icons, kaeasy, meta, probe, programs, speech, store
+from tt_shorts import captions, formats, frame_md, icons, kaeasy, meta, probe, programs, speech, store
 
 ROOT = speech.ROOT
 COMPOSE = ROOT / "compose"
@@ -55,7 +61,7 @@ HF_BIN = HF / "bin" / "hyperframes.mjs"
 HF_VERSION = "0.9.8"  # compose/package.json pins it
 GSAP = HF / "dist" / "vendor" / "npm" / "gsap@3.15.0" / "dist" / "gsap.min.js"
 PROBE_JS = COMPOSE / "probe.mjs"
-CHROME_VERSION = 2  # the locked set (chrome, captions, end card); 1 was the phase 0 spike's
+CHROME_VERSION = 3  # the locked set (chrome, captions, end card); 3 fits a long link and CTA, 1 was the phase 0 spike's
 FPS = speech.FPS
 W, H, SIDE = 1080, 1920, 64
 WIPE = 0.34  # seconds the meter bars take to rise (and again to fall) around a chapter cut
@@ -70,6 +76,9 @@ ALLOWED = ("render", "lint", "check", "validate", "inspect", "compositions", "ti
 REFUSED = ("publish", "cloud", "lambda", "tts", "media-use", "feedback", "add", "cloudrun", "auth", "billing",
            "reverse", "open", "catch-up", "skills", "upgrade", "telemetry", "capture", "catalog", "transcribe",
            "models", "remove-background", "init", "beats", "media-treatment", "present")
+# an allowed subcommand's flags that send a film out: snapshot --describe to Gemini, audio's providers to HeyGen
+OFFSITE = ("--describe", "--provider")
+AUDIO_QUALITY = "fast"  # audio's signal measures, all on this machine (its "best" uploads to HeyGen, maybe billed)
 # pinned so a film renders to the same frames on the same machine (phase 0: changing the workers changed 831 of
 # 1107 frames slightly; software GL is what a GPU-less server has)
 RENDER = {"workers": 4, "browser_gpu": False, "quality": "looks", "fps": FPS}
@@ -77,6 +86,9 @@ LOCKED = ("compositions/chrome.html", "compositions/captions.html")
 SCENE_TOP_Z = 30  # the chrome's host z-index: no scene host may sit on top of it
 CODE_KIND = "code"  # facts that are the data's (date, time, sources, link): shown, not claimed by the writer
 DONE_FILE = ".veasy/lock.json"
+LOOK_DIR = ".veasy/look"  # engine compose look's sheets and reports
+NOTES = ("STORYLINES.md", "SPEC.md")  # the film's idea and its shots, written before its scenes (veasy:compose)
+REVIEW_NOTE = "REVIEW.md"  # a fresh eye's notes on the sheets, written before the real voice is paid for
 
 
 class ComposeError(ValueError):
@@ -95,15 +107,31 @@ def sha(path):
 # ---------------------------------------------------------------- HyperFrames, locked down
 
 
+def _offsite(args):
+    """The flags in a HyperFrames call that would send the film to an outside service -> [flag]."""
+    names = [a.split("=")[0] for a in args]
+    out = [n for n in names if n in OFFSITE]
+    if args and args[0] == "audio":
+        at = names.index("--quality") if "--quality" in names else None
+        given = None if at is None else args[at].split("=", 1)[1] if "=" in args[at] else (args[at + 1:] or [None])[0]
+        if given != AUDIO_QUALITY:
+            out.append(f"--quality {given}")
+    return out
+
+
 def hyperframes(args, cwd=None, timeout=1800):
     """Run the pinned HyperFrames CLI (node compose/node_modules/hyperframes/bin/hyperframes.mjs, never npx: no
-    install on the fly) with ENV. Refuses a subcommand outside ALLOWED. -> CompletedProcess (text)."""
+    install on the fly) with ENV. Refuses a subcommand outside ALLOWED and a flag in OFFSITE. -> CompletedProcess
+    (text)."""
     args = [str(a) for a in args]
     sub = args[0] if args else ""
     if sub in REFUSED or sub not in ALLOWED:
         why = "it uploads, calls HeyGen, fetches code or reports usage" if sub in REFUSED else "not allowed"
         raise ComposeError(f"hyperframes {sub or '(nothing)'} is refused ({why}): use engine compose "
-                           f"scaffold|check|render; allowed: {', '.join(ALLOWED)}")
+                           f"scaffold|check|look|render; allowed: {', '.join(ALLOWED)}")
+    offsite = _offsite(args)
+    if offsite:
+        raise ComposeError(f"hyperframes {sub} {offsite[0]} is refused: a film stays on this machine")
     if not HF_BIN.exists():
         raise ComposeError(f"HyperFrames {HF_VERSION} is not installed: (cd compose && npm ci)")
     node = shutil.which("node") or "node"
@@ -453,6 +481,20 @@ def font_faces(prefix="assets/fonts"):
         f"src: url('{prefix}/brand-{w}.woff2') format('woff2'); }}" for w in packs.FONT_WEIGHTS)
 
 
+def fit_size(text, width, top, floor, font):
+    """The largest size from floor to top at which `text` fits `width` on one line, on the pack's real font
+    (remotion/src/ui.tsx fitSize): a long link gets smaller, it never runs out of the frame."""
+    return max(floor, min(top, int(100 * width / max(1, captions.width(text, 100, font)))))
+
+
+def footer_size(url, b):
+    """The footer's link beside the pack's line, 32 px clear of it (remotion/src/NewsShort.tsx Footer). Under 22 px it
+    stops shrinking and the probe holds the film: a footer that small can't be read."""
+    fonts, f = b["_fonts"], b["footer"]
+    pack = captions.width(f["text"], 28, fonts["400"]) + captions.width(f.get("strong") or "", 28, fonts["700"])
+    return fit_size(url, W - 2 * SIDE - pack - 32, 36, 22, fonts["700"])
+
+
 def tmark(size, b):
     c = b["colors"]
     from_ts = (ROOT / "remotion" / "src" / "brand.ts").read_text(encoding="utf-8")
@@ -554,6 +596,9 @@ def chrome(t, b, project, kind="news"):
         js.append(f'tl.fromTo("#chrome-tickrow", {{ x: 0 }}, {{ x: -{2.2 * FPS * dur:.0f}, duration: {dur:.3f}, ease: "none" }}, 0);')
     end_body, end_js = end_card(t, b, project)
     js += end_js
+    fonts = b["_fonts"]
+    url_px, link_px = footer_size(f["url"], b), fit_size(f["url"], W - 280, 40, 24, fonts["700"])  # the end link: 140 px each side
+    cta_px = fit_size(f["cta"], 704, 40, 24, fonts["600"])  # the button, 32 px inside each end
     js.append('window.__timelines["chrome"] = tl;')
     css = f"""
     {font_faces()}
@@ -563,9 +608,9 @@ def chrome(t, b, project, kind="news"):
     #root .logo-end {{ position: absolute; left: 0; right: 0; top: 300px; display: flex; flex-direction: column; align-items: center; gap: 24px; }}
     #root .qr {{ position: absolute; left: 380px; top: 690px; width: 320px; height: 320px; border-radius: 14px; overflow: hidden; }}
     #root .qr img {{ width: 320px; height: 320px; display: block; }}
-    #root .link {{ position: absolute; left: 140px; right: 140px; top: 1036px; text-align: center; font-weight: 700; font-size: 40px; line-height: 1.2; white-space: nowrap; }}
+    #root .link {{ position: absolute; left: 140px; right: 140px; top: 1036px; text-align: center; font-weight: 700; font-size: {link_px}px; line-height: 1.2; white-space: nowrap; }}
     #root .cta {{ position: absolute; left: 156px; width: 768px; top: 1128px; height: 88px; border-radius: 999px; background: {c['accent']}; color: {c['onAccent']};
-      display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 40px; line-height: 1; white-space: nowrap; }}
+      display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: {cta_px}px; line-height: 1; white-space: nowrap; }}
     #root .wordmark {{ font-weight: 700; color: {c['ink']}; white-space: nowrap; }}
     #root .acc {{ color: {c['accent']}; }}
     #root .date {{ position: absolute; right: {SIDE}px; top: 80px; text-align: right; }}
@@ -584,7 +629,7 @@ def chrome(t, b, project, kind="news"):
     #root .footer {{ position: absolute; left: {SIDE}px; right: {SIDE}px; top: 1768px; border-top: 2px solid {c['line']}; padding-top: 16px; }}
     #root .footer .src {{ font-weight: 400; font-size: 28px; line-height: 1.4; color: {c['muted']}; white-space: nowrap; overflow: hidden; }}
     #root .footer .row {{ display: flex; justify-content: space-between; align-items: baseline; }}
-    #root .footer .url {{ font-weight: 700; font-size: 36px; line-height: 1.4; white-space: nowrap; }}
+    #root .footer .url {{ font-weight: 700; font-size: {url_px}px; line-height: 1.4; white-space: nowrap; }}
     #root .footer .pack {{ font-size: 28px; line-height: 1.4; color: {c['muted']}; white-space: nowrap; }}
     #root .footer .pack b {{ font-weight: 700; color: {c['ink']}; }}"""
     date = (f"""
@@ -775,7 +820,7 @@ def starter(story, project):
     for i, s in enumerate(scenes):
         nxt = f"s{i + 1}" if i + 1 < len(scenes) else "end"
         hosts.append(f'      <div id="s{i}" data-composition-id="s{i}" data-composition-src="compositions/s{i}.html" '
-                     f'data-beat="s{i}" data-until="{nxt}" data-until-shift="0.3" data-track-index="{1 + i % 2}" '
+                     f'data-beat="s{i}" {_until(nxt)} data-track-index="{1 + i % 2}" '
                      f'data-track-kind="graphics" data-width="{W}" data-height="{H}" style="z-index: {10 + i}"></div>')
         (project / "compositions" / f"s{i}.html").write_text(starter_scene(i, s), encoding="utf-8")
     (project / "index.html").write_text(INDEX.replace("{hosts}", "\n".join(hosts)), encoding="utf-8")
@@ -865,6 +910,12 @@ def starter_scene(i, s):
 """
 
 
+def _until(nxt):
+    """A starter host's end. Scenes cut on the beat: two on screen at once sit on each other (probe cut). The last one
+    stays a moment, under the end's wipe."""
+    return f'data-until="{nxt}"' + (' data-until-shift="0.3"' if nxt == "end" else "")
+
+
 def agent_files(project):
     """The agent's files of a project (relative paths): index.html, beats.json, slots.json, the scenes, assets/art/."""
     project = pathlib.Path(project)
@@ -931,7 +982,7 @@ def assemble_blocks(story, project, block_ids, slot_bindings=None):
         beats.append({"id": cid, "at": scene_at, "show": bid})
         nxt = f"s{i + 1}" if i + 1 < len(block_ids) else "end"
         hosts.append(f'      <div id="{cid}" data-composition-id="{cid}" data-composition-src="compositions/{cid}.html" '
-                     f'data-beat="{cid}" data-until="{nxt}" data-until-shift="0.3" data-track-index="{1 + i % 2}" '
+                     f'data-beat="{cid}" {_until(nxt)} data-track-index="{1 + i % 2}" '
                      f'data-track-kind="graphics" data-width="{W}" data-height="{H}" style="z-index: {10 + i}"></div>')
         for sname, sinfo in manifest.get("slots", {}).items():
             slots_combined[f"slot-{cid}-{sname}"] = sinfo
@@ -1149,8 +1200,22 @@ CANVAS = re.compile(r"<canvas\b|getContext\s*\(|\bfillText\s*\(|\bstrokeText\s*\
 SRC = re.compile(r"\b(src|href|xlink:href|data-var-src|poster)\s*=\s*[\"']([^\"']*)[\"']", re.I)
 CSS_URL = re.compile(r"url\(\s*['\"]?([^'\")]+)['\"]?\s*\)", re.I)
 FACT_TEXT = re.compile(r"\d|[„“”]")
+CSS_CONTENT = re.compile(r"(?<![\w-])content\s*:\s*([^;}]+)", re.I)
+CSS_EMPTY = re.compile(r"""^(?:""|''|none|normal)$""", re.I)
+# numbers the browser writes itself: a counter, a list's markers, a form field's value
+GENERATED = re.compile(r"\bcounters?\s*\(|\bcounter-(?:reset|increment|set)\b|@counter-style\b|"
+                       r"list-style(?:-type)?\s*:\s*(?!none\b|disc\b|circle\b|square\b|inherit\b|initial\b)[\w-]+", re.I)
+GENERATED_TAG = re.compile(r"<(?:ol|input)\b", re.I)
+SVG_BLOCK = re.compile(r"<svg\b.*?</svg\s*>", re.S | re.I)
+PATH_D = re.compile(r"<path\b[^>]*?\sd\s*=\s*[\"']([^\"']+)[\"']", re.I)
+PATH_TOKEN = re.compile(r"[MmLlHhVvCcSsQqTtAaZz]|[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?")
+PATH_ARGS = {"M": 2, "L": 2, "H": 1, "V": 1, "C": 6, "S": 4, "Q": 4, "T": 2, "A": 7}
+EASE = re.compile(r"""\bease\s*:\s*["']([^"']+)""")
+FROM_BLOCK = re.compile(r"<!--\s*block\s+([\w-]+)")
+LINE_GLYPHS = 3  # outlined-text: this many glyph-like shapes on one line...
+LINE_KINDS = 2  # ...of at least this many different shapes (a row of equal dots or rounded bars is no word)
 LINT_RULES = ("color", "font", "link", "net", "canvas", "probe", "fact", "host", "locked", "art",
-              "timeline", "prefix", "template")  # lint()'s names
+              "timeline", "prefix", "template", "css-content", "outlined-text")  # lint()'s names
 
 
 def _tags(text):
@@ -1219,7 +1284,10 @@ def lint(project, b=None):
       art       an SVG of the agent's (assets/art/) holds no text and no typed color
       timeline  sub-compositions must register their GSAP timeline on window.__timelines["<id>"]
       prefix    all element IDs in a sub-composition must be prefixed with the composition id or 'root'
-      template  sub-compositions must be wrapped in <template> and declare data-composition-id"""
+      template  sub-compositions must be wrapped in <template> and declare data-composition-id
+      css-content    no text the browser generates: CSS content (only an empty ""), counters, a list's numbers, an
+                     input; none of it is in the DOM, so no check reads it (the probe's `generated` sees the rest)
+      outlined-text  no line of glyphs drawn as SVG paths (a heuristic, outlined_text(): it holds, it never refuses)"""
     project = pathlib.Path(project).resolve()
     out = []
     brand_words = []
@@ -1259,6 +1327,21 @@ def lint(project, b=None):
             bad("canvas", f, f"{m}: text drawn in a canvas or WebGL can't be read from the DOM; draw with DOM/SVG")
         if re.search(r"<iframe\b|<object\b|<embed\b", code, re.I):
             bad("net", f, "<iframe>/<object>/<embed>: not in a film")
+        css = [re.sub(r"/\*.*?\*/", "", tok, flags=re.S) for kind, tok, _ in toks if kind == "style"]
+        css += [_attr(tok, "style") or "" for kind, tok, _ in toks if kind == "tag"]
+        for m in dict.fromkeys(x.group(1).strip() for sheet in css for x in CSS_CONTENT.finditer(sheet)):
+            if not CSS_EMPTY.match(re.sub(r"\s*!important$", "", m, flags=re.I)):
+                bad("css-content", f, f"content: {m[:40]}: text in CSS is not in the DOM, so no check can read it; "
+                                      "put it in the scene and bind it (a shape's content is \"\")")
+        for m in dict.fromkeys(x.group(0) for sheet in css for x in GENERATED.finditer(sheet)):
+            bad("css-content", f, f"{m}: a number the browser writes is not in the DOM; bind it from facts.json")
+        for m in dict.fromkeys(x.lower() for kind, tok, _ in toks if kind == "tag" for x in GENERATED_TAG.findall(tok)):
+            bad("css-content", f, f"{m}>: its numbers or value are not DOM text; use a plain element and bind them")
+        for block in SVG_BLOCK.findall(code):
+            n = outlined_text(block)
+            if n:
+                bad("outlined-text", f, f"{n} shapes on one line look like letters or digits drawn as paths: words and "
+                                        "numbers stay DOM text, bound (an SVG <text> is fine)")
         for kind, tok, stack in toks:
             if kind == "tag" or kind == "script":
                 for attr, ref in SRC.findall(tok if kind == "tag" else tok.split(">", 1)[0] + ">"):
@@ -1339,6 +1422,69 @@ def lint(project, b=None):
     return out
 
 
+def _subpaths(d):
+    """A path's closed subpaths -> [(x0, y0, x1, y1, segments, curves)]. Boxes come from every point a command names,
+    control points included: close enough to tell a glyph's size."""
+    toks = PATH_TOKEN.findall(d)
+    out, xs, ys = [], [], []
+    x = y = sx = sy = 0.0
+    segs = curves = i = 0
+    cmd = None
+    while i < len(toks):
+        if toks[i].isalpha():
+            cmd = toks[i]
+            i += 1
+            if cmd in "Zz":
+                if xs:
+                    out.append((min(xs), min(ys), max(xs), max(ys), segs, curves))
+                xs, ys, segs, curves = [], [], 0, 0
+                x, y = sx, sy
+                continue
+        if cmd is None or cmd in "Zz":  # numbers with no command before them: not a path we can read
+            break
+        up, rel = cmd.upper(), cmd.islower()
+        n = PATH_ARGS[up]
+        vals = [float(v) for v in toks[i:i + n] if not v.isalpha()]
+        if len(vals) < n:
+            break
+        i += n
+        if up == "H":
+            pts = [(vals[0] + (x if rel else 0), y)]
+        elif up == "V":
+            pts = [(x, vals[0] + (y if rel else 0))]
+        else:
+            pair = vals[-2:] if up == "A" else vals
+            pts = [(pair[k] + (x if rel else 0), pair[k + 1] + (y if rel else 0)) for k in range(0, len(pair), 2)]
+        x, y = pts[-1]
+        xs += [p[0] for p in pts]
+        ys += [p[1] for p in pts]
+        if up == "M":
+            sx, sy = x, y
+            cmd = "l" if rel else "L"  # a moveto's further pairs are lines
+        else:
+            segs += 1
+            curves += up in "CSQTA"
+    return out
+
+
+def outlined_text(svg):
+    """An SVG's largest line of glyph-like shapes (0 when it has none): at least LINE_GLYPHS outer closed shapes of
+    about one height on one line, most of them curved, in at least LINE_KINDS different shapes: what a font tool draws.
+    A heuristic: a short number can pass under it, so a composed film is still held for a person's eye."""
+    shapes = [s for d in PATH_D.findall(svg) for s in _subpaths(d)][:600]
+    outer = [s for s in shapes if not any(o is not s and o[0] <= s[0] and o[1] <= s[1] and o[2] >= s[2] and o[3] >= s[3]
+                                          for o in shapes)]
+    glyphs = [s for s in outer if s[3] > s[1] and s[2] > s[0] and s[2] - s[0] <= 1.6 * (s[3] - s[1])]
+    best = 0
+    for seed in glyphs:
+        h, mid = seed[3] - seed[1], (seed[1] + seed[3]) / 2
+        line = [s for s in glyphs if abs((s[1] + s[3]) / 2 - mid) <= h / 2 and h / 2 <= s[3] - s[1] <= 2 * h]
+        curved = sum(1 for s in line if s[5])
+        if len(line) >= LINE_GLYPHS and len({s[4] for s in line}) >= LINE_KINDS and curved * 2 >= len(line):
+            best = max(best, len(line))
+    return best
+
+
 def _no_selectors(code):
     """CSS with its selectors removed (an id like #s3-num is not a color): only declaration bodies, attribute values
     and script text stay."""
@@ -1346,6 +1492,44 @@ def _no_selectors(code):
         css = m.group(0)
         return " ".join(re.findall(r"\{([^{}]*)\}", css))
     return re.sub(r"<style\b.*?</style>", bodies, code, flags=re.S | re.I)
+
+
+# ---------------------------------------------------------------- what a film is made of (variety's guard)
+
+
+def film_kinds(project):
+    """A composed film's scenes in film order -> [kind]: the block it started from (its comment, which an edit keeps),
+    else own-<crc of its tags>, which two scenes share only with one structure."""
+    project = pathlib.Path(project)
+    out = []
+    for src in re.findall(r"data-composition-src\s*=\s*[\"']([^\"']+)", (project / "index.html").read_text(
+            encoding="utf-8", errors="replace")):
+        if src in LOCKED or not (project / src).exists():
+            continue
+        text = (project / src).read_text(encoding="utf-8", errors="replace")
+        block = FROM_BLOCK.search(text)
+        out.append(block.group(1) if block else
+                   f"own-{zlib.crc32(' '.join(re.findall(r'<([a-zA-Z][\w:-]*)', text)).encode()):08x}")
+    return out
+
+
+def film_style(project, music=None):
+    """A composed film in variety's words -> (style, scene kinds): style's hook is its opening scene, enter the ease
+    its scenes use most, with its template and music loop (variety.assess_composed, variety.record)."""
+    project = pathlib.Path(project)
+    kinds = film_kinds(project)
+    scenes = [p for p in sorted((project / "compositions").glob("*.html")) if f"compositions/{p.name}" not in LOCKED]
+    eases = collections.Counter(e for p in scenes for e in EASE.findall(p.read_text(encoding="utf-8", errors="replace"))
+                                if e != "none")
+    return {"hook": kinds[0] if kinds else None, "enter": eases.most_common(1)[0][0] if eases else None,
+            "template": template_of(project), "music": music, "transition": "composed"}, kinds
+
+
+def missing_notes(project, names):
+    """Warnings for a film's notes that aren't in its project yet (the skill's idea and review steps)."""
+    project = pathlib.Path(project)
+    return [f"film: no {n} in the project: veasy:compose starts from an idea and ends with a review"
+            for n in names if not (project / n).exists()]
 
 
 # ---------------------------------------------------------------- check: the DOM's texts, the probe, HyperFrames
@@ -1375,12 +1559,101 @@ def accent_text(report, accent):
             for t in report.get("texts") or [] if t.get("color") == want and t.get("text", "").strip() not in WORDMARK_ACCENT]
 
 
+# A cut: two scenes live at once. The settled frames can't see it, so the probe reads every other frame of the overlap.
+CUT_EVERY = 2  # frames between readings
+CUT_READINGS = 15  # at most, on a long overlap
+CUT_GRID = 20  # px between the points a cut is read at
+CUT_OPACITY = 0.2  # fainter than this, a scene coming or going is a ghost, not a thing on screen
+CUT_HIDDEN = 0.75  # a text this far under something solid (a wipe's bars, a panel) is gone, not in a collision
+CUT_HOLD = 0.1  # seconds: what a viewer can catch
+CUT_TEXT = 0.1  # two texts collide when they share this much of the smaller one
+CUT_CELLS = 3  # a text collides with the other scene's drawing at this many grid points
+CUT_ART = 0.01  # two scenes draw on this share of the frame: a warning, since a match cut does it on purpose
+
+
+def host_spans(html):
+    """{scene host: (start, end)} of a built index.html."""
+    out = {}
+    for tag in TAG.findall(re.sub(r"<!--.*?-->", "", html, flags=re.S)):
+        cid, start, length = (_attr(tag, k) for k in ("data-composition-id", "data-start", "data-duration"))
+        if cid and cid not in ("main", "chrome", "captions") and start is not None and length is not None:
+            out[cid] = (float(start), round(float(start) + float(length), 3))  # 19.194000000000003 touches 19.194
+    return out
+
+
+def cuts(spans):
+    """[(old, new, from, to)]: a host that starts inside another and outlives it. One that lasts through another (a
+    layer over the film) is no cut, and hosts that touch end to end never share a frame."""
+    order = sorted(spans.items(), key=lambda kv: kv[1])
+    return [(a, b, sb, ea) for i, (a, (sa, ea)) in enumerate(order) for b, (sb, eb) in order[i + 1:] if sa < sb < ea < eb]
+
+
+def cut_times(start, end):
+    """The frames a cut is read at, in seconds."""
+    first, last = math.ceil(start * FPS - 1e-6), math.ceil(end * FPS - 1e-6)
+    every = max(CUT_EVERY, math.ceil((last - first) / CUT_READINGS))
+    return [round(f / FPS, 3) for f in range(first, last, every)]
+
+
+def _shared(a, b):
+    """How much of the smaller of two boxes (x, y, w, h) they share, 0..1."""
+    w = min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])
+    h = min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1])
+    return w * h / max(1.0, min(a[2] * a[3], b[2] * b[3])) if w > 0 and h > 0 else 0.0
+
+
+def _cells_in(box, cells):
+    """How many grid points of `cells` (compose/probe.mjs: row * columns + column) lie inside a box."""
+    x, y, w, h = box
+    cols, rows = math.ceil(W / CUT_GRID), math.ceil(H / CUT_GRID)
+    xs = range(max(0, int(x // CUT_GRID)), min(cols, math.ceil((x + w) / CUT_GRID)))
+    ys = range(max(0, int(y // CUT_GRID)), min(rows, math.ceil((y + h) / CUT_GRID)))
+    return sum(r * cols + c in cells for r in ys for c in xs)
+
+
+def cut_hits(report, a, b):
+    """One reading of a cut -> (what collides with a text, the share of the frame both scenes draw on)."""
+    def shown(scene):
+        return [x for x in report.get("texts") or [] if x.get("comp") == scene and x.get("text", "").strip()
+                and not x.get("decor") and (x.get("opacity") or 0) >= CUT_OPACITY and (x.get("hidden") or 0) < CUT_HIDDEN]
+
+    cells = {c: set((report.get("cells") or {}).get(c) or ()) for c in (a, b)}
+    hits = [f"{probe._quote(x['text'])} on {probe._quote(y['text'])}" for x in shown(a) for y in shown(b)
+            if _shared(x["box"], y["box"]) >= CUT_TEXT]
+    for scene, other in ((a, b), (b, a)):
+        hits += [f"{probe._quote(x['text'])} on {other}'s drawing" for x in shown(scene)
+                 if _cells_in(x["box"], cells[other]) >= CUT_CELLS]
+    total = math.ceil(W / CUT_GRID) * math.ceil(H / CUT_GRID)
+    return hits, len(cells[a] & cells[b]) / total
+
+
+def cut_problems(a, b, rows):
+    """A cut's readings [{"t", "probe"}] -> (problems, warnings). Text in a collision is a problem: nobody can read it.
+    Two drawings on one spot are a warning: that is a mistake or a match cut, and only the film knows which."""
+    step = rows[1]["t"] - rows[0]["t"] if len(rows) > 1 else CUT_EVERY / FPS
+    read = [(x["t"], *cut_hits(x["probe"], a, b)) for x in rows]
+    texts, art = [x for x in read if x[1]], [x for x in read if x[2] >= CUT_ART]
+    problems, warnings = [], []
+    if len(texts) * step >= CUT_HOLD:
+        problems.append(f"probe cut: {a} to {b} at {texts[0][0]:.2f}s: {texts[0][1][0]} for {len(texts) * step:.2f} s: "
+                        "end the old scene before the new one lands, or cover the overlap with a wipe")
+    if len(art) * step >= CUT_HOLD:
+        worst = max(art, key=lambda x: x[2])
+        warnings.append(f"cut: {a} to {b} at {art[0][0]:.2f}s: both scenes draw on {worst[2]:.0%} of the frame for "
+                        f"{len(art) * step:.2f} s: right for a match cut, a collision otherwise")
+    return problems, warnings
+
+
 def run_probe(project, t, b, shots=None):
-    """compose/probe.mjs at each beat's settled time -> {"reports", "problems", "blocked", "frames", "texts"}."""
+    """compose/probe.mjs at each beat's settled time and through every cut -> {"reports", "problems", "warnings",
+    "blocked", "frames", "texts", "cuts"}."""
     project = pathlib.Path(project).resolve()
     points = settled(t)
+    overlaps = [(x, y, cut_times(s, e)) for x, y, s, e in cuts(host_spans((project / "index.html").read_text(encoding="utf-8")))]
+    overlaps = [c for c in overlaps if c[2]]
     spec = {"project": str(project), "times": [x for _, x in points], "labels": [x for x, _ in points],
-            "shots": str(pathlib.Path(shots).resolve()) if shots else None}
+            "shots": str(pathlib.Path(shots).resolve()) if shots else None, "cutGrid": CUT_GRID,
+            "cutOpacity": CUT_OPACITY, "cuts": [{"a": x, "b": y, "times": ts} for x, y, ts in overlaps]}
     if shots:
         pathlib.Path(shots).mkdir(parents=True, exist_ok=True)
     r = subprocess.run([shutil.which("node") or "node", str(PROBE_JS)], input=json.dumps(spec), capture_output=True,
@@ -1389,7 +1662,7 @@ def run_probe(project, t, b, shots=None):
     fatal = next((x["fatal"] for x in rows if x.get("fatal")), None)
     if fatal or not rows:
         raise ComposeError(f"probe failed: {(fatal or r.stderr or 'no output')[-600:]}")
-    reports = [x["probe"] for x in rows if x.get("probe")]
+    reports = [x["probe"] for x in rows if x.get("probe") and "cut" not in x]
     cmaps = probe.cmaps_for(project / "assets")
     strings, _ = probe.problems(reports, cmaps)
     if "text" in ((b.get("design") or {}).get("accent") or {}).get("never", []):  # only a pack that says so
@@ -1403,11 +1676,23 @@ def run_probe(project, t, b, shots=None):
                 seen.add(x["text"])
                 strings.append(f"probe region: {rep['scene']} at {rep['frame'] / FPS:.2f}s: „{x['text'][:40]}“ is "
                                "outside any data-probe region")
+    for rep in reports:  # what CSS or a script made the browser write: lint css-content can only read the files
+        for g in rep.get("generated") or []:
+            if (g["comp"], g["content"]) not in seen:
+                seen.add((g["comp"], g["content"]))
+                strings.append(f"probe generated: {rep['scene']} at {rep['frame'] / FPS:.2f}s: {g['comp']} generates "
+                               f"{g['content'][:40]}, text no check can read: put it in the DOM, bound")
     done = next((x for x in rows if x.get("done")), {})
     blocked = done.get("blocked", [])
     strings += [f"probe net: the page asked for {u[:80]} (refused: no network at render)" for u in blocked]
-    return {"reports": reports, "problems": strings, "blocked": blocked, "frames": len(reports),
-            "texts": sum(len(x["texts"]) for x in reports), "fonts": reports[0]["fonts"] if reports else {}}
+    warned = []
+    for i, (x, y, _) in enumerate(overlaps):
+        found, notes = cut_problems(x, y, [r for r in rows if r.get("cut") == i])
+        strings += found
+        warned += notes
+    return {"reports": reports, "problems": strings, "warnings": warned, "blocked": blocked, "frames": len(reports),
+            "texts": sum(len(x["texts"]) for x in reports), "fonts": reports[0]["fonts"] if reports else {},
+            "cuts": len(overlaps)}
 
 
 def screen_texts(reports, fx, notes=None):
@@ -1495,9 +1780,10 @@ def check(story_path, brand=None, project=None, engine="silent", sources=None, h
           tone=None, built=None, theme="default", fmt=None):
     """Every check of a composed film -> {"problems", "warnings", ...}: the story's own checks (engine check), Veasy's
     files unchanged, our lint, the probe at every beat's settled frame (layout rules, the pack's accent rule, texts
-    outside a region, network asked for), the story's rule tier + ka_check + kaeasy on every text the DOM shows,
-    slots filled, and `hyperframes check`. The project is rebuilt first (the agent's files stay)."""
-    from tt_shorts import engine as eng
+    outside a region, network asked for) and through every cut, the story's rule tier + ka_check + kaeasy on every text the DOM shows,
+    slots filled, and `hyperframes check`. A film too close to the brand's other composed films is a warning (novelty),
+    as is one without its notes. The project is rebuilt first (the agent's files stay)."""
+    from tt_shorts import engine as eng, variety
     t0 = time.time()
     story = _story(story_path, brand)
     b = packs.of(story)
@@ -1524,6 +1810,8 @@ def check(story_path, brand=None, project=None, engine="silent", sources=None, h
     res["problems"] += [f"story: {x}" for x in eng.check_story(story, sources)] + eng._kaeasy_required()
     res["problems"] += built["problems"]
     res["problems"] += lint(project, b)
+    res["novelty"] = variety.assess_composed(b["name"], story["id"], *film_style(project, built["props"].get("music")))
+    res["warnings"] += [w for w in [res["novelty"]["warning"]] if w] + missing_notes(project, NOTES)
     res["news_rules"] = bool(sources) or programs.name_of(story) != programs.DEFAULT
     if not sources and programs.of(story)["rules"] in ("news", "claims", "law"):
         res["warnings"].append("no --sources: the numbers, quotes and names on screen were not compared with the "
@@ -1536,13 +1824,14 @@ def check(story_path, brand=None, project=None, engine="silent", sources=None, h
         res["problems"].append(str(e))
         return res
     res["problems"] += pr["problems"]
+    res["warnings"] += pr["warnings"]
     notes = []
     shown = screen_texts(pr["reports"], fx, notes)
     res["warnings"] += list(dict.fromkeys(notes))
     res["problems"] += text_problems(story, shown, sources)
     from tt_shorts import ka_check
     res["warnings"] += [f"screen: {w}" for w in ka_check.warnings({"scenes": [{"type": "hook", "lines": shown}]})]
-    res["probe"] = {k: pr[k] for k in ("frames", "texts", "blocked", "fonts")}
+    res["probe"] = {k: pr[k] for k in ("frames", "texts", "blocked", "fonts", "cuts")}
     res["shown"] = shown
     if hf:
         p, w, summary = hf_check(project)
@@ -1554,8 +1843,9 @@ def check(story_path, brand=None, project=None, engine="silent", sources=None, h
     return res
 
 
-HARD = ("lint net", "lint canvas", "lint locked", "lint host", "build:", "no composed project", "probe net",
-        "probe failed")  # a film that would fetch, hide its text or lose its chrome is never rendered
+# a film that would fetch, hide its text or lose its chrome is never rendered
+HARD = ("lint net", "lint canvas", "lint css-content", "lint locked", "lint host", "build:", "no composed project",
+        "probe net", "probe generated", "probe failed")
 
 
 def _mix(work, p, raw, out, t, setting="off"):
@@ -1612,7 +1902,8 @@ def render(story_path, fmt, brand=None, project=None, engine="gemini", out_path=
               "kaeasy": kaeasy.version(),
               "probe": {"problems": [x for x in c["problems"] if x.startswith("probe")], **(c.get("probe") or {})},
               "motion": {"holds": [], "warnings": [w for w in c["warnings"] if w.startswith("motion")]},
-              "novelty": None, "warnings": c["warnings"], "render_seconds": render_s,
+              "novelty": c.get("novelty"), "warnings": c["warnings"] + missing_notes(project, (REVIEW_NOTE,)),
+              "render_seconds": render_s,
               "render_settings": {**RENDER, "hyperframes": HF_VERSION, "chrome": CHROME_VERSION},
               "review": {"policy": kind, "n": n, "from": why}, "sfx": cues, "rendered": True}
     problems = list(c["problems"])
@@ -1626,12 +1917,105 @@ def render(story_path, fmt, brand=None, project=None, engine="gemini", out_path=
     q = eng.qa_file(target, fmt)
     result["qa"] = q
     target.with_suffix(".json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
-    variety.record(b["name"], story["id"], "composed", {"template": template_of(project), "music": p["music"],
-                                                        "transition": "composed"},
-                   [x["id"] for x in t["beats"]])
+    style, kinds = film_style(project, p["music"])
+    variety.record(b["name"], story["id"], variety.COMPOSED, style, kinds, c.get("novelty"))
     shutil.rmtree(work, ignore_errors=True)
     store.log("rendered", file=result["file"], engine="hyperframes", seconds=result["seconds"], problems=problems)
     return result
+
+
+# ---------------------------------------------------------------- look: the film as a viewer gets it
+
+
+def _report_of(r, what):
+    """A HyperFrames call's JSON -> (report, problem). Its progress lines come before the JSON."""
+    try:
+        if r.returncode != 0:
+            raise ValueError
+        return json.loads(r.stdout[r.stdout.index("{"):]), None
+    except ValueError:
+        return None, f"hyperframes {what}: no report ({(r.stderr or r.stdout)[-300:]})"
+
+
+def motion_of(timeline):
+    """`hyperframes keyframes --json` -> what the agent's motion is made of (the locked chrome and captions aside): its
+    tweens, by file, and each ease's share, most used first. One curve everywhere reads as generated."""
+    comps = [c for c in timeline.get("compositions") or [] if (c.get("source") or c.get("composition")) not in LOCKED]
+    tweens = [x for c in comps for x in c.get("tweens") or []]
+    eases = collections.Counter(str(x.get("ease") or "default") for x in tweens)
+    return {"tweens": len(tweens), "by_file": {c.get("source") or c.get("composition"): len(c.get("tweens") or [])
+                                               for c in comps},
+            "eases": {k: round(n / len(tweens), 2) for k, n in eases.most_common(6)}}
+
+
+def sheets_of(snapshot):
+    """`hyperframes snapshot --review --json` -> {"beats", "seams", "phone"}: the sheet of the scenes and beats, the
+    strip across each cut, the beat frames at phone width."""
+    names = [pathlib.Path(x) for x in snapshot.get("contactSheets") or []]
+    one = lambda name: next((str(x) for x in names if x.name == name), None)  # noqa: E731
+    return {"beats": one("review-beats.jpg"), "phone": one("review-phone.jpg"),
+            "seams": [str(x) for x in names if x.name.startswith("review-seam-")]}
+
+
+def look(story_path, brand=None, project=None, engine="silent", video=None, tone=None, music="off", theme="default",
+         fmt=None):
+    """See a composed film before paying for it, as a first-time viewer gets it: the sheets of `hyperframes snapshot
+    --review`, the timeline of `keyframes --json` and, with a rendered file (`video`, else this story's render of
+    today), the sound of `audio --json`. Free: no voice, no render, nothing leaves the machine. The project is rebuilt
+    first, like check; everything is saved in LOOK_DIR. -> {"sheets", "scenes", "timeline", "motion", "audio",
+    "problems", "warnings", "next"}. The sheets are for looking at: a person's or a sub-agent's eye, never scored."""
+    story = _story(story_path, brand)
+    b = packs.of(story)
+    project = pathlib.Path(project or project_dir(story, b["name"])).resolve()
+    res = {"project": str(project), "story": str(pathlib.Path(story_path).resolve()), "brand": b["name"],
+           "film_engine": "hyperframes", "problems": [], "warnings": []}
+    if not (project / "index.html").exists():
+        res["problems"].append(f"no composed project at {project}: run engine compose scaffold first")
+        return res
+    tampered = lock_problems(project)
+    if tampered:
+        res["problems"] += [f"lint locked: {x[len('lock: '):]}" for x in tampered]
+        return res
+    try:
+        built = build(project, story, engine, music, tone, theme, fmt)
+    except ComposeError as e:
+        res["problems"].append(f"build: {e}")
+        return res
+    res["duration"] = built["timing"]["duration"]
+    shutil.rmtree(built["work"], ignore_errors=True)
+    where = project / LOOK_DIR
+    where.mkdir(parents=True, exist_ok=True)
+    shot, why = _report_of(hyperframes(["snapshot", str(project), "--review", "--json", "--no-browser-gpu", "--output",
+                                        str(where)], timeout=900), "snapshot")
+    if why:
+        res["problems"].append(why)
+        return res
+    res["sheets"] = sheets_of(shot)
+    res["scenes"] = [x for x in (shot.get("review") or {}).get("scenes", []) if x.get("id") not in ("chrome", "captions")]
+    timeline, why = _report_of(hyperframes(["keyframes", str(project), "--json"], timeout=300), "keyframes")
+    if why:
+        res["problems"].append(why)
+    else:
+        (where / "timeline.json").write_text(json.dumps(timeline, ensure_ascii=False, indent=1), encoding="utf-8")
+        res["timeline"] = str(where / "timeline.json")
+        res["motion"] = motion_of(timeline)
+    if video is None and fmt:
+        video = store.render_path(b["name"], story["id"], fmt["name"], "composed", fmt["captions"])
+    res["audio"] = None
+    if video and pathlib.Path(video).exists():
+        sound, why = _report_of(hyperframes(["audio", str(pathlib.Path(video).resolve()), "--json", "--quality",
+                                             AUDIO_QUALITY], timeout=300), "audio")
+        if why:
+            res["warnings"].append(why)
+        else:
+            (where / "audio.json").write_text(json.dumps(sound, ensure_ascii=False, indent=1), encoding="utf-8")
+            res["audio"] = str(where / "audio.json")
+    else:
+        res["warnings"].append("no rendered file, so the sound was not measured: engine compose render --engine silent, "
+                               "then look --video <file>")
+    res["next"] = (f"open every sheet; a fresh eye gets only SPEC.md and the sheets, and its notes go in {REVIEW_NOTE} "
+                   "(veasy:compose); then render")
+    return res
 
 
 # ---------------------------------------------------------------- templates: an approved film, its facts as slots
@@ -1672,7 +2056,7 @@ def promote(project, tid, label=None, about=None, force=False):
     dest = TEMPLATES / tid
     if dest.exists() and not force:
         raise ComposeError(f"template {tid} exists: pass --force to replace it")
-    bad = [x for x in lint(project) if x.startswith(("lint net", "lint canvas", "lint locked", "lint host"))]
+    bad = [x for x in lint(project) if x.startswith(HARD)]
     if bad:
         raise ComposeError("only a film that passes the lint is promoted: " + "; ".join(bad[:5]))
     fx = json.loads((project / "facts.json").read_text(encoding="utf-8"))["facts"]

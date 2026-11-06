@@ -12,8 +12,11 @@ it points, and never publish a video with problems.
    `python -m tt_shorts.engine qa <file>.mp4 --format <format>` (tool `veasy_qa`). `problems` must be empty:
    1080x1920, length inside the format's window, loudness -19..-13 LUFS (voice at -16 with the music ~13 LU under
    it), the hook on screen at frame 0 (`opening_ink`: the share of ink in the hook band y 250-1100 of the very
-   first frame, at least 2%; a swipe decides there) and the layout probe's problems from the render (`probe`).
+   first frame, at least 2%; a swipe decides there), the layout probe's problems from the render (`probe`) and
+   `flash`: no more than 3 flashes in any second over a quarter of the screen (ITU BT.1702, `tt_shorts/flash.py`; a
+   safety hold, whichever engine drew the video: slow the cuts or inversions it names).
    It also writes `<file>.sheet.jpg`, eight frames across the video: look at it.
+   A composed film has more to see, for free: `engine compose look <story>` (`veasy:compose`).
 2. The story check must have passed: `python -m tt_shorts.engine check <story.json> --sources <story>.sources.json`.
    A queue job in state `done` passed both; `held` means it rendered but a check found problems (its `error` says
    which: a `probe ...` line is a layout problem).

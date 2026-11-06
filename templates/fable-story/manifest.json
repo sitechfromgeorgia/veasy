@@ -3,7 +3,7 @@
  "label": "ილუსტრირებული ზღაპარი",
  "about": "Animated fable cartoon template with character gestures, trials, and moral takeaway",
  "engine": "hyperframes",
- "chrome": 2,
+ "chrome": 3,
  "from": {
   "story": "bipi-draws",
   "brand": "sitech",

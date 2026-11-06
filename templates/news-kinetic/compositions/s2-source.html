@@ -49,8 +49,8 @@
     tl.fromTo("#s2-c1", { opacity: 0, scale: 0.8, x: -30 }, { opacity: 1, scale: 1, x: 0, duration: 0.35, ease: "back.out(1.8)" }, 2.2);
     tl.fromTo("#s2-c2", { opacity: 0, scale: 0.8, x: -30 }, { opacity: 1, scale: 1, x: 0, duration: 0.35, ease: "back.out(1.8)" }, 2.36);
     tl.fromTo("#s2-city", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 2.6);
-    // out on "6400": the stack shrinks back as the number arrives (s3)
-    tl.to(["#s2-src", "#s2-who"], { opacity: 0, scale: 0.9, y: -100, duration: 0.3, ease: "power3.in", stagger: 0.05 }, 3.3);
+    // out before "6400": the stack shrinks back, gone before the number lands (s3)
+    tl.to(["#s2-src", "#s2-who"], { opacity: 0, scale: 0.9, y: -100, duration: 0.22, ease: "power3.in", stagger: 0.012 }, 3.06);
     window.__timelines["s2"] = tl;
   </script>
 </template>

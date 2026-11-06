@@ -1,7 +1,7 @@
 {
   "id": "process",
   "label": "პროცესი",
-  "about": "Step-by-step workflow or timeline sequence with numbered step badges, progress spine, and descriptions.",
+  "about": "Step-by-step workflow or timeline sequence with step nodes, progress spine, and descriptions.",
   "slots": {
     "title": {
       "kind": "words",

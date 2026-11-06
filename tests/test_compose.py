@@ -1,16 +1,19 @@
 """The compose lane (tt_shorts/compose.py): the pure parts, without a browser or a render. The engine key and its
 precedence, the review tier, facts bound by id, index.html's bindings, our lint (a case per rule), the locked chrome,
-templates and slots, the DOM-text checks and the locked-down HyperFrames CLI."""
+templates and slots, the DOM-text checks, the locked-down HyperFrames CLI, what `look` makes of its reports and the
+novelty of a composed film."""
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import tempfile
 import unittest
 from unittest import mock
 
-from tt_shorts import brand, claims_check, compose, directors, formats, programs, speech
+from tt_shorts import (brand, captions, claims_check, compose, directors, formats, probe, programs, speech, store,
+                       variety)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 COMPOSITIONS = ("24835", "bipi-draws")
@@ -333,9 +336,83 @@ class Lint(unittest.TestCase):
         bad_scene2 = SCENE.replace('data-composition-id="s1"', "")
         self.assertIn("template", self.rules(bad_scene2))
 
+    def styled(self, css):
+        return self.rules(SCENE.replace("#root .x { color: var(--ink); }", f"#root .x {{ color: var(--ink); }} {css}"))
+
+    def test_css_content(self):
+        for css in ('#root .x::before { content: "6400"; }', "#root .x::after{content:'კვირა'}",
+                    "#root .x::before { content: attr(data-n); }", "#root .x::before { content: var(--label); }",
+                    '#root .x::before { content: "0" counter(step); }', "#root .x { counter-increment: step; }",
+                    "#root .x { list-style-type: decimal; }", "#root .x { list-style: georgian inside; }"):
+            self.assertIn("css-content", self.styled(css), css)
+        self.assertIn("css-content", self.rules(SCENE.replace('<div class="x">', '<div class="x" style="content: \'6\'">')))
+        self.assertIn("css-content", self.rules(SCENE.replace("<div class", "<ol><li>ა</li></ol><div class")))
+        self.assertIn("css-content", self.rules(SCENE.replace("<div class", '<input value="6400"><div class')))
+
+    def test_a_shape_in_css_is_no_text(self):
+        for css in ('#root .x::before { content: ""; }', "#root .x::after { content: '' !important; }",
+                    "#root .x::before { content: none; }", "#root .x { list-style: none; }",
+                    "#root .x { align-content: center; justify-content: end; place-content: center; }",
+                    '/* content: "6400" */'):
+            self.assertNotIn("css-content", self.styled(css), css)
+
+    def test_a_film_with_hidden_text_is_never_rendered(self):
+        self.assertTrue("lint css-content: compositions/s1.html: x".startswith(compose.HARD))
+        self.assertTrue("probe generated: s1 at 1.00s: x".startswith(compose.HARD))
+        self.assertFalse("lint outlined-text: compositions/s1.html: x".startswith(compose.HARD))  # a guess only holds
+
+    def test_no_shipped_film_block_or_template_generates_text(self):
+        scenes = [*ROOT.glob("compose/blocks/*/template.html"), *ROOT.glob("templates/*/compositions/*.html"),
+                  *(f for name in COMPOSITIONS for f in (ROOT / "compose" / name / "compositions").glob("*.html"))]
+        self.assertGreater(len(scenes), 15)
+        for f in scenes:
+            text = f.read_text(encoding="utf-8")
+            self.assertEqual({x for x in compose.CSS_CONTENT.findall(text) if not compose.CSS_EMPTY.match(x.strip())},
+                             set(), f)
+            self.assertIsNone(compose.GENERATED.search(text), f)
+            self.assertEqual(compose.outlined_text(text), 0, f)
+
+    def outline(self, text):
+        """`text` in the pack's real font as one SVG path per glyph, the way a font tool writes it."""
+        from fontTools.pens.svgPathPen import SVGPathPen
+        from fontTools.pens.transformPen import TransformPen
+        from fontTools.ttLib import TTFont
+        font = TTFont(sorted(brand.load("sitech")["_fonts"].values(), key=str)[0])
+        glyphs, cmap, hmtx = font.getGlyphSet(), font.getBestCmap(), font["hmtx"]
+        x, paths = 0, []
+        for ch in text:
+            pen = SVGPathPen(glyphs)
+            glyphs[cmap[ord(ch)]].draw(TransformPen(pen, (1, 0, 0, -1, x, 800)))
+            paths.append(f'<path d="{pen.getCommands()}"/>')
+            x += hmtx[cmap[ord(ch)]][0]
+        return f'<svg viewBox="0 0 {x} 1000">{"".join(paths)}</svg>'
+
+    def test_outlined_text(self):
+        for word in ("2026", "12,5", "1000", "წელი", "საქართველო"):
+            svg = self.outline(word)
+            self.assertIn("outlined-text", self.rules(SCENE.replace("<div class", svg + "<div class")), word)
+            one_path = svg.replace('"/><path d="', " ")  # the whole line as one path, as some tools write it
+            self.assertGreaterEqual(compose.outlined_text(one_path), compose.LINE_GLYPHS, word)
+        (self.p / "assets" / "art").mkdir()
+        (self.p / "assets" / "art" / "a.svg").write_text(self.outline("2026"), encoding="utf-8")
+        self.assertIn("outlined-text", self.rules(SCENE))
+
+    def test_two_digits_pass_under_the_heuristic(self):  # its known limit: the film is held for a person's eye anyway
+        self.assertEqual(compose.outlined_text(self.outline("25")), 0)
+
+    def test_drawings_are_not_text(self):
+        dots = "".join(f'<path d="M{x} 0a5 5 0 1 0 10 0a5 5 0 1 0-10 0z"/>' for x in range(0, 60, 15))
+        bars = "".join(f'<path d="M{x} 0h10v{20 + x}h-10z"/>' for x in range(0, 60, 15))
+        self.assertEqual(compose.outlined_text(f"<svg>{dots}</svg>"), 0)  # equal shapes
+        self.assertEqual(compose.outlined_text(f"<svg>{bars}</svg>"), 0)  # no curves
+        self.assertEqual(compose.outlined_text('<svg><path d="M0 0L10 10"/><path d="not a path"/></svg>'), 0)
+        for f in (ROOT / "assets" / "drawings").glob("*.svg"):
+            self.assertEqual(compose.outlined_text(f.read_text(encoding="utf-8")), 0, f.name)
+
     def test_every_rule_is_named(self):
         self.assertEqual(set(compose.LINT_RULES), {"color", "font", "link", "net", "canvas", "probe", "fact", "host",
-                                                   "locked", "art", "timeline", "prefix", "template"})
+                                                   "locked", "art", "timeline", "prefix", "template", "css-content",
+                                                   "outlined-text"})
 
     def test_the_shipped_compositions_type_no_pack(self):  # every color, logo and link comes from the pack
         for name in COMPOSITIONS:
@@ -376,7 +453,134 @@ class Screen(unittest.TestCase):
         self.assertTrue(any("S1" in x for x in compose.text_problems(story, ["ბიპი და ნიკა ბერიძე"])))
 
 
+LONG_LINK = "tbilisi.today/stories/explainer-inflation"  # at 36 px the footer ran off the frame (chrome v2)
+
+
+class ChromeFit(unittest.TestCase):
+    def chrome(self, url, cta="მეტი ამბავი"):
+        b = brand.load("tbilisi-today")
+        t = {"duration": 10.0, "end": 9.0, "wipes": [], "beats": [],
+             "chapters": [{"n": 1, "of": 1, "title": "ა", "from": 0.0, "to": 9.0}],
+             "facts": {"url": url, "cta": cta, "category": "ა", "date": {"date": "1 ნოემბერი"}, "sources": ["ა"]}}
+        with tempfile.TemporaryDirectory() as d:
+            (pathlib.Path(d) / "assets").mkdir()
+            return compose.chrome(t, b, pathlib.Path(d), "film")
+
+    def test_a_short_link_keeps_the_kits_size(self):
+        html = self.chrome("tbilisi.today/stories/24835")
+        self.assertIn(".footer .url { font-weight: 700; font-size: 36px", html)
+        self.assertIn("text-align: center; font-weight: 700; font-size: 40px", html)
+        self.assertIn("justify-content: center; font-weight: 600; font-size: 40px", html)
+
+    def test_a_long_link_stays_clear_of_the_pack_line(self):
+        b = brand.load("tbilisi-today")
+        size = compose.footer_size(LONG_LINK, b)
+        fonts, foot = b["_fonts"], b["footer"]
+        used = (captions.width(LONG_LINK, size, fonts["700"]) + captions.width(foot["text"], 28, fonts["400"])
+                + captions.width(foot["strong"], 28, fonts["700"]))
+        self.assertLess(size, 36)
+        self.assertLessEqual(used + 32, compose.W - 2 * compose.SIDE)
+        self.assertIn(f".footer .url {{ font-weight: 700; font-size: {size}px", self.chrome(LONG_LINK))
+
+    def test_the_link_stops_shrinking_at_the_probes_floor(self):
+        self.assertEqual(compose.footer_size("tbilisi.today/stories/" + "ა" * 90, brand.load("tbilisi-today")),
+                         probe.MIN_PX["footer"])
+
+    def test_the_end_card_fits_a_long_link_and_cta(self):
+        b = brand.load("tbilisi-today")
+        url = "tbilisi.today/stories/" + "a" * 40
+        size = compose.fit_size(url, 800, 40, 24, b["_fonts"]["700"])
+        self.assertLess(size, 40)
+        self.assertLessEqual(captions.width(url, size, b["_fonts"]["700"]), 800)
+        cta = "გამოიწერე არხი და მიიღე ყოველი ახალი ამბავი პირველმა"
+        size = compose.fit_size(cta, 704, 40, 24, b["_fonts"]["600"])
+        self.assertLess(size, 40)
+        html = self.chrome(url, cta)
+        self.assertIn(f"justify-content: center; font-weight: 600; font-size: {size}px", html)
+
+
+class Cuts(unittest.TestCase):
+    """Two scenes on screen at once read as a mistake: only a wipe (chapter cuts, 0.2 s) may cover an overlap."""
+
+    def test_the_fable_and_the_explainer_never_dissolve_one_scene_through_the_next(self):
+        for base, n in ((ROOT / "compose" / "bipi-draws", 5), (ROOT / "templates" / "fable-story", 5),
+                        (ROOT / "templates" / "tech-explainer", 4)):
+            hosts = re.findall(r'<div id="s\d"[^>]*>', (base / "index.html").read_text(encoding="utf-8"))
+            self.assertEqual(len(hosts), n, base)
+            for a, b in zip(hosts, hosts[1:]):
+                self.assertEqual(compose._attr(a, "data-until"), compose._attr(b, "data-beat"), base)
+                over = float(compose._attr(a, "data-until-shift") or 0) - float(compose._attr(b, "data-beat-shift") or 0)
+                self.assertLessEqual(over, 0.2, (base.name, compose._attr(a, "id"), compose._attr(b, "id")))
+
+    def test_the_news_film_keeps_only_its_blur_swap(self):
+        for base in (ROOT / "compose" / "24835", ROOT / "templates" / "news-kinetic"):
+            spans = compose.host_spans((base / "index.html").read_text(encoding="utf-8"))
+            self.assertEqual([c[:2] for c in compose.cuts(spans)], [("s6", "s7")], base.name)
+
+    def test_a_starter_cuts_on_the_beat(self):
+        self.assertEqual(compose._until("s1"), 'data-until="s1"')
+        self.assertIn('data-until-shift="0.3"', compose._until("end"))  # the last scene goes under the end's wipe
+
+    def test_a_cut_is_a_host_that_starts_inside_another_and_outlives_it(self):
+        spans = {"s1": (0.0, 5.3), "s2": (5.0, 9.0), "s3": (9.0, 12.0), "layer": (0.0, 20.0), "s4": (12.0, 12.5)}
+        self.assertEqual(compose.cuts(spans), [("s1", "s2", 5.0, 5.3)])  # s2 touches s3; the layer lasts through all
+
+    def test_a_cut_is_read_every_other_frame_and_a_long_overlap_no_more_than_the_cap(self):
+        self.assertEqual(compose.cut_times(4.7, 5.0), [4.7, 4.767, 4.833, 4.9, 4.967])
+        self.assertLessEqual(len(compose.cut_times(4.0, 9.0)), compose.CUT_READINGS)
+        self.assertEqual(compose.cut_times(5.0, 5.0), [])
+
+    def test_hosts_come_from_the_built_page_not_its_comments_or_the_chrome(self):
+        html = ('<!-- <div data-composition-id="s9" data-start="1" data-duration="1"></div> -->'
+                '<div data-composition-id="main" data-start="0" data-duration="9"><div data-composition-id="s1" '
+                'data-start="1.5" data-duration="2"></div><div data-composition-id="chrome" data-start="0" '
+                'data-duration="9"></div></div>')
+        self.assertEqual(compose.host_spans(html), {"s1": (1.5, 3.5)})
+
+    @staticmethod
+    def text(comp, words, box=(64, 300, 400, 100), **kw):
+        return {"comp": comp, "text": words, "box": list(box), "opacity": 1.0, "hidden": 0.0, **kw}
+
+    def read(self, *texts, cells=None, times=(10.0, 10.067, 10.133)):
+        rows = [{"t": t, "probe": {"texts": list(texts), "cells": cells or {}}} for t in times]
+        return compose.cut_problems("s2", "s3", rows)
+
+    def test_two_texts_on_one_spot_are_a_problem(self):
+        problems, _ = self.read(self.text("s2", "ძველი"), self.text("s3", "ახალი", (64, 310, 400, 100)))
+        self.assertEqual(len(problems), 1)
+        self.assertTrue(problems[0].startswith("probe cut: s2 to s3 at 10.00s: „ძველი“ on „ახალი“ for 0.20 s"), problems)
+
+    def test_texts_apart_are_no_collision(self):
+        self.assertEqual(self.read(self.text("s2", "ა"), self.text("s3", "ბ", (64, 700, 400, 100))), ([], []))
+
+    def test_what_a_viewer_cant_catch_is_no_collision(self):
+        one = self.read(self.text("s2", "ა"), self.text("s3", "ბ"), times=(10.0,))
+        self.assertEqual(one, ([], []))
+
+    def test_a_ghost_an_ornament_and_a_text_under_a_wipe_are_no_collision(self):
+        new = self.text("s3", "ახალი")
+        for old in (self.text("s2", "ა", opacity=0.1), self.text("s2", "ა", decor=True), self.text("s2", "ა", hidden=0.8)):
+            self.assertEqual(self.read(old, new), ([], []), old)
+
+    def test_a_text_on_the_other_scenes_drawing_is_a_problem(self):
+        cols = 54  # 1080 px on the 20 px grid
+        spot = [row * cols + col for row in range(16, 19) for col in range(5, 8)]  # x 100-160, y 320-380
+        problems, _ = self.read(self.text("s2", "ძველი"), cells={"s3": spot})
+        self.assertTrue(problems and "„ძველი“ on s3's drawing" in problems[0], problems)
+        self.assertEqual(self.read(self.text("s2", "ძველი", (64, 900, 400, 100)), cells={"s3": spot}), ([], []))
+
+    def test_two_drawings_on_one_spot_are_a_warning_only(self):
+        spot = list(range(200))  # 2% of the 54 x 96 grid: a mistake, or a match cut
+        problems, warnings = self.read(cells={"s2": spot, "s3": spot})
+        self.assertEqual(problems, [])
+        self.assertTrue(warnings and warnings[0].startswith("cut: s2 to s3 at 10.00s: both scenes draw on 4%"), warnings)
+
+
 class Templates(unittest.TestCase):
+    def test_every_shipped_template_is_for_this_chrome(self):
+        for f in compose.TEMPLATES.glob("*/manifest.json"):
+            self.assertEqual(json.loads(f.read_text(encoding="utf-8"))["chrome"], compose.CHROME_VERSION, f.parent.name)
+
     def test_promote_then_start_from_it(self):
         with tempfile.TemporaryDirectory() as d:
             d = pathlib.Path(d)
@@ -443,10 +647,134 @@ class HyperFrames(unittest.TestCase):
             self.assertEqual(env[k], "1", k)
         self.assertNotIn("npx", " ".join(run.call_args.args[0]))  # the pinned bin, never npx
 
+    def test_a_film_never_leaves_the_machine(self):
+        for args in (["snapshot", "x", "--describe"], ["snapshot", "x", "--describe=what is this"],
+                     ["audio", "f.mp4", "--quality", "best", "--json"], ["audio", "f.mp4", "--quality=best"],
+                     ["audio", "f.mp4"], ["audio", "f.mp4", "--quality"], ["audio", "f.mp4", "--provider", "onsets=x"]):
+            with self.assertRaisesRegex(compose.ComposeError, "stays on this machine", msg=args):
+                compose.hyperframes(args)
+        with mock.patch.object(subprocess, "run"), mock.patch.object(pathlib.Path, "exists", return_value=True):
+            compose.hyperframes(["audio", "f.mp4", "--quality", compose.AUDIO_QUALITY, "--json"])
+            compose.hyperframes(["snapshot", "x", "--review", "--json"])
+
     def test_renders_are_pinned(self):
         self.assertEqual(compose.RENDER, {"workers": 4, "browser_gpu": False, "quality": "looks", "fps": 30})
         pkg = json.loads((ROOT / "compose" / "package.json").read_text(encoding="utf-8"))
         self.assertEqual(pkg["dependencies"]["hyperframes"], compose.HF_VERSION)
+
+
+class Look(unittest.TestCase):
+    """engine compose look: its reports, and that it runs only through hyperframes(), the film rebuilt first."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.p = pathlib.Path(self.dir.name)
+        (self.p / "index.html").write_text("<html></html>", encoding="utf-8")
+        self.video = self.p / "film.mp4"
+        self.video.write_bytes(b"x")
+
+    def reply(self, args, **kw):
+        self.calls.append([str(a) for a in args])
+        stdout = {"snapshot": "progress {" + json.dumps({"contactSheets": [
+                      "o/review-beats.jpg", "o/review-seam-01.jpg", "o/review-seam-02.jpg", "o/review-phone.jpg"],
+                      "review": {"scenes": [{"id": "s1"}, {"id": "chrome"}]}})[1:],
+                  "keyframes": json.dumps({"compositions": [
+                      {"source": "index.html", "tweens": [{"ease": "none"}]},
+                      {"source": "compositions/s1.html", "tweens": [{"ease": "expo.out"}, {"ease": "expo.out"}, {}]},
+                      {"source": "compositions/chrome.html", "tweens": [{"ease": "power3.in"}] * 50}]}),
+                  "audio": json.dumps({"loudness": -16})}[args[0]]
+        return subprocess.CompletedProcess(args, 0, stdout, "")
+
+    def look(self, **kw):
+        self.calls = []
+        story = {"id": "x", "brand": "sitech"}
+        with mock.patch.object(compose, "_story", return_value=story), \
+                mock.patch.object(compose.packs, "of", return_value={"name": "sitech"}), \
+                mock.patch.object(compose, "lock_problems", return_value=[]), \
+                mock.patch.object(compose, "build", return_value={"timing": {"duration": 9.0}, "work": str(self.p / "w")}), \
+                mock.patch.object(compose, "hyperframes", side_effect=self.reply):
+            return compose.look("x.json", project=self.p, **kw)
+
+    def test_sheets_timeline_and_sound(self):
+        r = self.look(video=self.video)
+        self.assertEqual(r["problems"], [])
+        self.assertEqual((r["sheets"]["beats"], r["sheets"]["phone"]), (str(pathlib.Path("o/review-beats.jpg")),
+                                                                        str(pathlib.Path("o/review-phone.jpg"))))
+        self.assertEqual(len(r["sheets"]["seams"]), 2)
+        self.assertEqual(r["scenes"], [{"id": "s1"}])  # the chrome is no scene
+        self.assertEqual(json.loads(pathlib.Path(r["timeline"]).read_text(encoding="utf-8"))["compositions"][0]["source"],
+                         "index.html")
+        self.assertEqual(json.loads(pathlib.Path(r["audio"]).read_text(encoding="utf-8")), {"loudness": -16})
+        self.assertEqual([c[0] for c in self.calls], ["snapshot", "keyframes", "audio"])
+        self.assertIn("--no-browser-gpu", self.calls[0])  # software GL, as at render
+        self.assertEqual(self.calls[2][self.calls[2].index("--quality") + 1], compose.AUDIO_QUALITY)
+
+    def test_the_agents_motion_without_the_locked_chrome(self):
+        m = self.look(video=self.video)["motion"]
+        self.assertEqual(m["tweens"], 4)
+        self.assertEqual(m["by_file"], {"index.html": 1, "compositions/s1.html": 3})
+        self.assertEqual(m["eases"], {"expo.out": 0.5, "none": 0.25, "default": 0.25})
+
+    def test_no_render_yet_says_so_and_still_looks(self):
+        r = self.look()
+        self.assertIsNone(r["audio"])
+        self.assertEqual(r["problems"], [])
+        self.assertTrue(any("sound was not measured" in w for w in r["warnings"]))
+        self.assertEqual([c[0] for c in self.calls], ["snapshot", "keyframes"])
+
+    def test_a_failed_snapshot_is_a_problem(self):
+        with mock.patch.object(self, "reply", side_effect=lambda args, **kw: subprocess.CompletedProcess(args, 1, "", "boom")):
+            r = self.look()
+        self.assertIn("boom", r["problems"][0])
+
+    def test_no_project(self):
+        (self.p / "index.html").unlink()
+        self.assertIn("no composed project", self.look()["problems"][0])
+
+    def test_the_cli_and_the_tool_offer_it(self):
+        self.assertIn("look", (ROOT / "tt_shorts" / "engine.py").read_text(encoding="utf-8"))
+        self.assertIn("engine compose look", (ROOT / "skills" / "compose" / "SKILL.md").read_text(encoding="utf-8"))
+
+
+class FilmNovelty(unittest.TestCase):
+    """A composed film in variety's words, and the warning it gets."""
+
+    SCENE = '<!-- block {block}: x --><template><script>gsap.to(a, { ease: "expo.out" }); gsap.to(b, { ease: "expo.out" });' \
+            'gsap.to(c, { ease: "none" }); gsap.to(d, { ease: "none" }); gsap.to(d, { ease: "none" });</script></template>'
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.p = pathlib.Path(self.dir.name)
+        (self.p / "compositions").mkdir()
+        hosts = ["s0", "s1", "chrome"]
+        (self.p / "index.html").write_text("".join(f'<div data-composition-src="compositions/{h}.html"></div>' for h in hosts),
+                                           encoding="utf-8")
+        (self.p / "compositions" / "s0.html").write_text(self.SCENE.replace("{block}", "quote"), encoding="utf-8")
+        (self.p / "compositions" / "s1.html").write_text("<template><div><svg></svg></div></template>", encoding="utf-8")
+        (self.p / "compositions" / "chrome.html").write_text("<template></template>", encoding="utf-8")
+
+    def test_scene_kinds_opening_and_main_ease(self):
+        style, kinds = compose.film_style(self.p, "fable-1")
+        self.assertEqual(kinds[0], "quote")
+        self.assertRegex(kinds[1], r"^own-[0-9a-f]{8}$")
+        self.assertEqual(len(kinds), 2)  # the locked chrome is no scene
+        self.assertEqual({k: style[k] for k in ("hook", "enter", "music", "template", "transition")},
+                         {"hook": "quote", "enter": "expo.out", "music": "fable-1", "template": None,
+                          "transition": "composed"})
+
+    def test_a_scene_keeps_its_block_after_an_edit(self):
+        path = self.p / "compositions" / "s0.html"
+        path.write_text(path.read_text(encoding="utf-8").replace("<template>", "<template><div></div>"), encoding="utf-8")
+        self.assertEqual(compose.film_kinds(self.p)[0], "quote")
+
+    def test_notes_are_asked_for_by_name(self):
+        self.assertEqual(len(compose.missing_notes(self.p, compose.NOTES)), 2)
+        (self.p / "STORYLINES.md").write_text("x", encoding="utf-8")
+        (self.p / "SPEC.md").write_text("x", encoding="utf-8")
+        self.assertEqual(compose.missing_notes(self.p, compose.NOTES), [])
+        self.assertIn("REVIEW.md", compose.missing_notes(self.p, (compose.REVIEW_NOTE,))[0])
 
 
 class Blocks(unittest.TestCase):
