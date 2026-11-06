@@ -21,6 +21,7 @@
 ## 2. Commit List
 
 1. `docs(research): film-eyes research, literature review, and initial result tracker`
+2. `feat(eyes): free pixel checks, pacing metrics, and safety gates (tt_shorts/eyes.py)`
 
 ---
 
