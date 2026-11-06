@@ -1105,6 +1105,7 @@ def make_cmd(a):
         music=getattr(a, "music", None),
         transition=getattr(a, "transition", None),
         outro=getattr(a, "outro", None),
+        scenario=getattr(a, "scenario", None),
     )
     return out(res, 1 if res.get("status") == "error" else 0)
 
@@ -1403,6 +1404,8 @@ def main(argv=None):
     mk.add_argument("--style", help="how it looks and sounds (see options: styles)")
     mk.add_argument("--source", help="where facts come from (tbilisi-today, ordo, sitech, url, pdf, text)")
     mk.add_argument("--length", help="short (15-30s), standard (30-45s), long (45-60s) or target seconds")
+    mk.add_argument("--scenario", help="the plot (see options: scenarios) or auto: the best fit to the facts; with "
+                                       "--preview-storyboard a URL gets its storyboard before the writer is paid")
     mk.add_argument("--yes", "-y", action="store_true", help="accept code's decisions and defaults; ask no interactive questions")
     mk.add_argument("--queue", action="store_true", help="add to the job queue instead of rendering immediately")
     mk.add_argument("--preview-storyboard", action="store_true", help="build contact sheet and stop at plan stage")

@@ -721,18 +721,19 @@ def storyboard(sc):
 
 
 def parse_length(length):
-    """`--length` -> seconds: 45, "45", "45s", "45 წმ", "short" (30), "long" (45); None when not given."""
+    """`--length` -> seconds: 45, "45", "45s", "45 წმ", short (22: 15-30 s), standard (38: 30-45 s), long (52:
+    45-60 s); None when not given."""
     if length in (None, ""):
         return None
     if isinstance(length, (int, float)):
         return float(length)
     t = str(length).strip().lower()
-    named = {"short": 30.0, "long": 45.0, "მოკლე": 30.0, "გრძელი": 45.0}
+    named = {"short": 22.0, "standard": 38.0, "long": 52.0, "მოკლე": 22.0, "ჩვეულებრივი": 38.0, "გრძელი": 52.0}
     if t in named:
         return named[t]
     m = re.fullmatch(r"(\d+(?:[.,]\d+)?)\s*(?:s|sec|წმ|წამი)?", t)
     if not m:
-        raise ScenarioError(f"length {length!r}: give seconds (45, 45s) or short|long")
+        raise ScenarioError(f"length {length!r}: give seconds (45, 45s) or short|standard|long")
     return float(m.group(1).replace(",", "."))
 
 

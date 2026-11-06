@@ -135,7 +135,8 @@ class TestFit(unittest.TestCase):
     def test_parse_length(self):
         self.assertEqual(scenarios.parse_length("45s"), 45.0)
         self.assertEqual(scenarios.parse_length(40), 40.0)
-        self.assertEqual(scenarios.parse_length("short"), 30.0)
+        self.assertEqual(scenarios.parse_length("short"), 22.0)
+        self.assertEqual(scenarios.parse_length("long"), 52.0)
         self.assertIsNone(scenarios.parse_length(None))
         with self.assertRaises(scenarios.ScenarioError):
             scenarios.parse_length("soon")
@@ -228,6 +229,41 @@ class TestEngineWiring(unittest.TestCase):
     def test_write_story_refuses_news_with_a_scenario(self):
         with self.assertRaises(ValueError):
             engine.write_story("tbilisi-today", "1", scenario="countdown")
+
+
+class TestFrontDoor(unittest.TestCase):
+    """`make --scenario auto --preview-storyboard` shows the plot's storyboard before the writer is called."""
+
+    def fetch(self, source, ref):
+        story = demo("guess-the-number")
+        return {"cluster": {"id": 1, "category": "society"}, "articles": [story["narration"]]}
+
+    def test_preview_storyboard_before_the_writer(self):
+        from unittest import mock
+        from tt_shorts import make
+        with mock.patch("tt_shorts.sources.fetch", self.fetch),                 mock.patch("tt_shorts.engine.write_story", side_effect=AssertionError("the writer was called")):
+            res = make.make_film("https://example.org/doc", source="url", scenario="auto", preview_storyboard=True,
+                                 yes=True, length="short")
+        self.assertEqual(res["status"], "preview")
+        self.assertFalse(res["writer_called"])
+        self.assertEqual(len(res["storyboard"]), len(scenarios.get(res["scenario"])["beats"]))
+        self.assertTrue(res["ranked"])
+
+    def test_news_refused_at_the_front_door(self):
+        from unittest import mock
+        from tt_shorts import make
+        with mock.patch("tt_shorts.engine.write_story", side_effect=AssertionError("the writer was called")):
+            res = make.make_film("24835", scenario="auto", preview_storyboard=True, yes=True)
+        self.assertEqual(res["status"], "error")
+        self.assertTrue(any("refuses scenarios" in p for p in res["problems"]))
+
+    def test_length_is_no_longer_ignored(self):
+        from unittest import mock
+        from tt_shorts import make
+        with mock.patch("tt_shorts.sources.fetch", self.fetch):
+            res = make.make_film("https://example.org/doc", source="url", scenario="auto", preview_storyboard=True,
+                                 yes=True, length="soon")
+        self.assertEqual(res["status"], "error")  # an unreadable --length is said, not dropped
 
 
 if __name__ == "__main__":
