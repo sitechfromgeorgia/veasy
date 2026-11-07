@@ -396,7 +396,13 @@ class Baked(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.env = mock.patch.dict(os.environ, {"VEASY_HOME": cls.tmp.name})
         cls.env.start()
-        cls.first = plates.make("example", seconds=1, seed=7, scale=0.25)
+        try:
+            cls.first = plates.make("example", seconds=1, seed=7, scale=0.25)
+        except plates.PlateError as e:
+            cls.tearDownClass()
+            if "chrome-headless-shell" in str(e):  # a machine with no browser yet (CI): the baked checks wait for one
+                raise unittest.SkipTest(str(e)[-90:])
+            raise
 
     @classmethod
     def tearDownClass(cls):
