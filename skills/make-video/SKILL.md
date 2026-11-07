@@ -29,7 +29,7 @@ A newcomer only meets three things:
 ### Visual Catalogue
 Browse the full visual library before choosing:
 ```bash
-python -m tt_shorts.engine gallery           # builds out/gallery.html with stills & clips of all 18 styles, 3 looks, 31 scene brushes, 8 directors
+python -m tt_shorts.engine gallery --find "a number"   # the brush book (veasy:brush-book): real frames, commands, when not to use
 python -m tt_shorts.engine options           # leads with brands & styles (with stills); advanced options under "advanced"
 ```
 

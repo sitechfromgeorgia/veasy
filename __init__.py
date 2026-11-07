@@ -423,6 +423,18 @@ TOOLS = {
                         [["--set", x] for x in (a.get("set") or [])], []) + (
                         [f"--{a['verb']}"] if a.get("verb") else []) + (["--dry"] if a.get("dry") else []) + _flags(
                         a, ("engine",)))),
+    "veasy_brush_book": ({"type": "object", "properties": {
+                             "find": {"type": "string", "description": "What the story needs, in a few words: a number, a place, a process, a quote."},
+                             "examples": {"type": "boolean", "description": "Annotated example films and a bad-to-fixed pair instead."},
+                             "seed": {"type": "string", "description": "examples: the rotation (a story id or date); the same seed gives the same ones."},
+                             "real": {"type": "boolean", "description": "Render the missing stills first (slow: machine time, no tokens)."}}},
+                         "The brush book (skill veasy:brush-book): find the brush, hook, motif, entrance, transition, "
+                         "director, style or rubric a story needs, each with its real rendered frame, its command and "
+                         "when not to use it (find), or annotated example films (examples). real rebuilds "
+                         "out/gallery/index.html, the page a person opens.",
+                         lambda a: _engine("gallery", (["--find", a["find"]] if a.get("find") else []) +
+                                           (["--examples"] + _flags(a, ("seed",)) if a.get("examples") else []) +
+                                           (["--real"] if a.get("real") else []))),
 }
 
 

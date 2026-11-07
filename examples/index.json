@@ -1,0 +1,292 @@
+{
+ "about": "Annotated films and bad-to-fixed pairs. Each film is a story that passes `engine check`; its entry says what the story asked for, why the scenes have this shape, what was turned down and what to take from it. Copy the reasoning, not the scenes: `engine gallery --examples` rotates which ones you are shown.",
+ "films": [
+  {
+   "id": "outage-news",
+   "file": "outage-news.json",
+   "program": "news",
+   "brand": "tbilisi-today",
+   "director": null,
+   "rubric": null,
+   "scenes": [
+    "hook",
+    "stat",
+    "timeline",
+    "where",
+    "sources",
+    "end"
+   ],
+   "asked": "A gas cut: how many households, when it starts and ends, which districts, and why.",
+   "shape": "hook, stat, timeline, where, sources, end. One number carries the story (stat), the window is two clock times (timeline), the district is a place (where), the outlets close it (sources).",
+   "turned_down": "trend and share (6400 has no history and is not a part of a whole); versus (nobody is compared); a quote scene (the utility is paraphrased, no sentence is worth quoting).",
+   "learn": "Pick the scene for the shape of the fact: a count is stat, a from-to window is timeline, a place is where."
+  },
+  {
+   "id": "outage-brief",
+   "file": "outage-brief.json",
+   "program": "news",
+   "brand": "tbilisi-today",
+   "director": "brief",
+   "rubric": null,
+   "scenes": [
+    "hook",
+    "points",
+    "steps",
+    "sources",
+    "end"
+   ],
+   "asked": "The same outage told as what a household should do.",
+   "shape": "hook, points, steps, sources, end under the brief director: the facts become a short list, then the order of actions.",
+   "turned_down": "stat as the second scene (the director's rule is procedure first); a map (the reader is told what to do, not where it is).",
+   "learn": "A director changes the shape of the same facts; the facts and the news rules do not change."
+  },
+  {
+   "id": "outage-data",
+   "file": "outage-data.json",
+   "program": "news",
+   "brand": "tbilisi-today",
+   "director": "data",
+   "rubric": null,
+   "scenes": [
+    "hook",
+    "stat",
+    "timeline",
+    "sources",
+    "end"
+   ],
+   "asked": "The same outage for a reader who wants the numbers first.",
+   "shape": "hook, stat, timeline, sources, end under the data director: the count opens, the window follows, no list.",
+   "turned_down": "points (it would repeat the narration as bullets); where (the data director draws figures, not places).",
+   "learn": "When the story is a number and a time, two scenes are enough: do not add a third just to fill the length."
+  },
+  {
+   "id": "outage-map",
+   "file": "outage-map.json",
+   "program": "news",
+   "brand": "tbilisi-today",
+   "director": "map",
+   "rubric": null,
+   "scenes": [
+    "hook",
+    "where",
+    "sign",
+    "timeline",
+    "end"
+   ],
+   "asked": "The same outage for a reader who asks where.",
+   "shape": "hook, where, sign, timeline, end under the map director: the place comes first, a pictogram says the action, the window closes.",
+   "turned_down": "stat (the count is in the narration); sources as a card (the end card carries the outlets).",
+   "learn": "A map scene draws a region of Georgia from the pack's one outline; for crime it never marks a district (geo.PRIVATE)."
+  },
+  {
+   "id": "quote-world",
+   "file": "quote-world.json",
+   "program": "news",
+   "brand": "tbilisi-today",
+   "director": null,
+   "rubric": null,
+   "scenes": [
+    "hook",
+    "who",
+    "quote",
+    "where",
+    "points",
+    "sources",
+    "end"
+   ],
+   "asked": "A president proposes a meeting and says why, in his own words.",
+   "shape": "hook, who, quote, where, points, sources, end. The person is named once (who), the sentence is verbatim in a quote scene, the city is a place.",
+   "turned_down": "an opinion scene (never: news stays factual); stat (no number carries the story); paraphrasing the sentence (a quote must be verbatim).",
+   "learn": "A quote scene holds one sentence taken word for word; the writer never improves it."
+  },
+  {
+   "id": "morning-digest",
+   "file": "morning-digest.json",
+   "program": "digest",
+   "brand": "tbilisi-today",
+   "director": null,
+   "rubric": "digest",
+   "scenes": [
+    "hook",
+    "stat",
+    "timeline",
+    "chapter",
+    "who",
+    "quote",
+    "end"
+   ],
+   "asked": "Two checked stories of the morning in one film.",
+   "shape": "hook, then each story's own scenes, a chapter card between them, end. The digest is built by code from stories that already passed, never by a model, and says its real story count.",
+   "turned_down": "a summary scene written by a model (code owns the digest); a third story (only two were checked).",
+   "learn": "A rubric is a named show: its chip, slot and episode number belong to code."
+  },
+  {
+   "id": "explainer-prices",
+   "file": "explainer-prices.json",
+   "program": "explainer",
+   "brand": "tbilisi-today",
+   "director": null,
+   "rubric": null,
+   "scenes": [
+    "hook",
+    "stat",
+    "pair",
+    "points",
+    "end"
+   ],
+   "asked": "How prices and inflation moved, for a reader who wants the picture, not a headline.",
+   "shape": "hook as a question, stat (3.8 percent), pair (food against services), points (what the bank does), end. The explainer program may explain; every number still has to come from its source.",
+   "turned_down": "trend (there is no series in the sources, and a line with two points claims more than the data); share (3.8 is not a part of a whole).",
+   "learn": "An explainer relaxes the news clock, never the claims tier: a number you cannot source is a number you do not draw."
+  },
+  {
+   "id": "law-article",
+   "file": "law-article.json",
+   "program": "law",
+   "brand": "tbilisi-today",
+   "director": null,
+   "rubric": null,
+   "scenes": [
+    "hook",
+    "quote",
+    "points",
+    "pair",
+    "end"
+   ],
+   "asked": "What one article of the constitution says, in plain words.",
+   "shape": "hook, quote (the article's own sentence), points (what it protects), pair (right against limit), end. The program law carries its source and link as data.",
+   "turned_down": "a stat (an article number is a name, not a measure); a model's paraphrase of the law inside quotation marks.",
+   "learn": "For a law the quote is the article; the writer explains around it and never rephrases inside the marks."
+  },
+  {
+   "id": "fable-steps",
+   "file": "fable-steps.json",
+   "program": "story",
+   "brand": "sitech",
+   "director": null,
+   "rubric": null,
+   "scenes": [
+    "hook",
+    "steps",
+    "points",
+    "end"
+   ],
+   "asked": "A tiny tale about a robot who learns to draw, for children.",
+   "shape": "hook, steps (the days), points (what Bipi learned), end. The story program has no news rules and a gentler pace; the pack is SiTech's.",
+   "turned_down": "stat (a tale has no figure); where (no real place); a moral spelled out as an opinion scene.",
+   "learn": "Structure carries the feeling: steps show repetition, which is the whole story of learning."
+  },
+  {
+   "id": "security-brief",
+   "file": "security-brief.json",
+   "program": "news",
+   "brand": "sitech",
+   "director": null,
+   "rubric": null,
+   "scenes": [
+    "hook",
+    "stat",
+    "points",
+    "end"
+   ],
+   "asked": "A report that attackers used AI assistants against banks, for a technical audience.",
+   "shape": "hook, stat (400 banks and payment apps), points (how it worked), end, in the SiTech pack (paper and coal tones, one orange accent).",
+   "turned_down": "a where scene (the targets span a continent; a map would imply a place); icons for the attack (nothing about harm is pictured, rule N10).",
+   "learn": "A pack changes colour and voice, not the rules: the same scene types, the same checks."
+  },
+  {
+   "id": "number-of-the-day",
+   "file": "number-of-the-day.json",
+   "program": "news",
+   "brand": "tbilisi-today",
+   "director": null,
+   "rubric": "number",
+   "scenes": [
+    "hook",
+    "stat",
+    "timeline",
+    "end"
+   ],
+   "asked": "The day's one figure, as a short recurring show.",
+   "shape": "hook with the rubric chip, stat, timeline, end in 20 to 25 seconds. The chip, the episode number and the length window belong to the rubric, not the writer.",
+   "turned_down": "points and where (the rubric is one figure and its window; more scenes break the 20 to 25 second promise).",
+   "learn": "A rubric narrows the menu on purpose: its sameness from day to day is the brand, the variety is inside the scene."
+  },
+  {
+   "id": "economy-kit",
+   "file": "economy-kit.json",
+   "program": "news",
+   "brand": "tbilisi-today",
+   "director": null,
+   "rubric": null,
+   "scenes": [
+    "hook",
+    "ranking",
+    "versus",
+    "budget",
+    "impact",
+    "end"
+   ],
+   "asked": "A tour of the economy scenes: a rank, a contest, a budget split and an impact.",
+   "shape": "hook, ranking, versus, budget, impact, end. Each scene is the one shape its fact has: ordered places, two sides, parts of a total, a before and after.",
+   "turned_down": "bars for everything (they hide that the budget parts sum to a total, which budget draws); stat for the ranking (it loses the order).",
+   "learn": "When one scene type has a sibling that draws the exact shape, use the sibling: ranking over bars, budget over share."
+  }
+ ],
+ "pairs": [
+  {
+   "id": "exclamation",
+   "bad": "pairs/exclamation-bad.json",
+   "fixed": "pairs/exclamation-fixed.json",
+   "what": "A closing line with an exclamation mark",
+   "check_says": "K12",
+   "why": "The news voice states, it does not shout; the check refuses \"!\", \"?\", \"...\" and dashes in the narration.",
+   "fix": "End the sentence with a full stop; if the line needs energy, move it into a stronger fact."
+  },
+  {
+   "id": "long-kicker",
+   "bad": "pairs/long-kicker-bad.json",
+   "fixed": "pairs/long-kicker-fixed.json",
+   "what": "A hook kicker of 39 characters",
+   "check_says": "kicker: 39 characters",
+   "why": "The kicker has a Georgian length limit (24) so it fits one line in the safe zone; a longer text is cut or wraps into the headline.",
+   "fix": "Say the place alone in the kicker; the action belongs in the hook lines."
+  },
+  {
+   "id": "no-hook",
+   "bad": "pairs/no-hook-bad.json",
+   "fixed": "pairs/no-hook-fixed.json",
+   "what": "A story that opens on a stat",
+   "check_says": "the first scene must be a hook",
+   "why": "The hook holds the first second: it carries the date chip, the source and the headline. A number alone has no context yet.",
+   "fix": "Open with the hook and let the stat be the second scene."
+  },
+  {
+   "id": "anchor",
+   "bad": "pairs/anchor-bad.json",
+   "fixed": "pairs/anchor-fixed.json",
+   "what": "A scene whose `at` is not in the narration",
+   "check_says": "scene anchor not in narration",
+   "why": "`at` is the exact first words of the part of the narration the scene draws; the timing of the whole film hangs on it.",
+   "fix": "Copy the first words of the sentence from the narration, character for character."
+  },
+  {
+   "id": "flap-politics",
+   "bad": "pairs/flap-politics-bad.json",
+   "fixed": "pairs/flap-politics-fixed.json",
+   "what": "A split-flap board on a politics story",
+   "check_says": "style 'flap' is not used for the politics family",
+   "why": "A flap board is playful; for politics and crime a stat counts up or rolls, it never clatters (the brush's `deny`).",
+   "fix": "Leave `style` out (the default count) or choose wheel."
+  },
+  {
+   "id": "em-not-on-screen",
+   "bad": "pairs/em-not-on-screen-bad.json",
+   "fixed": "pairs/em-not-on-screen-fixed.json",
+   "what": "A mark on a phrase the scene does not show",
+   "check_says": "N11",
+   "why": "`em` marks words in the scene's own text and the voice lands on them; a phrase that is not there is a mark on nothing.",
+   "fix": "Copy the words from the on-screen text; for a stat the value (6400) is the usual choice."
+  }
+ ]
+}

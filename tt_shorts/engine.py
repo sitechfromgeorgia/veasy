@@ -198,7 +198,7 @@ def options(brand_name=None, section=None):
     styles_data = {
         "about": "named film styles as data (styles/<slug>): selects engine, palette mode, layout invariants, "
                  "directing constraints, and motion pacing (tt_shorts/styles.py)",
-        "known": {s["slug"]: {**styles.summary(s), "still": f"assets/stills/style-{s['slug']}.jpg"} for s in styles.load_all()},
+        "known": {s["slug"]: styles.summary(s) for s in styles.load_all()},
     }
     full = {
         "brand": b["name"],
@@ -1131,8 +1131,8 @@ def make_cmd(a):
 
 def gallery_cmd(a):
     from tt_shorts import gallery
-    res = gallery.build_gallery(getattr(a, "out", None))
-    return out(res, 0)
+    res = gallery.run(real=a.real, find_query=a.find, only=a.only, limit=a.limit, want_examples=a.examples, seed=a.seed)
+    return out(res, 1 if res.get("render", {}).get("problems") else 0)
 
 def _source_tools():
     """What the document sources can use here (none of it blocks a news render)."""
@@ -1495,8 +1495,13 @@ def main(argv=None):
     rmp = sub.add_parser("room", help="write <render>.room.html: every scene, its words, timing, cost and a steer command")
     rmp.add_argument("target", help="a story .json or a rendered .mp4")
     rmp.add_argument("--renderer", choices=["remotion", "hyperframes"])
-    gy = sub.add_parser("gallery", help="generate static HTML visual catalogue of all styles, looks, scenes and directors")
-    gy.add_argument("--out", help="target HTML file (default out/gallery.html)")
+    gy = sub.add_parser("gallery", help="the brush book: out/gallery/index.html, a searchable catalogue of real renders")
+    gy.add_argument("--real", action="store_true", help="render the missing stills first (cached by hash)")
+    gy.add_argument("--find", help="the entries that fit a need, e.g. \"a number\" (JSON, no render)")
+    gy.add_argument("--only", help="render only one kind: brush, hook, motif, entrance, transition, director, style, rubric")
+    gy.add_argument("--examples", action="store_true", help="annotated example films and a bad-to-fixed pair, rotated by --seed")
+    gy.add_argument("--seed", default="", help="the rotation of --examples (a story id, a date): the same seed, the same examples")
+    gy.add_argument("--limit", type=int, help="render at most N items of each group (a trial)")
     a = ap.parse_args(argv)
     if a.cmd == "compose" and a.engine is None:
         a.engine = "gemini" if a.action == "render" else "silent"

@@ -24,6 +24,7 @@ provides_tools:
   - veasy_plate
   - veasy_review
   - veasy_steer
+  - veasy_brush_book
 provides_hooks:
   - pre_llm_call
 requires_env: []
