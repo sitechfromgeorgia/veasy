@@ -92,6 +92,10 @@ def options(brand_name=None, section=None):
         "variety": {"about": "each video's own hook layout, background motif, entrance, transition (when auto) and music "
                              "loop: the least used lately for the brand (tt_shorts/variety.py); never the palette",
                     **variety.OPTIONS, "transitions_by_look": variety.TRANSITIONS,
+                    "program_only_transitions": {"about": "one more option in every look's pool for a film of a program "
+                                                          "(a story with a \"program\" other than news); `news` never "
+                                                          "gets them, auto or named",
+                                                 "options": list(variety.PROGRAM_ONLY)},
                     "novelty": {"about": "before the voice, a plan sharing too_close or more of the fingerprint's "
                                          "fields with one of the brand's last recent videos is re-rolled (at most "
                                          "rerolls tries; then the farthest, with a warning)",
@@ -108,7 +112,10 @@ def options(brand_name=None, section=None):
                         "split": "an ink split wipe reveals the new scene outward from the center",
                         "corner": "a diagonal geometric wipe sweeps across from the corner",
                         "iris": "a circular ink iris opens from the center of the scene band",
-                        "blind": "vertical ink louver blinds rotate and wipe across the scene"},
+                        "blind": "vertical ink louver blinds rotate and wipe across the scene",
+                        "one-take": "the scenes sit on one 2D path and the camera glides between them only in the "
+                                    "cut (zoom at most 1.15, parallax layers behind, the dot runs the thread); a "
+                                    "film of a program only, never news"},
         "outros": dict(swipe.ABOUT),
         "themes": {"about": "a pack's palettes (brand.json themes; brands.<pack>.themes lists them): a format's or "
                             "--theme's default (the pack's default theme: nothing changes), auto (variety: the least "

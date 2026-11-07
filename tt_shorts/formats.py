@@ -6,8 +6,10 @@ A format chooses only among what the engine can do:
   look      auto | editorial | kinetic | cards      (auto: by the story's category, the pack's look_by_family)
   captions  page | roll | keyword                   (captions.py; keyword: a dark box, the spoken word lit, one
                                                      keyword a page in the pack's design.keyword style)
-  transition auto | cut | line | panel | wipe | slide | push | dot | meter   (auto: the look's own;
-                                                     props.TRANSITIONS; meter: equaliser bars rise and fall)
+  transition auto | cut | line | panel | wipe | slide | push | dot | meter | ... | one-take
+                                                    (auto: the look's own; props.TRANSITIONS; meter: equaliser
+                                                     bars rise and fall; one-take: the scenes on one path, the
+                                                     camera moving only in the cuts; not for `news`)
   beats     on | off                                (beats.py: a change inside every scene each 1.5-3 s, on the
                                                      words; off: each scene's own stagger, as before)
   chapters  auto | on | off                         (chapters.py: "01 / 03" and a segmented bar in the header;
@@ -44,7 +46,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIR = ROOT / "formats"
 LOOKS = ("auto", "editorial", "kinetic", "cards")
 CAPTIONS = ("page", "roll", "keyword")
-TRANSITIONS = ("auto", "cut", "line", "panel", "wipe", "slide", "push", "dot", "meter", "fade", "shutter", "split", "corner", "iris", "blind")  # props.TRANSITIONS + auto
+TRANSITIONS = ("auto", "cut", "line", "panel", "wipe", "slide", "push", "dot", "meter", "fade", "shutter", "split", "corner", "iris", "blind", "one-take")  # props.TRANSITIONS + auto
 BEATS = ("on", "off")
 CHAPTERS = ("auto", "on", "off")
 OUTROS = swipe.OUTROS

@@ -61,7 +61,16 @@ export type Verb = "rises" | "falls" | "stops" | "opens" | "closes" | "moves" | 
 export type IconMotion = "draw" | "pop" | "pulse" | "count" | "morph" | "sketch";
 
 // the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python
-export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter" | "fade" | "shutter" | "split" | "corner" | "iris" | "blind";
+export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter" | "fade" | "shutter" | "split" | "corner" | "iris" | "blind" | "one-take";
+
+// the one-take camera (tt_shorts/onetake.py layout): the scenes' points on one path (px, world space), and per cut
+// the thread's bezier and the depth of its zoom bell; `cut` frames of motion from each new scene's first frame
+export type Camera = {
+  cut: number;
+  zoomCap: number;
+  points: [number, number][];
+  cuts: { into: number; from: [number, number]; to: [number, number]; c1: [number, number]; c2: [number, number]; zoom: number }[];
+};
 
 // the ending (tt_shorts/swipe.py OUTROS): the end card, a QR/link/CTA chip over the last scene, or a seamless loop
 export type Outro = "card" | "overlay" | "loop";
@@ -196,6 +205,7 @@ export type ShortProps = {
   brand: BrandProps;
   variant: Variant;
   transition: Transition;
+  camera?: Camera; // transition "one-take" only
   style?: Style; // absent: the look's own (stack; grid or diagonal; rise or slide)
   outro?: Outro; // absent: the end card
   outroFrom?: number | null; // overlay and loop: the frame the chip comes in

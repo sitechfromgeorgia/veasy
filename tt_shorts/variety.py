@@ -6,7 +6,8 @@ Inside one brand and one look, each video gets its own combination of:
     motif       grid | diagonal | dots | rules | plain the background's texture; "icons" (the story's main icon
                 | icons                                tiled, icons.story_icon) only when the story has one
     enter       rise | slide | reveal | scale          how things come on screen
-    transition  the cut between scenes, from the ones that suit the look (when the format says "auto")
+    transition  the cut between scenes, from the ones that suit the look (when the format says "auto"); a film of a
+                program (not `news`) may also get "one-take", the camera path (onetake.py)
     music       one of the family's loops (tools/compose_music.py writes several per family)
 
 and, when the format says `theme: auto`, the theme: one of the pack's allowed palettes (brand.json "themes"; a
@@ -73,6 +74,9 @@ TRANSITIONS = {
     "kinetic": ("panel", "push", "wipe", "cut", "meter", "split", "corner", "shutter", "blind"),
     "cards": ("line", "slide", "dot", "wipe", "fade", "split", "iris"),
 }
+# cuts offered only to a film of a program, never to `news` (a story with no program): the owner decides whether the
+# hard news gets the camera (CLAUDE.md: `news` stays exactly as it is). The option is one more in every look's pool.
+PROGRAM_ONLY = ("one-take",)
 RECENT = 20
 
 # the novelty guard: the fingerprint's fields, their weights in similarity(), the threshold and the bound
@@ -131,6 +135,16 @@ def _least_used(options, used, story, key):
     low = min(counts.values())
     pool = [o for o in options if counts[o] == low]
     return pool[zlib.crc32(f"{story}|{key}".encode()) % len(pool)]
+
+
+def one_take_ok(program):
+    """May a story of this program get the one-take camera? Only a program other than `news` (no program at all)."""
+    return bool(program) and program != "news"
+
+
+def transitions_for(look, program=None):
+    """The cuts variety may pick for a look: TRANSITIONS, and the PROGRAM_ONLY ones after them for a film of a program."""
+    return TRANSITIONS[look] + (PROGRAM_ONLY if one_take_ok(program) else ())
 
 
 def options_for(key, icon=False):
@@ -304,10 +318,11 @@ def _rerolls(first, options, used, story, n=None):
     return [{**first, **c} for c in combos[:REROLLS if n is None else n]]
 
 
-def choose(brand, story, look, transition="auto", loops=(), icon=False, director=None, scenes=None):
+def choose(brand, story, look, transition="auto", loops=(), icon=False, director=None, scenes=None, program=None):
     """-> (style, novelty). style is pick()'s dict. novelty is the guard's report: assess()'s keys, with rerolls (how
     many were tried), kept (a re-render's stored picks) and warning (no re-roll was far enough; the farthest was taken).
-    scenes: the scene types the video shows (part of the fingerprint)."""
+    scenes: the scene types the video shows (part of the fingerprint). program: the story's program, which decides
+    whether the PROGRAM_ONLY cuts are among the options (transitions_for)."""
     past = history(brand)
     did = director["id"] if director else None
     same = next((r for r in past if r["story"] == str(story) and r["look"] == look and r["director"] == did), None)
@@ -318,8 +333,10 @@ def choose(brand, story, look, transition="auto", loops=(), icon=False, director
         if director:
             options[key] = _within(options[key], director[sub[key]])
     if transition in (None, "auto"):
-        options["transition"] = TRANSITIONS[look] if not director else \
-            tuple(t for t in TRANSITIONS[look] if t in director["transitions"]) or tuple(director["transitions"])
+        pool = transitions_for(look, program)
+        options["transition"] = pool if not director else \
+            tuple(t for t in pool if t in director["transitions"]) or \
+            tuple(t for t in director["transitions"] if t not in PROGRAM_ONLY or one_take_ok(program))
     names = [getattr(p, "name", str(p)) for p in loops]
     if names:
         options["music"] = tuple(names)
@@ -350,13 +367,13 @@ def choose(brand, story, look, transition="auto", loops=(), icon=False, director
     return out, _report(sim, near, k, warning=warning)  # k: the re-rolls tried (the last one is taken unless warned)
 
 
-def pick(brand, story, look, transition="auto", loops=(), icon=False, director=None, scenes=None):
+def pick(brand, story, look, transition="auto", loops=(), icon=False, director=None, scenes=None, program=None):
     """The style for one video: {hook, motif, enter, transition, music}. A story rendered before in this look gets its
     earlier picks back; otherwise each choice is the least used lately, re-rolled by the novelty guard when the plan
     is too close to a recent video (choose()). transition stays as given unless "auto"; music is None when there
     are no loops. icon: the story has a main icon (icons.story_icon), so the "icons" motif is one of its options.
     director: a directors.py director (dict): each choice stays inside its subsets. scenes: the shown scene types."""
-    return choose(brand, story, look, transition, loops, icon, director, scenes)[0]
+    return choose(brand, story, look, transition, loops, icon, director, scenes, program)[0]
 
 
 def pick_style(brand_name, story, program="news", family=None, engine=None):

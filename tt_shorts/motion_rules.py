@@ -30,7 +30,7 @@ Captions are not counted here: captions.py has its own rules (pages of at least 
 import math
 import re
 
-from tt_shorts import art, directors, ka_check, probe, speech
+from tt_shorts import art, directors, ka_check, onetake, probe, speech
 
 FPS = speech.FPS
 EXIT = probe.EXIT  # frames a scene takes to leave (remotion/src/NewsShort.tsx)
@@ -124,7 +124,7 @@ def timeline(p):
         end = s["from"] + s["duration"]
         last = i == len(scenes) - 1
         kind = _kind(p, scenes, i + 1) if not last else None
-        leaves = end if last or kind == "cut" else end - EXIT
+        leaves = end if last or kind in ("cut", "one-take") else end - EXIT  # one-take: the camera carries it away
         texts = []
         for t, at in scene_texts(s, first=i == 0):
             shown = (leaves - s["from"]) / FPS - at
@@ -171,7 +171,10 @@ def cuts(p):
     for i in range(1, len(scenes)):
         kind = _kind(p, scenes, i)
         own = scenes[i].get("flow")
-        direction = tuple(own) if own else (tuple(flow) if flow and kind in DIRECTION else DIRECTION.get(kind))
+        if kind == "one-take" and p.get("camera"):  # the camera's own move into scene i (onetake.layout)
+            direction = onetake.direction(p["camera"], i)
+        else:
+            direction = tuple(own) if own else (tuple(flow) if flow and kind in DIRECTION else DIRECTION.get(kind))
         out.append({"into": i, "frame": scenes[i]["from"], "kind": kind, "direction": direction})
     if p.get("outro") == "loop":  # the last half second cross-fades into the hook's first frame
         out.append({"into": 0, "frame": p["durationInFrames"] - FPS // 2, "kind": "crossfade", "direction": None})

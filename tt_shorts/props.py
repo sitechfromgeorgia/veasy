@@ -21,7 +21,7 @@ import shutil
 import subprocess
 
 from tt_shorts import (art, assets, beats as beat_track, brand, captions, chapters as chapters_of, directors,
-                       geo, icons, meta, rubrics, sfx as effects, speech, store, swipe, variety, voices)
+                       geo, icons, meta, onetake, rubrics, sfx as effects, speech, store, swipe, variety, voices)
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -33,7 +33,7 @@ NOTES = {"edge": "preview_edge", "silent": "preview_silent"}  # the pack's words
 CAPTIONS = os.environ.get("SHORTS_CAPTIONS", "page")  # page | roll (captions.py)
 
 
-TRANSITIONS = ("cut", "line", "panel", "wipe", "slide", "push", "dot", "meter", "fade", "shutter", "split", "corner", "iris", "blind")
+TRANSITIONS = ("cut", "line", "panel", "wipe", "slide", "push", "dot", "meter", "fade", "shutter", "split", "corner", "iris", "blind", "one-take")
 DEFAULT_TRANSITION = {"editorial": "line", "cards": "line", "kinetic": "panel"}
 
 
@@ -88,13 +88,16 @@ def choose(story, variant, transition="auto", music="family", director=None, sty
     before any voice. director: an id instead of the story's own; style: picks to force (then the report measures
     them, without a re-roll); outro: which scenes are shown (part of the fingerprint)."""
     b = brand.of(story)
+    program = story.get("program")
+    if transition == "one-take" and not variety.one_take_ok(program):  # `news` stays as it is (CLAUDE.md)
+        raise ValueError("transition one-take is for a film of a program, not for news: use auto or another cut")
     loops = loops_for(music, meta.family(story.get("category", ""), b))
     main = icons.story_icon(story)  # the story's main icon: the "icons" motif is possible only with one
     did = director or story.get("director")
     chosen = directors.get(did) if did else None  # an unknown director fails before anything renders
     seq = [s["type"] for s in swipe.shown_scenes(story, outro)]
     picked, novelty = variety.choose(b["name"], story["id"], variant, transition, loops, icon=bool(main),
-                                     director=chosen, scenes=seq)
+                                     director=chosen, scenes=seq, program=program)
     st = {**picked, **(style or {})}
     if style:  # a forced style (the goldens): report what is drawn, not what was picked
         novelty = variety.assess(b["name"], story["id"], {**st, "director": chosen["id"] if chosen else None}, seq)
@@ -191,6 +194,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         beat_track.attach(props["scenes"], words)
     props["chapters"] = chapters_of.split(props["scenes"], marks[-1], chapters)  # "01 / 03" (chapters.py), or None
     props["sfx"] = effects.cues(props) if sfx == "on" else []  # the accents' times (sfx.py); ffmpeg mixes them
+    if props["transition"] == "one-take":  # the scenes on one path, the camera between them (onetake.py)
+        onetake.attach(props, f"{b['name']}|{sid}")
     (work / "props.json").write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
     return work, props
 

@@ -81,10 +81,12 @@ class Picks(unittest.TestCase):
         self.env.stop()
         self.home.cleanup()
 
-    def run_day(self, n, look="editorial", loops=("politics-1.m4a", "politics-2.m4a", "politics-3.m4a"), icon=True):
+    def run_day(self, n, look="editorial", loops=("politics-1.m4a", "politics-2.m4a", "politics-3.m4a"), icon=True,
+                program=None):
         picks = []
         for i in range(n):
-            p = variety.pick("tbilisi-today", 1000 + i, look, "auto", [pathlib.Path(x) for x in loops], icon=icon)
+            p = variety.pick("tbilisi-today", 1000 + i, look, "auto", [pathlib.Path(x) for x in loops], icon=icon,
+                             program=program)
             variety.record("tbilisi-today", 1000 + i, look, p, ["hook", "stat", "end"])
             picks.append(p)
         return picks
@@ -107,6 +109,21 @@ class Picks(unittest.TestCase):
             self.assertEqual(counts, [2] * len(variety.TRANSITIONS[look]), look)  # every cut, evenly
             variety_db = pathlib.Path(self.home.name) / "veasy.db"
             variety_db.unlink()
+
+    def test_one_take_is_one_more_cut_for_a_film_of_a_program(self):  # ROADMAP D5: added to every look, instead of none
+        for look in variety.TRANSITIONS:
+            pool = variety.transitions_for(look, "explainer")
+            self.assertEqual(pool, variety.TRANSITIONS[look] + ("one-take",))  # one more, at the end, nothing replaced
+            picks = self.run_day(len(pool) * 2, look, program="explainer")
+            counts = [sum(p["transition"] == t for p in picks) for t in pool]
+            self.assertEqual(counts, [2] * len(pool), (look, counts))  # every cut, one-take too, evenly
+            (pathlib.Path(self.home.name) / "veasy.db").unlink()
+
+    def test_news_never_meets_one_take_in_a_run(self):
+        for look in variety.TRANSITIONS:
+            picks = self.run_day(len(variety.TRANSITIONS[look]) * 3, look)  # no program: news
+            self.assertNotIn("one-take", {p["transition"] for p in picks}, look)
+            (pathlib.Path(self.home.name) / "veasy.db").unlink()
 
     def test_the_icon_motif_needs_an_icon(self):  # a story without one moves through the other motifs, evenly
         picks = self.run_day(18, icon=False)
