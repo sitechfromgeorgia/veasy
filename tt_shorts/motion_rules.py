@@ -141,6 +141,9 @@ def timeline(p):
             n = len(s["items"])
             step = min(30, max(10, (s["duration"] * 0.6 - 10) / (n - 1)))
             built = max(built, (10 + (n - 1) * step) / FPS + SETTLE)
+        seat = s.get("thread") or {}
+        if seat.get("from") != seat.get("to"):  # the film's object changes state until 82% of the scene (thread.tsx)
+            built = max(built, 0.82 * s["duration"] / FPS)
         if s.get("mark"):  # a voice-synced mark draws in the scene band until it lands (marks.py)
             built = max(built, (s["mark"]["at"] + s["mark"]["frames"]) / FPS)
         beat = (s.get("beats") or {}).get("frames") or []  # beats.py: a change on the words every 1.5-3 s

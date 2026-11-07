@@ -56,7 +56,7 @@ const Stateful: React.FC<{ th: Thread; art: ArtNode[]; t: number; drawn: number;
         <Lines art={art} drawn={drawn} />
         <g clipPath={`url(#${id}s)`}>
           <g clipPath={`url(#${id}l)`}>
-            <rect x={x0 - PAD} y={y0 - PAD} width={x1 - x0 + 2 * PAD} height={y1 - y0 + 2 * PAD} fill={INK} />
+            <rect x={x0 - PAD} y={y0 - PAD} width={x1 - x0 + 2 * PAD} height={y1 - y0 + 2 * PAD} fill={MUTED} />
             <Lines art={art} drawn={drawn} invert />
           </g>
         </g>
