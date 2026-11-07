@@ -179,7 +179,8 @@ Next for other clients:
 5. ~~**C5. `trend` (S-M).**~~ Done (drawn with pathLength, no extra package).
    - 3-8 points.
    - `evolvePath` draws the line; the red "now" dot sits on the last point.
-6. **C6. Small blocks (S each):** `steps`, `share` and `events` (as `rail`) done; `figures` open:
+6. **C6. Small blocks (S each):** `steps`, `share`, `events` (as `rail`) and `figures` done (`figures` is kit-only: not on
+   `news_check.SCENE_TYPES` and no writer line, an owner decides):
    - `events`: 2-4 dated items on a rail;
    - `steps`: 2-4 steps with arrows;
    - `figures`: 2-4 number tiles;

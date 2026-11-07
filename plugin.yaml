@@ -20,6 +20,7 @@ provides_tools:
   - veasy_doctor
   - veasy_critique
   - veasy_dry_run
+  - veasy_look
   - veasy_brand
   - veasy_plate
   - veasy_review

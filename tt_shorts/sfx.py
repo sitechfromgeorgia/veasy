@@ -144,6 +144,7 @@ MATERIALS = {
     "paper": ("ქაღალდ", "წიგნ", "საბუთ", "ბარათ", "ფურცელ", "ბილეთ", "დოკუმენტ", "კონვერტ", "ქვითა", "პასპორტ"),
     "water": ("წყალ", "წვეთ", "მდინარ", "ონკან", "წვიმ", "ტბა", "ზღვა", "მილი", "ნაკადულ"),
     "soft": ("ტანსაცმ", "ხელთათმან", "ქუდ", "ჩანთ", "ბალიშ", "ფეხსაცმ", "შარფ", "საბან", "ტომარ", "ჩექმ"),
+}
 OPTIONS = {"off": "no sound effects (the default: renders are as before)",
            "meaning": "sound follows meaning: one main sound on the film's main moment (the big number, the idea's "
                       "turn, the hook), 2-4 small ones in 30 s (the story's object gets a sound of its own, a mark "

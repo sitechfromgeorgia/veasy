@@ -340,3 +340,42 @@ export const Change: React.FC<P> = ({ s, inner = INNER }) => {
     </Frame>
   );
 };
+
+// ---------------------------------------------------------------- figures
+
+/** 2-4 number tiles: each a label, its number counted up, and its own unit (tiles may differ in unit, bars may not).
+ *  Two tiles stack; three or four make a grid of two columns (a third tile spans both). Ink and muted only. */
+export const Figures: React.FC<P> = ({ s, inner = INNER }) => {
+  const items = (s.items ?? []).slice(0, 4).filter((it): it is { label: string; value: number; unit?: string } =>
+    typeof it !== "string" && typeof it.value === "number");
+  const frame = useCurrentFrame();
+  const width = low(inner);
+  if (items.length < 2) return null;
+  const grid = items.length > 2;
+  const gap = 24;
+  const tileW = grid ? (width - gap) / 2 : width;
+  const decs = items.map((it) => decimalsOf(it.value));
+  const size = fitSize(items.map((it, i) => num(it.value, decs[i])), tileW - 64, grid ? 84 : 112, 40);
+  const starts = stagger(items.length, s.duration, 6, 12);
+  const span = (i: number) => grid && items.length === 3 && i === 2;
+  return (
+    <Frame s={s}>
+      <div style={{ display: "grid", gridTemplateColumns: grid ? "1fr 1fr" : "1fr", gap, width, marginTop: 12 }}>
+        {items.map((it, i) => {
+          const t = interpolate(frame - starts[i], [0, 24], [0, 1], { ...clamp, easing: easeOut });
+          return (
+            <div key={i} style={{ gridColumn: span(i) ? "1 / span 2" : undefined, opacity: Math.min(1, t * 3),
+              border: `2px solid ${LINE_STRONG}`, borderRadius: RADIUS, padding: "24px 32px 28px", overflow: "hidden" }}>
+              <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 32, lineHeight: 1.3, color: MUTED,
+                whiteSpace: "nowrap", overflow: "hidden" }}>{it.label}</div>
+              <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.1, color: INK,
+                whiteSpace: "nowrap", marginTop: 8 }}>{num(it.value * t, decs[i])}</div>
+              <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 32, lineHeight: 1.3, color: MUTED,
+                whiteSpace: "nowrap", minHeight: 42 }}>{it.unit ?? ""}</div>
+            </div>
+          );
+        })}
+      </div>
+    </Frame>
+  );
+};

@@ -255,6 +255,13 @@ TOOLS = {
                       "calculates word count, spoken seconds, estimated TTS cost, monthly budget status, and whether "
                       "the voice and bundle are already cached.",
                       lambda a: _engine("dry-run", [a["story"]] + _flags(a, ("format", "engine", "director")))),
+    "veasy_look": ({"type": "object", "properties": {
+                       "job": {"type": "string", "description": "A queue job id (see veasy_queue list)."},
+                       "story": {"type": "string", "description": "A story file or its name in stories/ (no job needed)."}}},
+                    "Free and read-only: what exists for a job or a story: its sheets, numbers, warnings, checks, "
+                    "the idea it keeps and the next step. Renders nothing a cached file already answers; names the "
+                    "missing ones. Pass job or story.",
+                    lambda a: _engine("look", _flags(a, ("job", "story")))),
     "veasy_write": ({"type": "object", "properties": {
                         "program": PROGRAM,
                         "source": SOURCE,

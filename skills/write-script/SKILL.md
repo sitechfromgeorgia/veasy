@@ -56,6 +56,7 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N12 news); this is the 
 | `impact` | a service card: who is affected, what changes and when | target, change, when |
 | `route` | a transit or movement path between 2-4 points | stops [...], label, detail |
 | `budget` | a segmented breakdown of a budget into 2-4 proportional parts | items [{label, value, share}], total, unit |
+| `figures` | 2-4 number tiles, each its own unit (kit only, no news) | items [{label, value, unit}] |
 | `agree`, `chapter` | rubrics only (`veasy:rubrics`) | code |
 | `sources` | the outlets (from the data) | nothing |
 | `end` | logo, QR, call to action | nothing |

@@ -335,7 +335,7 @@ def shape_problems(s):
     if t == "steps":
         if any(not isinstance(it, str) or not it.strip() for it in items or []):
             out.append("items: each step is a short text")
-    if t in ("bars", "trend", "compare"):
+    if t in ("bars", "trend", "compare", "figures"):
         for k, it in enumerate(items or []):
             if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not _number(it.get("value")):
                 out.append(f"items[{k}]: needs {{label, value}} with a number value")
@@ -1138,6 +1138,11 @@ def make_cmd(a):
     return out(res, 1 if res.get("status") == "error" else 0)
 
 
+def look_cmd(a):
+    from tt_shorts import look
+    return out(look.look(a.job, a.story))
+
+
 def gallery_cmd(a):
     from tt_shorts import gallery
     res = gallery.run(real=a.real, find_query=a.find, only=a.only, limit=a.limit, want_examples=a.examples, seed=a.seed)
@@ -1504,6 +1509,9 @@ def main(argv=None):
     rmp = sub.add_parser("room", help="write <render>.room.html: every scene, its words, timing, cost and a steer command")
     rmp.add_argument("target", help="a story .json or a rendered .mp4")
     rmp.add_argument("--renderer", choices=["remotion", "hyperframes"])
+    lk = sub.add_parser("look", help="what exists for a job or a story, and the next step (free, read-only)")
+    lk.add_argument("--job", help="a queue job id")
+    lk.add_argument("--story", help="a story file, or its name in stories/")
     gy = sub.add_parser("gallery", help="the brush book: out/gallery/index.html, a searchable catalogue of real renders")
     gy.add_argument("--real", action="store_true", help="render the missing stills first (cached by hash)")
     gy.add_argument("--find", help="the entries that fit a need, e.g. \"a number\" (JSON, no render)")
@@ -1547,7 +1555,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "concept": concept_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd, "plate": plate_cmd, "scenario": scenario_cmd, "review": review_cmd, "steer": steer_cmd, "room": room_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "concept": concept_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd, "plate": plate_cmd, "scenario": scenario_cmd, "review": review_cmd, "steer": steer_cmd, "room": room_cmd, "look": look_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
     except FileNotFoundError as e:

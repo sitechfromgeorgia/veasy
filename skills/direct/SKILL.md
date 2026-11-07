@@ -34,6 +34,27 @@ Start at the bottom, climb only as far as the story needs. Each candidate comes 
 
 A program says which rungs it allows (`"concept": {"rungs": [...], "ideas": 5}`). The explainer allows all six.
 
+## Pick a form
+
+The form is how the film looks and moves; the plot is `veasy:programs`' and the scenarios'. After the idea, read the
+one file that fits, in `references/forms/`. If two fit, take the one whose "Choose it when" names the story's own
+noun. If none does, `kit-cuts`: a form must earn its cost. Each file lists its devices, route (kit or composed),
+whether `news` allows it, what it demands and what to avoid.
+
+| story is mostly | form |
+|---|---|
+| facts and a few numbers, or news | [kit-cuts](references/forms/kit-cuts.md) |
+| a before and after, a state that changes | [one-frame-rebuilds](references/forms/one-frame-rebuilds.md) |
+| a sequence in one place or one thing | [one-take](references/forms/one-take.md) |
+| a physical thing that can stand for it all | [through-object](references/forms/through-object.md) |
+| one figure that needs a size | [number-body](references/forms/number-body.md) |
+| a place, a spread, a journey | [map-led](references/forms/map-led.md) |
+| a proof, a rule, a timeline | [evidence-board](references/forms/evidence-board.md) |
+| how a thing works | [drawn-explainer](references/forms/drawn-explainer.md) |
+| a statement, a quote, a message | [voice-on-record](references/forms/voice-on-record.md) |
+
+Put the choice in the idea: `"form": "<file name>"`. Code does not judge it; `veasy:compose` builds the composed ones.
+
 ## An idea
 
 ```json
