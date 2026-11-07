@@ -1,0 +1,15 @@
+{
+  "id": "sandstone",
+  "name": "Banded Sandstone",
+  "category": "stone",
+  "description": "Wind-worn sandstone with warped sedimentary strata, sandy grain and weathering pits.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.2,
+  "roughness": 0.85,
+  "height_sha256": "78a7cd444b2d1f0c3b0dc3276e1e6c3dab740207557461075e6bfc3085e94595",
+  "normal_sha256": "69d7a1a2d5adced02f411756241ffa9254e33448007d90847d2a86601305cfa0",
+  "bytes": 343322
+}

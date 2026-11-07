@@ -1,0 +1,15 @@
+{
+  "id": "ceramic_glaze",
+  "name": "Crazed Ceramic Glaze",
+  "category": "ceramic",
+  "description": "Glossy glaze with an orange-peel swell, hairline crazing and a few pinholes.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 0.9,
+  "roughness": 0.2,
+  "height_sha256": "de86cd2886b124d7634dad5ff7f488cf48eef785e801fb8ef52607645b4b5680",
+  "normal_sha256": "728e4076a657e578afe0bfed292df79f5ec496bc8d02502ae316479e36fe87a8",
+  "bytes": 288561
+}

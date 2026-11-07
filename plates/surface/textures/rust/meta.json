@@ -1,0 +1,15 @@
+{
+  "id": "rust",
+  "name": "Blistered Rust",
+  "category": "metal",
+  "description": "Corroded iron with blistered scale, pits and flaking patches.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.6,
+  "roughness": 0.95,
+  "height_sha256": "73c72dfcd3834a5015b14da1d65977cc2b7d6872a088f6e4f0e877d633764334",
+  "normal_sha256": "9ff41df98b21e0f4a9c63dfdc22050d0ef9354ff98f989202ef64b079cca623d",
+  "bytes": 404675
+}

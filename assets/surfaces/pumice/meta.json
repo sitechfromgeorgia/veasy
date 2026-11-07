@@ -1,0 +1,15 @@
+{
+  "id": "pumice",
+  "name": "Pitted Pumice",
+  "category": "stone",
+  "description": "Light volcanic stone riddled with large and small gas pits.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.5,
+  "roughness": 0.95,
+  "height_sha256": "737648712736ff31d2178f707004bbc1c098a591fc00316ad527d2db32051fa7",
+  "normal_sha256": "555bb9f4655e92cea7d81a8d5f30296dc862db9728d1fa8a7dcfe999ddb14a5a",
+  "bytes": 435836
+}

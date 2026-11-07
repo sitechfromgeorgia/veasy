@@ -1,0 +1,15 @@
+{
+  "id": "cork",
+  "name": "Agglomerated Cork",
+  "category": "organic",
+  "description": "Pressed cork granules with scattered pits and pores.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.1,
+  "roughness": 0.9,
+  "height_sha256": "c9d2fdc90a998a76e2727aaff1612a32df0423b850b2ae49a05fc3b2eb3b2732",
+  "normal_sha256": "92afbcdcfc9c3aa5fe965d9a90416659ea09d959c7be2ce5c95900eef060149c",
+  "bytes": 453267
+}

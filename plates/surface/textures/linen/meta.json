@@ -1,0 +1,15 @@
+{
+  "id": "linen",
+  "name": "Slubbed Linen",
+  "category": "textile",
+  "description": "Plain-weave linen with uneven slubbed threads.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.2,
+  "roughness": 0.85,
+  "height_sha256": "732d30cbf0e6d9747f390e41dba18f9857527178612e8e7072ec92f19e55ff51",
+  "normal_sha256": "787d56db28ab296e49d03177103514e6b319209a8743c50b7e76188a3cdfa314",
+  "bytes": 459583
+}

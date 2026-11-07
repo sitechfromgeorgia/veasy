@@ -1,0 +1,15 @@
+{
+  "id": "ice",
+  "name": "Clouded Ice",
+  "category": "ice",
+  "description": "Smooth glassy ice with rolling melt swells, a few fracture lines and trapped bubbles.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.0,
+  "roughness": 0.15,
+  "height_sha256": "6674678756885aec5a3f4a276d50f04135d1583d192af5593de8e27d31fc2120",
+  "normal_sha256": "7a2ffbca72b9183f0897771e88fc7c5128274eddd90f2ed063ad78d163653db2",
+  "bytes": 197586
+}

@@ -1,0 +1,8 @@
+{
+  "material": "corrugated_card",
+  "light": "rake",
+  "scale": 1.0,
+  "depth": 1.6,
+  "roughness": 0.85,
+  "intensity": 1.0
+}

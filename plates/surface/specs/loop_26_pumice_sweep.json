@@ -1,0 +1,8 @@
+{
+  "material": "pumice",
+  "light": "sweep",
+  "scale": 1.0,
+  "depth": 1.5,
+  "roughness": 0.95,
+  "intensity": 1.0
+}

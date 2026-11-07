@@ -1,0 +1,15 @@
+{
+  "id": "brushed_steel",
+  "name": "Brushed Steel",
+  "category": "metal",
+  "description": "Fine horizontal brushing lines with a few long scratches.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 0.6,
+  "roughness": 0.35,
+  "height_sha256": "84beffca0959b5e3ade235673ef057abfd4be921e200c6af824a8c82a8a64674",
+  "normal_sha256": "237d288e9685a7b5230bc99542a8c9e88ca5549afe161a3b87579721fefc3505",
+  "bytes": 442647
+}

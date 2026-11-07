@@ -1,0 +1,15 @@
+{
+  "id": "basket_weave",
+  "name": "Basket Weave",
+  "category": "textile",
+  "description": "Woven reed slats in a checkerboard basket pattern.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.6,
+  "roughness": 0.8,
+  "height_sha256": "b072133a2a0e31e248e9b5b5d70030b4ddda620a0d0f1eb968a48242fcc0e9b7",
+  "normal_sha256": "da2101851580c8b616c134e6973ebcc44f83863256351d19274f13d8fa3c5af8",
+  "bytes": 357144
+}

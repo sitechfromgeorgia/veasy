@@ -1,0 +1,15 @@
+{
+  "id": "wax",
+  "name": "Melted Wax",
+  "category": "wax",
+  "description": "Smooth, slowly flowing melted wax with broad drips and swells.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 0.8,
+  "roughness": 0.3,
+  "height_sha256": "53937baf808b46ca2c7fc08b9c5e7ce3abc03858585c946646c387584bf3eba0",
+  "normal_sha256": "2cf5a0f1b42b5d5aa8ae78456084f1a3b5a235c0049663f4cf894f4613532fd3",
+  "bytes": 76280
+}
