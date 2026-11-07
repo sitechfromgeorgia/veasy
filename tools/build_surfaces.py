@@ -21,7 +21,8 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 from PIL import Image
 
-from tools import surface_procedural
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # run as a script or as a module
+from tools import surface_procedural  # noqa: E402
 
 MAX_GIT_MB = 15.0
 DEFAULT_SIZE = 512
