@@ -22,7 +22,7 @@ void main() {
   vKey = max(dot(normal, toKey), 0.0) * keyPower;
   vAmbient = fill * (0.6 + 0.4 * dot(normal, fillFrom));
   vLight = lightMatrix * vec4(position + normal * 0.012, 1.0);
-  vPaper = vec2(position.x + position.z * 0.61, position.y + position.z * 0.83) * 1.7;
+  vPaper = vec2(position.x + position.z * 0.61, position.y + position.z * 0.83) * 0.42;
   vec4 view = modelViewMatrix * vec4(position, 1.0);
   vFog = 1.0 - clamp((-view.z - fogNear) / (fogFar - fogNear), 0.0, 1.0);
   gl_Position = projectionMatrix * view;
@@ -33,7 +33,7 @@ precision highp float;
 precision highp sampler2DShadow;
 uniform sampler2DShadow shade;
 uniform sampler2D grain;
-uniform float poolEdge, soft;
+uniform float poolEdge, soft, fogTone;
 in float vTone, vGlow, vKey, vAmbient, vFog;
 in vec4 vLight;
 in vec2 vPaper;
@@ -47,25 +47,41 @@ void main() {
     direct *= 0.25 * (texture(shade, vec3(lit.xy + vec2(soft, soft * 0.4), z)) + texture(shade, vec3(lit.xy + vec2(-soft * 0.4, soft), z))
       + texture(shade, vec3(lit.xy + vec2(-soft, -soft * 0.4), z)) + texture(shade, vec3(lit.xy + vec2(soft * 0.4, -soft), z)));
   }
-  float fibre = texture(grain, vPaper).r, mottle = texture(grain, vPaper * 0.11).r;
-  float tone = vTone * (0.62 + 0.42 * fibre + 0.34 * mottle) * (direct + vAmbient + vGlow);
-  frag = vec4(vec3(sqrt(tone * vFog)), 1.0); // a quick gamma: a plate is tone, and fog falls to the canvas
+  float tooth = texture(grain, vPaper).r; // the sheet's tooth shows in the light that rakes it, far less in the shade
+  float tone = vTone * (direct * (0.45 + 1.1 * tooth) + vAmbient * (0.8 + 0.4 * tooth) + vGlow);
+  frag = vec4(vec3(sqrt(mix(fogTone, tone, vFog))), 1.0); // a quick gamma: a plate is tone
 }`;
 
-function grainTexture(random) { // paper fibre: tone noise with a few long strokes, tiled over the world
-  const size = 256, data = new Uint8Array(size * size);
-  const value = new Float32Array(size * size);
-  for (let i = 0; i < value.length; i++) value[i] = random() - 0.5;
-  for (let n = 0; n < 1400; n++) { // fibres
-    let x = random() * size, y = random() * size;
-    const a = random() * Math.PI, strength = (random() - 0.5) * 0.7;
-    for (let s = 0; s < 14; s++) {
-      value[((y | 0) & 255) * size + ((x | 0) & 255)] += strength;
+function grainTexture(random) { // the tooth of a rough board: soft blobs at three sizes, embossed, with long fibres, tiled over the world
+  const size = 512, field = new Float32Array(size * size), at = (x, y) => ((y + size) % size) * size + ((x + size) % size);
+  for (const [cell, weight] of [[3, 0.5], [9, 0.8], [40, 0.7]]) { // value noise, wrapped
+    const grid = Math.floor(size / cell), knots = new Float32Array(grid * grid).map(() => random() - 0.5);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const gx = x / size * grid, gy = y / size * grid, ix = Math.floor(gx), iy = Math.floor(gy);
+        const fx = gx - ix, fy = gy - iy, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+        const k = (a, b) => knots[((iy + b) % grid) * grid + ((ix + a) % grid)];
+        field[y * size + x] += weight * (k(0, 0) * (1 - sx) * (1 - sy) + k(1, 0) * sx * (1 - sy) + k(0, 1) * (1 - sx) * sy + k(1, 1) * sx * sy);
+      }
+    }
+  }
+  for (let n = 0; n < 900; n++) { // fibres
+    let x = random() * size, y = random() * size, a = random() * 6.3;
+    const strength = (random() - 0.5) * 0.9, long = 18 + random() * 40;
+    for (let s = 0; s < long; s++) {
+      field[at(x | 0, y | 0)] += strength;
+      a += (random() - 0.5) * 0.3;
       x += Math.cos(a);
       y += Math.sin(a);
     }
   }
-  for (let i = 0; i < value.length; i++) data[i] = Math.min(255, Math.max(0, 128 + value[i] * 90));
+  const data = new Uint8Array(size * size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) { // embossed from one side, as a raking light sees it, over a slow mottle
+      const relief = field[at(x, y)] - field[at(x + 2, y + 2)];
+      data[y * size + x] = Math.min(255, Math.max(0, 128 + relief * 120 + field[at(x, y)] * 34));
+    }
+  }
   const texture = new THREE.DataTexture(data, size, size, THREE.RedFormat);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.magFilter = THREE.LinearFilter;
@@ -118,7 +134,7 @@ export function buildStage(spec, { renderer, random, drawings }) {
     uniforms: {
       lightMatrix: { value: shadow.matrix }, keyAt: { value: key }, keyPower: { value: s.power ?? 1.1 },
       fillFrom: { value: new THREE.Vector3(...(s.fillFrom || [0.3, 0.8, 0.5])).normalize() }, fill: { value: s.fill ?? 0.16 },
-      fogNear: { value: fogNear }, fogFar: { value: fogFar }, poolEdge: { value: s.pool ?? 0.55 }, soft: { value: (s.soft ?? 1.6) / (s.map ?? 2048) },
+      fogNear: { value: fogNear }, fogFar: { value: fogFar }, poolEdge: { value: s.pool ?? 0.55 }, fogTone: { value: (s.fogTone ?? 0) ** 2 }, soft: { value: (s.soft ?? 1.6) / (s.map ?? 2048) },
       shade: { value: shadow.texture }, grain: { value: grainTexture(random) },
     },
     depthFunc: THREE.LessEqualDepth,

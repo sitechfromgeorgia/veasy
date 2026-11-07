@@ -1,40 +1,37 @@
 // The part kit: what a set is made of. A part is a function of its JSON (`at`, `turn`, `scale` place it) and returns
 // cards. A part names a thing, never a place: there is a tunnel flat, never a particular museum.
 import * as THREE from "three";
-import { arc, archOutline, block, card, group, rect, strip } from "./paper.mjs";
+import { arc, archOutline, block, card, group, rect, rings, strip } from "./paper.mjs";
 
-function checkerFloor({ at, x = [-4, 4], z = [-12, 8], size = 0.9, tones = [0.5, 0.36] }, { random }) {
+function checkerFloor({ at, x = [-4, 4], z = [-12, 8], size = 0.9, tones = [0.46, 0.34] }, { random }) {
   const parts = [block(x[0], -0.1, x[1], 0, z[0], z[1], { tone: 0.06 })];
   const rows = Math.round((z[1] - z[0]) / size), cols = Math.round((x[1] - x[0]) / size);
   for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) { // sheets laid by hand: none quite square to the next
-      const half = size / 2 - 0.018, tone = tones[(r + c) % 2] + (random() - 0.5) * 0.05;
-      const tile = card(rect(-half, -half, half, half), { tone, edge: tone + 0.3, depth: 0.018, bevel: 0.008, wobble: 0.008 });
-      tile.rotation.set(Math.PI / 2, 0, (random() - 0.5) * 0.03);
-      tile.position.set(x[0] + (c + 0.5) * size + (random() - 0.5) * 0.02, 0.03, z[0] + (r + 0.5) * size + (random() - 0.5) * 0.02);
+    for (let c = 0; c < cols; c++) { // sheets laid by hand, each lapped over its neighbours
+      const half = size / 2 + 0.03, top = (r + c) % 2, tone = tones[top] + (random() - 0.5) * 0.06;
+      const tile = card(rect(-half, -half, half, half), { tone, depth: 0.01, bevel: 0.01, wobble: 0.014, warp: 0.004, spin: 0.05 });
+      tile.rotation.x = Math.PI / 2;
+      tile.position.set(x[0] + (c + 0.5) * size + (random() - 0.5) * 0.03, top ? 0.052 : 0.03, z[0] + (r + 0.5) * size + (random() - 0.5) * 0.03);
       parts.push(tile);
     }
   }
   return group(parts, { at });
 }
 
-// A column as a toy theatre draws it: a flat cut to its silhouette, fluted with strips of a darker card.
+// A column as a paper engineer folds it: a half-round of creased facets between stacked rings.
 function columnCards({ x = 0, base = 0, height = 3.2, r = 0.2, tone = 0.7, z = 0 }) {
-  const top = base + height, shaftBase = base + 0.28, shaftTop = top - 0.34, taper = 0.84;
-  const parts = [
-    card(rect(x - r * 1.5, base, x + r * 1.5, base + 0.14), { tone, z }),
-    card(rect(x - r * 1.28, base + 0.14, x + r * 1.28, base + 0.28), { tone: tone - 0.08, z }),
-    card([[x - r, shaftBase], [x + r, shaftBase], [x + r * taper, shaftTop], [x - r * taper, shaftTop]], { tone, z }),
-    card([[x - r * taper, shaftTop], [x + r * taper, shaftTop], [x + r * 1.5, top - 0.12], [x - r * 1.5, top - 0.12]],
-      { tone: tone - 0.06, z }),
-    card(rect(x - r * 1.6, top - 0.12, x + r * 1.6, top), { tone, z }),
-  ];
-  for (let i = -2; i <= 2; i++) {
-    const a = i * 0.34;
-    parts.push(card([[x + r * a - 0.012, shaftBase + 0.05], [x + r * a + 0.012, shaftBase + 0.05],
-      [x + r * taper * a + 0.01, shaftTop - 0.05], [x + r * taper * a - 0.01, shaftTop - 0.05]],
-    { tone: tone - 0.26, z: z + 0.04, depth: 0.012, wobble: 0, bevel: 0 }));
+  const top = base + height, facets = 7, step = Math.PI / facets, wide = 2 * r * Math.sin(step / 2) + 0.004;
+  const parts = [];
+  for (let i = 0; i < facets; i++) {
+    const a = -Math.PI / 2 + step * (i + 0.5);
+    const facet = card(rect(-wide / 2, base + 0.26, wide / 2, top - 0.3), { tone, depth: 0.012, bevel: 0.004, edge: tone + 0.2, edgeGlow: 0.1, wobble: 0.003, warp: 0, spin: 0 });
+    facet.rotation.y = a;
+    facet.position.set(x + r * Math.cos(step / 2) * Math.sin(a), 0, z + r * Math.cos(step / 2) * Math.cos(a));
+    parts.push(facet);
   }
+  const collar = (y, list) => group(rings(list, { tone: tone + 0.06, step: 0.03, sides: 22 }), { at: [x, y, z] });
+  parts.push(collar(base, [[0, r * 1.5], [0.12, r * 1.5], [0.14, r * 1.26], [0.3, r * 1.08]]));
+  parts.push(collar(top - 0.34, [[0, r * 1.0], [0.16, r * 1.14], [0.22, r * 1.46], [0.34, r * 1.62]]));
   return parts;
 }
 
@@ -43,6 +40,13 @@ function archFlat({ at, width = 6, height = 6, open = 1.8, spring = 2.5, tone = 
   const y = spring + open / 2, z = 0.03;
   const outline = [[-width / 2, 0], [-open / 2, 0], ...arc(0, spring, open / 2, 180, 0, 26), [open / 2, 0], [width / 2, 0], [width / 2, height], [-width / 2, height]];
   const parts = [card(outline, { tone, depth: 0.05 })]; // one outline: a hole that touches the edge breaks the triangulation
+  const foot = [[-width / 2, 0]]; // the folded foot it stands on, pinked by the shears
+  for (let px = -width / 2; px < width / 2 - 0.01; px += 0.14) foot.push([px + 0.07, 0.17], [px + 0.14, 0.07]);
+  foot.push([width / 2, 0]);
+  const fold = card(foot.reverse(), { tone: tone - 0.06, depth: 0.012, bevel: 0.004, wobble: 0.004, warp: 0 });
+  fold.rotation.x = Math.PI / 2;
+  fold.position.set(0, 0.075, 0.05);
+  parts.push(fold);
   if (ring) {
     const outer = open / 2 + 0.2;
     parts.push(card([...arc(0, spring, outer, 0, 180, 26), ...arc(0, spring, open / 2, 180, 0, 26)],
@@ -97,44 +101,24 @@ function painting({ at, turn, w = 1, h = 1.3, kind = 0, tone = 0.72 }) {
 
 const jarProfile = [[0.06, 0], [0.16, 0.02], [0.08, 0.1], [0.26, 0.42], [0.31, 0.68], [0.24, 0.92], [0.11, 1.02], [0.09, 1.2], [0.15, 1.26]];
 
-function amphora({ at, height = 1.1, tone = 0.8 }) {
-  const k = height / 1.26;
-  const curve = new THREE.CatmullRomCurve3(jarProfile.map(([x, y]) => new THREE.Vector3(x * k, y * k, 0)), false, "centripetal");
-  const right = curve.getPoints(48).map((p) => [p.x, p.y]);
-  const outline = (scale, up = 0) => [...right, ...right.map(([x, y]) => [-x, y]).reverse()].map(([x, y]) => [x * scale, y + up]);
-  const parts = [card(outline(1), { tone: tone - 0.34, depth: 0.04 })]; // the back sheet, its shade showing round the body
-  for (const side of [1, -1]) { // handles
+function amphora({ at, height = 1.1, tone = 0.72 }) {
+  const k = height / 1.26, profile = jarProfile.map(([x, y]) => [y * k, x * k]);
+  const parts = rings(profile, { tone, stripes: [[0.46 * k, 0.5 * k], [0.62 * k, 0.74 * k], [0.86 * k, 0.9 * k]] });
+  for (const side of [1, -1]) { // handles: two cut loops, laminated
     const p = arc(side * 0.22 * k, 1.03 * k, 0.15 * k, side > 0 ? 100 : 80, side > 0 ? -70 : 250, 12);
-    parts.push(strip(p, 0.05, { tone: tone - 0.1, depth: 0.05, z: 0.04 }));
-  }
-  parts.push(card(outline(0.9), { tone, z: 0.09 })); // the lit body
-  parts.push(card([[0.02, 0.2 * k], [0.14 * k, 0.26 * k], [0.21 * k, 0.56 * k], [0.15 * k, 0.86 * k], [0.03, 0.88 * k], [0.09 * k, 0.56 * k]],
-    { tone: tone + 0.14, z: 0.14, depth: 0.02 })); // the side the light takes
-  for (const [y, half, tall] of [[0.87, 0.23, 0.03], [0.68, 0.27, 0.075], [0.44, 0.23, 0.03]]) { // cut bands
-    parts.push(card(rect(-half * k, (y - tall) * k, half * k, (y + tall) * k), { tone: 0.2, z: 0.19, depth: 0.02, wobble: 0.006 }));
-  }
-  for (let i = -5; i <= 5; i++) { // the running figure on the middle band
-    const x = i * 0.044 * k, y = 0.68 * k;
-    parts.push(card([[x - 0.013, y - 0.042 * k], [x + 0.013, y - 0.042 * k], [x, y + 0.042 * k]], { tone: tone, z: 0.22, depth: 0.008, wobble: 0, bevel: 0 }));
+    parts.push(strip(p, 0.05, { tone, depth: 0.03, z: -0.02 }), strip(p, 0.034, { tone: tone + 0.1, depth: 0.012, z: 0.02 }));
   }
   return group(parts, { at });
 }
 
-// A classical bust in three stacked cards: head and neck over the shoulders, on a turned foot.
-function bust({ at, height = 1, tone = 0.74 }) {
+// A classical bust as a laser-cut stack: foot, shoulders, neck, head.
+function bust({ at, height = 1, tone = 0.7 }) {
   const k = height;
-  const parts = [
-    card([[-0.1 * k, 0], [0.1 * k, 0], [0.17 * k, 0.09 * k], [-0.17 * k, 0.09 * k]], { tone: tone - 0.26, depth: 0.06 }),
-    card([[-0.11 * k, 0.08 * k], [0.11 * k, 0.08 * k], [0.34 * k, 0.26 * k], [0.37 * k, 0.4 * k], [0.15 * k, 0.5 * k],
-      [0.08 * k, 0.6 * k], [-0.08 * k, 0.6 * k], [-0.15 * k, 0.5 * k], [-0.37 * k, 0.4 * k], [-0.34 * k, 0.26 * k]], { tone: tone - 0.14, z: 0.03, depth: 0.05 }),
-    card([[-0.32 * k, 0.28 * k], [-0.34 * k, 0.4 * k], [-0.13 * k, 0.48 * k], [0.1 * k, 0.1 * k]], { tone, z: 0.09, depth: 0.03 }), // the drape
-    card([[0.1 * k, 0.1 * k], [0.31 * k, 0.27 * k], [0.33 * k, 0.38 * k], [0.04 * k, 0.32 * k]], { tone: tone - 0.06, z: 0.12, depth: 0.03 }),
-    card(rect(-0.075 * k, 0.48 * k, 0.075 * k, 0.66 * k), { tone: tone - 0.1, z: 0.09, depth: 0.03 }),
-    card(arc(0, 0.78 * k, 0.17 * k, -80, 260, 24, 0.21 * k), { tone, z: 0.13, depth: 0.04 }),
-    card(arc(-0.02 * k, 0.87 * k, 0.17 * k, 10, 170, 12, 0.12 * k), { tone: tone - 0.2, z: 0.18, depth: 0.03 }), // hair
-    card(rect(-0.01 * k, 0.72 * k, 0.022 * k, 0.82 * k), { tone: tone + 0.1, z: 0.18, depth: 0.012, wobble: 0.003, bevel: 0 }), // nose
-  ];
-  return group(parts, { at });
+  const profile = [[0, 0.1, 0.1], [0.05, 0.15, 0.15], [0.09, 0.08, 0.08], [0.16, 0.2, 0.13], [0.3, 0.34, 0.17], [0.4, 0.34, 0.16], [0.5, 0.15, 0.11],
+    [0.56, 0.08, 0.08], [0.64, 0.08, 0.085], [0.68, 0.13, 0.15], [0.76, 0.165, 0.19], [0.86, 0.165, 0.19], [0.94, 0.12, 0.14], [0.99, 0.05, 0.06]]
+    .map(([y, a, b]) => [y * k, a * k, b * k]);
+  const nose = block(-0.02 * k, 0.74 * k, 0.02 * k, 0.83 * k, 0.17 * k, 0.21 * k, { tone: tone + 0.1 });
+  return group([rings(profile, { tone, step: 0.021, sides: 24 }), nose], { at });
 }
 
 function pedestal({ at, width = 0.8, height = 1, depth = 0.8, tone = 0.46 }) {

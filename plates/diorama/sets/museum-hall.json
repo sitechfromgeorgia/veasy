@@ -7,12 +7,13 @@
  "fromTarget": [0, 1.75, -4],
  "toTarget": [0, 1.62, -4],
  "stage": {
-  "key": [-6.5, 13, 8],
-  "aim": [0, 1, -1],
-  "angle": 28,
-  "power": 1.65,
-  "fill": 0.17,
-  "fog": [6, 22],
+  "key": [-5, 19, 7],
+  "aim": [0, 1.2, -1.5],
+  "angle": 21,
+  "power": 2.2,
+  "fill": 0.13,
+  "fog": [5, 17],
+  "fogTone": 0.2,
   "pool": 0.5
  },
  "anchors": {
@@ -27,8 +28,8 @@
   {
    "part": "ceiling",
    "z": [-10, 10],
-   "height": 6.8,
-   "ribs": 11,
+   "height": 8.6,
+   "ribs": 8,
    "width": 5
   },
   {
@@ -36,35 +37,37 @@
    "at": [0, 0, -9],
    "windows": 3,
    "w": 1.1,
-   "spring": 3.1
+   "spring": 3.1,
+   "height": 9,
+   "width": 10
   },
   {
    "part": "arch-flat",
    "at": [0, 0, 6.6],
-   "width": 7,
-   "height": 7,
+   "width": 9,
+   "height": 8,
    "open": 2.5,
    "spring": 3.3,
-   "tone": 0.2
+   "tone": 0.16
   },
   {
    "part": "arch-flat",
    "at": [0, 0, 2.2],
-   "width": 7,
-   "height": 7,
+   "width": 9,
+   "height": 8,
    "open": 2.5,
    "spring": 3.3,
-   "tone": 0.46,
+   "tone": 0.3,
    "coffers": 2
   },
   {
    "part": "arch-flat",
    "at": [0, 0, -4.2],
-   "width": 7,
-   "height": 7,
+   "width": 9,
+   "height": 8,
    "open": 2.5,
    "spring": 3.3,
-   "tone": 0.56,
+   "tone": 0.42,
    "coffers": 2,
    "columns": false
   },
