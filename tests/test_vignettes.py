@@ -159,6 +159,14 @@ class Props(Home):
         self.assertNotIn("vignette", p["scenes"][1])
         self.assertIn("vignette", p["scenes"][0])
 
+    def test_the_probe_judges_what_the_render_ships(self):  # engine probe relieves seats as the render does
+        from tt_shorts import probe
+        p = {**self._props(), "transition": "cut"}
+        vignettes.attach(p, self.story)
+        self.assertEqual(probe.relieve_seats(p, {"issues": [{"rule": "seat", "scene": 1}]}), [1])
+        self.assertNotIn("vignette", p["scenes"][1])
+        self.assertEqual(probe.relieve_seats(p, {"issues": [{"rule": "band", "scene": 0}]}), [])
+
     def test_a_drawing_moves_below_the_text_the_probe_measured(self):
         p = self._props()
         vignettes.attach(p, self.story)

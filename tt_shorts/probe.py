@@ -319,6 +319,14 @@ def looks(choice, story):
     return out
 
 
+def relieve_seats(p, checked):
+    """The render's step between its two probes (engine.render_story): the scenes whose seat has text on it lose the
+    thread's object or move their drawing below the text (thread.relieve, vignettes.relieve) -> those scenes, or []."""
+    from tt_shorts import thread, vignettes
+    lost = (thread.relieve(p, checked) or {}).get("seats") or []
+    return sorted(set(lost) | set(vignettes.relieve(p, checked) or []))
+
+
 def story(story_path, fmt, look="auto", engine="silent", stills=None):
     """`engine probe`: one story in one or more looks, every scene at its settled frame, in one browser."""
     from tt_shorts import formats, props, speech
@@ -338,11 +346,22 @@ def story(story_path, fmt, look="auto", engine="silent", stills=None):
                                                                    (None, "default") else "")})
         built.append((lk, work, p, frames))
     per, done = run_jobs(jobs)
+    # what a render does before it renders: a seat with text on it is moved or given up (relieve_seats), so the probe
+    # judges the film that will ship, then looks once more at the looks that changed
+    moved = {}
+    for k, ((lk, work, p, frames), rows) in enumerate(zip(built, per)):
+        got = relieve_seats(p, judge(rows, work / "public", frames))
+        if got:
+            (work / "props.json").write_text(json.dumps(p, ensure_ascii=False), encoding="utf-8")
+            moved[k] = got
+    if moved:
+        for k, rows in zip(moved, run_jobs([jobs[k] for k in moved])[0]):
+            per[k] = rows
     result, found = {}, []
-    for (lk, work, p, frames), rows in zip(built, per):
+    for k, ((lk, work, p, frames), rows) in enumerate(zip(built, per)):
         r = judge(rows, work / "public", frames, prefix=f"{lk}: " if len(chosen) > 1 else "")
         result[lk] = {"problems": r["problems"], "issues": r["issues"], "frames": frames, "texts": r["texts"],
-                      "scenes": [s["type"] for s in p["scenes"]], "stills": r["files"]}
+                      "scenes": [s["type"] for s in p["scenes"]], "stills": r["files"], "relieved": moved.get(k, [])}
         found += r["problems"]
         shutil.rmtree(work / "probe-serve", ignore_errors=True)
     return {"story": str(pathlib.Path(story_path).resolve()), "engine": engine, "looks": result, "problems": found,
