@@ -191,8 +191,7 @@ function blackboard({ at, width = 2.6, height = 1.5 }) {
   const chalk = (points, width2 = 0.022) => parts.push(strip(points, width2, { tone: 0.86, z: 0.2, depth: 0.008 }));
   chalk([[-w * 0.8, -h * 0.5], [-w * 0.3, -h * 0.5], [-w * 0.3, h * 0.45], [-w * 0.8, -h * 0.5]]); // a right triangle
   chalk([[-w * 0.4, -h * 0.5], [-w * 0.4, -h * 0.34], [-w * 0.3, -h * 0.34]], 0.016);
-  chalk(arc(w * 0.08, 0, h * 0.5, 0, 360, 14)); // a circle with its radius
-  chalk([[w * 0.08, 0], [w * 0.08 + h * 0.5, 0]], 0.016);
+  chalk(arc(w * 0.08, 0, h * 0.5, 0, 360, 14)); // a circle
   chalk([[w * 0.42, -h * 0.6], [w * 0.42, h * 0.6]]); // a parabola on axes
   chalk([[w * 0.3, -h * 0.34], [w * 0.92, -h * 0.34]]);
   const curve = [];
