@@ -260,6 +260,10 @@ def flatten(tree):
                 found.append({"e": element, "paint": len(found), "d": round(d, 2), "line": style.get("stroke", "none"),
                               "fill": style.get("fill", "none"), "w": round(_width(style) * scale, 1), "closed": bool(closed),
                               "pts": [round(v, 1) for p in pts for v in p]})
+                if node["tag"] == "rect" and m[1] == 0 and m[2] == 0:  # a draughtsman rules a box square
+                    x, y, w, h = _nums(own, "x", "y", "width", "height")
+                    a, b = _apply(m, (x, y)), _apply(m, (x + w, y + h))
+                    found[-1]["box"] = [round(v, 1) for v in (*a, *b)]
 
     walk(tree, (1, 0, 0, 1, 0, 0), 0.0, {})
     return {"strokes": sorted(found, key=lambda s: s["d"]), "dots": dots}  # sorted() keeps paint order inside a delay

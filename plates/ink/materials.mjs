@@ -81,9 +81,9 @@ class Painter {
 }
 
 // A pointed brush: a heavy landing, a thin neck where the hand speeds up, a press, a flick off the paper
-const pressure = (noise, key, base) => (u) => {
-  const press = 0.2 + 1.5 * noise.at(u * 2.6 + key, key * 0.7) ** 1.5;
-  return base * (0.24 + press * smooth(0, 0.04, u + 0.015) * (1 - 0.86 * smooth(0.72, 1, u)));
+const pressure = (noise, key, base, reach = 2.6) => (u) => {
+  const press = 0.1 + 1.75 * noise.at(u * reach + key, key * 0.7) ** 2;
+  return base * (0.14 + press * smooth(0, 0.04, u + 0.015) * (1 - 0.9 * smooth(0.7, 1, u)));
 };
 
 // Marks that follow a field's contours, evenly spaced (Jobard and Lefer's streamlines). Each one is a gouge: pointed at
@@ -210,22 +210,24 @@ const MATERIALS = {
         return out;
       };
       const angle = r.angle * 0.35;
-      for (const seg of sweep(pl, r, W, angle, size * 0.72, rnd, { min: 10 * S })) {
-        const f = flow * (0.8 + 0.34 * rnd());
-        m.mark(wash, TONE, seg, { w: () => size, n: Math.max(6, Math.round(size / (2.6 * S))), dry: 0.62, skip: 0.14, wander: 0.45, flow: () => f, bleed: 0.34, body: 0.74, edge: 0.3 }, take, { hand: 3, lap: 1.5 });
+      for (const seg of sweep(pl, r, W, angle, size * 0.8, rnd, { min: 10 * S })) {
+        const f = flow * (0.9 + 0.2 * rnd()), L = Math.hypot(seg[2] - seg[0], seg[3] - seg[1]), bow = (rnd() - 0.5) * L * 0.16, tilt = (rnd() - 0.5) * L * 0.1;
+        const nx = -(seg[3] - seg[1]) / L, ny = (seg[2] - seg[0]) / L;
+        const path = Float32Array.of(seg[0] - nx * tilt, seg[1] - ny * tilt, (seg[0] + seg[2]) / 2 + nx * bow, (seg[1] + seg[3]) / 2 + ny * bow, seg[2] + nx * tilt, seg[3] + ny * tilt);
+        m.mark(wash, TONE, path, { w: () => size, n: Math.max(6, Math.round(size / (3 * S))), dry: 0.62, skip: 0.1, wander: 0.6, flow: () => f, bleed: 0.34, body: 0.8, edge: 0.7 }, take, { hand: 9, lap: 1.5 });
       }
     }
 
     // the line: a pointed brush, loaded at the start of a stroke, thin at the neck, running dry at the end
-    const fibre = (v, p) => smooth(0.1, 0.34, v - (1 - T[p]) * 0.16 - (1 - F[p]) * 0.1) * (0.8 + 0.2 * v) * (0.9 + 0.14 * T[p]);
+    const wet = (v, p) => v * (0.86 + 0.14 * T[p]) * (0.92 + 0.12 * F[p]);
     for (const s of lines(pl)) {
       const keep = KEEP[s.line] ?? 1;
       for (const pts of pieces(s, 0.8)) {
-        const key = m.marks.length * 1.7, base = s.w * (1 + 1.05 * keep);
+        const key = m.marks.length * 1.7, base = s.w * (1 + 1.5 * keep), L = length(pts);
         m.mark(ink, LINE, pts, {
-          w: pressure(noise, key, base), n: Math.max(6, Math.round(base * 1.3)), dry: 0.92, skip: 0.26, wander: 0.3, bleed: 0.2, body: 0.5, edge: 0.14,
-          flow: (u) => keep * (1 - 0.12 * u),
-        }, fibre, { lap: 1.2 });
+          w: pressure(noise, key, base, 1.2 + L / (190 * S)), n: Math.max(6, Math.round(base * 1.2)), dry: 1.15, skip: 0.2, wander: 0.2, rim: 0.7, bleed: 0.2, body: 0.62, edge: 0.05,
+          flow: (u) => keep * (0.9 - 0.2 * u),
+        }, wet, { lap: 1.2 });
       }
     }
     // a few drops off the loaded brush
@@ -239,40 +241,42 @@ const MATERIALS = {
   woodcut(m) {
     const { sheet, pl, S, W, H, noise, rnd } = m, { T, M, ground } = sheet;
     m.hand = 0.9; m.boil = 0.55; m.boilStep = 40;
-    // the plank: long grain with slow rings, felt in the bare wood and in every printed mass
+    // the plank: long grain bending around two knots, seen in the bare wood and as hairlines through every printed mass
     const G = new Float32Array(W * H);
+    const knots = [[W * (0.15 + 0.7 * rnd()), H * (0.08 + 0.2 * rnd())], [W * (0.15 + 0.7 * rnd()), H * (0.74 + 0.2 * rnd())]];
     for (let y = 0, p = 0; y < H; y++) {
       for (let x = 0; x < W; x++, p++) {
-        const X = x / S, Y = y / S, warp = 90 * noise.fbm(X / 620, Y / 300, 3);
-        const ring = 0.5 + 0.5 * Math.sin((Y + warp) * 0.135 + 7 * noise.fbm(X / 900, Y / 90, 2));
-        const hair = noise.fbm(X / 190 + 40, (Y + warp * 0.4) / 3.4, 3);
-        G[p] = clamp(0.2 + 0.5 * ring + 0.9 * (hair - 0.42));
-        ground[p] = 0.022 + 0.034 * G[p] * G[p] + 0.014 * M[p];
+        const X = x / S;
+        let Y = y / S + 110 * noise.fbm(X / 700, y / S / 340, 3);
+        for (const [kx, ky] of knots) {
+          const dx = (x - kx) / S, dy = (y - ky) / S;
+          Y += (dy < 0 ? 1 : -1) * 70 * Math.exp(-(dx * dx) / 42000 - (dy * dy) / 9000);
+        }
+        const ring = 0.5 + 0.5 * Math.sin(Y * 0.09 + 5 * noise.fbm(X / 900, Y / 120, 2));
+        const hair = noise.fbm(X / 260 + 40, Y / 2.1, 3);
+        G[p] = hair * 0.72 + ring * 0.28;
+        ground[p] = 0.02 + 0.02 * ring * ring + 0.03 * smooth(0.46, 0.66, hair) + 0.012 * M[p];
       }
     }
-    const take = (v, p) => {
-      const pressed = smooth(0.34, 0.52, v + (G[p] - 0.5) * 0.08);
-      const miss = smooth(0.74, 0.86, G[p]) * smooth(0.5, 0.62, T[p]); // the block's grain, where ink didn't reach the paper
-      return pressed * (0.78 + 0.26 * G[p]) * (1 - 0.72 * miss);
-    };
+    const take = (v, p) => smooth(0.46, 0.52, v) * (1 - 0.92 * smooth(0.6, 0.66, G[p])) * (0.93 + 0.07 * T[p]);
     const cut = m.pass(0.3), inner = m.pass(0.46), halo = m.pass(0.24);
 
-    // the outline, left standing by a knife: straight facets, each one a wedge
+    // the outline: no line at all, but a run of knife cuts, each a straight-sided wedge, overlapping along the form
     for (const s of lines(pl)) {
-      const keep = KEEP[s.line] ?? 1, base = s.w * (1 + 1.8 * keep);
+      const keep = KEEP[s.line] ?? 1, base = s.w * (0.95 + 1.45 * keep);
       for (const pts of pieces(s, 0.7)) {
-        const facet = [], L = length(pts), every = 26 * S;
-        const p = walk(pts, 2);
-        for (let d = 0; d < L; d += every * (0.7 + 0.8 * rnd())) {
-          const i = Math.min(p.n - 1, Math.round((d / L) * (p.n - 1)));
-          facet.push(p.x[i], p.y[i]);
+        const p = walk(pts, 2), L = p.L;
+        for (let d = 0; d < L - 4 * S;) {
+          const len = Math.min(L - d, (44 + 96 * rnd()) * S), side = (rnd() - 0.5) * base * 0.5, facet = [];
+          const steps = Math.max(1, Math.round(len / (24 * S)));
+          for (let k = 0; k <= steps; k++) {
+            const i = Math.min(p.n - 1, Math.round(((d + (len * k) / steps) / L) * (p.n - 1)));
+            facet.push(p.x[i] + p.nx[i] * side, p.y[i] + p.ny[i] * side);
+          }
+          const fat = base * (0.6 + 0.7 * rnd()), peak = 0.3 + 0.4 * rnd();
+          m.mark(cut, LINE, Float32Array.from(facet), { w: (u) => fat * Math.min(1, (u < peak ? u / peak : (1 - u) / (1 - peak)) * 1.5), n: 1 }, take, { hand: 0, boil: 0.4 });
+          d += len * (0.62 + 0.3 * rnd());
         }
-        facet.push(p.x[p.n - 1], p.y[p.n - 1]);
-        if (facet.length < 4) continue;
-        const key = rnd() * 90;
-        m.mark(cut, LINE, Float32Array.from(facet), {
-          w: (u) => base * (0.55 + 1.0 * noise.at(u * 5 + key, key)) * (0.72 + 0.28 * smooth(0, 0.05, u) * smooth(1, 0.95, u)), n: 1,
-        }, take);
       }
     }
     // inside the shapes: cuts along the form, wider where the tone is lighter, so masses break into wedges
@@ -283,7 +287,7 @@ const MATERIALS = {
     // around the object: the block cleared in rings that echo its silhouette, and thinning out
     const R = 240 * S;
     gouges(m, halo, BACK, {
-      keep: (p) => !pl.id[p] && !pl.line[p] && pl.sil[p] > 7 * S && pl.sil[p] < R, tone: (p) => 0.5 * Math.exp(-pl.sil[p] / (80 * S)),
+      keep: (p) => !pl.id[p] && !pl.line[p] && pl.sil[p] > 16 * S && pl.sil[p] < R, tone: (p) => 0.4 * Math.exp(-pl.sil[p] / (90 * S)),
       sep: () => 15 * S, field: pl.sil, near: 1e9, min: 16 * S, max: 150 * S, take, broken: 0.55, lap: 1.5,
     });
     return { gain: [1, 1, 1, 1], wet: [0.15, 0.15, 0.15, 0.15], rise: [0.03, 0.05, 0.05, 0.05] };
@@ -296,7 +300,7 @@ const MATERIALS = {
     const foldX = W * 0.5, foldA = H * 0.34, foldB = H * 0.71;
     for (let y = 0, p = 0; y < H; y++) {
       for (let x = 0; x < W; x++, p++) {
-        const coat = noise.fbm(x / (640 * S), y / (15 * S), 3), weave = Math.sin((x / S) * 2.1) * Math.sin((y / S) * 2.1);
+        const coat = noise.fbm((x + y) / (520 * S), (x - y) / (46 * S), 3), weave = Math.sin((x / S) * 2.1) * Math.sin((y / S) * 2.1);
         let v = 0.062 + 0.03 * M[p] + 0.05 * coat * coat + 0.008 * weave + 0.012 * T[p];
         const fold = Math.min(Math.abs(x - foldX), Math.abs(y - foldA), Math.abs(y - foldB)) / S + (F[p] - 0.5) * 1.2;
         v += 0.028 * Math.exp((-fold * fold) / 2.2) * (0.5 + F[p]) + 0.012 * Math.exp(-Math.abs(fold) / 22);
@@ -314,27 +318,57 @@ const MATERIALS = {
       const x0 = 30 * S + rnd() * 26 * S, f = i % 5 ? 0.15 : 0.3;
       m.mark(grid, BACK, Float32Array.of(x0, y, W - x0, y + 1.5 * S * (rnd() - 0.5)), { w: () => (i % 5 ? 0.9 : 1.2) * S, n: 1, flow: () => f, skip: 0.1 }, pen, { hand: 0.5 });
     }
-    // light construction lines, run past their corners; then the inked line over them
+    // pencil first: light construction lines run well past their corners. Then the pen: three weights, each line run a
+    // little past the corner it makes, ink thinning along the rule; hidden edges dashed by hand; arcs by compass
+    const rule = (a, b, base, press, from = 0, to = 0) => {
+      const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, key = rnd() * 70;
+      const pts = Float32Array.of(a[0] - ux * from, a[1] - uy * from, b[0] + ux * to, b[1] + uy * to), blob = 3 * S / (d + from + to);
+      m.mark(ink, LINE, pts, {
+        w: (u) => base * (0.88 + 0.26 * noise.at(u * 5 + key, key) + 0.5 * Math.exp(-u / blob)),
+        flow: (u) => press * (0.7 + 0.42 * noise.at(u * 3.5 + key, key + 4)), n: 1,
+      }, pen, { hand: 0.45 });
+    };
+    const dashes = (a, b, base, press, on, off, dot) => {
+      const d = Math.hypot(b[0] - a[0], b[1] - a[1]), ux = (b[0] - a[0]) / d, uy = (b[1] - a[1]) / d;
+      for (let at = 0, n = 0; at < d; n++) {
+        const len = dot && n % 2 ? 3 * S : on * (0.85 + 0.3 * rnd()), end = Math.min(d, at + len);
+        rule([a[0] + ux * at, a[1] + uy * at], [a[0] + ux * end, a[1] + uy * end], base, press);
+        at = end + off * (0.85 + 0.3 * rnd());
+      }
+    };
+    const pencil = (a, b) => m.mark(build, SOFT, Float32Array.of(...a, ...b), { w: () => 1.1 * S, n: 1, flow: () => 0.4 }, pen, { hand: 0.3 });
+    const past = () => (2.5 + 6 * rnd()) * S;
     for (const s of lines(pl)) {
-      const keep = KEEP[s.line] ?? 1;
-      for (const pts of pieces(s, 0.7)) {
-        const L = length(pts), n = pts.length;
-        const dx = pts[n - 2] - pts[0], dy = pts[n - 1] - pts[1], d = Math.hypot(dx, dy);
-        if (d > 24 * S && d > 0.97 * L) {
-          const a = (14 + 34 * rnd()) * S, b = (14 + 34 * rnd()) * S, ux = dx / d, uy = dy / d;
-          m.mark(build, SOFT, Float32Array.of(pts[0] - ux * a, pts[1] - uy * a, pts[n - 2] + ux * b, pts[n - 1] + uy * b), { w: () => 1.1 * S, n: 1, flow: () => 0.3 }, pen, { hand: 0.3 });
+      const keep = KEEP[s.line] ?? 1, base = keep === 1 ? Math.max(2.9 * S, s.w * 0.56) : keep > 0.6 ? 1.8 * S : 1.2 * S;
+      const press = 0.74 + 0.26 * keep;
+      const straight = [];
+      if (s.box) {
+        const [x0, y0, x1, y1] = s.box;
+        straight.push([[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]);
+      } else {
+        for (const pts of pieces(s, 0.7)) {
+          const n = pts.length, L = length(pts), d = Math.hypot(pts[n - 2] - pts[0], pts[n - 1] - pts[1]);
+          if (d > 0.97 * L) straight.push([[pts[0], pts[1]], [pts[n - 2], pts[n - 1]]]);
+          else m.mark(ink, LINE, pts, { w: () => base, flow: () => press * 0.9, n: 1, skip: 0.06 }, pen, { hand: 0.3 });
         }
-        const base = Math.max(2.1 * S, s.w * (0.34 + 0.34 * keep));
-        m.mark(ink, SOFT, pts, { w: () => base * 5, n: 0, body: 0.09 * keep }, pen);
-        m.mark(ink, LINE, pts, { w: (u) => base * (1 + 0.42 * Math.exp(-(u * L) / (3 * S)) + 0.3 * Math.exp(-((1 - u) * L) / (3 * S))), n: 1, flow: () => 0.72 + 0.28 * keep }, pen);
+      }
+      for (const [a, b] of straight) {
+        const d = Math.hypot(b[0] - a[0], b[1] - a[1]), ux = (b[0] - a[0]) / (d || 1), uy = (b[1] - a[1]) / (d || 1);
+        if (d > 20 * S) {
+          const x = (14 + 34 * rnd()) * S, y = (14 + 34 * rnd()) * S;
+          pencil([a[0] - ux * x, a[1] - uy * x], [b[0] + ux * y, b[1] + uy * y]);
+        }
+        if (s.line === "LINE" && d > 60 * S) dashes(a, b, base, press, 15 * S, 7 * S);
+        else rule(a, b, base, press, past(), past());
       }
     }
     // section lines in the solid parts: a ruled 45 degrees, even and exact
     for (const r of regions(pl, 1400 * S * S)) {
       if (r.fill === "none" && r.tone < 0.3) continue;
       const gap = (15 - 7 * r.tone) * S, f = 0.32 + 0.28 * r.tone;
-      for (const seg of sweep(pl, r, W, -Math.PI / 4, gap, () => 0.5, { margin: 2.5 * S, min: 5 * S })) {
-        m.mark(section, TONE, seg, { w: () => 1.3 * S, n: 1, flow: () => f }, pen, { hand: 0.15 });
+      for (const seg of sweep(pl, r, W, -Math.PI / 4, gap, rnd, { margin: 1 * S, min: 5 * S })) {
+        const a = (rnd() - 0.6) * 5 * S, b = (rnd() - 0.6) * 5 * S, load = f * (0.72 + 0.5 * rnd()), c = Math.SQRT1_2; // a set square, by eye
+        m.mark(section, TONE, Float32Array.of(seg[0] - a * c, seg[1] + a * c, seg[2] + b * c, seg[3] - b * c), { w: () => 1.3 * S, n: 1, flow: () => load }, pen, { hand: 0.45 });
       }
     }
     // the object's size, ruled below it, with no figure on it: the figure is the film's
@@ -344,13 +378,16 @@ const MATERIALS = {
         x0 = Math.min(x0, s.pts[i]); x1 = Math.max(x1, s.pts[i]); y1 = Math.max(y1, s.pts[i + 1]);
       }
     }
+    const mid = (x0 + x1) / 2, centre = pl.oy + 320 * pl.scale;
+    dashes([x0 - 40 * S, centre], [x1 + 40 * S, centre], 1 * S, 0.5, 42 * S, 8 * S, true);
     const low = y1 + 58 * S, tick = 9 * S, thin = { w: () => 1.2 * S, n: 1, flow: () => 0.62 };
+    dashes([mid, pl.oy - 30 * S], [mid, low + 16 * S], 1 * S, 0.5, 42 * S, 8 * S, true);
     if (low < H - 80 * S) {
       for (const x of [x0, x1]) m.mark(section, SOFT, Float32Array.of(x, y1 + 10 * S, x, low + 12 * S), thin, pen, { hand: 0.1 });
       m.mark(section, SOFT, Float32Array.of(x0, low, x1, low), thin, pen, { hand: 0.1 });
       for (const x of [x0, x1]) m.mark(section, LINE, Float32Array.of(x - tick, low + tick, x + tick, low - tick), { w: () => 2 * S, n: 1, flow: () => 0.8 }, pen, { hand: 0 });
     }
-    return { gain: [1, 1, 1, 1], wet: [0.2, 0.2, 0.2, 0.1], rise: [0.04, 0.04, 0.05, 0.05] };
+    return { gain: [1, 1, 0.8, 1], wet: [0.2, 0.2, 0.2, 0.1], rise: [0.04, 0.04, 0.05, 0.05] };
   },
 
   halftone(m) {
@@ -373,12 +410,12 @@ const MATERIALS = {
       const keep = KEEP[s.line] ?? 1, base = s.w * (0.5 + 0.75 * keep);
       for (const pts of pieces(s, 0.8)) {
         const k = rnd() * 50;
-        m.mark(key, LINE, pts, { w: (u) => base * (0.7 + 0.6 * noise.at(u * 6 + k, k)), n: 1, flow: () => 0.96 }, printed);
+        m.mark(key, LINE, pts, { w: (u) => base * (0.55 + 0.9 * noise.at(u * 9 + k, k)), n: 1, flow: (u) => 0.58 + 0.5 * noise.at(u * 14 + k, k + 2) }, printed);
       }
     }
     // the tint plate, cut by hand and off register: its shapes miss the line, and a graded panel stands behind them,
     // knocked out around the object
-    const pitch = 15 * S, c = Math.SQRT1_2, shiftX = 13 * S, shiftY = -9 * S, dots = [];
+    const pitch = 16 * S, c = Math.SQRT1_2, shiftX = 17 * S, shiftY = -12 * S, dots = [];
     const px0 = 54 * S, px1 = 1026 * S, py0 = pl.oy - 70 * S, py1 = pl.oy + 640 * pl.scale + 34 * S;
     const inPanel = (x, y) => x > px0 + (y - py0) * 0.02 && x < px1 - (y - py0) * 0.03 && y > py0 + (x - px0) * 0.016 && y < py1 - (x - px0) * 0.01;
     const span = Math.ceil((W + H) / pitch);
@@ -389,22 +426,23 @@ const MATERIALS = {
         const px = Math.round(x - shiftX), py = Math.round(y - shiftY), p = clamp(px, 0, W - 1) + clamp(py, 0, H - 1) * W;
         const inside = pl.id[p] > 0;
         let q;
-        if (inside) q = 0.1 + 1.1 * pl.tone[p] * pl.tone[p];
+        if (inside) q = 0.06 + 1.3 * pl.tone[p] * pl.tone[p];
         else {
-          if (!inPanel(x, y) || pl.sil[p] < 26 * S) continue;
-          q = 0.05 + 0.3 * smooth(py0, py1, y) ** 1.6;
+          if (!inPanel(x, y) || pl.sil[p] < 34 * S) continue;
+          q = 0.03 + 0.16 * smooth(py0, py1, y) ** 1.6;
         }
         const r = pitch * Math.sqrt(Math.pow(clamp(q), 1 / 1.35) / Math.PI) * 1.05;
-        dots.push({ x, y, r, order: inside ? pl.regions[pl.id[p]].order : 1e4, back: !inside });
+        const load = 0.5 + 0.5 * rnd() + 0.2 * noise.at(x / (40 * S), y / (40 * S)), wx = (rnd() - 0.5) * 1.6 * S, wy = (rnd() - 0.5) * 1.6 * S;
+        dots.push({ x: x + wx, y: y + wy, r: r * (0.86 + 0.28 * rnd()), load, order: inside ? pl.regions[pl.id[p]].order : 1e4, back: !inside });
       }
     }
     dots.sort((a, b) => a.order - b.order || a.y - b.y);
     for (const d of dots) {
       const lean = noise.at(d.x / 3 + 5, d.y / 3) * 0.7 * S;
       m.custom(d.back ? tint : screen, d.back ? BACK : TONE, 5 + d.r * 0.2, (dep, time) => {
-        dep.dab(d.x, d.y, d.r * 0.5, 1, time.t0, 1.2 * S);
-        dep.dab(d.x + lean, d.y - lean, d.r * 0.78, 1, time.t0 + 0.09, 1.4 * S);
-        dep.dab(d.x, d.y + lean, d.r, 0.9, time.t0 + 0.2, 1.6 * S);
+        dep.dab(d.x, d.y, d.r * 0.5, d.load, time.t0, 1.2 * S);
+        dep.dab(d.x + lean * 2, d.y - lean, d.r * 0.78, d.load, time.t0 + 0.09, 1.4 * S);
+        dep.dab(d.x - lean, d.y + lean, d.r, d.load * 0.9, time.t0 + 0.2, 1.6 * S);
       }, printed);
     }
     return { gain: [1, 1, 1, 0.8], wet: [0.1, 0.12, 0.12, 0.12], rise: [0.04, 0.05, 0.05, 0.05] };
@@ -444,8 +482,8 @@ const MATERIALS = {
     }
     const lay = (pts, base, press, key) => {
       m.mark(stick, LINE, pts, {
-        w: (u) => base * (0.55 + 0.9 * noise.at(u * 3 + key, key)), n: 3, body: 1, edge: 0.5, wander: 0.3,
-        flow: (u) => press * (0.56 + 0.8 * noise.at(u * 5 + key * 2, key + 3)) * smooth(0, 0.03, u) * (1 - 0.3 * smooth(0.9, 1, u)),
+        w: (u) => base * (0.42 + 1.15 * noise.at(u * 3 + key, key)), n: 3, body: 1, edge: 0.5, wander: 0.3,
+        flow: (u) => press * (0.36 + 1.1 * noise.at(u * 6 + key * 2, key + 3)) * smooth(0, 0.03, u) * (1 - 0.3 * smooth(0.9, 1, u)),
       }, dry, { lap: 1.2 });
       m.mark(stick, SOFT, pts, { w: () => base * 2.8, n: 0, body: 0.09 * press }, (v, p) => v * (0.2 + 1.2 * F[p] * T[p]), { hand: 3 });
     };
@@ -469,13 +507,13 @@ const MATERIALS = {
     const { sheet, pl, S, W, noise, rnd } = m, { T, F, M, ground } = sheet;
     m.hand = 1.6; m.boil = 0.7; m.boilStep = 50;
     for (let p = 0; p < ground.length; p++) ground[p] = 0.026 + 0.02 * M[p] + 0.03 * T[p] * T[p];
-    const lead = (v, p) => smooth(0.3, 0.74, v * 0.92 + (T[p] * 0.8 + F[p] * 0.2) * 0.42) * (0.66 + 0.34 * T[p]);
+    const lead = (v, p) => smooth(0.38, 0.8, v * 0.86 + T[p] * 0.46) * (0.5 + 0.4 * T[p]);
     const sketch = m.pass(0.14), outline = m.pass(0.34), hatch = m.pass(0.52);
     const run = (pass, layer, pts, width, press, opts = {}) => {
       const key = rnd() * 80;
       return m.mark(pass, layer, pts, {
-        w: (u) => width * (0.7 + 0.6 * noise.at(u * 3 + key, key)), n: 1,
-        flow: (u) => press * (0.62 + 0.62 * noise.at(u * 3.3 + key * 1.3, key + 9)) * smooth(0, 0.05, u) * (1 - 0.82 * smooth(0.6, 1, u)),
+        w: (u) => width * (0.55 + 1.0 * noise.at(u * 3 + key, key)), n: 1,
+        flow: (u) => press * (0.42 + 1.0 * noise.at(u * 4 + key * 1.3, key + 9)) * smooth(0, 0.05, u) * (1 - 0.82 * smooth(0.6, 1, u)),
       }, lead, opts);
     };
     for (const s of lines(pl)) {
@@ -494,7 +532,7 @@ const MATERIALS = {
             const off = again ? (rnd() - 0.5) * 3.6 * S : 0;
             for (let i = from; i <= to; i += 4) part.push(p.x[i] + p.nx[i] * off, p.y[i] + p.ny[i] * off);
             part.push(p.x[to], p.y[to]);
-            if (part.length >= 4) run(outline, LINE, Float32Array.from(part), Math.max(1.7 * S, s.w * (0.3 + 0.2 * keep)), (0.55 + 0.5 * keep) * (again ? 0.72 : 1));
+            if (part.length >= 4) run(outline, LINE, Float32Array.from(part), Math.max(1.7 * S, s.w * (0.26 + 0.2 * keep)), (0.5 + 0.34 * keep) * (again ? 0.74 : 1));
             if (to === p.n - 1) break;
             from = to - Math.round((8 + 14 * rnd()) * S);
           }

@@ -234,7 +234,7 @@ export function plan(drawing, { W, H, S, box, seed }) {
   const strokes = drawing.strokes.map((s, order) => {
     const pts = new Float32Array(s.pts.length);
     for (let i = 0; i < pts.length; i += 2) { pts[i] = s.pts[i] * scale + ox; pts[i + 1] = s.pts[i + 1] * scale + oy; }
-    return { ...s, pts, w: s.w * scale, order };
+    return { ...s, pts, w: s.w * scale, order, box: s.box && s.box.map((v, i) => v * scale + (i % 2 ? oy : ox)) };
   });
   const id = new Int16Array(W * H), elements = new Map();
   for (const s of [...strokes].sort((a, b) => a.paint - b.paint)) {
