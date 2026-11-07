@@ -102,6 +102,21 @@ assert(drawingsDir !== null, `Found assets/drawings directory at ${drawingsDir}`
 const drawingFiles = fs.readdirSync(drawingsDir).filter(f => f.endsWith(".json"));
 assert(drawingFiles.length === 44, `Found exactly 44 drawing JSON files (found ${drawingFiles.length})`);
 
+// The form a set really uses: every drawing as a cut-out, its card one closed outline with an area, no NaN anywhere.
+for (const file of drawingFiles) {
+  const data = JSON.parse(fs.readFileSync(path.join(drawingsDir, file), "utf8"));
+  const figure = createStandeeFromDrawing(data, { standardHeight: 1.2, cardStyle: "cutout", margin: 0.05 });
+  const card = figure.getObjectByName("paper_backing_card");
+  card.geometry.computeBoundingBox();
+  const { min, max } = card.geometry.boundingBox;
+  assert(max.x - min.x > 0.5 && max.y - min.y > 0.5, `${file}: the cut-out has a body, ${(max.x - min.x).toFixed(2)} by ${(max.y - min.y).toFixed(2)}`);
+  assert(min.y < 0.08, `${file}: the cut-out's tab reaches its foot, ${min.y.toFixed(3)}`);
+  figure.traverse((o) => {
+    if (o.isMesh) assert(!o.geometry.attributes.position.array.some(Number.isNaN), `${file}: no NaN in a cut-out`);
+    if (o.isMesh && o.parent.name === "standee_artwork") assert(o.userData.flat === true, `${file}: art is marked flat, so the stage can face it front`);
+  });
+}
+
 const summary = [];
 const t0 = Date.now();
 
