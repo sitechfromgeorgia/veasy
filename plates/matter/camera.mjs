@@ -78,7 +78,7 @@ function choreographPile(p, b, options) {
   const height = Math.max(b.size[1], 1.2);
 
   // Vertical 9:16 frame requires ample distance for horizontal width
-  const baseDist = Math.max(5.5, maxHoriz * 1.8 + height * 0.8 + 2.2);
+  const baseDist = Math.max(5.5, maxHoriz * 2.4 + height * 0.8 + 2.2);
 
   // 3/4 high angle: azimuth 32 deg, elevation 38 to 44 deg
   const startDist = baseDist * 0.88;
