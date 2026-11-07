@@ -67,6 +67,8 @@ python -m tt_shorts.engine gallery --find "a number" | --real       # the brush 
 python -m tt_shorts.engine scenario fit <story.json>                # the plots that fit a story's facts, and why
 python -m tt_shorts.engine plate <kind> | list | shelf | use        # baked clips behind a scene (skill veasy:plates)
 python -m tt_shorts.engine thread <story.json>                      # the film's object across its scenes (free)
+python -m tt_shorts.engine vignettes <story.json>                   # which scene draws what, and where (free)
+python -m tt_shorts.engine vignettes <story.json> --draw            # the illustrator draws the rest (a model call)
 python -m tt_shorts.engine review <story.json>                      # free checks on the frames, and a repair loop
 python -m tt_shorts.engine steer  <story.json> --scene 3 --set label=... [--dry]  # change one scene, redraw only it
 python -m tt_shorts.engine learn  [--brand sitech]                 # the rules failing most lately

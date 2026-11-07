@@ -58,9 +58,9 @@ if __name__ == "__main__" and sys.argv[1:2] == ["plate"]:  # a plate answer need
 
 from tt_shorts import brand as packs
 from tt_shorts import plates
-from tt_shorts import (assets, captions, catalog, chapters, concept, directors, flash, formats, geo, icons, ka_check,
-                       kaeasy, meta, motion_rules, news_check, programs, props, rubrics, scenarios, sfx, speech, store,
-                       styles, swipe, thread, variety, voices)
+from tt_shorts import (assets, captions, catalog, chapters, concept, directors, flash, formats, geo, icons, illustrator,
+                       ka_check, kaeasy, meta, motion_rules, news_check, programs, props, rubrics, scenarios, sfx, speech, store,
+                       styles, swipe, thread, variety, vignettes, voices)
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -156,6 +156,7 @@ def options(brand_name=None, section=None):
         "directors": directors.options(),
         "concepts": concept.options(),
         "thread": thread.options(),
+        "vignettes": {**vignettes.options(), "illustrator": illustrator.options()},
         "rubrics": rubrics.options(),
         "scenarios": scenarios.options(),
         "programs": {n: programs.summary(p) for n, p in programs.load_all().items()},
@@ -368,6 +369,7 @@ def shape_problems(s):
     if t == "draw" and s.get("svg"):
         from tt_shorts import art
         out += art.scene_problems(s["svg"])
+    out += vignettes.own_problems(s)  # a scene's own drawing (vignettes.py)
     if t == "where" and s.get("area") is not None:
         out += geo.area_problems(s["area"])
     if t in ("sign", "stat"):
@@ -505,6 +507,7 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
                           outro=fmt["outro"], director=director, theme=theme, **formats.render_keys(fmt))
     checked = _probe_render(work, p)  # the layout probe: seconds, before the minutes of the render
     relieved = thread.relieve(p, checked)  # a seat with text on it is given up: the thread never holds a video
+    relieved = vignettes.relieve(p, checked) or relieved  # and a drawing's seat too
     if relieved:
         (work / "props.json").write_text(json.dumps(p, ensure_ascii=False), encoding="utf-8")
         checked = _probe_render(work, p)
@@ -655,6 +658,9 @@ def film_engine(story_path, fmt, director=None, override=None):
 def render_any(story_path, fmt, engine="gemini", out_path=None, director=None, renderer=None):
     """Render in the story's film engine: Remotion (render_story) or HyperFrames (compose.render, the project in
     store.compose_dir, scaffolded first when there is none)."""
+    if out_path and pathlib.Path(out_path).with_suffix(".json").resolve() == pathlib.Path(story_path).resolve():
+        return {"problems": [f"--out {out_path} would write the film's summary over its own story "
+                             f"({pathlib.Path(story_path).name}): name the film differently"]}
     if film_engine(story_path, fmt, director, renderer) == "hyperframes":
         from tt_shorts import compose
         missing = _kaeasy_required()
@@ -967,6 +973,23 @@ def thread_cmd(a):
     """The film's thread, free: the drawing, the state, which scenes carry the object and where."""
     story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
     return out({"story": str(a.story), **thread.summary(story, None if a.look in (None, "auto") else a.look)})
+
+
+def vignettes_cmd(a):
+    """The film's drawings, free: which scene draws what, from where, and its seat. --draw: the illustrator draws what
+    the library can't (one model call, two with the repair) and the story gets the drawings that pass (--out, else in
+    place)."""
+    path = pathlib.Path(a.story)
+    story = json.loads(path.read_text(encoding="utf-8"))
+    look = "editorial" if a.look in (None, "auto") else a.look
+    if not getattr(a, "draw", False):
+        return out({"story": str(path), **vignettes.summary(story, look)})
+    story, report = illustrator.draw(story, look)
+    target = pathlib.Path(a.out) if a.out else path
+    if report["drawn"]:
+        target.write_text(json.dumps(story, ensure_ascii=False, indent=1), encoding="utf-8")
+    return out({"story": str(target), "illustrator": report, **vignettes.summary(story, look)},
+               1 if report["error"] else 0)
 
 
 def concept_cmd(a):
@@ -1332,6 +1355,11 @@ def main(argv=None):
     th = sub.add_parser("thread", help="the film's object, free: drawing, state, which scenes carry it, their seats")
     th.add_argument("story")
     th.add_argument("--look", choices=("auto",) + packs.LOOKS, default="auto")
+    vg = sub.add_parser("vignettes", help="the film's drawings, free: which scene draws what, from where, their seats")
+    vg.add_argument("story")
+    vg.add_argument("--look", choices=("auto",) + packs.LOOKS, default="auto")
+    vg.add_argument("--draw", action="store_true", help="the illustrator draws what the library can't (a model call)")
+    vg.add_argument("--out", help="with --draw: write the story here instead of in place")
     w = sub.add_parser("write")
     w.add_argument("--program", help="news (default), explainer, law, blog... (see options: programs)")
     w.add_argument("--style", help="a named film style to set on the story")
@@ -1576,7 +1604,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "concept": concept_cmd, "thread": thread_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd, "plate": plate_cmd, "scenario": scenario_cmd, "review": review_cmd, "steer": steer_cmd, "room": room_cmd, "look": look_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "concept": concept_cmd, "thread": thread_cmd, "vignettes": vignettes_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd, "plate": plate_cmd, "scenario": scenario_cmd, "review": review_cmd, "steer": steer_cmd, "room": room_cmd, "look": look_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
     except FileNotFoundError as e:

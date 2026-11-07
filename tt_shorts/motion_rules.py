@@ -52,6 +52,8 @@ DIRECTION = {
     "line": (1, 0), "panel": (1, 0), "wipe": (1, 0), "slide": (-1, 0), "push": (-1, 0),
     "shutter": (1, 0), "blind": (1, 0), "corner": (1, 0), "object": (1, 0),
 }
+LISTS = ("points", "steps", "checklist", "ranking")
+LISTS_SHORT = 8  # scenes: a longer film (chapters, a digest) may hold a list in each part
 RULES = {
     "read": f"a text on screen too briefly: each needs {READ_BASE} s + {READ_PER_WORD} s per word (holds a render)",
     "still": f"more than {STILL_MAX:g} s with nothing changing in the scene band (the end card is exempt; a scene "
@@ -62,6 +64,8 @@ RULES = {
     "moves": f"more than {MAX_MOVES} elements animating at once in a scene: stagger them to keep focus",
     "background": "active video or motion behind text being read: quiet the background or use still image",
     "pacing": f"cut comes after less than {PACING_MIN:g} s or cuts off the voice: faster than voice and reading pace",
+    "lists": f"more than one list scene ({', '.join(LISTS)}) in a film of at most {LISTS_SHORT} scenes: keep the one "
+             "the article itself lists and show the rest by their subject (owner, 2026-11-07)",
 }
 HOLDS = ("read",)
 TEXTS_HOLDS = ("read", "safe_zone")
@@ -267,6 +271,14 @@ def repeat(rows):
             for a, b in zip(rows, rows[1:]) if a["type"] == b["type"]]
 
 
+def lists(rows):
+    got = [r for r in rows if r["type"] in LISTS]
+    if len(got) < 2 or len(rows) > LISTS_SHORT:
+        return []
+    return [_finding("lists", f"{len(got)} list scenes ({', '.join(str(r['scene']) + ' ' + r['type'] for r in got)}) in a "
+                     f"film of {len(rows)} scenes: keep one, show the rest by their subject", got[1]["scene"])]
+
+
 def moves(rows):
     out = []
     for r in rows:
@@ -339,7 +351,7 @@ def check(p):
     p = _laid_out(p)
     rows, cut_list = timeline(p), cuts(p)
     found = (read(rows) + still(rows, _holds(p)) + kinds(cut_list) + pingpong(cut_list) + repeat(rows)
-             + moves(rows) + background(rows, p) + pacing(rows, p))
+             + moves(rows) + background(rows, p) + pacing(rows, p) + lists(rows))
     text = lambda f: f"motion {f['rule']}: {f['detail']}"  # noqa: E731
     return {"timeline": rows, "cuts": cut_list, "findings": found,
             "holds": [text(f) for f in found if f["hold"]], "warnings": [text(f) for f in found if not f["hold"]]}

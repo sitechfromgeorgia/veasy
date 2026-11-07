@@ -65,6 +65,25 @@ class Draw(unittest.TestCase):
         for gone in ("image", "script", "onload", "#ff0000", "matrix", "javascript"):
             self.assertNotIn(gone, flat)
 
+    def test_a_drawing_moves_acts_and_loops_become_data(self):  # owner, 2026-11-07: moving, not static
+        tree, problems = art.sanitize(
+            GOOD + '<g class="t" style="--d:1.3s; --turn:-75deg; --at:476,470"><path d="M476 470 L518 234" stroke="INK"/></g>'
+            '<g class="g" style="--d:0.8s"><rect x="300" y="300" width="100" height="200" stroke="INK"/></g>'
+            '<g class="m" style="--d:1s"><line x1="10" y1="10" x2="50" y2="10" stroke="INK"/></g>'
+            '<g class="r" style="--d:0.5s;--swing:6"><rect x="600" y="100" width="100" height="150" stroke="INK"/></g>'
+            '<g style="--spin:9000;--bob:12"><circle cx="800" cy="500" r="40" stroke="INK"/></g>')
+        self.assertEqual(problems, [])
+        moves = [(n["motion"], n.get("move")) for n in tree[5:]]
+        self.assertEqual(moves, [("t", {"turn": -75.0, "at": [476.0, 470.0]}),
+                                 ("g", {"at": [350.0, 500.0]}),  # grows from its foot
+                                 ("m", {"from": [0, 80]}),  # comes up from below by default
+                                 ("r", {"swing": 6.0, "at": [650.0, 100.0]}),  # sways from its top
+                                 (None, {"spin": 720.0, "bob": 12.0, "at": [800.0, 500.0]})])  # clamped
+        self.assertEqual(art.acts(tree), 5)
+        self.assertNotIn("move", art.sanitize(GOOD)[0][0])  # a drawing that doesn't move is the same tree as before
+        _, problems = art.sanitize(GOOD.replace('style="--d:0.2s"', 'style="--d:0.2s;--wobble:3"', 1))
+        self.assertTrue(any('--wobble:3' in p and "--swing" in p for p in problems))
+
     def test_size_and_count_limits(self):
         self.assertTrue(any("only 1 elements" in p for p in art.sanitize('<circle cx="1" cy="1" r="2"/>')[1]))
         self.assertTrue(art.sanitize("<g><rect")[1][0].startswith("draw: svg is not valid XML"))

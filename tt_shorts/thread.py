@@ -40,6 +40,7 @@ TOKEN_H = {False: 112, True: 76}  # px high, without and with a headline under t
 TOKEN_KICKER = 20  # characters: a longer kicker reaches the corner
 HERO_MAX = 700
 GAP = 36  # between the scene's text and its seat
+GAP_CAPTIONS = 10  # between a seat's foot and the captions' highest row
 RIGHT = 940  # the drawing stays left of the like/share rail
 SCENE_TOP, SCENE_BOTTOM = 248, 1380
 BOXES = {"editorial": (64, 1016, 1380), "kinetic": (64, 1016, 1380), "cards": (96, 984, 1252)}  # left, right, bottom
@@ -416,9 +417,10 @@ def _align(i, seed):
     return ("center", "left", "right", "center")[(seed + i) % 4]
 
 
-def seat(s, i, look, seed):
+def seat(s, i, look, seed, low=SEAT_MIN):
     """One scene's seat -> {x, y, w, h, reserve} in frame px, or None. The object stands on the scene's foot; reserve is
-    the room the scene leaves free for it, measured from the bottom of its box."""
+    the room the scene leaves free for it, measured from the bottom of its box. low: the smallest seat, in px high
+    (a vignette's is lower, vignettes.MIN_H)."""
     t = s.get("type")
     if t in NO_SEAT or s.get("media") or t in OWN:
         return None
@@ -426,7 +428,7 @@ def seat(s, i, look, seed):
     top = SCENE_TOP + (CARD_TOP if look == "cards" else 0)
     room = bottom - top - content(s, look) - GAP
     h = min(HERO_MAX if t in HERO else SEAT_MAX, room)
-    if h < SEAT_MIN:
+    if h < low:
         return token(s, top)
     span = min(right, RIGHT) - left
     w = min(span, h * ASPECT)
@@ -521,14 +523,27 @@ def for_props(t):
             **{k: t[k] for k in ("surface", "crack") if k in t}, "art": art.sanitize(t["svg"])[0]}
 
 
-def attach(props, story):
-    """Put a story's thread on its Remotion props: props["thread"] and each carrying scene's `thread` -> [warnings]."""
+def clear_of(one, foot):
+    """A seat that reaches below foot - GAP_CAPTIONS (the captions' highest row, captions.reach: the roll's upper row
+    stands inside the scene band) shrinks from its foot, keeping its shape and its centre. The corner token never
+    reaches there."""
+    low = None if foot is None else foot - GAP_CAPTIONS
+    if low is None or one.get("role") == "token" or one["y"] + one["h"] <= low:
+        return one
+    h = max(1, low - one["y"])
+    w = h * one["w"] / one["h"]
+    return {**one, "x": round(one["x"] + (one["w"] - w) / 2), "w": round(w), "h": round(h)}
+
+
+def attach(props, story, foot=None):
+    """Put a story's thread on its Remotion props: props["thread"] and each carrying scene's `thread` -> [warnings].
+    foot: the captions' highest row when it stands inside the scene band (clear_of)."""
     t, warning = plan(story, props["scenes"], props["variant"])
     props["thread"] = for_props(t)
     if not t:
         return [warning] if warning else []
     for i, one in t["seats"].items():
-        props["scenes"][i]["thread"] = one
+        props["scenes"][i]["thread"] = clear_of(one, foot)
     for i, one in t["own"].items():
         props["scenes"][i]["thread"] = one
     return list(t["warnings"])

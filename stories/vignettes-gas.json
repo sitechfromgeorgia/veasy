@@ -1,0 +1,65 @@
+{
+ "id": "vignettes-gas",
+ "lang": "ka",
+ "category": "society",
+ "date": "2026-11-01T14:22:16Z",
+ "sources": [
+  "ინტერპრესნიუსი",
+  "BPN",
+  "ფორმულა",
+  "ON.ge"
+ ],
+ "cta": "მოიწონე და გაუზიარე მეზობლებს",
+ "narration": "ვარკეთილსა და ვაზისუბანში 2 ნოემბერს გაზი შეწყდება. „თბილისი ენერჯის“ ცნობით, მიწოდება 6400 აბონენტს დროებით შეუწყდება. გაზი არ იქნება ორშაბათს, 2 ნოემბრის ღამის 10 საათიდან 3 ნოემბრის დილის 10 საათამდე. მიზეზი გაზსადენის სარეკონსტრუქციო სამუშაოებია. მისამართების სრული სია ბმულზეა. ამ ამბავს ოთხი ქართული მედია აშუქებს. დეტალები იხილე tbilisi.today-ზე. მოიწონე და გაუზიარე მეზობლებს.",
+ "scenes": [
+  {
+   "type": "hook",
+   "at": "ვარკეთილსა და",
+   "kicker": "საზოგადოება · თბილისი",
+   "lines": [
+    "ვარკეთილსა და",
+    "ვაზისუბანში",
+    "გაზი შეწყდება"
+   ],
+   "art": "<g class='s' style='--d:0.2s' stroke-linecap='round' stroke-linejoin='round'><rect x='180' y='280' width='580' height='210' rx='24' stroke='INK' stroke-width='7' fill='none'/><ellipse cx='476' cy='380' rx='170' ry='58' stroke='INK' stroke-width='7' fill='none'/></g><g class='r' style='--d:0.8s' stroke-linecap='round' stroke-linejoin='round'><path d='M306 380 H646 M356 352 H596 M356 408 H596' stroke='MUTED' stroke-width='5' fill='none'/></g><g class='p' style='--d:1.1s;--pulse:1' stroke-linecap='round' stroke-linejoin='round'><path d='M476 338 C430 290 420 250 476 210 C532 250 522 290 476 338 Z' stroke='INK' stroke-width='8' fill='none'/><path d='M476 320 C454 294 450 270 476 242 C502 270 498 294 476 320 Z' stroke='MUTED' stroke-width='5' fill='none'/></g><g class='t' style='--d:1.5s;--turn:-70;--at:700,410' stroke-linecap='round' stroke-linejoin='round'><circle cx='700' cy='410' r='52' stroke='INK' stroke-width='7' fill='none'/><path d='M700 358 V462 M648 410 H752 M663 373 L737 447 M737 373 L663 447' stroke='INK' stroke-width='6' fill='none'/></g><circle class='p' style='--d:1.9s' cx='476' cy='270' r='16' fill='ACCENT' stroke='none'/>"
+  },
+  {
+   "type": "stat",
+   "at": "თბილისი ენერჯის ცნობით",
+   "kicker": "რამდენს ეხება",
+   "headline": "„თბილისი ენერჯის“ ცნობით",
+   "value": 6400,
+   "label": "აბონენტს დროებით შეუწყდება გაზის მიწოდება",
+   "art": "<g class='s' style='--d:0.2s' stroke-linecap='round' stroke-linejoin='round'><rect x='220' y='150' width='510' height='390' rx='24' stroke='INK' stroke-width='7' fill='none'/><path d='M90 345 H220 M730 345 H860' stroke='INK' stroke-width='8' fill='none'/></g><g class='r' style='--d:0.8s' stroke-linecap='round' stroke-linejoin='round'><circle cx='475' cy='345' r='115' stroke='INK' stroke-width='7' fill='none'/><path d='M475 230 V250 M475 460 V440 M360 345 H380 M590 345 H570 M394 264 L408 278 M556 426 L542 412 M556 264 L542 278 M394 426 L408 412' stroke='MUTED' stroke-width='5' fill='none'/></g><g class='t' style='--d:1.5s;--turn:-90;--at:475,345' stroke-linecap='round' stroke-linejoin='round'><path d='M475 345 L520 240' stroke='INK' stroke-width='8' fill='none'/></g><circle class='p' style='--d:1.9s' cx='475' cy='345' r='16' fill='ACCENT' stroke='none'/>"
+  },
+  {
+   "type": "timeline",
+   "at": "გაზი არ იქნება",
+   "kicker": "როდის",
+   "headline": "ორშაბათი ღამიდან სამშაბათის დილამდე",
+   "big": "22:00 → 10:00",
+   "start": "2 ნოემბერი, 22:00",
+   "end": "3 ნოემბერი, 10:00",
+   "label": "გაზის მიწოდება შეჩერდება",
+   "art": "<g class='s' style='--d:0.2s' stroke-linecap='round' stroke-linejoin='round'><circle cx='476' cy='330' r='230' stroke='INK' stroke-width='8' fill='none'/></g><g class='r' style='--d:0.9s' stroke-linecap='round' stroke-linejoin='round'><circle cx='476' cy='330' r='190' stroke='MUTED' stroke-width='5' fill='none'/><path d='M476 140 V170 M666 330 H636 M476 520 V490 M286 330 H316' stroke='MUTED' stroke-width='5' fill='none'/><path d='M575 200 A65 65 0 1 0 575 340 A45 45 0 1 1 575 200 Z' stroke='INK' stroke-width='6' fill='none'/><path d='M476 330 L390 270' stroke='INK' stroke-width='8' fill='none'/></g><g class='p' style='--d:1.1s;--pulse:1' stroke-linecap='round' stroke-linejoin='round'><path d='M390 460 C360 425 360 400 390 370 C420 400 420 425 390 460 Z' stroke='INK' stroke-width='6' fill='none'/><path d='M355 365 L425 465' stroke='MUTED' stroke-width='5' fill='none'/></g><g class='t' style='--d:1.5s;--turn:180;--at:476,330' stroke-linecap='round' stroke-linejoin='round'><path d='M476 330 L476 160' stroke='INK' stroke-width='8' fill='none'/></g><circle class='p' style='--d:1.9s' cx='476' cy='330' r='16' fill='ACCENT' stroke='none'/>"
+  },
+  {
+   "type": "where",
+   "at": "მიზეზი გაზსადენის",
+   "kicker": "სად და რატომ",
+   "headline": "გაზსადენის რეკონსტრუქცია",
+   "place": "ვარკეთილი · ვაზისუბანი",
+   "sub": "თბილისი · მისამართების სია ბმულზეა"
+  },
+  {
+   "type": "sources",
+   "at": "ამ ამბავს",
+   "kicker": "წყაროები",
+   "headline": "ერთი ამბავი, ოთხი მედია"
+  },
+  {
+   "type": "end",
+   "at": "დეტალები იხილე"
+  }
+ ]
+}

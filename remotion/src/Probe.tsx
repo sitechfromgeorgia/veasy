@@ -216,8 +216,9 @@ export const Probe: React.FC = () => {
         return;
       }
       const data = collect(frame, props.scenes, props.brand.colors.canvas);
-      // the seat of the film's object in this scene (tt_shorts/thread.py): text must stay out of it
-      const seat = props.scenes.find((s) => frame >= s.from && frame < s.from + s.duration)?.thread;
+      // the seat of the film's object or of a drawing in this scene (tt_shorts/thread.py, vignettes.py): text stays out
+      const here = props.scenes.find((s) => frame >= s.from && frame < s.from + s.duration);
+      const seat = here?.thread ?? here?.vignette;
       if (data) console.log(`VEASY_PROBE ${JSON.stringify({ ...data, placed: placed(), fontsAtRender: atRender, seat: seat?.role === "own" ? undefined : seat })}`);
       timer = null;
       continueRender(handle);

@@ -21,7 +21,8 @@ import shutil
 import subprocess
 
 from tt_shorts import (art, assets, beats as beat_track, brand, captions, chapters as chapters_of, directors,
-                       geo, icons, meta, music_hits, onetake, plates, rubrics, sfx as effects, speech, store, swipe, thread, variety, voices)
+                       geo, icons, meta, music_hits, onetake, plates, rubrics, sfx as effects, speech, store, swipe, thread, variety, vignettes,
+                       voices)
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -203,10 +204,15 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "voiceQa": story.get("qa", {}).get("voice", []),
     }
     geo.attach(props["scenes"], meta.family(category, b))  # a Georgian place: only what its map scene draws
-    props["threadWarnings"] = thread.attach(props, story)  # the film's object, its seats and its state (thread.py)
     props["captions"] = captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"],
                                         keys=captions.candidates(props["scenes"], FPS) if design == "keyword" else None,
                                         style=brand.keyword_style(b))
+    # what stands on a scene's foot stays clear of the captions where they reach into the scene band (the roll's
+    # upper row); the page and keyword boxes start where the band ends, so nothing moves for them
+    reach = captions.reach(props["captions"])
+    foot = reach if reach < thread.SCENE_BOTTOM - 20 else None
+    props["threadWarnings"] = thread.attach(props, story, foot)  # the film's object, its seats and its state (thread.py)
+    props["threadWarnings"] += vignettes.attach(props, story, foot)  # else 1-3 drawings of the subject (vignettes.py)
     if beats != "off":  # a visible change every 1.5-3 s inside each scene, landed on the words (beats.py)
         beat_track.attach(props["scenes"], words)
     props["chapters"] = chapters_of.split(props["scenes"], marks[-1], chapters)  # "01 / 03" (chapters.py), or None

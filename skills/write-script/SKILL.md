@@ -44,7 +44,7 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N12 news); this is the 
 | `who` | 1-3 people or bodies (initials, no photos) | items [{name, role}] |
 | `pair` | two sides: two parties, before and after, two offers | items [{title, sub}] x2, between |
 | `steps` | 2-4 steps in order (a procedure, a sequence of events) | items ["..."] |
-| `points` | 2-3 separate points | items ["..."] |
+| `points` | 2-3 things the article itself lists (never a recap; one list a film at most) | items ["..."] |
 | `state` | the film's object changes (only with an idea, never news) | was, now |
 | `quote` | a verbatim quote with its speaker | text, by, via |
 | `draw` | a drawing of what the story is about: what makes each video look different | svg, label |
@@ -80,9 +80,10 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N12 news); this is the 
   - Copy them word for word from that scene's on-screen text (a stat's or a share's value counts: `"em": "6400"`;
     the kicker never does) and say them in that scene's part of the narration (case endings may differ).
   - One per scene, not on `end` or `sources`. `N11: scene N marks „…“ but ...` names what is missing.
-- `draw`: at most one per video. Style guide is `tt_shorts/art.py` GUIDE (tokens INK, MUTED, LINE, CANVAS,
-  ACCENT, motion r/p/s with `--d` delays, up to 4 Georgian labels). Needs 8 narration words. A drawing that fails
-  is swapped for a library drawing of its motif (`tt_shorts/drawings.py`), else dropped (`VEASY_WRITER_DRAW=0`).
+- Drawings make a film its own: 1-3 scenes get an `"art"`, a line drawing of what that part is about, a different
+  thing each. The writer leaves them to the illustrator (a call of its own after the script); to draw one by hand
+  or fix a failing one, read `veasy:draw`. `draw`: one scene at most, labels allowed, 8 narration words. None for
+  crime, incidents or deaths; a failing drawing is swapped or dropped (`VEASY_WRITER_DRAW=0`: none).
 - `"show"` (optional, on 2-4 scenes): a short English query for a picture behind the scene ("gas pipeline
   repair"); code finds a licensed one, labels and credits it. Never a person, a logo or the event (`veasy:media`).
 - `where`: Georgia gets the real map (`tt_shorts/geo.py`), any other a pin on a grid.

@@ -52,7 +52,7 @@ KEYS = ("type", "order", "what", "use_when", "avoid_when", "pairs_with", "slots"
         "min_words", "em", "schema", "rules", "example")
 KINDS = ("text", "num", "enum", "list", "obj", "icon", "verb", "svg", "area")
 MARKS = ("underline", "box", "circle", "highlight", "bracket")  # @remotion/rough-notation's, as code picks them
-UNIVERSAL = ("type", "at", "em", "show")
+UNIVERSAL = ("type", "at", "em", "show", "art")  # art: vignettes.py
 NO_MEDIA = ("where", "end", "chapter", "plate")  # assets.py: these types never carry a picture
 NAMED_ONLY = ("state",)  # a program must name these: "all" (news) never means them, its writer never hears of them
 MIN_SECONDS_DEFAULT = 2.5
@@ -84,6 +84,11 @@ RULE_SHOW = ('- "show" (optional, on 2-4 scenes, never the hook of a crime, inci
              "behind that scene, as a short English search query of 1-5 plain words for an ordinary thing or place "
              "(\"gas pipeline repair\", \"apartment blocks at night\"); never a person's name, a logo, a brand, text "
              "or the event itself; code finds a licensed photo, labels it illustrative and credits it;")
+RULE_ART = ('- "art" (optional, on 1-3 scenes, never for crime, incidents or deaths, never on an end, sources, '
+            'where, chapter, draw, sign or plate scene): a line drawing of what that scene\'s part of the narration is '
+            'about, an SVG fragment in the draw scene\'s style (below), without labels: code removes every word and '
+            'draws it in the room the scene\'s text leaves. Draw the story\'s own things (a cart for food prices, '
+            'a valve for gas), a different thing on each scene;')
 RULES_TAIL = """- never a sign, a stat icon or a motif for crime, incidents or deaths;
 - the last scene must start at least 4 narration words before the end, so it does not flash by."""
 

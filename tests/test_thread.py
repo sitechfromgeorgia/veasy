@@ -185,6 +185,17 @@ class Seats(unittest.TestCase):
     def test_a_plan_is_the_same_every_time(self):
         self.assertEqual(thread.plan(demo())[0]["seats"], thread.plan(demo())[0]["seats"])
 
+    def test_a_seat_stays_clear_of_rolling_captions(self):  # the roll's upper row stands inside the scene band
+        one = {"x": 100, "y": 1000, "w": 565, "h": 380, "reserve": 398, "role": "seat"}
+        got = thread.clear_of(one, 1315)
+        self.assertEqual(got["y"] + got["h"], 1315 - thread.GAP_CAPTIONS)
+        self.assertAlmostEqual(got["w"] / got["h"], one["w"] / one["h"], delta=0.01)
+        self.assertAlmostEqual(got["x"] + got["w"] / 2, one["x"] + one["w"] / 2, delta=1)
+        self.assertEqual(got["reserve"], 398)
+        self.assertIs(thread.clear_of(one, None), one)  # page and keyword captions: nothing moves
+        token = {"x": 800, "y": 244, "w": 167, "h": 112, "role": "token"}
+        self.assertIs(thread.clear_of(token, 1315), token)
+
     def test_the_layout_probe_catches_text_over_a_seat(self):
         report = {"seat": {"x": 100, "y": 900, "w": 700, "h": 400},
                   "texts": [{"box": [120, 880, 300, 60], "region": "scene", "text": "ტექსტი", "family": "Brand", "weight": "700",
@@ -193,6 +204,7 @@ class Seats(unittest.TestCase):
                              "size": 60, "color": [255, 255, 255, 1], "ground": [0, 0, 0]}]}
         got = [x for x in probe.rules(report) if x["rule"] == "seat"]
         self.assertEqual([x["text"] for x in got], ["ტექსტი"])
+        self.assertEqual(got[0]["bottom"], 940)  # where the text really ends: a vignette moves below it
         self.assertIn("seat", probe.RULES)
 
 

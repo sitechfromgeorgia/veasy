@@ -144,8 +144,8 @@ def rules(report, cmaps=None, c=None):
     W, H = c["W"], c["H"]
     out = []
 
-    def bad(rule, t, detail):
-        out.append({"rule": rule, "region": t.get("region"), "text": t.get("text", ""), "detail": detail})
+    def bad(rule, t, detail, **extra):
+        out.append({"rule": rule, "region": t.get("region"), "text": t.get("text", ""), "detail": detail, **extra})
 
     fonts = report.get("fonts") or {}
     early = report.get("fontsAtRender")
@@ -167,7 +167,8 @@ def rules(report, cmaps=None, c=None):
                            f"x={c['RAIL_X']})")
         seat = report.get("seat")
         if seat and region in ("scene", "card") and x < seat["x"] + seat["w"] and right > seat["x"] and                 y < seat["y"] + seat["h"] and bottom > seat["y"] + TOL:
-            bad("seat", t, f"{q} ends at y={bottom:.0f}, over the object's seat, which starts at y={seat['y']}")
+            bad("seat", t, f"{q} ends at y={bottom:.0f}, over the object's seat, which starts at y={seat['y']}",
+                bottom=round(bottom))  # vignettes.relieve moves a drawing below it
         if region == "captions" and bottom > c["CAPTION_BOTTOM"] + TOL:
             bad("captions", t, f"{q} ends at y={bottom:.0f}, below the captions' band ({c['CAPTION_BOTTOM']})")
         if x < -TOL or y < -TOL or right > W + TOL or bottom > H + TOL:

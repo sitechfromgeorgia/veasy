@@ -101,6 +101,7 @@ python -m tt_shorts.engine make "bipi-draws" --brand sitech --yes
 - **Style details**: read `veasy:styles` for style invariants, sound palettes, plucking models, and `TEXTS(t)`.
 - **Brand pack creation / WCAG**: read `veasy:brands` to create `brands/<name>/` from guidelines with `engine brand new`.
 - **Custom story scripts**: read `veasy:write-script` to hand-author scenes or repair text fields.
+- **Drawings**: read `veasy:draw` to give a film 1-3 drawings of its own subject, by hand or with one cheap call.
 - **Rubrics & Chips**: read `veasy:rubrics` for „დღის ციფრი“, „რა იცვლება“, „ამბავი გრძელდება“.
 - **Composed HyperFrames engineering**: read `veasy:compose` for blocks, timeline assembly, and Playwright DOM checks.
 - **Batch publishing & Queues**: read `veasy:queue` for background workers, retries, and daily runs.

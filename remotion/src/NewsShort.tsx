@@ -13,6 +13,7 @@ import { SCENES } from "./scenes";
 import type { Scene, ShortProps, Transition } from "./types";
 import { Probe } from "./Probe";
 import { sweepOf, ThreadLayer } from "./thread";
+import { VignetteLayer } from "./vignette";
 import { Chip, Dot, flowOf, Logo, measure, Theme, useStyle, useTheme } from "./ui";
 
 const EXIT = 7; // frames a scene takes to leave
@@ -418,6 +419,7 @@ export const NewsShort: React.FC<ShortProps> = (props) => {
           </Sequence>
         ))}
         <ThreadLayer />
+        <VignetteLayer />
         <OutroChip />
         <LoopBack background={<><Background />{oneTake && <FrozenParallax />}</>} hook={<SwipeSlot i={0}><SceneSlot i={0} /></SwipeSlot>} />
         <Captions cap={props.captions} />

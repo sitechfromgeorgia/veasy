@@ -475,9 +475,9 @@ export const CountUp: React.FC<{ to: number; delay?: number; frames?: number }> 
 export const Frame: React.FC<{ s: Scene; children: React.ReactNode; head?: boolean }> = ({ s, children, head = true }) => (
   <>
     {s.media && <SceneMedia s={s} />}
-    {/* a scene that seats the film's object keeps the room free (tt_shorts/thread.py) */}
+    {/* a scene that seats the film's object or a drawing keeps the room free (tt_shorts/thread.py, vignettes.py) */}
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", boxSizing: "border-box",
-      paddingBottom: s.thread?.reserve ?? 0 }}>
+      paddingBottom: (s.thread ?? s.vignette)?.reserve ?? 0 }}>
       {head && (
         <div>
           <Kicker text={s.kicker} />

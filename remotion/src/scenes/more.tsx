@@ -40,14 +40,63 @@ const CAMEL: Record<string, string> = {
   "font-size": "fontSize", "font-weight": "fontWeight", "text-anchor": "textAnchor",
 };
 const SHAPES = new Set(["path", "line", "polyline", "polygon", "rect", "circle", "ellipse"]);
-export type ArtCtx = { frame: number; fps: number; k: number; colors: Record<string, string> };
+// actAt: the frame (on c.frame's clock) the voice says the scene's key phrase; an act waits for it
+export type ArtCtx = { frame: number; fps: number; k: number; colors: Record<string, string>; actAt?: number };
 
 const maxDelay = (ns: ArtNode[]): number => Math.max(0, ...ns.map((n) => Math.max(n.motion ? n.delay : 0, maxDelay(n.children))));
 
+const ACTS = new Set(["t", "m", "g"]);
+const ACT = 0.9; // seconds an act takes (the plain entrances take 0.5)
+const WAIT = 1.5; // seconds an act waits for the voice beyond its own delay at most
+const backOut = Easing.out(Easing.back(1.6)); // a needle swings a little past its mark and settles
+const TAU = 2 * Math.PI;
+
+/** An act (t turns in, m moves in, g grows) and a loop (swing, spin, bob, pulse) around the element, in the SVG's own
+ *  units, so a pivot is a point of the drawing. Every value is a function of the frame. */
+const moved = (n: ArtNode, el: React.ReactNode, key: number, c: ArtCtx, start: number): React.ReactNode => {
+  const mv = n.move ?? {};
+  const [ax, ay] = mv.at ?? [0, 0];
+  const life = (c.frame - start) / c.fps; // seconds since it began to enter
+  let out = el;
+  if (n.motion && ACTS.has(n.motion)) {
+    const lin = interpolate(c.frame - start, [0, ACT * c.fps], [0, 1], clamp);
+    const fade = Math.min(1, lin * 4);
+    let transform = "";
+    if (n.motion === "t") transform = `rotate(${(mv.turn ?? -40) * (1 - backOut(lin))} ${ax} ${ay})`;
+    if (n.motion === "m") {
+      const e = 1 - easeOut(lin);
+      transform = `translate(${(mv.from?.[0] ?? 0) * e} ${(mv.from?.[1] ?? 80) * e})`;
+    }
+    if (n.motion === "g") transform = `translate(${ax} ${ay}) scale(${Math.max(0.001, backOut(lin))}) translate(${-ax} ${-ay})`;
+    out = <g key={key} transform={transform} opacity={fade}>{out}</g>;
+  }
+  const ramp = interpolate(life, [0, 1.2], [0, 1], clamp); // a loop grows in as the part arrives
+  const loops: string[] = [];
+  if (mv.swing) loops.push(`rotate(${mv.swing * Math.sin((TAU * life) / 2.4) * ramp} ${ax} ${ay})`);
+  if (mv.spin) loops.push(`rotate(${mv.spin * Math.max(0, life)} ${ax} ${ay})`);
+  if (mv.bob) loops.push(`translate(0 ${mv.bob * Math.sin((TAU * life) / 3) * ramp})`);
+  if (mv.pulse) {
+    const s = 1 + 0.1 * (0.5 - 0.5 * Math.cos((TAU * Math.max(0, life)) / 1.6)) * ramp;
+    loops.push(`translate(${ax} ${ay}) scale(${s}) translate(${-ax} ${-ay})`);
+  }
+  return loops.length ? <g key={key} transform={loops.join(" ")}>{out}</g> : out;
+};
+
 /** One element of the drawing. r rises, p pops, s draws its stroke; a group that draws passes it to its shapes.
- *  The motion sits on a wrapper <g>, so the element's own transform attribute stays as the writer set it. */
+ *  The motion sits on a wrapper <g>, so the element's own transform attribute stays as the writer set it. An act
+ *  (t, m, g) starts at its delay or, later, when the voice says the scene's key phrase (c.actAt). */
 export const artNode = (n: ArtNode, key: number, c: ArtCtx, drawing: number | null): React.ReactNode => {
-  const t = n.motion ? interpolate(c.frame - n.delay * c.k * c.fps, [0, 0.5 * c.fps], [0, 1], { ...clamp, easing: easeOut }) : 1;
+  const own = n.delay * c.k * c.fps;
+  // an act waits for the key phrase, but at most WAIT: a part that acts is hidden until it starts
+  const start = n.motion && ACTS.has(n.motion) && c.actAt !== undefined
+    ? Math.min(Math.max(own, c.actAt), own + WAIT * c.fps) : own;
+  if (n.motion && ACTS.has(n.motion)) {
+    return moved(n, artNode({ ...n, motion: null, move: undefined }, key, c, drawing), key, c, start);
+  }
+  if (n.move) {
+    return moved(n, artNode({ ...n, move: undefined }, key, c, drawing), key, c, start);
+  }
+  const t = n.motion ? interpolate(c.frame - own, [0, 0.5 * c.fps], [0, 1], { ...clamp, easing: easeOut }) : 1;
   const props: Record<string, unknown> = { key };
   for (const [a, v] of Object.entries(n.attrs)) {
     props[CAMEL[a] ?? a] = a === "fill" || a === "stroke" ? (c.colors[v] ?? v) : v;
@@ -93,7 +142,7 @@ export const Draw: React.FC<P> = ({ s, inner = INNER }) => {
       ) : (
         <svg width={inner} height={height} viewBox="0 0 952 640" fill="none" strokeLinecap="round" strokeLinejoin="round"
           style={{ overflow: "visible", flex: "none" }}>
-          {art.map((n, i) => artNode(n, i, { frame, fps, k, colors }, null))}
+          {art.map((n, i) => artNode(n, i, { frame, fps, k, colors, actAt: s.mark?.at }, null))}
         </svg>
       )}
       {s.label && (

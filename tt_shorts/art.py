@@ -10,6 +10,14 @@ frame-accurate in a render). The problems it finds go back to the writer like an
     tree: [{"tag": "path", "attrs": {"d": "...", "stroke": "INK"}, "motion": "s", "delay": 0.4,
             "children": [...], "text": None}, ...]
 
+Motion (the owner, 2026-11-07: "moving drawings, not static ones: it is more beautiful for video"). A part comes in
+by a class: r rises, p pops, s draws its stroke, and the acts do what the story says: t turns in from --turn degrees
+(a needle swings to its mark, a valve wheel closes), m moves in from --from (an arrow climbs, a car drives in), g
+grows from its foot (a bar, a pile, a crack). A part may also keep moving while it is on screen: --swing (sways by
+that many degrees: a price tag, a lamp), --spin (degrees a second: wheels, a fan, clock hands), --bob (floats by
+that many px: a boat) or --pulse:1 (breathes: a flame, a signal). --at is the point it turns or grows around; code
+sets it from the part's own box when the author leaves it out. A node that moves carries {"move": {...}}.
+
 Tokens (the brand pack picks the colors): ACCENT (the dot on the ONE focal part), INK, MUTED, LINE, CANVAS, none.
 sitech-shorts' PAPER and COAL are read as INK and CANVAS. The brand's accent is only ever a dot (owner, 2026-11-03),
 so ACCENT stays only on a small circle (r <= DOT_MAX); anywhere else sanitize paints it INK, without sending the
@@ -25,7 +33,13 @@ ATTRS = {"d", "x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r", "rx", "ry", "wi
          "fill-opacity", "stroke-opacity", "font-size", "font-weight", "text-anchor", "class", "style"}
 TOKENS = ("ACCENT", "INK", "MUTED", "LINE", "CANVAS", "none")
 ALIASES = {"PAPER": "INK", "COAL": "CANVAS"}
-MOTION = {"r", "p", "s"}  # rise, pop, stroke-draw
+MOTION = {"r", "p", "s", "t", "m", "g"}  # rise, pop, stroke-draw, and the acts: turn, move, grow
+ACTS = {"t", "m", "g"}
+LOOPS = ("swing", "spin", "bob", "pulse")
+# a group's style may say, besides its delay (--d): name -> (how many numbers, low, high); a value outside is clamped
+MOVES = {"at": (2, -200, 1200), "turn": (1, -360, 360), "from": (2, -700, 700), "swing": (1, 1, 30),
+         "spin": (1, -720, 720), "bob": (1, 2, 40), "pulse": (1, 1, 1)}
+DEFAULT_TURN, DEFAULT_FROM = -40, [0, 80]
 MAX_CHARS = 6000
 MAX_DELAY = 3.0
 MIN_ELEMENTS, MAX_ELEMENTS = 6, 60
@@ -34,6 +48,7 @@ DOT_MAX = 28  # px: the biggest circle the accent may fill (the frame's own dot 
 MAX_DOTS = 3  # accent dots in one drawing: a focal point, or two lights of one thing
 _N = r"-?\d+(?:\.\d+)?"
 TRANSFORM = re.compile(rf"(\s*(translate|rotate|scale)\(\s*{_N}(\s*[ ,]\s*{_N}){{0,2}}\s*\)\s*)+")
+STYLE_HELP = "only --d (its delay, like --d:0.5s), --at, --turn, --from, --swing, --spin, --bob and --pulse"
 
 GUIDE = """"draw" scene: draw what THIS story is about, as an SVG fragment in "svg" (no <svg> tag):
 - Something a viewer recognizes without the narration: a gas pipe with a valve for a gas cut, a bus at a stop
@@ -49,9 +64,55 @@ GUIDE = """"draw" scene: draw what THIS story is about, as an SVG fragment in "s
   A number in a label must be in the articles.
 - Motion: class "r" (rises in), "p" (pops in) or "s" (the stroke draws itself), with style "--d:0.4s"; delays
   0.2s-2.2s so it builds in a sensible order (structure first, the focal part and labels last). Group parts with
-  <g class="r" style="--d:0.6s">.
+  <g class="r" style="--d:0.6s">. ONE part acts out the story: class "t" turns in ("--turn:-60"; a needle swings to
+  its mark), "m" moves in ("--from:0,120"; an arrow climbs) or "g" grows from its foot (a bar, a pile). One part may
+  keep moving: "--swing:6" (sways), "--spin:90" (wheels), "--bob:10" (floats) or "--pulse:1" (breathes).
 - Allowed: g path line polyline polygon rect circle ellipse text. No images, gradients, filters or scripts.
   Under 5000 characters."""
+
+
+def _style(v):
+    """A style attribute -> (delay or None, {move}, [what was not understood]). Units (s, deg, px) are forgiven."""
+    delay, move, bad = None, {}, []
+    for part in (x.strip() for x in v.split(";")):
+        if not part:
+            continue
+        m = re.fullmatch(r"--([a-z]+)\s*:\s*(.+)", part)
+        name, value = (m.group(1), re.sub(r"(deg|px|s)(/s)?$", "", m.group(2).strip())) if m else (None, "")
+        nums = [float(x) for x in re.findall(_N, value)]
+        if name == "d" and len(nums) == 1 and re.fullmatch(r"\d+(?:\.\d+)?", value):
+            delay = min(nums[0], MAX_DELAY)
+        elif name in MOVES and len(nums) == MOVES[name][0] and re.fullmatch(rf"{_N}(\s*[ ,]\s*{_N})?", value):
+            _, lo, hi = MOVES[name]
+            got = [round(min(max(x, lo), hi), 1) for x in nums]
+            move[name] = got if len(got) == 2 else got[0]
+        else:
+            bad.append(part)
+    return delay, move, bad
+
+
+def _moves(node, move):
+    """The node's motion with code's defaults: where it turns or grows around (its own box: the centre; a growing part
+    from its foot, a swaying one from its top), how far a turn or a move comes from."""
+    move = dict(move)
+    if node["motion"] == "t":
+        move.setdefault("turn", DEFAULT_TURN)
+    if node["motion"] == "m":
+        move.setdefault("from", list(DEFAULT_FROM))
+    pivots = node["motion"] in ("t", "g") or any(k in move for k in ("swing", "spin", "pulse"))
+    if pivots and "at" not in move:
+        pts = _box([node])
+        if pts:
+            xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+            cx = round((min(xs) + max(xs)) / 2, 1)
+            y = max(ys) if node["motion"] == "g" else min(ys) if "swing" in move else (min(ys) + max(ys)) / 2
+            move["at"] = [cx, round(y, 1)]
+    return move
+
+
+def acts(tree):
+    """How many parts do something: an act (t, m, g) or a loop (--swing, --spin, --bob, --pulse)."""
+    return sum(1 for n in _walk(tree) if n["motion"] in ACTS or any(k in (n.get("move") or {}) for k in LOOPS))
 
 
 def _token(v):
@@ -98,7 +159,7 @@ def sanitize(fragment):
             problems.append(f"draw: <{tag}> is not allowed")
             return None
         count[0] += 1
-        attrs, motion, delay = {}, None, 0.0
+        attrs, motion, delay, move = {}, None, 0.0, {}
         for k, v in el.attrib.items():
             k = k.split("}")[-1]
             if k not in ATTRS:
@@ -113,15 +174,14 @@ def sanitize(fragment):
             elif k == "class":
                 bad = set(v.split()) - MOTION
                 if bad:
-                    problems.append(f'draw: class "{v}": use only r, p or s')
+                    problems.append(f'draw: class "{v}": use only r, p, s, t, m or g')
                 ok = [c for c in v.split() if c in MOTION]
                 motion = ok[0] if ok else None
             elif k == "style":
-                m = re.fullmatch(r"\s*--d\s*:\s*(\d+(?:\.\d+)?)s\s*;?\s*", v)
-                if not m:
-                    problems.append(f'draw: style "{v}": only "--d:0.5s" is allowed')
-                    continue
-                delay = min(float(m.group(1)), MAX_DELAY)
+                d, move, bad = _style(v)
+                if bad:
+                    problems.append(f'draw: style "{v}": {STYLE_HELP}')
+                delay = delay if d is None else d
             elif k == "font-size":
                 n = _num(v, 20, 56)
                 if n:
@@ -154,7 +214,11 @@ def sanitize(fragment):
             for k in ("fill", "stroke"):
                 if attrs.get(k) == "ACCENT":
                     attrs[k] = "INK"
-        return {"tag": tag, "attrs": attrs, "motion": motion, "delay": delay, "children": children, "text": text}
+        out = {"tag": tag, "attrs": attrs, "motion": motion, "delay": delay, "children": children, "text": text}
+        move = _moves(out, move)
+        if move:
+            out["move"] = move
+        return out
 
     tree = [c for c in (node(ch) for ch in root) if c]
     if count[0] < MIN_ELEMENTS:

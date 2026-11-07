@@ -52,8 +52,9 @@ SENSITIVE = ("გაუპატიურ", "სექსუალურ ძა�
 DEATHS = ("გარდაიცვალ", "გარდაცვალ", "გარდაცვლ", "დაიღუპ", "დაღუპ", "იღუპებ", "სიკვდილ", "ცხედ", "მკვლელობ",
           "მოკლეს", "მოკლულ", "მოიკლ", "დაიხრჩო", "მსხვერპლ")
 # an icon's name and a sign's verb are drawn, not read; em points at a text already on screen; style is a stat's motion
-NOT_SCREEN = ("type", "at", "icon", "verb", "em", "style", "n", "of", "total", "show", "media", "rank", "status", "state")  # counts code makes (agree,
-# chapter) are not claims of the articles
+NOT_SCREEN = ("type", "at", "icon", "verb", "em", "style", "n", "of", "total", "show", "media", "rank", "status", "state",
+              "art")  # counts code makes (agree, chapter) are not claims of the articles; a scene's `art` is drawn
+# without its words (vignettes.py), so its coordinates are nothing anyone reads
 # N12: words that label an outlet by its side; a video never sorts outlets (stems: Georgian adds case endings)
 SIDES = ("პროსამთავრობო", "სამთავრობო მედი", "ოპოზიციურ", "პროსახელისუფლებო", "სახელისუფლებო მედი", "პრორუსულ",
          "პროდასავლურ")

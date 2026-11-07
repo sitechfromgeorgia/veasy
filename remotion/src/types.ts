@@ -43,14 +43,20 @@ export type MarkProps = {
 // stat: how the number arrives (tt_shorts: brushes/stat.json; flap never for politics or crime)
 export type StatStyle = "count" | "wheel" | "flap";
 
-// tt_shorts/art.py: one SVG element; colors are brand tokens, motion r (rise) | p (pop) | s (stroke draws itself)
+// tt_shorts/art.py: one SVG element; colors are brand tokens, motion r (rise) | p (pop) | s (stroke draws itself),
+// and the acts: t (turns in from move.turn degrees around move.at), m (moves in from move.from), g (grows from move.at)
+export type ArtMove = {
+  at?: [number, number]; turn?: number; from?: [number, number];
+  swing?: number; spin?: number; bob?: number; pulse?: number; // loops while on screen: degrees, degrees a second, px, 1
+};
 export type ArtNode = {
   tag: string;
   attrs: Record<string, string>;
-  motion: "r" | "p" | "s" | null;
+  motion: "r" | "p" | "s" | "t" | "m" | "g" | null;
   delay: number; // seconds into the scene
   children: ArtNode[];
   text: string | null;
+  move?: ArtMove;
 };
 
 // tt_shorts/icons.py: one Lucide icon's shapes on its 24 px grid, [tag, geometry attributes]; no colors
@@ -195,6 +201,15 @@ export type Scene = SceneBase & {
   was?: string; // state: the words for the object before
   now?: string; // state: and after
   thread?: SceneThread; // set by tt_shorts/thread.py
+  vignette?: SceneVignette; // set by tt_shorts/vignettes.py
+  glyphs?: (IconNode[] | null)[]; // points: each item's icon, when its words name one (tt_shorts/icons.py)
+};
+
+// tt_shorts/vignettes.py: a drawing of what the scene's part is about, in its seat (frame px); box: the drawing's
+// bounds on its own canvas; reserve: the room the scene leaves free for it
+export type SceneVignette = {
+  role: "seat"; x: number; y: number; w: number; h: number; reserve: number; box: number[]; art: ArtNode[];
+  motif: string | null; source: string;
 };
 
 // tt_shorts/plates.py for_props(): a plate scene's toned clip (public/plates/), where its card sits and what the

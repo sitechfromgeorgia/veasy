@@ -22,7 +22,7 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   - Secrets live only in `data/.env` (chmod 600, git-ignored).
   - Timers, cron and anything installed on the server need the owner's OK.
 - **Entry point:** `python -m tt_shorts.engine` (options, check, plan, render, still, qa, probe, write, concept, queue, gc,
-  voices, doctor, compose, plate, scenario, review, steer, room, look, gallery; JSON out). `plan` is the free storyboard to run before paying for a voice.
+  voices, doctor, compose, plate, scenario, review, steer, room, look, gallery, thread, vignettes; JSON out). `plan` is the free storyboard to run before paying for a voice.
   The skills in `skills/` say how an agent uses it. Keep the engine, the skills and `options` in step: a new
   choice in code must appear in `engine.options()`, `formats.py` validation and the `veasy:formats` skill.
 - **A new scene type** is a brush (`brushes/<type>.json`, validated by `tt_shorts/catalog.py`; its docstring lists
@@ -80,6 +80,19 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
 - **The film's thread** (`tt_shorts/thread.py`, brush `state`, `engine thread`): one object from the chosen idea runs through a film's
   scenes, changes state, and can carry a cut (`match`, `object`). Only for a story with a `concept`; never in `news`. Code seats
   it and gives a seat up before it collides with text.
+- **Vignettes** (`tt_shorts/vignettes.py`, `engine vignettes`, skill `veasy:draw`): 1-3 line drawings of what the film
+  is about, centred in the room a scene's text leaves (the thread's seats), drawn stroke by stroke (owner, 2026-11-07:
+  "the visual follows the topic"). A scene's own `art` first, else the library's drawing of a thing its part of the
+  narration names. No words in them, so no facts; none for crime, incidents or deaths, none in a film with a thread.
+  `points` are never numbered, and more than one list in a short film is a `motion lists` warning. A change needs a
+  case in `tests/test_vignettes.py`.
+  - The writer never draws `art`: the illustrator (`tt_shorts/illustrator.py`, `engine vignettes --draw`) does, in a
+    call of its own after the script, with its own guide and examples (`VEASY_ILLUSTRATOR_MODEL`, so a cheap model;
+    `VEASY_ILLUSTRATOR=0` gives `art` back to the writer). Code checks every drawing, one repair, never fails a video.
+  - Drawings move (owner, 2026-11-07: "moving, not static"): one part acts out the words (`art.py` classes `t` turn,
+    `m` move, `g` grow) when the voice says the scene's `em`, a part may loop (`--spin`, `--swing`, `--bob`,
+    `--pulse`), and every vignette pushes in slowly inside its seat. A drawing without an act goes back to the
+    illustrator once, never fails. The style whitelist (`art.MOVES`) is the only way to add a motion.
 - **One take** (`tt_shorts/onetake.py`): a transition option that lays scenes on a seeded 2D path. The camera moves only during
   cuts; chrome, captions and the safe zone never ride it; zoom stays at or under 1.15. Not for `news`.
 - **Motion rules** (`tt_shorts/motion_rules.py`): warnings in `engine plan`; only unreadable text (0.5 s + 0.3 s a

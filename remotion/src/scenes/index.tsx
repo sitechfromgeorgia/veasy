@@ -10,6 +10,7 @@ import { Bars, Change, Draw, Figures, Pair, Steps, Trend } from "./more";
 import { Plate } from "./plate";
 import { isoSpan, Isotype, railWidth, Sign } from "./sign";
 import { State } from "./state";
+import { GlyphAt } from "../icons";
 import { Budget, Calendar, Checklist, Countdown, Glossary, Impact, Ranking, Route, Versus } from "./extra";
 import {
   beat, Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, measure, stepped, useIn, useOpening, useStyle, useTheme,
@@ -286,8 +287,17 @@ export const Points: React.FC<P> = ({ s, inner = INNER }) => {
         <In key={i} delay={6 + i * 10} at={beat(s, `items.${i}`)}>
           <div style={{ display: "flex", alignItems: "center", gap: 40, padding: "32px 0", borderTop: `2px solid ${LINE}`,
             width: low(inner) }}>
-            <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 120, lineHeight: 1, width: 120, flex: "none",
-              color: i === active ? INK : MUTED }}>{i + 1}</div>
+            {/* points have equal weight, so no numerals: the item's icon when its words name one, else a short rule */}
+            <div style={{ width: 120, height: 120, flex: "none", display: "flex", alignItems: "center" }}>
+              {s.glyphs?.[i] ? (
+                <svg width={112} height={112} viewBox="0 0 112 112" fill="none" style={{ overflow: "visible" }}>
+                  <GlyphAt nodes={s.glyphs[i]!} x={4} y={4} size={104} px={6} color={i === active ? INK : MUTED}
+                    id={`pt${i}`} progress={() => interpolate(frame - starts[i], [0, 18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} />
+                </svg>
+              ) : (
+                <div style={{ width: 72, height: 10, borderRadius: 5, background: i === active ? INK : MUTED }} />
+              )}
+            </div>
             <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.2, color: INK, flex: 1 }}>{marked(s, `items.${i}`, t, { px: size })}</div>
             <span style={{ opacity: i === active ? 1 : 0 }}><Dot size={24} pulse /></span>
           </div>

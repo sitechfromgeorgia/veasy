@@ -15,7 +15,8 @@ import time
 import urllib.error
 import urllib.request
 
-from tt_shorts import art, catalog, drawings, icons, ka_check, kaeasy, meta, news_check
+from tt_shorts import (art, catalog, drawings, icons, illustrator, ka_check, kaeasy, meta, news_check,
+                       vignettes)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STYLE = (ROOT / "tt_shorts" / "ka_style.md").read_text(encoding="utf-8")
@@ -138,12 +139,19 @@ def drawing() -> bool:
 
 def schema(types=None) -> str:
     """The catalog's shape and rules (catalog.schema), with the draw scene and its style guide only when drawing is
-    on. types: only these scene types' lines and rules (a director's, directors.scene_types; a program's)."""
+    on. types: only these scene types' lines and rules (a director's, directors.scene_types; a program's). A scene's
+    "art" is the illustrator's (illustrator.py, a call of its own after the script) unless that step is off."""
     text = catalog.schema(types)
+    later = illustrator.on()
+    own_art = '\n- never set "art": a separate step draws the film\'s pictures.' if later else f"\n{catalog.RULE_ART}"
     if drawing() and (types is None or "draw" in types):
-        return f"{text}\n{art.GUIDE}"
-    return "\n".join(line for line in text.splitlines() if '"draw"' not in line) + \
-        '\n- never use a "draw" scene.'
+        return f"{text}{own_art}\n{art.GUIDE}"
+    bare = "\n".join(line for line in text.splitlines() if '"draw"' not in line)
+    if drawing() and later:
+        return bare + '\n- never use a "draw" scene.' + own_art
+    if drawing():
+        return f"{bare}\n{catalog.RULE_ART}\n{art.GUIDE}\n- never use a \"draw\" scene (\"art\" only)."
+    return bare + '\n- never use a "draw" scene, nor "art".'
 
 
 def _variety_line(avoid: list[str] | None) -> str:
@@ -174,7 +182,9 @@ def _prompt(cluster: dict, articles: list[str], avoid: list[str] | None = None, 
         "მკაცრი წესები:\n"
         "- ციტატა მხოლოდ სტატიის ტექსტიდან, სიტყვასიტყვით და ბრჭყალებით. არ შეცვალო, არ შეამოკლო სიტყვების შეცვლით. "
         "თუ ზუსტი ციტატა არ არის, quote სცენა საერთოდ არ გამოიყენო.\n"
-        "- sign სცენაზე მხოლოდ ის ხატულა/სიტყვა, რომელიც ამ სცენის ნარაციის ნაწილში ზუსტად არის ნათქვამი. თუ არა, აირჩიე points.\n"
+        "- sign სცენაზე მხოლოდ ის ხატულა/სიტყვა, რომელიც ამ სცენის ნარაციის ნაწილში ზუსტად არის ნათქვამი. თუ არა, sign სცენა არ გამოიყენო.\n"
+        "- სია (points, steps, checklist, ranking) მხოლოდ მაშინ, როცა სტატია თვითონ ჩამოთვლის ცალკეულ რამეებს; ფილმში მაქსიმუმ "
+        "ერთი სია. ამბის შეჯამება სია არ არის: აირჩიე სცენა, რომელიც თემას აჩვენებს.\n"
         "- stat/bars/compare-ის ციფრი ზუსტად იმავე ნაწილის ნარაციაში უნდა ჟღერდეს, სხვა რიცხვი არ დაწერო.\n"
         "- ყოველი სცენის \"at\" არის ამ სცენის ნარაციის პირველი სიტყვები, ზუსტად.\n\n"
     )
@@ -546,6 +556,11 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
             problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if not _anchors_ok(story):
         problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
+    if any("): art: " in p for p in problems):  # a scene's own drawing that still fails is dropped (vignettes.py)
+        story = vignettes.drop_bad(story)
+        problems = checks_of(story, articles, cluster)
+        if not _anchors_ok(story):
+            problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if any(p.startswith("draw:") for p in problems):  # a drawing that still fails is dropped, not the video
         story, swapped = drawings.mend(story)  # unless the library has one of its motif that fits this story
         story, dropped = art.drop_bad(story)
@@ -566,6 +581,10 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     if edited and _anchors_ok(edited) and not hard(checks_of(edited, articles, cluster)):
         kaeasy.learn_edit(story.get("narration", ""), edited.get("narration", ""))  # every agent learns the fix
         story = edited
+    # The film's drawings: a call of their own once the words are final (illustrator.py). A failure costs the
+    # drawings, never the video.
+    if illustrator.on():
+        story, _ = illustrator.draw(story)
     # N6: identity, date and outlets come from the data, never from the writer.
     if cluster.get("id"):
         story["id"] = cluster["id"]
