@@ -560,14 +560,9 @@ def steer(target: str | pathlib.Path, scene: int | str | None = None,
         # If a slot in slots.json maps to the edited scene text directly, keep story.json updated in project
         (proj_dir / "story.json").write_text(json.dumps(after_story, ensure_ascii=False, indent=1), encoding="utf-8")
         hf_res = compose.render(
-            story_path,
-            project=proj_dir,
-            brand=packs.of(after_story)["name"],
-            engine=engine,
-            fmt_name=fmt["name"],
+            story_path, fmt, brand=packs.of(after_story)["name"], project=proj_dir, engine=engine,
             out_path=target_mp4,
-            segmented=True,
-        )
+        )  # segmented unless SHORTS_SEGMENTS=0: the cached scenes are reused
         summary["file"] = hf_res.get("file", str(target_mp4))
         summary["problems"] = hf_res.get("problems", [])
         summary["elapsed_seconds"] = round(time.perf_counter() - t0, 3)
