@@ -350,5 +350,51 @@ console.log(JSON.stringify({ passed }));
         self.assertEqual(data["passed"], 7)
 
 
+class TestMatterScaleAndSolver(unittest.TestCase):
+    """A story's decimal budget by reference, and the solver's byte-for-byte determinism."""
+
+    BUDGET = {"ref": "stories/veasy-new-01.json", "key": "scenes[3].total"}
+
+    def test_scale_lifts_story_decimals_exactly(self):
+        spec = {"fact": self.BUDGET, "scale": 100, "unit": 1, "category": "budget", "groups": [
+            {"name": "health", "fact": {"ref": "stories/veasy-new-01.json", "key": "scenes[3].items.0.value"}},
+            {"name": "education", "fact": {"ref": "stories/veasy-new-01.json", "key": "scenes[3].items.1.value"}},
+            {"name": "infrastructure", "fact": {"ref": "stories/veasy-new-01.json", "key": "scenes[3].items.2.value"}}]}
+        res = verify_spec(spec)
+        self.assertEqual(res["fact"], 800)
+        self.assertEqual(res["count"] * res["unit"], res["fact"])
+        self.assertEqual([g["count"] for g in res["groups"]], [320, 280, 200])
+
+    def test_scale_that_leaves_a_fraction_is_refused(self):
+        proc = run_verifier({"fact": 3.25, "scale": 10, "unit": 1})
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("not a whole number", proc.stderr)
+
+    def test_decimal_without_scale_is_refused_not_rounded(self):
+        proc = run_verifier({"fact": {"ref": "stories/veasy-new-01.json", "key": "scenes[3].items.0.value"}, "unit": 1})
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("integer", proc.stderr)
+
+    def test_solver_is_byte_for_byte_deterministic(self):
+        spec = {"form": "pile", "fact": 120, "unit": 1}
+        with tempfile.TemporaryDirectory() as tmp:
+            shas = []
+            for n in (1, 2):
+                out = pathlib.Path(tmp) / f"{n}.bin"
+                proc = subprocess.run(["node", str(ROOT / "plates" / "matter" / "solve.mjs"), "--spec",
+                                       str(self._write(tmp, spec)), "--out", str(out), "--seconds", "2", "--seed", "3"],
+                                      cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                shas.append(out.read_bytes())
+            self.assertEqual(shas[0], shas[1])
+            self.assertEqual(shas[0][:4], b"VMTR")
+
+    @staticmethod
+    def _write(tmp, spec):
+        path = pathlib.Path(tmp) / "spec.json"
+        path.write_text(json.dumps(spec), encoding="utf-8")
+        return path
+
+
 if __name__ == "__main__":
     unittest.main()

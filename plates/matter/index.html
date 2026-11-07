@@ -64,6 +64,7 @@ window.setup = async (spec, c) => {
     const tone = banded ? GROUP_TONES[Math.floor((i * 10) / count) % 2 ? 2 : 0] : GROUP_TONES[assignments[i].groupIndex % GROUP_TONES.length];
     blocks.setColorAt(i, col.setHex(tone));
   }
+  blocks.frustumCulled = false; // the instances move far from where frame 0 put them: a cached bounding sphere would cull them
   scene.add(blocks);
 };
 
@@ -82,6 +83,8 @@ function pose(t) {
   camera.position.set(...cam.position);
   camera.lookAt(...cam.target);
   camera.updateMatrixWorld(true);
+  const away = Math.hypot(cam.position[0] - cam.target[0], cam.position[1] - cam.target[1], cam.position[2] - cam.target[2]);
+  scene.fog.near = away * 1.1; scene.fog.far = away * 3.2; // depth falloff that scales with the shot, so a wide shot isn't fogged to black
 }
 
 window.step = (t) => { pose(t); renderer.render(scene, camera); };

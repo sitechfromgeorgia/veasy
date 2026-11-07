@@ -178,11 +178,11 @@ function choreographPour(p, b, options) {
   const heapHeight = Math.max(b.size[1], 1.2);
 
   // Eye-level start: looking at the base landing zone
-  const startPos = [0.0, 1.8, 7.5];
+  const startPos = [0.0, 2.4, 12.0];
   const startTarget = [0.0, 0.6, 0.0];
 
   // Upward tracking end: camera gently tilts and tracks upward with heap growth
-  const endPos = [0.3, 1.8 + heapHeight * 0.45, 7.8];
+  const endPos = [0.3, 2.4 + heapHeight * 0.45, 12.5];
   const endTarget = [0.0, 0.6 + heapHeight * 0.6, 0.0];
 
   const pos = lerp3(startPos, endPos, u);
@@ -240,7 +240,7 @@ function choreographVersus(p, b, options) {
 
   // Centered along X = 0 symmetry divider
   // Distance calibrated so both piles fit inside vertical 9:16 frame width
-  const baseDist = Math.max(8.5, totalSpan * 2.8 + 2.5);
+  const baseDist = Math.max(8.5, totalSpan * 2.1 + 2.5);
   const dist = lerp(baseDist * 1.05, baseDist * 0.95, u); // subtle slow push-in
 
   const elevRad = (38 * Math.PI) / 180;
