@@ -16,7 +16,7 @@ Returns a pre-run cost plan (`"4.0 s of picture (scene 1 of 11, frames 116-235),
 | 2 | Changing one label in `demo/film-partia.json` is timed before and after, and the saving is stated | **DONE** | `demo/film-partia.json` (370.5 s, 11 scenes, silent voice, Remotion), same machine load (five lanes rendering, so both runs are slow): full render **16 min 57 s**; `steer out/partia.mp4 --scene 1 --set label="21 სექტემბრიდან 2 ნოემბრამდე"` **71 s** (4.8 s of picture, 10 of 11 segments cache hits, splice `copy`, probe + flash passed): **about 14x faster, 94 % less time**. The 71 s includes props build, probe, flash and the audio mix, which a segment cannot skip. Logs `out/render1.log`, `out/steer1.log` (git-ignored). |
 | 3 | Frame hashes outside the changed scene equal a full render | **DONE** (re-run this session) | `tests/test_steer.py::TestFrameHashIdentity` passes: frames outside the changed scene equal the full render, and equal the render before the change. |
 | 4 | `--dry` is right on a text change, a timing change and a narration change, each tested | **DONE** | `tests/test_steer.py::TestSteerDry`: text change (scene 1: `4.8 s of picture (scene 1 of 11, frames 297-440), $0`), timing change (`--tighter` on scene 3 dirties s3 and s4, $0), narration change (`new voice, every frame`, full render, voice `new`), and `--dry` renders nothing. |
-| 5 | The room page (`<render>.room.html`) opens, and a sub-agent fixed a scene from it alone | **PARTIAL** | The page opens and was checked in the browser; with a render it has real stills (`out/partia-room/`). A cold haiku sub-agent, given only the page and the skill, picked the right scene and wrote the right first command, but was told not to run it, so **no sub-agent fixed a scene from the page**; I ran its command myself. Its four confusions are fixed (rhythm commands now carry `--dry`, no `--set` on a scene with no slots); the others (thresholds for SLACK, the 26.8 s motion warning against the 7.2 s tail) are not. |
+| 5 | The room page (`<render>.room.html`) opens, and a sub-agent fixed a scene from it alone | **DONE** | Cold haiku sub-agent, given only `film.room.html` of a 3-scene film and the change ("the 6400 scene's label becomes ..."), ran the page's `--dry` command (`3.3 s of picture (scene 1 of 3, frames 83-182), $0`) and then the real one; it succeeded, probe and flash clean, scenes 0 and 2 from cache. I then hashed every frame of the film before and after: **only frames 83-182 changed**, the other 200 are identical. The first cold read (no run) found four confusions, fixed in `af2c617`. |
 | 6 | `selftest` is green, and skill `veasy:steer` and a tool (`veasy_steer`) exist | **DONE if the final run below is green** | skill `skills/steer/SKILL.md` (2.8 kB, link `.claude/skills/steer`), tool `veasy_steer` (`plugin.yaml`, `__init__.TOOLS`), `tests/test_plugin.py` passes. Selftest and full-suite result: see Final gates. |
 
 ---
@@ -72,8 +72,6 @@ Returns a pre-run cost plan (`"4.0 s of picture (scene 1 of 11, frames 116-235),
 
 ## Not done / open
 
-- Done-when 5: no sub-agent fixed a scene from the page (see table).
-- HyperFrames parity is covered by a plan test only (`test_plan_hyperframes_tracks_scene_isolation`); no HyperFrames render was timed or hash-compared.
 - `props.render_video` now segments every Remotion render by default (`SHORTS_SEGMENTS=0` turns it off). The suite and selftest pass, but the integrating session should know.
 - A timing verb on the last scene, or any narration change, costs every frame (progress bar and pan depend on total length).
 
@@ -81,3 +79,20 @@ Returns a pre-run cost plan (`"4.0 s of picture (scene 1 of 11, frames 116-235),
 
 - Segment cache eviction (above).
 - Whether `SHORTS_SEGMENTS` should default on for queue jobs.
+
+## HyperFrames parity, measured (`stories/24835.json`, blocks kinetic-headline, number-reveal, end-card; 1107 frames; silent voice; same machine, five lanes loaded, so only the ratios mean anything)
+
+| Run | Time |
+|---|---|
+| Full monolithic render (`SHORTS_SEGMENTS=0`) | 394 s |
+| First segmented render (cold cache, 3 `hyperframes render --start/--end` runs) | 1012 s |
+| Segmented render after changing one label in scene 1 (1 miss, 2 hits, splice `copy`, 191 of 1107 frames drawn) | 204 s, **48 % less than a full render**, and includes check, build, mix and QA |
+
+- Frames outside the changed scene are identical to the film before the change (only frames 157-341 differ, inside scene 1's span 151-341).
+- **A segmented film is not bit-identical to a monolithic render** (every frame differs: each segment is encoded on its own), so hash parity holds between segmented renders, not against the monolith. Two monolithic renders of the film before and after the edit also differed in frames 342-499 (scene 2), outside the edit: HyperFrames' own monolithic output is not frame-stable there, so the cache's reuse is the more stable of the two.
+- The first segmented render is **2.6x slower** than a monolithic one (a browser start per segment). Owner decision below.
+- `steer` itself was not run on a composed film end to end: the composed film's text lives in `slots.json`/compositions, which steer's `--set` does not edit. I fixed its `compose.render` call (`fix(steer)` commit) but only the segmented `compose render` path was timed.
+
+## Owner decisions (added 2)
+
+- Render a composed film's first pass monolithically and segment only from the second render on? Today a cold segmented render costs 2.6x.
