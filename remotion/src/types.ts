@@ -122,10 +122,11 @@ export type Thread = {
   main: string; box: number[]; forms: Record<string, string>; surface?: [string, string];
   crack?: { straight: string; jag: string; left: string; right: string };
 };
-// a scene's seat, in frame px: role seat (it stands in the scene's free room), hero (a state scene) or own (a draw
-// scene draws it); reserve: the room the scene leaves free; from, to: the state's progress here; form: its opening shape
+// a scene's seat, in frame px: role seat (it stands in the scene's free room), hero (a state scene), token (small, in
+// the corner beside the kicker) or own (a draw scene draws it); reserve: the room the scene leaves free; from, to: the
+// state's progress here; form: its opening shape
 export type SceneThread = {
-  role: "seat" | "hero" | "own"; x: number; y: number; w: number; h: number; reserve: number; from?: number; to?: number;
+  role: "seat" | "hero" | "token" | "own"; x: number; y: number; w: number; h: number; reserve: number; from?: number; to?: number;
   form?: string | null;
 };
 

@@ -89,7 +89,7 @@ export const Draw: React.FC<P> = ({ s, inner = INNER }) => {
   return (
     <Frame s={s}>
       {props.thread && s.thread ? (
-        <ObjectArt th={props.thread} art={art} t={threadT(s, frame)} drawn={frame} id="own" width={inner} height={height} />
+        <ObjectArt th={props.thread} art={props.thread.art} t={threadT(s, frame)} drawn={frame} id="own" width={inner} height={height} />
       ) : (
         <svg width={inner} height={height} viewBox="0 0 952 640" fill="none" strokeLinecap="round" strokeLinejoin="round"
           style={{ overflow: "visible", flex: "none" }}>

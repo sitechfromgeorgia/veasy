@@ -12,7 +12,9 @@ it, gliding from seat to seat across every cut. The writer picks nothing about a
                 outside the table gets no state: the picture must not assert what the idea didn't say. It warns
     seats       one rectangle per scene in frame px, from the scene's type and its text load (content()), never
                 measured in the render tabs (the captions' rule): the scene keeps it free (Frame, `reserve`) and
-                the layout probe checks text against it (probe.rules, rule "seat")
+                the layout probe checks text against it (probe.rules, rule "seat"). A scene with no room gets the
+                small seat in the corner beside its kicker (token). A seat the probe finds text on is given up before
+                the render (relieve): the thread never holds a video
     t           the state's progress per scene: the `state` scene does the whole change, else it moves scene by scene
 
 Refused for what the news rules protect: no thread without a program's idea step (news has none), none for the crime
@@ -34,6 +36,8 @@ MIN_AREA = 0.04  # of the drawing's box: under this a silhouette is a few lines,
 ASPECT = 952 / 640
 CELL = 4  # px of the silhouette's grid
 SEAT_MIN, SEAT_MAX = 210, 560  # px high
+TOKEN_H = {False: 112, True: 76}  # px high, without and with a headline under the kicker
+TOKEN_KICKER = 20  # characters: a longer kicker reaches the corner
 HERO_MAX = 700
 GAP = 36  # between the scene's text and its seat
 RIGHT = 940  # the drawing stays left of the like/share rail
@@ -65,7 +69,9 @@ FORMS = {"circle": ("stat", "share", "countdown", "impact", "quote"),
          "bars": ("bars", "ranking", "budget", "compare", "versus", "change"),
          "line": ("trend", "timeline", "rail", "route", "calendar", "steps")}
 INCIDENTS = ("crime", "incident", "incidents", "accident", "accidents", "security")  # categories, as stories file them
-LINE_H = 1.2
+CONTENT = {"state": 440, "quote": 750, "pair": 840, "versus": 500, "compare": 850, "bars": 800, "ranking": 500, "budget": 560,
+           "impact": 510, "trend": 720, "timeline": 890, "rail": 570, "route": 620, "calendar": 550, "countdown": 610,
+           "change": 880, "share": 790, "who": 700, "link": 600, "sign": 930, "glossary": 540, "checklist": 520}
 
 
 class ThreadError(ValueError):
@@ -379,39 +385,29 @@ def drawing(story):
 # ---------------------------------------------------------------- the seats
 
 
-def _items(s):
-    return len(s.get("items") or []) or 3
+def _chars(s):
+    return sum(len(str(x if isinstance(x, str) else x.get("title") or x.get("text") or x.get("label") or ""))
+               for x in s.get("items") or [])
 
 
 def content(s, look="editorial"):
-    """How high a scene's own content stands, in px. Calibrated on the layout probe's boxes in every look
-    (docs/research/thread-object-result.md); a seat is what is left, and the probe checks the result."""
+    """How high a scene's own text stands from the top of its box, in px: the tallest the layout probe saw of each type
+    in every look on real stories (docs/research/thread-object-result.md). A seat is what is left. A type nobody measured
+    keeps all its room. A card is narrower, so its text wraps sooner."""
     t = s.get("type")
-    head = 76 if s.get("kicker") else 0
-    if s.get("headline"):
-        head += 92 * (1 + (len(s["headline"]) > 22))
+    n = len(s.get("items") or [])
     if t == "hook":
-        lines = len(s.get("lines") or []) or 2
-        return 124 + 190 * lines
-    if t == "stat":
-        return head + 300 + (90 if s.get("label") else 0)
-    if t == "state":
-        return head + 150
-    if t == "quote":
-        return head + 120 + 78 * max(2, len(s.get("text") or "") // 26 + 1)
-    if t in ("points", "steps", "checklist", "glossary"):
-        return head + 150 * _items(s)
-    if t in ("pair", "versus", "compare"):
-        return head + 520
-    if t in ("bars", "ranking", "budget", "impact"):
-        return head + 90 + 100 * _items(s)
-    if t in ("trend", "timeline", "rail", "route", "calendar", "countdown", "change", "share"):
-        return head + 460
-    if t in ("who", "link", "agree"):
-        return head + 170 * _items(s)
-    if t == "sign":
-        return head + 520
-    return 10000  # a type nobody calibrated keeps its room
+        high = {0: 560, 1: 440, 2: 560, 3: 880}.get(len(s.get("lines") or []), 1000)
+    elif t == "stat":
+        high = 660 + (260 if s.get("icon") else 0) + (100 if s.get("headline") else 0) + \
+            (130 if len(s.get("label") or "") > 24 else 0)
+    elif t == "points":
+        high = 520 if n < 3 else 980 if _chars(s) > 90 else 760
+    elif t == "steps":
+        high = {2: 460, 3: 550}.get(n, 760)
+    else:
+        high = CONTENT.get(t, 10000)
+    return round(high * 1.08) if look == "cards" else high
 
 
 def _align(i, seed):
@@ -429,7 +425,7 @@ def seat(s, i, look, seed):
     room = bottom - top - content(s, look) - GAP
     h = min(HERO_MAX if t in HERO else SEAT_MAX, room)
     if h < SEAT_MIN:
-        return None
+        return token(s, top)
     span = min(right, RIGHT) - left
     w = min(span, h * ASPECT)
     h = w / ASPECT
@@ -438,6 +434,16 @@ def seat(s, i, look, seed):
     y = bottom - h
     reserve = bottom - y + GAP / 2
     return {"x": round(x), "y": round(y), "w": round(w), "h": round(h), "reserve": round(reserve)}
+
+
+def token(s, top):
+    """No room at the scene's foot: the object waits small in the corner beside the kicker, where the scene has no text.
+    None when the kicker doesn't leave that corner free."""
+    if len(s.get("kicker") or "") > TOKEN_KICKER or (not s.get("kicker") and s.get("headline")):
+        return None
+    h = TOKEN_H[bool(s.get("headline"))]
+    w = round(h * ASPECT)
+    return {"x": RIGHT - w, "y": top - 4, "w": w, "h": h, "reserve": 0, "role": "token"}
 
 
 # ---------------------------------------------------------------- the plan
@@ -478,11 +484,12 @@ def plan(story, scenes=None, look="editorial"):
     for i, s in enumerate(scenes or []):
         one = seat(s, i, look, seed)
         if one:
-            seats[i] = {**one, "role": "hero" if s.get("type") in HERO else "seat", "form": form_of(s.get("type"))}
+            seats[i] = {"role": "hero" if s.get("type") in HERO else "seat", **one, "form": form_of(s.get("type"))}
     own = [i for i, s in enumerate(scenes or []) if s.get("type") in OWN]
-    if len(seats) + len(own) < MIN_SCENES:
-        return None, (f"thread: only {len(seats) + len(own)} scene(s) have room for „{c['object']}“ (at least "
-                      f"{MIN_SCENES}): the film goes out without its object")
+    big = sum(x["role"] != "token" for x in seats.values()) + len(own)
+    if len(seats) + len(own) < MIN_SCENES or not big:
+        return None, (f"thread: only {len(seats) + len(own)} scene(s) have room for „{c['object']}“, {big} at full size "
+                      f"(at least {MIN_SCENES}, one of them full size): the film goes out without its object")
     state = verb_state(c.get("verb"))
     warnings = []
     if not state:
@@ -523,6 +530,24 @@ def attach(props, story):
     for i, one in t["own"].items():
         props["scenes"][i]["thread"] = one
     return list(t["warnings"])
+
+
+def relieve(props, checked):
+    """A built film whose seats the layout probe found text on -> what was given up: those scenes lose the object, and a
+    film left with too few loses its thread. Changes props; the caller writes them and probes again."""
+    hit = sorted({x.get("scene") for x in (checked or {}).get("issues") or [] if x.get("rule") == "seat"} - {None})
+    scenes = props["scenes"]
+    for i in hit:
+        scenes[i].pop("thread", None)
+    left = [s["thread"] for s in scenes if s.get("thread")]
+    if hit and (len(left) < MIN_SCENES or all(x["role"] == "token" for x in left)):
+        for s in scenes:
+            s.pop("thread", None)
+        props["thread"] = None
+        if props["transition"] in ("match", "object"):
+            props["transition"] = "line"
+        return {"seats": hit, "thread": "dropped"}
+    return {"seats": hit} if hit else None
 
 
 def has(story):

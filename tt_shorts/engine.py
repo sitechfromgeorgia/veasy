@@ -485,6 +485,10 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
                           caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
                           outro=fmt["outro"], director=director, theme=theme, **formats.render_keys(fmt))
     checked = _probe_render(work, p)  # the layout probe: seconds, before the minutes of the render
+    relieved = thread.relieve(p, checked)  # a seat with text on it is given up: the thread never holds a video
+    if relieved:
+        (work / "props.json").write_text(json.dumps(p, ensure_ascii=False), encoding="utf-8")
+        checked = _probe_render(work, p)
     motion = motion_rules.check(p)  # with the real voice's timings: unreadable text holds the video, like the probe
     secs = p["durationInFrames"] / FPS
     target = pathlib.Path(out_path) if out_path else store.render_path(
