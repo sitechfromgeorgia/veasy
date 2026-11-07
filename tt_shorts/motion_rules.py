@@ -30,7 +30,7 @@ Captions are not counted here: captions.py has its own rules (pages of at least 
 import math
 import re
 
-from tt_shorts import art, directors, ka_check, probe, speech
+from tt_shorts import art, directors, ka_check, onetake, probe, speech
 
 FPS = speech.FPS
 EXIT = probe.EXIT  # frames a scene takes to leave (remotion/src/NewsShort.tsx)
@@ -50,8 +50,10 @@ PACING_MIN = 1.5  # seconds: minimum scene duration to allow voice & reader comp
 # sweeps go right, slide and push go left); a plain cut, the dot's iris and the loop's cross-fade have none.
 DIRECTION = {
     "line": (1, 0), "panel": (1, 0), "wipe": (1, 0), "slide": (-1, 0), "push": (-1, 0),
-    "shutter": (1, 0), "blind": (1, 0), "corner": (1, 0),
+    "shutter": (1, 0), "blind": (1, 0), "corner": (1, 0), "object": (1, 0),
 }
+LISTS = ("points", "steps", "checklist", "ranking")
+LISTS_SHORT = 8  # scenes: a longer film (chapters, a digest) may hold a list in each part
 RULES = {
     "read": f"a text on screen too briefly: each needs {READ_BASE} s + {READ_PER_WORD} s per word (holds a render)",
     "still": f"more than {STILL_MAX:g} s with nothing changing in the scene band (the end card is exempt; a scene "
@@ -62,6 +64,8 @@ RULES = {
     "moves": f"more than {MAX_MOVES} elements animating at once in a scene: stagger them to keep focus",
     "background": "active video or motion behind text being read: quiet the background or use still image",
     "pacing": f"cut comes after less than {PACING_MIN:g} s or cuts off the voice: faster than voice and reading pace",
+    "lists": f"more than one list scene ({', '.join(LISTS)}) in a film of at most {LISTS_SHORT} scenes: keep the one "
+             "the article itself lists and show the rest by their subject (owner, 2026-11-07)",
 }
 HOLDS = ("read",)
 TEXTS_HOLDS = ("read", "safe_zone")
@@ -124,7 +128,7 @@ def timeline(p):
         end = s["from"] + s["duration"]
         last = i == len(scenes) - 1
         kind = _kind(p, scenes, i + 1) if not last else None
-        leaves = end if last or kind == "cut" else end - EXIT
+        leaves = end if last or kind in ("cut", "one-take") else end - EXIT  # one-take: the camera carries it away
         texts = []
         for t, at in scene_texts(s, first=i == 0):
             shown = (leaves - s["from"]) / FPS - at
@@ -141,6 +145,9 @@ def timeline(p):
             n = len(s["items"])
             step = min(30, max(10, (s["duration"] * 0.6 - 10) / (n - 1)))
             built = max(built, (10 + (n - 1) * step) / FPS + SETTLE)
+        seat = s.get("thread") or {}
+        if seat.get("from") != seat.get("to"):  # the film's object changes state until 82% of the scene (thread.tsx)
+            built = max(built, 0.82 * s["duration"] / FPS)
         if s.get("mark"):  # a voice-synced mark draws in the scene band until it lands (marks.py)
             built = max(built, (s["mark"]["at"] + s["mark"]["frames"]) / FPS)
         beat = (s.get("beats") or {}).get("frames") or []  # beats.py: a change on the words every 1.5-3 s
@@ -171,7 +178,10 @@ def cuts(p):
     for i in range(1, len(scenes)):
         kind = _kind(p, scenes, i)
         own = scenes[i].get("flow")
-        direction = tuple(own) if own else (tuple(flow) if flow and kind in DIRECTION else DIRECTION.get(kind))
+        if kind == "one-take" and p.get("camera"):  # the camera's own move into scene i (onetake.layout)
+            direction = onetake.direction(p["camera"], i)
+        else:
+            direction = tuple(own) if own else (tuple(flow) if flow and kind in DIRECTION else DIRECTION.get(kind))
         out.append({"into": i, "frame": scenes[i]["from"], "kind": kind, "direction": direction})
     if p.get("outro") == "loop":  # the last half second cross-fades into the hook's first frame
         out.append({"into": 0, "frame": p["durationInFrames"] - FPS // 2, "kind": "crossfade", "direction": None})
@@ -261,6 +271,14 @@ def repeat(rows):
             for a, b in zip(rows, rows[1:]) if a["type"] == b["type"]]
 
 
+def lists(rows):
+    got = [r for r in rows if r["type"] in LISTS]
+    if len(got) < 2 or len(rows) > LISTS_SHORT:
+        return []
+    return [_finding("lists", f"{len(got)} list scenes ({', '.join(str(r['scene']) + ' ' + r['type'] for r in got)}) in a "
+                     f"film of {len(rows)} scenes: keep one, show the rest by their subject", got[1]["scene"])]
+
+
 def moves(rows):
     out = []
     for r in rows:
@@ -333,7 +351,7 @@ def check(p):
     p = _laid_out(p)
     rows, cut_list = timeline(p), cuts(p)
     found = (read(rows) + still(rows, _holds(p)) + kinds(cut_list) + pingpong(cut_list) + repeat(rows)
-             + moves(rows) + background(rows, p) + pacing(rows, p))
+             + moves(rows) + background(rows, p) + pacing(rows, p) + lists(rows))
     text = lambda f: f"motion {f['rule']}: {f['detail']}"  # noqa: E731
     return {"timeline": rows, "cuts": cut_list, "findings": found,
             "holds": [text(f) for f in found if f["hold"]], "warnings": [text(f) for f in found if not f["hold"]]}

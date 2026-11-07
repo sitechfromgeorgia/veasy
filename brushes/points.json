@@ -2,8 +2,8 @@
  "type": "points",
  "order": 60,
  "what": "2-3 short points: items [\"...\"]",
- "use_when": "2-3 separate points of equal weight",
- "avoid_when": "the points are steps in order (steps) or two sides (pair)",
+ "use_when": "the article itself names 2-3 separate things of equal weight (three new rules, two places)",
+ "avoid_when": "a summary of what was already said, steps in order (steps), two sides (pair), or a film that already has a list: most stories need none",
  "pairs_with": ["steps", "quote"],
  "slots": {
   "items": {"kind": "list", "count": [2, 3], "of": {"kind": "text", "max": 64}, "required": true},

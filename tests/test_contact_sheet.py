@@ -16,7 +16,7 @@ class ContactSheetTest(unittest.TestCase):
             res = contact_sheet.generate_contact_sheet_html(out_path=out_file)
             self.assertTrue(out_file.exists())
             self.assertEqual(res["icons"], 250)
-            self.assertEqual(res["drawings"], 44)
+            self.assertEqual(res["drawings"], len(list((pathlib.Path(__file__).resolve().parent.parent / "assets" / "drawings").glob("*.json"))))
             self.assertEqual(len(res["themes"]), 4)
 
             content = out_file.read_text(encoding="utf-8")

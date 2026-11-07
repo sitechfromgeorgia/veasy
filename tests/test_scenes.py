@@ -65,6 +65,25 @@ class Draw(unittest.TestCase):
         for gone in ("image", "script", "onload", "#ff0000", "matrix", "javascript"):
             self.assertNotIn(gone, flat)
 
+    def test_a_drawing_moves_acts_and_loops_become_data(self):  # owner, 2026-11-07: moving, not static
+        tree, problems = art.sanitize(
+            GOOD + '<g class="t" style="--d:1.3s; --turn:-75deg; --at:476,470"><path d="M476 470 L518 234" stroke="INK"/></g>'
+            '<g class="g" style="--d:0.8s"><rect x="300" y="300" width="100" height="200" stroke="INK"/></g>'
+            '<g class="m" style="--d:1s"><line x1="10" y1="10" x2="50" y2="10" stroke="INK"/></g>'
+            '<g class="r" style="--d:0.5s;--swing:6"><rect x="600" y="100" width="100" height="150" stroke="INK"/></g>'
+            '<g style="--spin:9000;--bob:12"><circle cx="800" cy="500" r="40" stroke="INK"/></g>')
+        self.assertEqual(problems, [])
+        moves = [(n["motion"], n.get("move")) for n in tree[5:]]
+        self.assertEqual(moves, [("t", {"turn": -75.0, "at": [476.0, 470.0]}),
+                                 ("g", {"at": [350.0, 500.0]}),  # grows from its foot
+                                 ("m", {"from": [0, 80]}),  # comes up from below by default
+                                 ("r", {"swing": 6.0, "at": [650.0, 100.0]}),  # sways from its top
+                                 (None, {"spin": 720.0, "bob": 12.0, "at": [800.0, 500.0]})])  # clamped
+        self.assertEqual(art.acts(tree), 5)
+        self.assertNotIn("move", art.sanitize(GOOD)[0][0])  # a drawing that doesn't move is the same tree as before
+        _, problems = art.sanitize(GOOD.replace('style="--d:0.2s"', 'style="--d:0.2s;--wobble:3"', 1))
+        self.assertTrue(any('--wobble:3' in p and "--swing" in p for p in problems))
+
     def test_size_and_count_limits(self):
         self.assertTrue(any("only 1 elements" in p for p in art.sanitize('<circle cx="1" cy="1" r="2"/>')[1]))
         self.assertTrue(art.sanitize("<g><rect")[1][0].startswith("draw: svg is not valid XML"))
@@ -108,6 +127,12 @@ class Shapes(unittest.TestCase):
         p = engine.shape_problems
         self.assertEqual(p({"type": "bars", "items": [{"label": "a", "value": 3}, {"label": "b", "value": 1.5}]}), [])
         self.assertTrue(p({"type": "bars", "items": [{"label": "a", "value": 3}]}))  # 2-5
+        tile = lambda **k: {"label": "a", "value": 4, **k}  # noqa: E731 - figures: 2-4 tiles, each its own unit
+        self.assertEqual(p({"type": "figures", "items": [tile(unit="მეტრი"), tile(value=0, unit="ზოლი")]}), [])
+        self.assertTrue(p({"type": "figures", "items": [tile()]}))
+        self.assertTrue(p({"type": "figures", "items": [tile()] * 5}))
+        self.assertTrue(p({"type": "figures", "items": [tile(), tile(value="4")]}))
+        self.assertTrue(p({"type": "figures", "items": [tile(), tile(unit="x" * 13)]}))
         self.assertTrue(p({"type": "bars", "items": [{"label": "a", "value": 3}, {"label": "b", "value": -1}]}))
         self.assertTrue(p({"type": "bars", "items": [{"label": "a", "value": "3"}, {"label": "b", "value": 1}]}))
         self.assertTrue(p({"type": "trend", "items": [{"label": "a", "value": 1}, {"label": "b", "value": 2}]}))  # 3-8
@@ -166,13 +191,14 @@ class Shapes(unittest.TestCase):
         self.assertIn('plain English word "versus"', found)
 
     def test_every_type_is_allowed_by_the_news_rules(self):
-        self.assertEqual(set(engine.SCENES), news_check.SCENE_TYPES)
+        self.assertEqual(set(engine.SCENES) - news_check.NOT_NEWS_TYPES - {"figures"}, news_check.SCENE_TYPES)  # figures: kit only, no news
 
     def test_sample_stories_pass(self):  # the demos use every scene type, old and new
         used = set()
         for name in ("veasy-demo", "veasy-scenes", "veasy-icons", "sitech-cybercartel", "veasy-brushes",
                      "digest-2026-11-01", "../tests/fixtures/rubric-agree", "veasy-new-01", "veasy-new-02",
-                     "visual-motion-demo", "visual-data-demo", "visual-context-demo"):  # agree: a synthetic test fixture
+                     "visual-motion-demo", "visual-data-demo", "visual-context-demo",  # local side
+                     "veasy-plate", "veasy-figures", "veasy-thread"):  # origin/main; agree: a synthetic test fixture
             s = json.loads((ROOT / "stories" / f"{name}.json").read_text(encoding="utf-8"))
             self.assertEqual(engine.check_story(s), [], name)
             used |= {x["type"] for x in s["scenes"]}

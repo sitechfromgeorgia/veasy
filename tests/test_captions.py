@@ -69,6 +69,18 @@ def timed(text, step=0.4):
     return [{"text": t, "start": round(i * step, 3), "end": round(i * step + 0.3, 3)} for i, t in enumerate(text.split())]
 
 
+class Reach(unittest.TestCase):
+    def test_how_high_the_caption_text_reaches(self):  # what stands on a scene's foot (a vignette) stays above it
+        words = timed("ერთი ორი სამი ოთხი ხუთი ექვსი შვიდი რვა ცხრა ათი")
+        page, roll = captions.layout(words, "page"), captions.layout(words, "roll")
+        self.assertGreaterEqual(captions.reach(page), 1370)  # two lines: about where the scene band ends (1380)
+        self.assertEqual(captions.reach(captions.layout(words, "keyword")), captions.reach(page))
+        # the roll's three rows: its upper, fading row stands inside the scene band (Captions.tsx RollCaptions)
+        row = roll["size"] * roll["lineHeight"] + 10
+        self.assertEqual(captions.reach(roll), round(1552 - (3 * row + 24) / 2 - row / 2 - 0.78 * row))
+        self.assertLess(captions.reach(roll), 1330)
+
+
 class Keyword(unittest.TestCase):
     """The keyword design: the page design's lines and pages, plus one keyword a page, picked by code."""
 

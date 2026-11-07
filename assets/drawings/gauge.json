@@ -1,0 +1,5 @@
+{
+ "motif": "gauge",
+ "about": "a gauge whose needle swings to just past its target mark",
+ "svg": "<g class=\"s\" style=\"--d:0.2s\"><path d=\"M176 470 A300 300 0 0 1 776 470\" stroke=\"INK\" stroke-width=\"8\"/></g><g class=\"r\" style=\"--d:0.5s\"><path d=\"M186 470 L226 470 M225 325 L260 345 M331 219 L351 254 M476 180 L476 220 M621 219 L601 254 M727 325 L692 345 M766 470 L726 470\" stroke=\"MUTED\" stroke-width=\"6\"/></g><g class=\"r\" style=\"--d:0.9s\"><path d=\"M416 248 A230 230 0 0 1 536 248\" stroke=\"INK\" stroke-width=\"8\"/><path d=\"M156 470 H796\" stroke=\"LINE\" stroke-width=\"6\"/></g><g class=\"t\" style=\"--d:1.3s;--turn:-75;--at:476,470\"><path d=\"M476 470 L518 234\" stroke=\"INK\" stroke-width=\"8\"/></g><circle class=\"p\" style=\"--d:1.7s\" cx=\"476\" cy=\"470\" r=\"22\" fill=\"ACCENT\" stroke=\"none\"/>"
+}

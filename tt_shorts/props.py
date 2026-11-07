@@ -21,7 +21,8 @@ import shutil
 import subprocess
 
 from tt_shorts import (art, assets, beats as beat_track, brand, captions, chapters as chapters_of, directors,
-                       geo, icons, meta, rubrics, sfx as effects, speech, store, swipe, variety, voices)
+                       geo, icons, meta, music_hits, onetake, plates, rubrics, sfx as effects, speech, store, swipe, thread, variety, vignettes,
+                       voices)
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -34,7 +35,7 @@ CAPTIONS = os.environ.get("SHORTS_CAPTIONS", "page")  # page | roll (captions.py
 
 
 TRANSITIONS = ("cut", "line", "panel", "wipe", "slide", "push", "dot", "meter", "fade", "shutter", "split", "corner", "iris", "blind",
-               "maskwipe", "gridsplit", "scalethrough")
+               "maskwipe", "gridsplit", "scalethrough", "one-take", "match", "object")
 DEFAULT_TRANSITION = {"editorial": "line", "cards": "line", "kinetic": "panel"}
 
 
@@ -43,13 +44,16 @@ def transition_for(name, variant):
     return DEFAULT_TRANSITION[variant] if name in (None, "auto") else name
 
 
-def _scene(s, a, b, mark=None, media=None):
+def _scene(s, a, b, mark=None, media=None, plate=None):
     """One scene's props: its frames, a drawing as a safe tree instead of the writer's SVG, its voice-synced mark
     (speech.mark_frames: where, when and how the "em" phrase is drawn over; marks.py) and its picture (assets.py:
     the local file, the label and the credit, instead of the ledger reference)."""
     out = {**s, "from": a, "duration": b - a}
     out.pop("media", None)
     out.pop("show", None)
+    out.pop("plate", None)
+    if s.get("plate") and plate and s["plate"].get("asset") in plate:  # plates.py for_props: the toned clip
+        out["plate"] = {**plate[s["plate"]["asset"]], "layout": s["plate"].get("layout") or "mid"}
     if s.get("media") and media and s["media"].get("asset") in media:
         out["media"] = media[s["media"]["asset"]]
     if s.get("type") == "draw":
@@ -58,6 +62,14 @@ def _scene(s, a, b, mark=None, media=None):
     if mark:
         out["mark"] = mark
     return out
+
+
+def cut_for(picked, asked, variant, story):
+    """The film's cut: the pick, unless it needs an object this film doesn't have (a format can ask for "match" in a
+    story with no thread, in news above all: it gets the look's own)."""
+    if picked in variety.THREAD_TRANSITIONS and not thread.has(story):
+        return DEFAULT_TRANSITION[variant]
+    return picked if picked in TRANSITIONS else transition_for(asked, variant)
 
 
 def loops_for(music, family):
@@ -89,13 +101,16 @@ def choose(story, variant, transition="auto", music="family", director=None, sty
     before any voice. director: an id instead of the story's own; style: picks to force (then the report measures
     them, without a re-roll); outro: which scenes are shown (part of the fingerprint)."""
     b = brand.of(story)
+    program = story.get("program")
+    if transition == "one-take" and not variety.one_take_ok(program):  # `news` stays as it is (CLAUDE.md)
+        raise ValueError("transition one-take is for a film of a program, not for news: use auto or another cut")
     loops = loops_for(music, meta.family(story.get("category", ""), b))
     main = icons.story_icon(story)  # the story's main icon: the "icons" motif is possible only with one
     did = director or story.get("director")
     chosen = directors.get(did) if did else None  # an unknown director fails before anything renders
     seq = [s["type"] for s in swipe.shown_scenes(story, outro)]
     picked, novelty = variety.choose(b["name"], story["id"], variant, transition, loops, icon=bool(main),
-                                     director=chosen, scenes=seq)
+                                     director=chosen, scenes=seq, program=program, thread=thread.has(story))
     st = {**picked, **(style or {})}
     if style:  # a forced style (the goldens): report what is drawn, not what was picked
         novelty = variety.assess(b["name"], story["id"], {**st, "director": chosen["id"] if chosen else None}, seq)
@@ -114,7 +129,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     outro: card | overlay | loop (swipe.py: the end card, a chip over the last scene, or a seamless loop).
     director: a directors.py id to use instead of the story's own "director" (render --director); with one, the
     variety picks stay inside its subsets and props.style carries its motion numbers and current.
-    sfx: off | on (format key): the sound effects' cues from the timeline (sfx.py), mixed by mix_audio.
+    sfx: off | on | meaning (format key): the sound effects' cues from the timeline (sfx.py), mixed by mix_audio;
+    meaning also sets props "sfxMoment" (the main moment), where mix_audio puts the music's heavy hit.
     theme: "default" (the pack's), "auto" (variety picks among the pack's allowed themes) or a theme's name
     (theme_for); props.brand carries that theme's colors, props.theme its name, and its logo files are copied.
     beats: on | off (beats.py: a change inside each scene every 1.5-3 s, on the words); chapters: auto | on | off
@@ -149,11 +165,15 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     # first (choose -> variety.choose)
     st, chosen, loops, main, novelty = choose(story, variant, transition, music, director, style, outro)
 
+    plate = plates.for_props(story, b, public)  # a plate scene's toned clip (a missing one: the plain canvas)
     media = assets.for_props(story, b, public, FPS)  # the ledger's files (fetched again, checked, if gc took them)
     audio, words = speech.voice(story, voice_dir, engine, tone, edge_voice)
     trim = swipe.lead_trim(words, swipe.leading_silence(audio)) if audio else 0.0  # the voice starts at once
     words = swipe.shift(words, trim)  # mix_audio cuts the same seconds from the track
     shown, marks, chip = swipe.plan(story, words, outro)
+    if story.get("steer"):
+        from tt_shorts import steer as _steer
+        marks = _steer.apply_story_steer(story, shown, marks)
     bed = next((f for f in loops if f.name == st["music"]), loops[0] if loops else None)
     for f in (audio, bed):
         if f:
@@ -171,11 +191,11 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "url": (story.get("url") or "").replace("https://", "").rstrip("/") or link_shown,
         "qrSvg": meta.qr_svg(story.get("url") or opens, *brand.qr_colors(b["colors"])),
         "durationInFrames": marks[-1],
-        "transition": st["transition"] if st["transition"] in TRANSITIONS else transition_for(transition, variant),
+        "transition": cut_for(st["transition"], transition, variant, story),
         "style": {**{k: st[k] for k in variety.OPTIONS}, **(directors.style(chosen) if chosen else {})},
         "novelty": novelty,  # the guard's report (variety.choose): the nearest recent video, re-rolls, a warning
         "outro": outro, "outroFrom": chip,  # the frame the outro chip comes in (None: the end card)
-        "scenes": icons.attach([_scene(s, a, z, m, media) for s, a, z, m in zip(
+        "scenes": icons.attach([_scene(s, a, z, m, media, plate) for s, a, z, m in zip(
             shown, marks, marks[1:], speech.mark_frames(shown, words, marks, sid, meta.family(category, b)))], story),
         "motifIcon": icons.nodes(main) if st["motif"] == "icons" else None,  # the icon tiled in the background
         "words": words,
@@ -187,14 +207,23 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         # words the aligner barely heard: the voice may have skipped or changed them (speech.voice_qa; Gemini only)
         "voiceQa": story.get("qa", {}).get("voice", []),
     }
-    geo.attach(props["scenes"], meta.family(category, b))  # a Georgian place: only what its map scene draws
+    geo.attach(props["scenes"], meta.family(category, b), b["strings"])  # a Georgian place: only what its map scene draws
     props["captions"] = captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"],
                                         keys=captions.candidates(props["scenes"], FPS) if design == "keyword" else None,
                                         style=brand.keyword_style(b))
+    # what stands on a scene's foot stays clear of the captions where they reach into the scene band (the roll's
+    # upper row); the page and keyword boxes start where the band ends, so nothing moves for them
+    reach = captions.reach(props["captions"])
+    foot = reach if reach < thread.SCENE_BOTTOM - 20 else None
+    props["threadWarnings"] = thread.attach(props, story, foot)  # the film's object, its seats and its state (thread.py)
+    props["threadWarnings"] += vignettes.attach(props, story, foot)  # else 1-3 drawings of the subject (vignettes.py)
     if beats != "off":  # a visible change every 1.5-3 s inside each scene, landed on the words (beats.py)
         beat_track.attach(props["scenes"], words)
     props["chapters"] = chapters_of.split(props["scenes"], marks[-1], chapters)  # "01 / 03" (chapters.py), or None
-    props["sfx"] = effects.cues(props) if sfx == "on" else []  # the accents' times (sfx.py); ffmpeg mixes them
+    props["sfx"] = effects.cues({**props, "scenario": story.get("scenario")}, story.get("concept"), sfx) if sfx in ("on", "meaning") else []  # sfx.py; ffmpeg mixes
+    props["sfxMoment"] = effects.moment(props, story.get("concept")) if sfx == "meaning" else None
+    if props["transition"] == "one-take":  # the scenes on one path, the camera between them (onetake.py)
+        onetake.attach(props, f"{b['name']}|{sid}")
     (work / "props.json").write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
     return work, props
 
@@ -241,8 +270,12 @@ def mix_audio(work, props, video, out):
         k = len(inputs) // 2
         inputs += ["-stream_loop", "-1", "-i", str(public / props["music"])]
         db = MUSIC_DB if props["voice"] else MUSIC_DB_SILENT
+        # a heavy hit of the loop on the main moment: the start moves inside the (infinite) looped stream, so the
+        # loop's own seam stays where the composer made it and the level is the loop's, unchanged
+        shift = music_hits.offset(props["music"], (props.get("sfxMoment") or {}).get("t"))
+        skip = f"atrim=start={shift:.3f},asetpts=PTS-STARTPTS," if shift else ""
         fade_in, fade_out = swipe.music_fades(props.get("outro"))
-        graph.append(f"[{k}:a]aresample=48000,atrim=0:{dur:.3f},volume={db}dB,afade=t=in:d={fade_in},"
+        graph.append(f"[{k}:a]aresample=48000,{skip}atrim=0:{dur:.3f},volume={db}dB,afade=t=in:d={fade_in},"
                      f"afade=t=out:st={max(0, dur - fade_out):.3f}:d={fade_out}[bed]")
         mix.append("[bed]")
     if props.get("sfx"):
@@ -262,8 +295,12 @@ def mix_audio(work, props, video, out):
     return out
 
 
-def render_video(work, props, out):
+def render_video(work, props, out, segmented=None):
     out = pathlib.Path(out).resolve()
+    use_segments = (os.environ.get("SHORTS_SEGMENTS", "1") != "0") if segmented is None else bool(segmented)
+    if use_segments and props.get("scenes"):
+        from tt_shorts import segments
+        return segments.render_remotion(work, props, out)
     raw = work / "raw.mp4"
     _remotion(["render", "src/index.ts", "NewsShort", str(raw), "--muted", f"--concurrency={speech.workers()}"], work)
     out.parent.mkdir(parents=True, exist_ok=True)

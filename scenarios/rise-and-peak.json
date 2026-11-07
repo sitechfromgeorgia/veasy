@@ -1,0 +1,103 @@
+{
+  "id": "rise-and-peak",
+  "title": "Rise and Peak",
+  "label": "ზრდა და მწვერვალი",
+  "about": "A series over time, where it turned, and where it stands.",
+  "eligible": [
+    {
+      "quantities": 4,
+      "facts": 3
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh"
+    },
+    {
+      "id": "start",
+      "job": "setup",
+      "scene_types": [
+        "stat",
+        "points"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click"
+    },
+    {
+      "id": "the_climb",
+      "job": "evidence",
+      "scene_types": [
+        "trend",
+        "bars",
+        "change"
+      ],
+      "word_budget": [
+        6,
+        18
+      ],
+      "sound": "tick"
+    },
+    {
+      "id": "the_peak",
+      "job": "payoff",
+      "scene_types": [
+        "stat",
+        "change"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud",
+      "fact_gates": {
+        "numbers": 1
+      }
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "dates": 2,
+    "quantities": 3,
+    "percents": 1
+  },
+  "brief": [
+    "Years and values are the document's own series.",
+    "The peak or latest value is the payoff."
+  ]
+}

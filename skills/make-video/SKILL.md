@@ -29,7 +29,7 @@ A newcomer only meets three things:
 ### Visual Catalogue
 Browse the full visual library before choosing:
 ```bash
-python -m tt_shorts.engine gallery           # builds out/gallery.html with stills & clips of all 18 styles, 3 looks, 31 scene brushes, 8 directors
+python -m tt_shorts.engine gallery --find "a number"   # the brush book (veasy:brush-book): real frames, commands, when not to use
 python -m tt_shorts.engine options           # leads with brands & styles (with stills); advanced options under "advanced"
 ```
 
@@ -101,6 +101,7 @@ python -m tt_shorts.engine make "bipi-draws" --brand sitech --yes
 - **Style details**: read `veasy:styles` for style invariants, sound palettes, plucking models, and `TEXTS(t)`.
 - **Brand pack creation / WCAG**: read `veasy:brands` to create `brands/<name>/` from guidelines with `engine brand new`.
 - **Custom story scripts**: read `veasy:write-script` to hand-author scenes or repair text fields.
+- **Drawings**: read `veasy:draw` to give a film 1-3 drawings of its own subject, by hand or with one cheap call.
 - **Rubrics & Chips**: read `veasy:rubrics` for „დღის ციფრი“, „რა იცვლება“, „ამბავი გრძელდება“.
 - **Composed HyperFrames engineering**: read `veasy:compose` for blocks, timeline assembly, and Playwright DOM checks.
 - **Batch publishing & Queues**: read `veasy:queue` for background workers, retries, and daily runs.

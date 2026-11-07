@@ -4,6 +4,7 @@ import React from "react";
 import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, FONT, INK, LINE, LINE_STRONG, MUTED, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import { marked } from "../marker";
+import { ObjectArt, threadT } from "../thread";
 import type { ArtNode, Scene } from "../types";
 import { beat, Chip, Dot, fitSize, Frame, In, measure, useIn, useTheme } from "../ui";
 
@@ -39,14 +40,63 @@ const CAMEL: Record<string, string> = {
   "font-size": "fontSize", "font-weight": "fontWeight", "text-anchor": "textAnchor",
 };
 const SHAPES = new Set(["path", "line", "polyline", "polygon", "rect", "circle", "ellipse"]);
-type ArtCtx = { frame: number; fps: number; k: number; colors: Record<string, string> };
+// actAt: the frame (on c.frame's clock) the voice says the scene's key phrase; an act waits for it
+export type ArtCtx = { frame: number; fps: number; k: number; colors: Record<string, string>; actAt?: number };
 
 const maxDelay = (ns: ArtNode[]): number => Math.max(0, ...ns.map((n) => Math.max(n.motion ? n.delay : 0, maxDelay(n.children))));
 
+const ACTS = new Set(["t", "m", "g"]);
+const ACT = 0.9; // seconds an act takes (the plain entrances take 0.5)
+const WAIT = 1.5; // seconds an act waits for the voice beyond its own delay at most
+const backOut = Easing.out(Easing.back(1.6)); // a needle swings a little past its mark and settles
+const TAU = 2 * Math.PI;
+
+/** An act (t turns in, m moves in, g grows) and a loop (swing, spin, bob, pulse) around the element, in the SVG's own
+ *  units, so a pivot is a point of the drawing. Every value is a function of the frame. */
+const moved = (n: ArtNode, el: React.ReactNode, key: number, c: ArtCtx, start: number): React.ReactNode => {
+  const mv = n.move ?? {};
+  const [ax, ay] = mv.at ?? [0, 0];
+  const life = (c.frame - start) / c.fps; // seconds since it began to enter
+  let out = el;
+  if (n.motion && ACTS.has(n.motion)) {
+    const lin = interpolate(c.frame - start, [0, ACT * c.fps], [0, 1], clamp);
+    const fade = Math.min(1, lin * 4);
+    let transform = "";
+    if (n.motion === "t") transform = `rotate(${(mv.turn ?? -40) * (1 - backOut(lin))} ${ax} ${ay})`;
+    if (n.motion === "m") {
+      const e = 1 - easeOut(lin);
+      transform = `translate(${(mv.from?.[0] ?? 0) * e} ${(mv.from?.[1] ?? 80) * e})`;
+    }
+    if (n.motion === "g") transform = `translate(${ax} ${ay}) scale(${Math.max(0.001, backOut(lin))}) translate(${-ax} ${-ay})`;
+    out = <g key={key} transform={transform} opacity={fade}>{out}</g>;
+  }
+  const ramp = interpolate(life, [0, 1.2], [0, 1], clamp); // a loop grows in as the part arrives
+  const loops: string[] = [];
+  if (mv.swing) loops.push(`rotate(${mv.swing * Math.sin((TAU * life) / 2.4) * ramp} ${ax} ${ay})`);
+  if (mv.spin) loops.push(`rotate(${mv.spin * Math.max(0, life)} ${ax} ${ay})`);
+  if (mv.bob) loops.push(`translate(0 ${mv.bob * Math.sin((TAU * life) / 3) * ramp})`);
+  if (mv.pulse) {
+    const s = 1 + 0.1 * (0.5 - 0.5 * Math.cos((TAU * Math.max(0, life)) / 1.6)) * ramp;
+    loops.push(`translate(${ax} ${ay}) scale(${s}) translate(${-ax} ${-ay})`);
+  }
+  return loops.length ? <g key={key} transform={loops.join(" ")}>{out}</g> : out;
+};
+
 /** One element of the drawing. r rises, p pops, s draws its stroke; a group that draws passes it to its shapes.
- *  The motion sits on a wrapper <g>, so the element's own transform attribute stays as the writer set it. */
-const artNode = (n: ArtNode, key: number, c: ArtCtx, drawing: number | null): React.ReactNode => {
-  const t = n.motion ? interpolate(c.frame - n.delay * c.k * c.fps, [0, 0.5 * c.fps], [0, 1], { ...clamp, easing: easeOut }) : 1;
+ *  The motion sits on a wrapper <g>, so the element's own transform attribute stays as the writer set it. An act
+ *  (t, m, g) starts at its delay or, later, when the voice says the scene's key phrase (c.actAt). */
+export const artNode = (n: ArtNode, key: number, c: ArtCtx, drawing: number | null): React.ReactNode => {
+  const own = n.delay * c.k * c.fps;
+  // an act waits for the key phrase, but at most WAIT: a part that acts is hidden until it starts
+  const start = n.motion && ACTS.has(n.motion) && c.actAt !== undefined
+    ? Math.min(Math.max(own, c.actAt), own + WAIT * c.fps) : own;
+  if (n.motion && ACTS.has(n.motion)) {
+    return moved(n, artNode({ ...n, motion: null, move: undefined }, key, c, drawing), key, c, start);
+  }
+  if (n.move) {
+    return moved(n, artNode({ ...n, move: undefined }, key, c, drawing), key, c, start);
+  }
+  const t = n.motion ? interpolate(c.frame - own, [0, 0.5 * c.fps], [0, 1], { ...clamp, easing: easeOut }) : 1;
   const props: Record<string, unknown> = { key };
   for (const [a, v] of Object.entries(n.attrs)) {
     props[CAMEL[a] ?? a] = a === "fill" || a === "stroke" ? (c.colors[v] ?? v) : v;
@@ -75,6 +125,7 @@ const artNode = (n: ArtNode, key: number, c: ArtCtx, drawing: number | null): Re
 
 /** A line drawing of what the story is about (tt_shorts/art.py sanitizes the writer's SVG into s.art). */
 export const Draw: React.FC<P> = ({ s, inner = INNER }) => {
+  const { props } = useTheme();
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const ground = useGround();
@@ -86,10 +137,14 @@ export const Draw: React.FC<P> = ({ s, inner = INNER }) => {
   const height = Math.round((inner * 640) / 952);
   return (
     <Frame s={s}>
-      <svg width={inner} height={height} viewBox="0 0 952 640" fill="none" strokeLinecap="round" strokeLinejoin="round"
-        style={{ overflow: "visible", flex: "none" }}>
-        {art.map((n, i) => artNode(n, i, { frame, fps, k, colors }, null))}
-      </svg>
+      {props.thread && s.thread ? (
+        <ObjectArt th={props.thread} art={props.thread.art} t={threadT(s, frame)} drawn={frame} id="own" width={inner} height={height} />
+      ) : (
+        <svg width={inner} height={height} viewBox="0 0 952 640" fill="none" strokeLinecap="round" strokeLinejoin="round"
+          style={{ overflow: "visible", flex: "none" }}>
+          {art.map((n, i) => artNode(n, i, { frame, fps, k, colors, actAt: s.mark?.at }, null))}
+        </svg>
+      )}
       {s.label && (
         <In delay={Math.round(last * k * fps) + 6}>
           <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 52, lineHeight: 1.2, color: INK, marginTop: 24,
@@ -337,6 +392,45 @@ export const Change: React.FC<P> = ({ s, inner = INNER }) => {
           </div>
         </In>
       )}
+    </Frame>
+  );
+};
+
+// ---------------------------------------------------------------- figures
+
+/** 2-4 number tiles: each a label, its number counted up, and its own unit (tiles may differ in unit, bars may not).
+ *  Two tiles stack; three or four make a grid of two columns (a third tile spans both). Ink and muted only. */
+export const Figures: React.FC<P> = ({ s, inner = INNER }) => {
+  const items = (s.items ?? []).slice(0, 4).filter((it): it is { label: string; value: number; unit?: string } =>
+    typeof it !== "string" && typeof it.value === "number");
+  const frame = useCurrentFrame();
+  const width = low(inner);
+  if (items.length < 2) return null;
+  const grid = items.length > 2;
+  const gap = 24;
+  const tileW = grid ? (width - gap) / 2 : width;
+  const decs = items.map((it) => decimalsOf(it.value));
+  const size = fitSize(items.map((it, i) => num(it.value, decs[i])), tileW - 64, grid ? 84 : 112, 40);
+  const starts = stagger(items.length, s.duration, 6, 12);
+  const span = (i: number) => grid && items.length === 3 && i === 2;
+  return (
+    <Frame s={s}>
+      <div style={{ display: "grid", gridTemplateColumns: grid ? "1fr 1fr" : "1fr", gap, width, marginTop: 12 }}>
+        {items.map((it, i) => {
+          const t = interpolate(frame - starts[i], [0, 24], [0, 1], { ...clamp, easing: easeOut });
+          return (
+            <div key={i} style={{ gridColumn: span(i) ? "1 / span 2" : undefined, opacity: Math.min(1, t * 3),
+              border: `2px solid ${LINE_STRONG}`, borderRadius: RADIUS, padding: "24px 32px 28px", overflow: "hidden" }}>
+              <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 32, lineHeight: 1.3, color: MUTED,
+                whiteSpace: "nowrap", overflow: "hidden" }}>{it.label}</div>
+              <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.1, color: INK,
+                whiteSpace: "nowrap", marginTop: 8 }}>{num(it.value * t, decs[i])}</div>
+              <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 32, lineHeight: 1.3, color: MUTED,
+                whiteSpace: "nowrap", minHeight: 42 }}>{it.unit ?? ""}</div>
+            </div>
+          );
+        })}
+      </div>
     </Frame>
   );
 };

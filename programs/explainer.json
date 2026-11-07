@@ -26,6 +26,7 @@
   "gauge",
   "change",
   "draw",
+  "state",
   "ranking",
   "versus",
   "countdown",
@@ -35,8 +36,10 @@
   "impact",
   "route",
   "budget",
+  "plate",
   "end"
  ],
+ "concept": {"rungs": [1, 2, 3, 4, 5, 6], "ideas": 5},
  "rules": "claims",
  "format": "explainer",
  "publish": "review",

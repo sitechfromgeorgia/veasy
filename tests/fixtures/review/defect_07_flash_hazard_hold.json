@@ -1,0 +1,65 @@
+{
+  "id": "defect-07-flash-hazard-hold",
+  "brand": "tbilisi-today",
+  "lang": "ka",
+  "category": "society",
+  "date": "2026-11-06T12:00:00Z",
+  "sources": [
+    "საავტომობილო გზების დეპარტამენტი"
+  ],
+  "cta": "გააფრთხილე მძღოლები და გააზიარე",
+  "defect": {
+    "number": 7,
+    "name": "flash_hazard_hold",
+    "gate": "hold",
+    "rule": "itu_bt_1702_flash_safety",
+    "metric": "flashes_per_sec > 3 across area > 25%",
+    "description": "Rapid contrasting inversions and shutter cuts exceeding ITU BT.1702 (>3 flashes/s -> MUST HOLD)",
+    "catch": "flash"
+  },
+  "flash_strobe": {
+    "enabled": true,
+    "pattern": "alternating_inversion",
+    "frequency_hz": 4.5,
+    "area": 0.45
+  },
+  "narration": "საგანგებო განგაში რიკოთის საავტომობილო უღელტეხილზე გამოცხადდა. უხვი ნალექის გამო მოძრაობა ყველა სახის ტრანსპორტისთვის ჩაიკეტა. ადგილზე მობილიზებულია მძიმე საგზაო ტექნიკა. დეტალები tbilisi.today-ზე. გააფრთხილე მძღოლები და გააზიარე.",
+  "scenes": [
+    {
+      "type": "hook",
+      "at": "საგანგებო განგაში",
+      "kicker": "საგანგებო · რიკოთი",
+      "lines": [
+        "რიკოთის უღელტეხილზე",
+        "მოძრაობა სრულად",
+        "ჩაიკეტა"
+      ]
+    },
+    {
+      "type": "where",
+      "at": "უხვი ნალექის გამო",
+      "kicker": "ვითარება",
+      "headline": "საგზაო შეზღუდვა",
+      "place": "რიკოთის უღელტეხილი",
+      "sub": "ჩაკეტილია ყველა სახის ტრანსპორტი",
+      "transition": "shutter"
+    },
+    {
+      "type": "points",
+      "at": "ადგილზე მობილიზებულია",
+      "kicker": "სამუშაოები",
+      "headline": "გაწმენდითი ღონისძიებები",
+      "items": [
+        "მძიმე ტექნიკის მობილიზება",
+        "გზის გაწმენდის პროცესი",
+        "საპატრულო ეკიპაჟების მორიგეობა"
+      ],
+      "transition": "shutter"
+    },
+    {
+      "type": "end",
+      "at": "დეტალები tbilisi.today-ზე"
+    }
+  ],
+  "pixels": "strobe"
+}

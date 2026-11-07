@@ -1,0 +1,98 @@
+{
+  "id": "map-tour",
+  "title": "Map Tour",
+  "label": "რუკაზე",
+  "about": "Place by place, from the document's own list of locations.",
+  "eligible": [
+    {
+      "places": 1,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh"
+    },
+    {
+      "id": "where",
+      "job": "setup",
+      "scene_types": [
+        "where"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click"
+    },
+    {
+      "id": "route_or_span",
+      "job": "evidence",
+      "scene_types": [
+        "route",
+        "where",
+        "points"
+      ],
+      "word_budget": [
+        6,
+        18
+      ],
+      "sound": "tick"
+    },
+    {
+      "id": "extent",
+      "job": "payoff",
+      "scene_types": [
+        "stat",
+        "bars",
+        "where"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud"
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "places": 3
+  },
+  "brief": [
+    "Use only places in the document.",
+    "No district or address of private persons."
+  ]
+}

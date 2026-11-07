@@ -1,0 +1,654 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-11-07",
+  "max_git_mb": 15.0,
+  "materials": {
+    "limestone": {
+      "id": "limestone",
+      "name": "Sedimentary Limestone",
+      "category": "stone",
+      "description": "Fine-grained natural limestone slab with subtle porous pitting and delicate sedimentary bedding.",
+      "prompt": "Top-down flat-lay macro texture of raw natural fine-grained limestone slab with delicate sedimentary strata and porous mineral pitting.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/limestone/height.png",
+        "normal": "assets/surfaces/limestone/normal.png",
+        "meta": "assets/surfaces/limestone/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.2,
+      "roughness": 0.75,
+      "bytes": 754713,
+      "sha256": {
+        "height": "c9adc0dbd69f01581b41fd05c8ca8292150956b55906d619369c49f1d1157530",
+        "normal": "89eb6e2e07083a43accef8ca2af369d2df8997940b216bcfba8e6c1ba75bc83f"
+      }
+    },
+    "worn_plaster": {
+      "id": "worn_plaster",
+      "name": "Worn Lime Plaster",
+      "category": "mineral",
+      "description": "Aged historical lime stucco with delicate hairline drying fissures and soft matte powdery tooth.",
+      "prompt": "Top-down flat-lay macro texture of aged worn historical lime stucco wall featuring subtle hairline drying fissures and matte powdery finish.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/worn_plaster/height.png",
+        "normal": "assets/surfaces/worn_plaster/normal.png",
+        "meta": "assets/surfaces/worn_plaster/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.1,
+      "roughness": 0.85,
+      "bytes": 823666,
+      "sha256": {
+        "height": "c51add27e303fb65eb276183d1a1c0533cf661c827eb179d5c0849dc7424b3ba",
+        "normal": "d2468e97bcbdbb76b38342d5ba0032aa0a026cf538381477c7a83582bddfeb08"
+      }
+    },
+    "handmade_paper": {
+      "id": "handmade_paper",
+      "name": "Handmade Rag Paper",
+      "category": "paper",
+      "description": "Heavyweight cotton rag paper with organic cellulose fibers, deckle pulp clumps, and micro-creases.",
+      "prompt": "Top-down flat-lay macro texture of vintage handmade cotton rag paper with visible cellulose fibers, organic deckle pulp clumps, and micro-creases.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/handmade_paper/height.png",
+        "normal": "assets/surfaces/handmade_paper/normal.png",
+        "meta": "assets/surfaces/handmade_paper/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.1,
+      "roughness": 0.9,
+      "bytes": 810098,
+      "sha256": {
+        "height": "be15b4b9e85f2a536e8ad00125089ef458191e05d353046e5457a96421e3201a",
+        "normal": "f7134bbb33bf88c55d69b57ef1c31849a4f7df399a70aca2e977581c2372cb89"
+      }
+    },
+    "raw_wood": {
+      "id": "raw_wood",
+      "name": "Raw Hardwood Timber",
+      "category": "wood",
+      "description": "Planed unvarnished hardwood slab with fine longitudinal grain lines and delicate vascular pores.",
+      "prompt": "Top-down flat-lay macro texture of fine-grained raw planed hardwood timber slab with natural longitudinal grain lines and delicate vascular pores.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/raw_wood/height.png",
+        "normal": "assets/surfaces/raw_wood/normal.png",
+        "meta": "assets/surfaces/raw_wood/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.0,
+      "roughness": 0.7,
+      "bytes": 754119,
+      "sha256": {
+        "height": "ba0bcb661fed412ddf9596d16646f26c8507c237da7603caef91043352f12291",
+        "normal": "632826392d550668de3e54f8be1be02055280278d78c6a27d02575c968882e27"
+      }
+    },
+    "hammered_metal": {
+      "id": "hammered_metal",
+      "name": "Hammered Patinated Iron",
+      "category": "metal",
+      "description": "Wrought antique metal plate with rhythmic planishing hammer dimples and dark oxidized patina.",
+      "prompt": "Top-down flat-lay macro texture of antique hand-hammered wrought metal plate with rhythmic planishing dimples and dark oxidized bronze-iron patina.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/hammered_metal/height.png",
+        "normal": "assets/surfaces/hammered_metal/normal.png",
+        "meta": "assets/surfaces/hammered_metal/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.4,
+      "roughness": 0.45,
+      "bytes": 773133,
+      "sha256": {
+        "height": "d563e3e88bd45e89d2a954e436bc41a8a66691aab29143e8b080ffca391455c9",
+        "normal": "fa3703a93034883b793c67b73202d4d75df8d56784dfa4cb040056015e0a7c08"
+      }
+    },
+    "woven_cloth": {
+      "id": "woven_cloth",
+      "name": "Raw Woven Linen",
+      "category": "textile",
+      "description": "Coarse unbleached natural linen fabric with interlocking orthogonal warp and weft weave.",
+      "prompt": "Top-down flat-lay macro texture of coarse raw natural unbleached linen fabric with interlocking orthogonal warp and weft weave and subtle slub texture.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/woven_cloth/height.png",
+        "normal": "assets/surfaces/woven_cloth/normal.png",
+        "meta": "assets/surfaces/woven_cloth/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.1,
+      "roughness": 0.8,
+      "bytes": 828109,
+      "sha256": {
+        "height": "ac174ea8210f2b680135ba3b2031c52bd64960ee9eb019ea233f76dc70c5c368",
+        "normal": "7feed5678df89af7357525843b21d1e6d1ece0f615de74e9cccd4c01c6d43b4d"
+      }
+    },
+    "ornament_rosette": {
+      "id": "ornament_rosette",
+      "name": "Radial Fluted Rosette Relief",
+      "category": "ornament",
+      "description": "Original 12-fold symmetrical carved rosette medallion with concentric fluted petals in stone.",
+      "prompt": "Top-down flat-lay architectural bas-relief carving of an original 12-fold radial fluted geometric rosette medallion with concentric layered petals.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/ornament_rosette/height.png",
+        "normal": "assets/surfaces/ornament_rosette/normal.png",
+        "meta": "assets/surfaces/ornament_rosette/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.5,
+      "roughness": 0.65,
+      "bytes": 764488,
+      "sha256": {
+        "height": "f68be5a4016bdea2958e27614145171e22f36ac709b4bd17aacae05f74fb4145",
+        "normal": "4c52fccc201238ba7aa089a764de698a0c39c3d6855240a8bd9441751fc19d9d"
+      }
+    },
+    "ornament_palmette": {
+      "id": "ornament_palmette",
+      "name": "Anthemion Palmette Fan Relief",
+      "category": "ornament",
+      "description": "Original stylized architectural anthemion palmette fan flanked by acanthus volutes in low stone relief.",
+      "prompt": "Top-down orthogonal flat-lay bas-relief stone carving featuring an original symmetrical anthemion palmette fan flanked by acanthus scrollwork.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/ornament_palmette/height.png",
+        "normal": "assets/surfaces/ornament_palmette/normal.png",
+        "meta": "assets/surfaces/ornament_palmette/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.5,
+      "roughness": 0.65,
+      "bytes": 777387,
+      "sha256": {
+        "height": "ef53a02551990b71c32c6c7199e775bf353b915a928600805272741cc54c8dd0",
+        "normal": "620209776f9815fe119c820631456e07d07b9a08441a3e378c7d17359d533fee"
+      }
+    },
+    "ornament_meander": {
+      "id": "ornament_meander",
+      "name": "Stepped Key Meander Relief",
+      "category": "ornament",
+      "description": "Original classical Greek orthogonal key meander fret carved in porous weathered limestone.",
+      "prompt": "Top-down flat-lay bas-relief carving of an authentic classical Greek geometric fret meander pattern sculpted in weathered porous limestone.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/ornament_meander/height.png",
+        "normal": "assets/surfaces/ornament_meander/normal.png",
+        "meta": "assets/surfaces/ornament_meander/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.4,
+      "roughness": 0.7,
+      "bytes": 721569,
+      "sha256": {
+        "height": "252ef94ba5d6dd8c7aa3d19544832774aecf6d89114cc1500b2410e2f85a5763",
+        "normal": "d2f1d3c37d875d39fdffaddc01e5df7fa30724729350af6605898a2c1f97e5c3"
+      }
+    },
+    "bark": {
+      "id": "bark",
+      "name": "Furrowed Bark",
+      "category": "wood",
+      "description": "Deep vertical bark furrows with warped, ridged plates.",
+      "generator": "tools/surface_procedural.py:bark@v1",
+      "seed": 1000,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/bark/height.png",
+        "normal": "assets/surfaces/bark/normal.png",
+        "meta": "assets/surfaces/bark/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 1.8,
+      "roughness": 0.9,
+      "bytes": 424073,
+      "sha256": {
+        "height": "71aa5d53d538596008e55af2242886be30c8f279568e63c3109263094940d362",
+        "normal": "5ea8d6bddeb15041fc20332e147e59339b15be91d6d0be954798240725170239"
+      }
+    },
+    "basket_weave": {
+      "id": "basket_weave",
+      "name": "Basket Weave",
+      "category": "textile",
+      "description": "Woven reed slats in a checkerboard basket pattern.",
+      "generator": "tools/surface_procedural.py:basket_weave@v1",
+      "seed": 1001,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/basket_weave/height.png",
+        "normal": "assets/surfaces/basket_weave/normal.png",
+        "meta": "assets/surfaces/basket_weave/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 1.6,
+      "roughness": 0.8,
+      "bytes": 357144,
+      "sha256": {
+        "height": "b072133a2a0e31e248e9b5b5d70030b4ddda620a0d0f1eb968a48242fcc0e9b7",
+        "normal": "da2101851580c8b616c134e6973ebcc44f83863256351d19274f13d8fa3c5af8"
+      }
+    },
+    "brain_coral": {
+      "id": "brain_coral",
+      "name": "Meandering Coral",
+      "category": "organic",
+      "description": "Labyrinth ridges grown by reaction-diffusion, like brain coral.",
+      "generator": "tools/surface_procedural.py:brain_coral@v1",
+      "seed": 1002,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/brain_coral/height.png",
+        "normal": "assets/surfaces/brain_coral/normal.png",
+        "meta": "assets/surfaces/brain_coral/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 1.4,
+      "roughness": 0.7,
+      "bytes": 198901,
+      "sha256": {
+        "height": "3db8f6c2e646dcda24c7142a93db648bf6259c818e37dfbfe4b2e2b709f2b8fd",
+        "normal": "7f51d352186edff02f6c291e6d8bb6bada8e70bae848ccdb5e5cdfd7619f068c"
+      }
+    },
+    "brushed_steel": {
+      "id": "brushed_steel",
+      "name": "Brushed Steel",
+      "category": "metal",
+      "description": "Fine horizontal brushing lines with a few long scratches.",
+      "generator": "tools/surface_procedural.py:brushed_steel@v1",
+      "seed": 1003,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/brushed_steel/height.png",
+        "normal": "assets/surfaces/brushed_steel/normal.png",
+        "meta": "assets/surfaces/brushed_steel/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 0.6,
+      "roughness": 0.35,
+      "bytes": 424025,
+      "sha256": {
+        "height": "b9fb7aa661e56b974778811b5c8fcff9814c27adac64bc0ba150f6e23a628750",
+        "normal": "09a27ef03bd25b433b7324e10999d821e6af588cd2b681e3e420cf7efc4f104a"
+      }
+    },
+    "cork": {
+      "id": "cork",
+      "name": "Agglomerated Cork",
+      "category": "organic",
+      "description": "Pressed cork granules with scattered pits and pores.",
+      "generator": "tools/surface_procedural.py:cork@v1",
+      "seed": 1005,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/cork/height.png",
+        "normal": "assets/surfaces/cork/normal.png",
+        "meta": "assets/surfaces/cork/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 1.1,
+      "roughness": 0.9,
+      "bytes": 437492,
+      "sha256": {
+        "height": "3c887c7e7e4f4d2ce6128cb89b8d00d60aa4c5c3cfb89199194c4984ac954722",
+        "normal": "9c762ba4178275f4c457b85b48feadcfdf3a22253bceb581d14bf82236da3641"
+      }
+    },
+    "corrugated_card": {
+      "id": "corrugated_card",
+      "name": "Corrugated Card",
+      "category": "paper",
+      "description": "Cardboard flutes with paper fibre and soft crush marks.",
+      "generator": "tools/surface_procedural.py:corrugated_card@v1",
+      "seed": 1006,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/corrugated_card/height.png",
+        "normal": "assets/surfaces/corrugated_card/normal.png",
+        "meta": "assets/surfaces/corrugated_card/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 1.6,
+      "roughness": 0.85,
+      "bytes": 385074,
+      "sha256": {
+        "height": "7a2ceda00b34ff8074effe80b4ce822057184641f1b912d547beadb0eccea3d2",
+        "normal": "1376859400ace15e847573f9e9d0413da5bbc8f63369dc6e551565d628b1e03a"
+      }
+    },
+    "cracked_earth": {
+      "id": "cracked_earth",
+      "name": "Cracked Dry Earth",
+      "category": "earth",
+      "description": "Sun-baked clay in curling polygonal plates divided by deep drying cracks.",
+      "generator": "tools/surface_procedural.py:cracked_earth@v1",
+      "seed": 1007,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/cracked_earth/height.png",
+        "normal": "assets/surfaces/cracked_earth/normal.png",
+        "meta": "assets/surfaces/cracked_earth/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 1.7,
+      "roughness": 0.9,
+      "bytes": 401636,
+      "sha256": {
+        "height": "ea48e80a6b3ab9cd7f314f07e1ec02ffbd3eb736c83e919817a33c74fd668c68",
+        "normal": "dd4587eb173f7c9cb881d715083f42afc7f48514e38b7280f75d0c1ef581a16e"
+      }
+    },
+    "knit_wool": {
+      "id": "knit_wool",
+      "name": "Knitted Wool",
+      "category": "textile",
+      "description": "Stockinette knit rows of chunky wool stitches with fibre fuzz.",
+      "generator": "tools/surface_procedural.py:knit_wool@v1",
+      "seed": 1008,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/knit_wool/height.png",
+        "normal": "assets/surfaces/knit_wool/normal.png",
+        "meta": "assets/surfaces/knit_wool/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 1.5,
+      "roughness": 0.95,
+      "bytes": 404318,
+      "sha256": {
+        "height": "d9ec1722520bd8f4e47a689b23eec884df117ff2c3b958cce5902ac060821508",
+        "normal": "6e9b5c48b3a983f1f44a35f914edcda87a86e460ed5e319809ca955587080adf"
+      }
+    },
+    "pumice": {
+      "id": "pumice",
+      "name": "Pitted Pumice",
+      "category": "stone",
+      "description": "Light volcanic stone riddled with large and small gas pits.",
+      "generator": "tools/surface_procedural.py:pumice@v1",
+      "seed": 1010,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/pumice/height.png",
+        "normal": "assets/surfaces/pumice/normal.png",
+        "meta": "assets/surfaces/pumice/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 1.5,
+      "roughness": 0.95,
+      "bytes": 414681,
+      "sha256": {
+        "height": "bdbec1d076fcd9c3e459045b37b8a1e2065ae7f3e42913e846e8e8a0a63bcc4e",
+        "normal": "de236bf2f87d5df0ba4833f54510be3703d6bd6f460db4473d24196484d59b85"
+      }
+    },
+    "rippled_sand": {
+      "id": "rippled_sand",
+      "name": "Rippled Sand",
+      "category": "earth",
+      "description": "Wind ripples in fine sand with sharp crests and soft troughs.",
+      "generator": "tools/surface_procedural.py:rippled_sand@v1",
+      "seed": 1011,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/rippled_sand/height.png",
+        "normal": "assets/surfaces/rippled_sand/normal.png",
+        "meta": "assets/surfaces/rippled_sand/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 1.4,
+      "roughness": 0.8,
+      "bytes": 335543,
+      "sha256": {
+        "height": "4267492d1477e29a424b81f1eb13933f5904799538d972100913ba1c32202795",
+        "normal": "b30959520b63d85723392cfb1d566651a4a64a52ca2b4425a3aa7f535e4091e2"
+      }
+    },
+    "rust": {
+      "id": "rust",
+      "name": "Blistered Rust",
+      "category": "metal",
+      "description": "Corroded iron with blistered scale, pits and flaking patches.",
+      "generator": "tools/surface_procedural.py:rust@v1",
+      "seed": 1012,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/rust/height.png",
+        "normal": "assets/surfaces/rust/normal.png",
+        "meta": "assets/surfaces/rust/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 1.6,
+      "roughness": 0.95,
+      "bytes": 372739,
+      "sha256": {
+        "height": "624bf6911d679425bf9ed6652162833816a49512269b27bad0287f383ee50946",
+        "normal": "dbfdbcb9c5b6e8084b610f58c0fbbe1822c84b2f564c50dc50f6d705436681b7"
+      }
+    },
+    "sandstone": {
+      "id": "sandstone",
+      "name": "Banded Sandstone",
+      "category": "stone",
+      "description": "Wind-worn sandstone with warped sedimentary strata, sandy grain and weathering pits.",
+      "generator": "tools/surface_procedural.py:sandstone@v1",
+      "seed": 1013,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/sandstone/height.png",
+        "normal": "assets/surfaces/sandstone/normal.png",
+        "meta": "assets/surfaces/sandstone/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 1.2,
+      "roughness": 0.85,
+      "bytes": 347237,
+      "sha256": {
+        "height": "c075e1f8b314f1e5ddd7d7e0ec9a1cec6fdff1b4ef4aa1bed891cf8501ac9ebd",
+        "normal": "690e557fd3a8b24d9a20da562b014b7f43f9e6b803e18460293b300295c1113f"
+      }
+    },
+    "slate": {
+      "id": "slate",
+      "name": "Cleaved Slate",
+      "category": "stone",
+      "description": "Dark cleaved slate plates with stepped flake edges and fine cleavage streaks.",
+      "generator": "tools/surface_procedural.py:slate@v1",
+      "seed": 1014,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/slate/height.png",
+        "normal": "assets/surfaces/slate/normal.png",
+        "meta": "assets/surfaces/slate/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 1.5,
+      "roughness": 0.55,
+      "bytes": 289836,
+      "sha256": {
+        "height": "506933804d4bf733898ad26b7ff2224a113bf6adf849e087b48b48a992575430",
+        "normal": "bf002f48c229f27722679ef4af3790bfe0f98caab0b51282d04ede8472338de0"
+      }
+    },
+    "wax": {
+      "id": "wax",
+      "name": "Melted Wax",
+      "category": "wax",
+      "description": "Smooth, slowly flowing melted wax with broad drips and swells.",
+      "generator": "tools/surface_procedural.py:wax@v1",
+      "seed": 1016,
+      "date": "2026-11-07",
+      "license": "procedural",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/wax/height.png",
+        "normal": "assets/surfaces/wax/normal.png",
+        "meta": "assets/surfaces/wax/meta.json"
+      },
+      "dimensions": [
+        384,
+        384
+      ],
+      "depth": 0.8,
+      "roughness": 0.3,
+      "bytes": 72211,
+      "sha256": {
+        "height": "22e6d7c7f522a59d0999b23ce015901b9e6943c3366b03aae578ac62643cd136",
+        "normal": "c7291cb589b01f83b94a153264c8532db0ad231af904384cd0cfb9685efd4c40"
+      }
+    }
+  },
+  "material_count": 23,
+  "total_disk_mb": 11.354,
+  "budget_pass": true
+}

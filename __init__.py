@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 SKILLS_DIR = ROOT / "skills"
 TIMEOUTS = {"render": 1500, "write": 900, "still": 600, "queue": 3600, "package": 900, "probe": 600, "plan": 600,
-            "compose": 2400}
+            "compose": 2400, "plate": 1800, "steer": 3600, "room": 300}
 
 HINT = (
     "[veasy] If this turn involves making, checking or fixing a video (a Short, a reel, a story video), first load "
@@ -119,6 +119,7 @@ TOOLS = {
                        "style": CHOICE_PROPS["style"],
                        "source": SOURCE,
                        "length": {"type": "string", "description": "short (15-30s), standard (30-45s), long (45-60s) or seconds."},
+                       "scenario": {"type": "string", "description": "A plot (skill veasy:scenarios) or auto; with preview_storyboard a URL's storyboard comes back before the writer is called."},
                        "yes": {"type": "boolean", "description": "True to accept code decisions and skip question rounds."},
                        "queue": {"type": "boolean", "description": "True to add to queue instead of rendering immediately."},
                        "preview_storyboard": {"type": "boolean", "description": "True to stop after plan and return storyboard stills."},
@@ -132,7 +133,7 @@ TOOLS = {
                    "finished, checked film (a ref is written first). Facts are never guessed from the words: with "
                    "no ref it returns needs_input. Flags like --source, --format or --look override.",
                    lambda a: _engine("make", [a["request"]] + _flags(
-                       a, ("brand", "style", "source", "length", "format", "look", "director", "theme", "engine")) +
+                       a, ("brand", "style", "source", "length", "format", "look", "director", "theme", "engine", "scenario")) +
                        (["--yes"] if a.get("yes") else []) +
                        (["--queue"] if a.get("queue") else []) +
                        (["--preview-storyboard"] if a.get("preview_storyboard") else []))),
@@ -227,6 +228,23 @@ TOOLS = {
                        "Returns an overall grade (PASS, NEEDS_ATTENTION, FAIL), score (0-100), checklist items, and "
                        "contact sheet path.",
                        lambda a: _engine("critique", [a["story"]] + _flags(a, ("format", "look", "director")))),
+    "veasy_review": ({"type": "object", "properties": {
+                         "story": STORY,
+                         "rounds": {"type": "integer", "description": "Repair rounds, default 2 (hard caps: 3 machine, 2 look)."},
+                         "format": CHOICE_PROPS["format"],
+                         "look": CHOICE_PROPS["look"],
+                         "director": CHOICE_PROPS["director"],
+                         "stills": {"type": "string", "description": "A folder of stills: also run the pixel checks."},
+                         "packet": {"type": "boolean", "description": "Add the review packet (spec and sheets, no code)."},
+                         "save": {"type": "boolean", "description": "Write the repaired story back to its file."}},
+                      "required": ["story"]},
+                     "The film's eyes (skill veasy:review): free checks on either engine's film (same picture twice, "
+                     "an empty middle, no hero frame, cuts on a metronome, a scene that only repeats the words, "
+                     "unreadable text and flashing, which hold) and a loop capped at 3 machine and 2 look rounds that "
+                     "repairs layout and pacing and never changes a fact (facts_diff stays empty). Notes read "
+                     "`t=4.2s · where · problem -> change`. Costs nothing but local work.",
+                     lambda a: _engine("review", [a["story"]] + _flags(a, ("rounds", "format", "look", "director", "stills")) +
+                                       (["--packet"] if a.get("packet") else []) + (["--save"] if a.get("save") else []))),
     "veasy_dry_run": ({"type": "object", "properties": {
                           "story": STORY,
                           "format": CHOICE_PROPS["format"],
@@ -237,6 +255,13 @@ TOOLS = {
                       "calculates word count, spoken seconds, estimated TTS cost, monthly budget status, and whether "
                       "the voice and bundle are already cached.",
                       lambda a: _engine("dry-run", [a["story"]] + _flags(a, ("format", "engine", "director")))),
+    "veasy_look": ({"type": "object", "properties": {
+                       "job": {"type": "string", "description": "A queue job id (see veasy_queue list)."},
+                       "story": {"type": "string", "description": "A story file or its name in stories/ (no job needed)."}}},
+                    "Free and read-only: what exists for a job or a story: its sheets, numbers, warnings, checks, "
+                    "the idea it keeps and the next step. Renders nothing a cached file already answers; names the "
+                    "missing ones. Pass job or story.",
+                    lambda a: _engine("look", _flags(a, ("job", "story")))),
     "veasy_write": ({"type": "object", "properties": {
                         "program": PROGRAM,
                         "source": SOURCE,
@@ -248,6 +273,18 @@ TOOLS = {
                     "tbilisi-today, the D1 keys). Stored as stories/<brand>/<day>/<ref>.json under VEASY_HOME. "
                     "Returns the story path and any remaining problems.",
                     lambda a: _engine("write", _flags(a, ("program", "source", "ref", "cluster", "brand", "rubric", "style")))),
+    "veasy_concept": ({"type": "object", "properties": {
+                          "program": PROGRAM,
+                          "source": SOURCE,
+                          "ref": {"type": "string", "description": "The story's reference in its source."},
+                          "batch": {"type": "string", "description": "A JSON file of [{source, ref}]: a run."},
+                          "brand": BRAND,
+                          "ideas": {"type": "string", "description": "A JSON file of your own ideas: judged the same "
+                                                                     "way, with no model call."}}},
+                      "The idea step alone (skill veasy:direct): ideas from named rungs of a ladder, judged and chosen "
+                      "by code, before any script. Free of voice and render, nothing recorded. Returns every idea with "
+                      "its verdict and the chosen concept.",
+                      lambda a: _engine("concept", _flags(a, ("program", "source", "ref", "batch", "brand", "ideas")))),
     "veasy_rubrics": ({"type": "object", "properties": {
                           "action": {"type": "string", "enum": ["list", "facts", "stamp"]},
                           "story": {"type": "string", "description": "stamp: a hand-written story file (stamped in place)."},
@@ -263,6 +300,18 @@ TOOLS = {
                       "alike); stamp: give a hand-written story its rubric and episode (code's, never the writer's).",
                       lambda a: _engine("rubrics", [a["action"]] + ([a["story"]] if a.get("story") else []) + _flags(
                           a, ("rubric", "brand", "source", "ref", "sources", "part")))),
+    "veasy_scenario": ({"type": "object", "properties": {
+                           "action": {"type": "string", "enum": ["list", "fit", "stamp", "board", "check"]},
+                           "story": {"type": "string", "description": "fit, stamp, check: a story file; board: a scenario id."},
+                           "scenario": {"type": "string", "description": "stamp: the plot's id, or auto for the best fit."},
+                           "length": {"type": "string", "description": "fit: short, standard, long or seconds."}},
+                        "required": ["action"]},
+                       "The scenarios (skill veasy:scenarios): the plots a film can follow, each beat with a job, a word "
+                       "budget, scene types and a sound. list them; fit: rank those a story's facts allow, with the "
+                       "reason; board: one plot's storyboard before any cost; stamp: set the plot on a hand-written "
+                       "story (code's, never the writer's); check: the free beat checks. news refuses every scenario.",
+                       lambda a: _engine("scenario", [a["action"]] + ([a["story"]] if a.get("story") else []) +
+                                         _flags(a, ("scenario", "length")))),
     "veasy_queue": ({"type": "object", "properties": {
                         "action": {"type": "string", "enum": ["add", "list", "run", "show", "retry", "cancel", "approve",
                                                              "reject"]},
@@ -290,13 +339,17 @@ TOOLS = {
                             "voice", "music", "platform", "beats", "chapters", "engine", "director", "rubric", "part", "renderer",
                             "style", "priority", "state", "max")))),
     "veasy_compose": ({"type": "object", "properties": {
-                          "action": {"type": "string", "enum": ["scaffold", "check", "render", "promote", "templates"]},
-                          "story": {"type": "string", "description": "scaffold/check/render: the story JSON."},
+                          "action": {"type": "string", "enum": ["scaffold", "check", "look", "render", "promote",
+                                                                "templates", "blocks"]},
+                          "story": {"type": "string", "description": "scaffold/check/look/render: the story JSON."},
                           "project": {"type": "string", "description": "The HyperFrames project folder (default: "
                                       "$VEASY_HOME/cache/compose/<brand>-<ref>); promote: the film to promote."},
                           "brand": BRAND,
                           "template": {"type": "string", "description": "scaffold/render: start from templates/<id> "
                                        "(auto: the least used for the brand)."},
+                          "blocks": {"type": "string", "description": "scaffold: block ids to assemble, comma-"
+                                     "separated (action blocks lists them)."},
+                          "video": {"type": "string", "description": "look: a rendered file to measure the sound of."},
                           "from": {"type": "string", "description": "scaffold: copy the agent's files (index.html, "
                                    "compositions/, beats.json) from this folder."},
                           "force": {"type": "boolean", "description": "scaffold: replace the project's own files."},
@@ -313,17 +366,38 @@ TOOLS = {
                       "(the pack's frame.md and tokens, facts.json, timing.json with the voice's words and the beats, "
                       "the locked chrome and captions), check it (our lint, the probe at every beat, the story's rules, "
                       "Georgian and kaeasy on every text the DOM shows, hyperframes check; problems must be empty), "
-                      "render it (pinned HyperFrames, the ffmpeg mix, QA), promote an approved film to a template.",
+                      "look at it (free: a sheet of its scenes and beats, a strip across every cut, the frames at "
+                      "phone width, its timeline), render it (pinned HyperFrames, the ffmpeg mix, QA), promote an "
+                      "approved film to a template.",
                       lambda a: _engine("compose", [a["action"]] + (
                           [a["project"]] if a["action"] == "promote" and a.get("project") else
                           [a["story"]] if a.get("story") else []) + _flags(
-                          a, ("brand", "template", "sources", "engine", "format", "style", "label")) +
+                          a, ("brand", "template", "blocks", "sources", "engine", "format", "style", "label",
+                              "video")) +
                           (["--project", a["project"]] if a.get("project") and a["action"] != "promote" else []) +
                           (["--from", a["from"]] if a.get("from") else []) + (["--as", a["as"]] if a.get("as") else []) +
                           (["--force"] if a.get("force") else []))),
     "veasy_doctor": ({"type": "object", "properties": {}},
                      "Is this machine ready to render? ffmpeg, Remotion, fonts, music, keys, kaeasy.",
                      lambda a: _engine("doctor", [])),
+    "veasy_plate": ({"type": "object", "properties": {
+                        "kind": {"type": "string", "description": "A plate kind (veasy_options section plates lists "
+                                 "them), or list (the baked library) or check (lint every kind)."},
+                        "seconds": {"type": "number", "description": "Length in seconds (default 6)."},
+                        "seed": {"type": "integer", "description": "The seed: one seed, one plate (default 1)."},
+                        "scale": {"type": "number", "description": "Bake at this fraction of 1080x1920; 0.5 is a preview."},
+                        "spec": {"type": "string", "description": "A JSON file for the kind's own setup."},
+                        "brand": BRAND,
+                        "program": {"type": "string", "description": "The story's program: news is refused."},
+                        "family": {"type": "string", "description": "The story's family: crime is refused."},
+                        "text": {"type": "string", "description": "The story's words: deaths, crime and incidents are refused."}},
+                     "required": ["kind"]},
+                    "A baked plate for a scene (skill veasy:plates): a slow grey clip drawn once in headless Chrome, toned "
+                    "into every pack's canvas and ink, cached by content. A second call answers from the cache. Returns "
+                    "the hash, the clips per pack and theme, the anchors file and what a frame cost. Refused for news, "
+                    "crime, incidents and deaths. Baking takes minutes: a queue job never bakes, it picks from the shelf.",
+                    lambda a: _engine("plate", [a["kind"]] + _flags(a, ("seconds", "seed", "scale", "spec", "brand", "program",
+                                                                         "family", "text")))),
     "veasy_brand": ({"type": "object", "properties": {
                         "action": {"type": "string", "enum": ["new"]},
                         "name": {"type": "string", "description": "The brand identifier (lowercase, hyphens)."},
@@ -334,6 +408,41 @@ TOOLS = {
                     "or website URL (engine brand new <name> --from <source>), validate WCAG contrast and schema, "
                     "and render preview contact sheets in dark and light themes.",
                     lambda a: _engine("brand", [a["action"], a["name"], "--from", a["from"]] + (["--no-sheets"] if a.get("no_sheets") else []))),
+    "veasy_steer": ({"type": "object", "properties": {
+                        "story": {"type": "string", "description": "A story JSON, or a rendered .mp4 to change."},
+                        "scene": {"type": "string", "description": "The scene to change: 3 or s3 (see veasy_room)."},
+                        "set": {"type": "array", "items": {"type": "string"},
+                                "description": "slot=value, e.g. label=\"...\" (repeatable)."},
+                        "verb": {"type": "string", "enum": ["tighter", "breathe", "land"],
+                                 "description": "A plain timing change on the scene: -0.4 s, +0.5 s, +0.3 s and mark the payoff."},
+                        "dry": {"type": "boolean", "description": "Say the cost and render nothing (do this first)."},
+                        "sources": {"type": "string", "description": "A JSON list of the member articles' texts: a news story's words need them."},
+                        "engine": {"type": "string", "enum": ["silent", "edge", "gemini"],
+                                   "description": "The voice (default silent; a narration change needs a new one)."},
+                        "write_room": {"type": "boolean", "description": "Only write <render>.room.html, change nothing."}},
+                     "required": ["story"]},
+                    "Change one scene of a film and redraw only that scene (skill veasy:steer). dry=true first: it "
+                    "says the cost, e.g. \"4.8 s of picture (scene 1 of 11, frames 297-440), $0\" or \"new voice, "
+                    "every frame\" when the narration changes. Without dry the scene is redrawn, the cut is spliced "
+                    "and the voice mixed once; check, probe, QA and flash still pass. Also writes <render>.room.html, "
+                    "a page of every scene with its words, timing and a command to copy.",
+                    lambda a: _engine("room", [a["story"]]) if a.get("write_room") else _engine("steer", [a["story"]] + (
+                        ["--scene", str(a["scene"])] if a.get("scene") not in (None, "") else []) + sum(
+                        [["--set", x] for x in (a.get("set") or [])], []) + (
+                        [f"--{a['verb']}"] if a.get("verb") else []) + (["--dry"] if a.get("dry") else []) + _flags(
+                        a, ("engine", "sources")))),
+    "veasy_brush_book": ({"type": "object", "properties": {
+                             "find": {"type": "string", "description": "What the story needs, in a few words: a number, a place, a process, a quote."},
+                             "examples": {"type": "boolean", "description": "Annotated example films and a bad-to-fixed pair instead."},
+                             "seed": {"type": "string", "description": "examples: the rotation (a story id or date); the same seed gives the same ones."},
+                             "real": {"type": "boolean", "description": "Render the missing stills first (slow: machine time, no tokens)."}}},
+                         "The brush book (skill veasy:brush-book): find the brush, hook, motif, entrance, transition, "
+                         "director, style or rubric a story needs, each with its real rendered frame, its command and "
+                         "when not to use it (find), or annotated example films (examples). real rebuilds "
+                         "out/gallery/index.html, the page a person opens.",
+                         lambda a: _engine("gallery", (["--find", a["find"]] if a.get("find") else []) +
+                                           (["--examples"] + _flags(a, ("seed",)) if a.get("examples") else []) +
+                                           (["--real"] if a.get("real") else []))),
 }
 
 

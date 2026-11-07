@@ -1,0 +1,20 @@
+{
+ "type": "plate",
+ "order": 260,
+ "what": "a headline on a card over a baked plate: a slow tone-only clip (plates/) in the pack's canvas and ink; the clip and its accent dot are code's",
+ "use_when": "an explainer or story whose topic is an idea, a system or a process (never an event), where a calm moving ground makes the film its own",
+ "avoid_when": "news, crime, incidents or deaths (refused); a real place (a plate is made, never a picture of somewhere); a scene that carries its own picture or map",
+ "pairs_with": ["hook", "stat", "steps", "sign"],
+ "slots": {
+  "headline": {"kind": "text", "max": 40, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "label": {"kind": "text", "max": 28}
+ },
+ "families_deny": ["crime"],
+ "min_seconds": 3,
+ "min_words": 7,
+ "em": {"fields": ["headline"], "kinds": ["underline"]},
+ "schema": null,
+ "rules": [],
+ "example": {"type": "plate", "at": "ბატარეა ენერგიას ინახავს", "kicker": "როგორ მუშაობს", "headline": "ენერგია ინახება ქიმიაში", "label": "ბატარეის მოდელი"}
+}

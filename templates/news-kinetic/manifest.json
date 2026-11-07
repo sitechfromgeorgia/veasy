@@ -3,7 +3,7 @@
  "label": "კინეტიკური ახალი ამბები",
  "about": "Multi-scene kinetic news template with stat, date card, timeline, and place pin",
  "engine": "hyperframes",
- "chrome": 2,
+ "chrome": 3,
  "from": {
   "story": 24835,
   "brand": "tbilisi-today",

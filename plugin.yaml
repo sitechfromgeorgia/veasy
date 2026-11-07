@@ -12,13 +12,20 @@ provides_tools:
   - veasy_probe
   - veasy_plan
   - veasy_write
+  - veasy_concept
   - veasy_rubrics
+  - veasy_scenario
   - veasy_queue
   - veasy_compose
   - veasy_doctor
   - veasy_critique
   - veasy_dry_run
+  - veasy_look
   - veasy_brand
+  - veasy_plate
+  - veasy_review
+  - veasy_steer
+  - veasy_brush_book
 provides_hooks:
   - pre_llm_call
 requires_env: []

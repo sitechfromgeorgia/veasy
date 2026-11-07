@@ -1,0 +1,62 @@
+{
+  "id": "defect-01-same-picture",
+  "brand": "tbilisi-today",
+  "lang": "ka",
+  "category": "society",
+  "date": "2026-11-06T12:00:00Z",
+  "sources": [
+    "სატრანსპორტო კომპანია"
+  ],
+  "cta": "მოიწონე და გაუზიარე მეზობლებს",
+  "defect": {
+    "number": 1,
+    "name": "same_picture",
+    "gate": "warning",
+    "rule": "dhash_similarity",
+    "metric": "hamming_distance_dhash <= 3",
+    "description": "Two consecutive scenes have identical visual layout, typography, and card composition (dHash distance <= 3)",
+    "catch": "same_picture_twice"
+  },
+  "narration": "თბილისის მეტროში მგზავრთა ნაკადი საგრძნობლად გაიზარდა. სატრანსპორტო კომპანიის მონაცემებით დღიური მაჩვენებელი 450 ათასს აღწევს. იგივე 450 ათასი მგზავრი ფიქსირდება მეორე მონაკვეთზეც. ყველაზე დატვირთული მონაკვეთი პირველი, ახმეტელი-ვარკეთილის ხაზია. დეტალები tbilisi.today-ზე. მოიწონე და გაუზიარე მეზობლებს.",
+  "scenes": [
+    {
+      "type": "hook",
+      "at": "თბილისის მეტროში",
+      "kicker": "საზოგადოება · ტრანსპორტი",
+      "lines": [
+        "მეტროში მგზავრთა",
+        "ნაკადი",
+        "საგრძნობლად გაიზარდა"
+      ]
+    },
+    {
+      "type": "stat",
+      "at": "სატრანსპორტო კომპანიის",
+      "kicker": "მგზავრები",
+      "headline": "დღიური ნაკადი",
+      "value": 450,
+      "label": "ათასი მგზავრი ყოველდღიურად"
+    },
+    {
+      "type": "stat",
+      "at": "იგივე 450 ათასი",
+      "kicker": "მგზავრები",
+      "headline": "დღიური ნაკადი",
+      "value": 450,
+      "label": "ათასი მგზავრი ყოველდღიურად"
+    },
+    {
+      "type": "where",
+      "at": "ყველაზე დატვირთული",
+      "kicker": "ხაზი",
+      "headline": "ძირითადი მიმართულება",
+      "place": "ახმეტელი-ვარკეთილი",
+      "sub": "პირველი ხაზი"
+    },
+    {
+      "type": "end",
+      "at": "დეტალები tbilisi.today-ზე"
+    }
+  ],
+  "pixels": "same_picture"
+}

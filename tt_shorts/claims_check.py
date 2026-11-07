@@ -81,7 +81,7 @@ def doc_facts(story, sources, doc=None):
 def opinion(story, corpus_low):
     out = []
     for s in story.get("scenes", []):
-        if s.get("type") not in news_check.SCENE_TYPES:
+        if s.get("type") not in news_check.SCENE_TYPES | news_check.NOT_NEWS_TYPES:
             out.append(f"N1: scene type {s.get('type')!r} is not allowed (no opinion or take scenes)")
     low = story.get("narration", "").lower()
     for w in news_check.EVALUATIVE:

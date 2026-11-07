@@ -1,0 +1,15 @@
+{
+  "id": "knit_wool",
+  "name": "Knitted Wool",
+  "category": "textile",
+  "description": "Stockinette knit rows of chunky wool stitches with fibre fuzz.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.5,
+  "roughness": 0.95,
+  "height_sha256": "d9ec1722520bd8f4e47a689b23eec884df117ff2c3b958cce5902ac060821508",
+  "normal_sha256": "6e9b5c48b3a983f1f44a35f914edcda87a86e460ed5e319809ca955587080adf",
+  "bytes": 404318
+}

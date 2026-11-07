@@ -23,11 +23,11 @@ export type CaptionLayout = {
 };
 
 // who and link {name, role} · pair {title, sub} · bars, trend and compare {label, value} · rail {when, label} ·
-// points and steps: plain strings
+// figures {label, value, unit?} · points and steps: plain strings
 export type Item = string | {
   name?: string; role?: string; title?: string; sub?: string; label?: string; value?: number; when?: string;
   text?: string; count?: number; // agree: a fact and how many member articles state it (code counts them)
-  rank?: number; state?: "done" | "pending"; note?: string; share?: number;
+  rank?: number; state?: "done" | "pending"; note?: string; share?: number; unit?: string; // figures: this tile's own unit
 };
 
 // tt_shorts/marks.py: a scene's voice-synced mark (its "em"), resolved in Python. field: the slot it sits in
@@ -43,14 +43,20 @@ export type MarkProps = {
 // stat: how the number arrives (tt_shorts: brushes/stat.json; flap never for politics or crime)
 export type StatStyle = "count" | "wheel" | "flap";
 
-// tt_shorts/art.py: one SVG element; colors are brand tokens, motion r (rise) | p (pop) | s (stroke draws itself)
+// tt_shorts/art.py: one SVG element; colors are brand tokens, motion r (rise) | p (pop) | s (stroke draws itself),
+// and the acts: t (turns in from move.turn degrees around move.at), m (moves in from move.from), g (grows from move.at)
+export type ArtMove = {
+  at?: [number, number]; turn?: number; from?: [number, number];
+  swing?: number; spin?: number; bob?: number; pulse?: number; // loops while on screen: degrees, degrees a second, px, 1
+};
 export type ArtNode = {
   tag: string;
   attrs: Record<string, string>;
-  motion: "r" | "p" | "s" | null;
+  motion: "r" | "p" | "s" | "t" | "m" | "g" | null;
   delay: number; // seconds into the scene
   children: ArtNode[];
   text: string | null;
+  move?: ArtMove;
 };
 
 // tt_shorts/icons.py: one Lucide icon's shapes on its 24 px grid, [tag, geometry attributes]; no colors
@@ -64,7 +70,17 @@ export type IconMotion = "draw" | "pop" | "pulse" | "count" | "morph" | "sketch"
 // horizontal mask sweep · gridsplit: the outgoing frame breaks into four panels that slide apart · scalethrough:
 // the outgoing frame scales up and fades through the new one
 export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter" | "fade" | "shutter" | "split" | "corner" | "iris" | "blind"
-  | "maskwipe" | "gridsplit" | "scalethrough";
+  | "maskwipe" | "gridsplit" | "scalethrough"
+  | "one-take" | "match" | "object"; // match and object: only in a film with a thread (variety.THREAD_TRANSITIONS)
+
+// the one-take camera (tt_shorts/onetake.py layout): the scenes' points on one path (px, world space), and per cut
+// the thread's bezier and the depth of its zoom bell; `cut` frames of motion from each new scene's first frame
+export type Camera = {
+  cut: number;
+  zoomCap: number;
+  points: [number, number][];
+  cuts: { into: number; from: [number, number]; to: [number, number]; a: [number, number]; b: [number, number]; c1: [number, number]; c2: [number, number]; zoom: number }[];
+};
 
 // the ending (tt_shorts/swipe.py OUTROS): the end card, a QR/link/CTA chip over the last scene, or a seamless loop
 export type Outro = "card" | "overlay" | "loop";
@@ -97,7 +113,49 @@ export type GeoMap = {
   focus: number[];
   pins: number[][];
   level: "country" | "region" | "district";
-  credit: string; // the boundary data's licence credit, shown small
+  credit: string; // the data's licence credit, shown small (with OpenStreetMap's when `layers` is set)
+  // the territories Georgian law calls occupied (Abkhazia, the Tskhinvali region): a tint over the regions, always
+  // both (the camera starts on the whole country); `label` is the pack's word (strings.occupied)
+  occupied?: GeoOccupied[];
+  // OpenStreetMap layers (ODbL): see assets/maps/README.md "What a scene gets"
+  layers?: GeoLayers;
+};
+
+export type GeoOccupied = {
+  id: "abkhazia" | "tskhinvali";
+  name: string;
+  path: string; // closed outline, in viewBox units; inside Georgia's outline
+  bbox: number[];
+  at: number[]; // where the label goes (the pole of inaccessibility), viewBox units
+  r: number; // the largest circle that fits inside at `at`, viewBox units
+  label: string;
+  in_focus: boolean; // the camera's last view meets it
+};
+
+export type GeoLayers = {
+  // the whole country, coarse: always (rivers: m.rivers); lakes closed paths, roads motorway and trunk
+  overview: { lakes: string; roads: string };
+  // a region view: detail clipped to `box`, fine; each missing class did not fit the budget
+  detail?: {
+    box: number[];
+    lakes?: string;
+    rivers?: { major?: string; minor?: string };
+    roads?: { motorway?: string; trunk?: string; primary?: string };
+    rail?: string;
+  };
+  // Tbilisi for a district view (never in the crime family); numbers carry one decimal
+  city?: {
+    box: number[];
+    decimals: number;
+    districts: { id: string; name: string; path: string; at: number[]; r: number; named: boolean }[];
+    streets: { trunk?: string; primary?: string; secondary?: string };
+    metro?: string;
+    streams?: string;
+    stations?: number[][];
+    rivers?: string;
+    lakes?: string;
+    rail?: string;
+  };
 };
 
 // tt_shorts/assets.py for_props(): a scene's picture, resolved in Python into a local file (public/media/) with the
@@ -114,6 +172,22 @@ export type MediaProps = {
 export type Beats = {
   frames: number[]; reveal: Record<string, number>; lit: Record<string, number[]>; steps: number[];
   texts: [string, number][];
+};
+
+// tt_shorts/thread.py: the film's object, code's from end to end. art: the drawing without words; outline: its
+// silhouette, main: the largest part of it; box: the drawing's bounds; forms: the shapes a match cut can land on;
+// surface: the level's two ends (drain, fill); crack: its two ends and the two sides (break)
+export type Thread = {
+  object: string; state: "drain" | "fill" | "break" | "grow" | "shrink" | null; seed: number; art: ArtNode[]; outline: string;
+  main: string; box: number[]; forms: Record<string, string>; surface?: [string, string];
+  crack?: { straight: string; jag: string; left: string; right: string };
+};
+// a scene's seat, in frame px: role seat (it stands in the scene's free room), hero (a state scene), token (small, in
+// the corner beside the kicker) or own (a draw scene draws it); reserve: the room the scene leaves free; from, to: the
+// state's progress here; form: its opening shape
+export type SceneThread = {
+  role: "seat" | "hero" | "token" | "own"; x: number; y: number; w: number; h: number; reserve: number; from?: number; to?: number;
+  form?: string | null;
 };
 
 export type SceneBase = {
@@ -172,6 +246,26 @@ export type Scene = SceneBase & {
   of?: number; // chapter: how many stories the digest has
   total?: number; // agree: the member articles code counted across
   media?: MediaProps; // set by tt_shorts/props.py from the story's assets ledger (never the writer's)
+  plate?: PlateProps; // plate: set by tt_shorts/plates.py for_props (the baked clip, never the writer's)
+  was?: string; // state: the words for the object before
+  now?: string; // state: and after
+  thread?: SceneThread; // set by tt_shorts/thread.py
+  vignette?: SceneVignette; // set by tt_shorts/vignettes.py
+  glyphs?: (IconNode[] | null)[]; // points: each item's icon, when its words name one (tt_shorts/icons.py)
+};
+
+// tt_shorts/vignettes.py: a drawing of what the scene's part is about, in its seat (frame px); box: the drawing's
+// bounds on its own canvas; reserve: the room the scene leaves free for it
+export type SceneVignette = {
+  role: "seat"; x: number; y: number; w: number; h: number; reserve: number; box: number[]; art: ArtNode[];
+  motif: string | null; source: string;
+};
+
+// tt_shorts/plates.py for_props(): a plate scene's toned clip (public/plates/), where its card sits and what the
+// DOM accent dot follows (plates/<kind>/anchors.json: page pixels per plate frame, 1080x1920)
+export type PlateProps = {
+  src: string; frames: number; layout: "top" | "mid" | "low"; tracks: Record<string, [number, number][]>;
+  label?: string | null; // the pack's N13 label, when the plate holds a model's picture (plates.generated)
 };
 
 // tt_shorts/brand.py for_remotion(): the brand pack, without file paths
@@ -202,9 +296,11 @@ export type ShortProps = {
   brand: BrandProps;
   variant: Variant;
   transition: Transition;
+  camera?: Camera; // transition "one-take" only
   style?: Style; // absent: the look's own (stack; grid or diagonal; rise or slide)
   outro?: Outro; // absent: the end card
   outroFrom?: number | null; // overlay and loop: the frame the chip comes in
+  thread?: Thread | null; // the film's object (tt_shorts/thread.py); absent: the kit's film
   motifIcon?: IconNode[] | null; // the story's main icon, when the style's motif is "icons"
   id: number;
   category: string; // Georgian label

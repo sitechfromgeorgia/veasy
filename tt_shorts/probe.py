@@ -14,6 +14,8 @@ bundle built once per version of remotion/src. rules() then checks the boxes aga
               against the cmap of the very woff2 the render uses
     font      the text is set in the pack's family, that weight loaded, and the frame was laid out after the font
               was in (text sized by measuring it would otherwise keep a fallback font's sizes)
+    seat      no scene text over the seat of the film's object (thread.py): the composition reports the seat, a seat is
+              computed from a text load, so this is where a wrong estimate is caught
     size      no text shrunk below the region's minimum (a long line squeezed by fitSize, a drawing's tiny label)
     contrast  every text readable on what is really under it (a theme can put dark on dark or light on light): the
               text's color (its alpha times its opacity) against its ground, every element the page paints under the
@@ -60,7 +62,7 @@ RAIL_Y = 1100  # below this, nothing right of RAIL_X (CLAUDE.md: the safe zone)
 MIN_PX = {"scene": 24, "card": 26, "captions": 40, "header": 26, "footer": 22, "other": 24}
 CHROME = ("header", "footer")
 WEIGHTS = ("400", "500", "600", "700")  # brand.FONT_WEIGHTS: every pack ships the four
-RULES = ("band", "rail", "captions", "frame", "overflow", "glyph", "font", "size", "contrast")
+RULES = ("band", "rail", "captions", "frame", "overflow", "glyph", "font", "size", "contrast", "seat")
 CONTRAST = {"text": 3.0, "small": 4.5}  # WCAG ratios: large/bold text, and small regular text
 SMALL_PX = 32
 
@@ -142,8 +144,8 @@ def rules(report, cmaps=None, c=None):
     W, H = c["W"], c["H"]
     out = []
 
-    def bad(rule, t, detail):
-        out.append({"rule": rule, "region": t.get("region"), "text": t.get("text", ""), "detail": detail})
+    def bad(rule, t, detail, **extra):
+        out.append({"rule": rule, "region": t.get("region"), "text": t.get("text", ""), "detail": detail, **extra})
 
     fonts = report.get("fonts") or {}
     early = report.get("fontsAtRender")
@@ -163,6 +165,10 @@ def rules(report, cmaps=None, c=None):
         if region not in CHROME and bottom > c["RAIL_Y"] + TOL and right > c["RAIL_X"] + TOL:
             bad("rail", t, f"{q} reaches x={right:.0f} below y={c['RAIL_Y']} (the like/share rail starts at "
                            f"x={c['RAIL_X']})")
+        seat = report.get("seat")
+        if seat and region in ("scene", "card") and x < seat["x"] + seat["w"] and right > seat["x"] and                 y < seat["y"] + seat["h"] and bottom > seat["y"] + TOL:
+            bad("seat", t, f"{q} ends at y={bottom:.0f}, over the object's seat, which starts at y={seat['y']}",
+                bottom=round(bottom))  # vignettes.relieve moves a drawing below it
         if region == "captions" and bottom > c["CAPTION_BOTTOM"] + TOL:
             bad("captions", t, f"{q} ends at y={bottom:.0f}, below the captions' band ({c['CAPTION_BOTTOM']})")
         if x < -TOL or y < -TOL or right > W + TOL or bottom > H + TOL:
@@ -313,6 +319,14 @@ def looks(choice, story):
     return out
 
 
+def relieve_seats(p, checked):
+    """The render's step between its two probes (engine.render_story): the scenes whose seat has text on it lose the
+    thread's object or move their drawing below the text (thread.relieve, vignettes.relieve) -> those scenes, or []."""
+    from tt_shorts import thread, vignettes
+    lost = (thread.relieve(p, checked) or {}).get("seats") or []
+    return sorted(set(lost) | set(vignettes.relieve(p, checked) or []))
+
+
 def story(story_path, fmt, look="auto", engine="silent", stills=None):
     """`engine probe`: one story in one or more looks, every scene at its settled frame, in one browser."""
     from tt_shorts import formats, props, speech
@@ -332,11 +346,22 @@ def story(story_path, fmt, look="auto", engine="silent", stills=None):
                                                                    (None, "default") else "")})
         built.append((lk, work, p, frames))
     per, done = run_jobs(jobs)
+    # what a render does before it renders: a seat with text on it is moved or given up (relieve_seats), so the probe
+    # judges the film that will ship, then looks once more at the looks that changed
+    moved = {}
+    for k, ((lk, work, p, frames), rows) in enumerate(zip(built, per)):
+        got = relieve_seats(p, judge(rows, work / "public", frames))
+        if got:
+            (work / "props.json").write_text(json.dumps(p, ensure_ascii=False), encoding="utf-8")
+            moved[k] = got
+    if moved:
+        for k, rows in zip(moved, run_jobs([jobs[k] for k in moved])[0]):
+            per[k] = rows
     result, found = {}, []
-    for (lk, work, p, frames), rows in zip(built, per):
+    for k, ((lk, work, p, frames), rows) in enumerate(zip(built, per)):
         r = judge(rows, work / "public", frames, prefix=f"{lk}: " if len(chosen) > 1 else "")
         result[lk] = {"problems": r["problems"], "issues": r["issues"], "frames": frames, "texts": r["texts"],
-                      "scenes": [s["type"] for s in p["scenes"]], "stills": r["files"]}
+                      "scenes": [s["type"] for s in p["scenes"]], "stills": r["files"], "relieved": moved.get(k, [])}
         found += r["problems"]
         shutil.rmtree(work / "probe-serve", ignore_errors=True)
     return {"story": str(pathlib.Path(story_path).resolve()), "engine": engine, "looks": result, "problems": found,

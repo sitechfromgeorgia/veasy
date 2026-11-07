@@ -15,7 +15,8 @@ import time
 import urllib.error
 import urllib.request
 
-from tt_shorts import art, catalog, drawings, icons, ka_check, kaeasy, meta, news_check
+from tt_shorts import (art, catalog, drawings, icons, illustrator, ka_check, kaeasy, meta, news_check,
+                       vignettes)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STYLE = (ROOT / "tt_shorts" / "ka_style.md").read_text(encoding="utf-8")
@@ -28,6 +29,7 @@ FALLBACK = os.environ.get("SHORTS_WRITER_FALLBACK", "")
 # out without it. VEASY_WRITER_DRAW=0 turns drawing off.
 DRAW_ENV = "VEASY_WRITER_DRAW"
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
+THINKING_TOKENS = 24000  # a provider's model may think first, and that counts: too few and the answer comes back empty
 
 
 class ChecksFailed(ValueError):
@@ -43,16 +45,30 @@ class ChecksFailed(ValueError):
 SCHEMA = catalog.schema()
 
 
+def _provider() -> tuple[str, str, dict, str, dict]:
+    """(url, key, the request's extra keys, the key's name, extra headers): OpenRouter, or any OpenAI-format server
+    named by SHORTS_WRITER_URL with SHORTS_WRITER_KEY (read when used: daily.py loads data/.env after importing this).
+    The writer names itself there: an API behind Cloudflare refuses Python-urllib's default signature (error 1010)."""
+    url = os.environ.get("SHORTS_WRITER_URL", "").rstrip("/")
+    if not url:
+        return ENDPOINT, os.environ.get("OPENROUTER_API_KEY", ""), {"reasoning": {"enabled": False}}, \
+            "OPENROUTER_API_KEY", {}
+    if not url.endswith("/chat/completions"):
+        url += "/chat/completions"
+    return url, os.environ.get("SHORTS_WRITER_KEY", ""), {}, "SHORTS_WRITER_KEY", {"User-Agent": "veasy-writer"}
+
+
 def _call(prompt: str, model: str, max_tokens: int = 1800, tries: int = 3) -> str:
-    key = os.environ.get("OPENROUTER_API_KEY", "")
+    url, key, extra, name, headers = _provider()
     if not key:
-        raise RuntimeError("OPENROUTER_API_KEY is not set")
+        raise RuntimeError(f"{name} is not set")
     body = {"model": model, "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.3, "max_tokens": max_tokens, "reasoning": {"enabled": False}}
+            "temperature": 0.3, "max_tokens": max_tokens if url == ENDPOINT else max(max_tokens, THINKING_TOKENS), **extra}
     last = ""
     for attempt in range(tries):
-        req = urllib.request.Request(ENDPOINT, data=json.dumps(body).encode(),
-                                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+        req = urllib.request.Request(url, data=json.dumps(body).encode(),
+                                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
+                                              **headers})
         try:
             with urllib.request.urlopen(req, timeout=180) as r:
                 data = json.load(r)
@@ -62,7 +78,7 @@ def _call(prompt: str, model: str, max_tokens: int = 1800, tries: int = 3) -> st
             last = "empty answer"
         except urllib.error.HTTPError as e:
             last = f"HTTP {e.code}: {e.read()[:200]!r}"
-            if e.code == 429:
+            if e.code == 429 and url == ENDPOINT:
                 try:
                     return _nvidia(prompt, max_tokens)
                 except Exception as nv:
@@ -123,12 +139,19 @@ def drawing() -> bool:
 
 def schema(types=None) -> str:
     """The catalog's shape and rules (catalog.schema), with the draw scene and its style guide only when drawing is
-    on. types: only these scene types' lines and rules (a director's, directors.scene_types; a program's)."""
+    on. types: only these scene types' lines and rules (a director's, directors.scene_types; a program's). A scene's
+    "art" is the illustrator's (illustrator.py, a call of its own after the script) unless that step is off."""
     text = catalog.schema(types)
+    later = illustrator.on()
+    own_art = '\n- never set "art": a separate step draws the film\'s pictures.' if later else f"\n{catalog.RULE_ART}"
     if drawing() and (types is None or "draw" in types):
-        return f"{text}\n{art.GUIDE}"
-    return "\n".join(line for line in text.splitlines() if '"draw"' not in line) + \
-        '\n- never use a "draw" scene.'
+        return f"{text}{own_art}\n{art.GUIDE}"
+    bare = "\n".join(line for line in text.splitlines() if '"draw"' not in line)
+    if drawing() and later:
+        return bare + '\n- never use a "draw" scene.' + own_art
+    if drawing():
+        return f"{bare}\n{catalog.RULE_ART}\n{art.GUIDE}\n- never use a \"draw\" scene (\"art\" only)."
+    return bare + '\n- never use a "draw" scene, nor "art".'
 
 
 def _variety_line(avoid: list[str] | None) -> str:
@@ -159,7 +182,9 @@ def _prompt(cluster: dict, articles: list[str], avoid: list[str] | None = None, 
         "მკაცრი წესები:\n"
         "- ციტატა მხოლოდ სტატიის ტექსტიდან, სიტყვასიტყვით და ბრჭყალებით. არ შეცვალო, არ შეამოკლო სიტყვების შეცვლით. "
         "თუ ზუსტი ციტატა არ არის, quote სცენა საერთოდ არ გამოიყენო.\n"
-        "- sign სცენაზე მხოლოდ ის ხატულა/სიტყვა, რომელიც ამ სცენის ნარაციის ნაწილში ზუსტად არის ნათქვამი. თუ არა, აირჩიე points.\n"
+        "- sign სცენაზე მხოლოდ ის ხატულა/სიტყვა, რომელიც ამ სცენის ნარაციის ნაწილში ზუსტად არის ნათქვამი. თუ არა, sign სცენა არ გამოიყენო.\n"
+        "- სია (points, steps, checklist, ranking) მხოლოდ მაშინ, როცა სტატია თვითონ ჩამოთვლის ცალკეულ რამეებს; ფილმში მაქსიმუმ "
+        "ერთი სია. ამბის შეჯამება სია არ არის: აირჩიე სცენა, რომელიც თემას აჩვენებს.\n"
         "- stat/bars/compare-ის ციფრი ზუსტად იმავე ნაწილის ნარაციაში უნდა ჟღერდეს, სხვა რიცხვი არ დაწერო.\n"
         "- ყოველი სცენის \"at\" არის ამ სცენის ნარაციის პირველი სიტყვები, ზუსტად.\n\n"
     )
@@ -464,7 +489,8 @@ def _checks(story: dict, articles: list[str], cluster: dict):
             + icons.story_problems(story) + catalog.story_problems(story, meta.family(story.get("category", ""))))
 
 
-OWNED = ("rubric", "episode", "part", "digest")  # code sets them (rubrics.py, digest.py), like date and director
+OWNED = ("rubric", "episode", "part", "digest", "concept", "scenario")  # code sets them (rubrics.py, digest.py,
+# concept.py, scenarios.py), like date
 
 
 def _drop_owned(story: dict) -> None:
@@ -475,12 +501,13 @@ def _drop_owned(story: dict) -> None:
 def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 2,
           avoid: list[str] | None = None, make_prompt=None, run_checks=None, mistakes: str = "",
           on_problems=None, director: dict | None = None, facts: dict | None = None, extra: str = "",
-          extra_types=()) -> dict:
+          extra_types=(), forgive: tuple = ()) -> dict:
     """avoid: the scene orders the latest videos used (variety.recent_sequences), so this one can differ.
     make_prompt(cluster, articles, avoid) / run_checks(story, articles, cluster): a program's own prompt and rule
     tier (programs.write); by default the news cluster's (_prompt, _checks). mistakes: the brand's recent failed
     rules (failures.prompt_block, news prompt only); on_problems(list): called with the problems of every pass
-    that goes back for a repair (failures.record)."""
+    that goes back for a repair (failures.record). forgive: prefixes of problems that go back for repairs like any
+    other but never lose the script (the idea step: the caller reads what is left)."""
     model = model or MODEL
     prompt_of = make_prompt or (lambda c, a, av: _prompt(c, a, av, mistakes, director, facts, extra, extra_types))
     checks_of = run_checks or _checks
@@ -529,6 +556,11 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
             problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if not _anchors_ok(story):
         problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
+    if any("): art: " in p for p in problems):  # a scene's own drawing that still fails is dropped (vignettes.py)
+        story = vignettes.drop_bad(story)
+        problems = checks_of(story, articles, cluster)
+        if not _anchors_ok(story):
+            problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if any(p.startswith("draw:") for p in problems):  # a drawing that still fails is dropped, not the video
         story, swapped = drawings.mend(story)  # unless the library has one of its motif that fits this story
         story, dropped = art.drop_bad(story)
@@ -536,8 +568,9 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
             problems = checks_of(story, articles, cluster)
             if not _anchors_ok(story):
                 problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
-    if problems:
-        raise ChecksFailed(problems)
+    hard = (lambda found: [x for x in found if not x.startswith(forgive)]) if forgive else (lambda found: found)
+    if hard(problems):
+        raise ChecksFailed(hard(problems))
     # The free writer's Georgian is serviceable but not publishable. One editor pass fixes
     # grammar and calques while the facts, numbers and anchors stay frozen; if the edit breaks
     # a check, the pre-edit script is kept.
@@ -545,9 +578,13 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     if edited:
         edited.pop("director", None)
         _drop_owned(edited)
-    if edited and _anchors_ok(edited) and not checks_of(edited, articles, cluster):
+    if edited and _anchors_ok(edited) and not hard(checks_of(edited, articles, cluster)):
         kaeasy.learn_edit(story.get("narration", ""), edited.get("narration", ""))  # every agent learns the fix
         story = edited
+    # The film's drawings: a call of their own once the words are final (illustrator.py). A failure costs the
+    # drawings, never the video.
+    if illustrator.on():
+        story, _ = illustrator.draw(story)
     # N6: identity, date and outlets come from the data, never from the writer.
     if cluster.get("id"):
         story["id"] = cluster["id"]

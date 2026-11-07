@@ -1,0 +1,15 @@
+{
+  "id": "bark",
+  "name": "Furrowed Bark",
+  "category": "wood",
+  "description": "Deep vertical bark furrows with warped, ridged plates.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.8,
+  "roughness": 0.9,
+  "height_sha256": "71aa5d53d538596008e55af2242886be30c8f279568e63c3109263094940d362",
+  "normal_sha256": "5ea8d6bddeb15041fc20332e147e59339b15be91d6d0be954798240725170239",
+  "bytes": 424073
+}

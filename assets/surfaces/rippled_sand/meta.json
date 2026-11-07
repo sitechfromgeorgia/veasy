@@ -1,0 +1,15 @@
+{
+  "id": "rippled_sand",
+  "name": "Rippled Sand",
+  "category": "earth",
+  "description": "Wind ripples in fine sand with sharp crests and soft troughs.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.4,
+  "roughness": 0.8,
+  "height_sha256": "4267492d1477e29a424b81f1eb13933f5904799538d972100913ba1c32202795",
+  "normal_sha256": "b30959520b63d85723392cfb1d566651a4a64a52ca2b4425a3aa7f535e4091e2",
+  "bytes": 335543
+}

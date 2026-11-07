@@ -1,0 +1,108 @@
+{
+  "id": "says-and-shows",
+  "title": "Says and Shows",
+  "label": "ნათქვამი და ციფრი",
+  "about": "What someone claims in a verbatim quote, then the figures the same document shows.",
+  "eligible": [
+    {
+      "quotes": 1,
+      "numbers": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh",
+      "payoff_held": true
+    },
+    {
+      "id": "the_claim",
+      "job": "setup",
+      "scene_types": [
+        "quote"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click",
+      "fact_gates": {
+        "quotes": 1
+      }
+    },
+    {
+      "id": "the_figures",
+      "job": "evidence",
+      "scene_types": [
+        "bars",
+        "stat",
+        "trend",
+        "pair"
+      ],
+      "word_budget": [
+        6,
+        18
+      ],
+      "sound": "tick"
+    },
+    {
+      "id": "the_result",
+      "job": "payoff",
+      "scene_types": [
+        "change",
+        "stat",
+        "versus"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud",
+      "fact_gates": {
+        "numbers": 1
+      }
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "quotes": 3,
+    "numbers": 1,
+    "comparisons": 1
+  },
+  "brief": [
+    "The claim is a quote, verbatim, with its author.",
+    "Show the figures; add no judgement of whether it holds."
+  ]
+}

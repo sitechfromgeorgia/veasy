@@ -1,0 +1,15 @@
+{
+  "id": "brain_coral",
+  "name": "Meandering Coral",
+  "category": "organic",
+  "description": "Labyrinth ridges grown by reaction-diffusion, like brain coral.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.4,
+  "roughness": 0.7,
+  "height_sha256": "3db8f6c2e646dcda24c7142a93db648bf6259c818e37dfbfe4b2e2b709f2b8fd",
+  "normal_sha256": "7f51d352186edff02f6c291e6d8bb6bada8e70bae848ccdb5e5cdfd7619f068c",
+  "bytes": 198901
+}

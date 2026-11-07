@@ -40,14 +40,15 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N12 news); this is the 
 | `bars` | 2-5 values of one kind, compared from zero | items [{label, value}], unit |
 | `chart` | 2-6 values of one unit as vertical bars from zero, labels under them | items [{label, value}], unit |
 | `trend` | 3-8 values over time, a line that draws itself | items [{label, value}], unit, label |
-| `sparkline` | 6-24 values over time, one line, the last point on the dot | values [n...], delta, label |
+| `sparkline` | 6-24 values over time, one line ending on the dot | values [n...], delta, label |
 | `gauge` | one percent (0-100) as a ring that fills | value, label, suffix |
 | `timeline` | from-to times or dates the articles state | start, end, label |
 | `where` | a place (in Georgia: the real map) | place, sub, area |
 | `who` | 1-3 people or bodies (initials, no photos) | items [{name, role}] |
 | `pair` | two sides: two parties, before and after, two offers | items [{title, sub}] x2, between |
 | `steps` | 2-4 steps in order (a procedure, a sequence of events) | items ["..."] |
-| `points` | 2-3 separate points | items ["..."] |
+| `points` | 2-3 things the article itself lists (never a recap; one list a film at most) | items ["..."] |
+| `state` | the film's object changes (only with an idea, never news) | was, now |
 | `quote` | a verbatim quote with its speaker | text, by, via |
 | `draw` | a drawing of what the story is about: what makes each video look different | svg, label |
 | `ranking` | 3-5 ranked items in order (rank 1, 2, 3...) with labels and values | items [{rank, label, value}], unit |
@@ -59,13 +60,13 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N12 news); this is the 
 | `impact` | a service card: who is affected, what changes and when | target, change, when |
 | `route` | a transit or movement path between 2-4 points | stops [...], label, detail |
 | `budget` | a segmented breakdown of a budget into 2-4 proportional parts | items [{label, value, share}], total, unit |
+| `figures` | 2-4 number tiles, each its own unit (kit only, no news) | items [{label, value, unit}] |
 | `agree`, `chapter` | rubrics only (`veasy:rubrics`) | code |
 | `sources` | the outlets (from the data) | nothing |
 | `end` | logo, QR, call to action | nothing |
 
 - Charts (`bars`, `chart`, `trend`, `sparkline`, `gauge`, `change`) only with values the articles state, in one unit;
-  never a computed difference. `bars` and `chart` values are above zero, `gauge` is a percent 0-100.
-  Numbers can be decimals (1.5 shows as 1,5).
+  never a computed difference. `bars`, `chart` values > 0; `gauge` a percent 0-100. Decimals: 1.5 shows as 1,5.
 - The brush kit:
   - `share`: only a percent an article writes with the % sign (`N2: ... (share) shows 34% but no source article
     states „34%“`); `value` 34 means 34%. Not for a count (use `stat`).
@@ -82,9 +83,10 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N12 news); this is the 
   - Copy them word for word from that scene's on-screen text (a stat's or a share's value counts: `"em": "6400"`;
     the kicker never does) and say them in that scene's part of the narration (case endings may differ).
   - One per scene, not on `end` or `sources`. `N11: scene N marks „…“ but ...` names what is missing.
-- `draw`: at most one per video. Style guide is `tt_shorts/art.py` GUIDE (tokens INK, MUTED, LINE, CANVAS,
-  ACCENT, motion r/p/s with `--d` delays, up to 4 Georgian labels). Needs 8 narration words. A drawing that fails
-  is swapped for a library drawing of its motif (`tt_shorts/drawings.py`), else dropped (`VEASY_WRITER_DRAW=0`).
+- Drawings make a film its own: 1-3 scenes get an `"art"`, a line drawing of what that part is about, a different
+  thing each. The writer leaves them to the illustrator (a call of its own after the script); to draw one by hand
+  or fix a failing one, read `veasy:draw`. `draw`: one scene at most, labels allowed, 8 narration words. None for
+  crime, incidents or deaths; a failing drawing is swapped or dropped (`VEASY_WRITER_DRAW=0`: none).
 - `"show"` (optional, on 2-4 scenes): a short English query for a picture behind the scene ("gas pipeline
   repair"); code finds a licensed one, labels and credits it. Never a person, a logo or the event (`veasy:media`).
 - `where`: Georgia gets the real map (`tt_shorts/geo.py`), any other a pin on a grid.

@@ -23,6 +23,16 @@ def video(scenes, transition="line", outro="card", flow=None, cta="მოიწ�
             "style": {"hook": "stack", **({"flow": flow} if flow else {})}, "cta": cta}
 
 
+class ThreadState(unittest.TestCase):
+    def test_an_object_changing_state_is_a_change(self):  # thread.tsx: until 82% of the scene
+        words = {"was": "ა", "now": "ბ", "headline": "სათაური"}
+        changing = {**words, "thread": {"role": "hero", "from": 0.0, "to": 1.0}}
+        settled = {**words, "thread": {"role": "hero", "from": 1.0, "to": 1.0}}
+        got = [m.timeline(video([("state", 8, s), ("end", 2, {})]))[0]["settled"] for s in (changing, settled)]
+        self.assertGreaterEqual(got[0], 0.82 * 8)
+        self.assertLess(got[1], got[0])
+
+
 def rules(p, rule):
     return [f for f in m.check(p)["findings"] if f["rule"] == rule]
 

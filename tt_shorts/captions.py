@@ -32,6 +32,7 @@ W, RAIL_X = 1080, 940
 BAND = 2 * RAIL_X - W - 32  # 768 px: the caption band, left of the like/share rail
 PAD = 26  # the box's side padding
 MAX_W = BAND - 2 * PAD  # 716 px of text per line
+CAPTION_BOTTOM = 1552  # the captions end here (the safe zone)
 SIZES = {"page": 60, "roll": 58, "keyword": 60}
 DESIGNS = tuple(SIZES)
 KEY_KINDS = ("em", "number", "name")  # a page's keyword, in this order of preference
@@ -213,6 +214,19 @@ def _named(name, said):
     while n < min(len(name), len(said)) and name[n] == said[n]:
         n += 1
     return n >= max(5, min(len(name), len(said)) - 3)
+
+
+def reach(layout):
+    """The highest y, in frame px, that a layout's caption text reaches: what stands on a scene's foot (a vignette)
+    stays above it. The page and keyword boxes hold two lines and start at about the scene band's end (1380); the
+    roll box holds three rows, and its upper, fading row stands about 65 px inside the scene band (Captions.tsx)."""
+    size = layout.get("size") or SIZES.get(layout.get("design"), 60)
+    lh = layout.get("lineHeight") or LINE_HEIGHT
+    if layout.get("design") == "roll":
+        row = size * lh + 10
+        box = 3 * row + 24
+        return round(CAPTION_BOTTOM - box + box / 2 - row / 2 - 0.78 * row)
+    return round(CAPTION_BOTTOM - (2 * size * lh + 28))
 
 
 def layout(words, design="page", end=None, font=None, keys=None, style="underline"):

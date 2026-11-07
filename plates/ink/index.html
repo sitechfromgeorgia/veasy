@@ -1,0 +1,125 @@
+<!doctype html>
+<!-- The ink plate: a drawing painted mark by mark in a material (README.md). setup lays every mark once, into a few
+     layers that each hold pigment and the moment it lands; step only asks which pigment has landed by t. -->
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+<canvas id="c"></canvas>
+<script type="module">
+import { seeded } from "/lib/seeded.mjs";
+import { NAMES, paint, REVEALS } from "./materials.mjs";
+
+const VERTEX = `#version 300 es
+void main() { vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2); gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0); }`;
+const FRAGMENT = `#version 300 es
+precision highp float;
+precision highp sampler2D;
+uniform sampler2D uCov, uArr, uGround;
+uniform float uT;
+uniform int uH;
+uniform vec4 uGain, uWet, uRise;
+uniform float uDrain, uGhost;
+out vec4 color;
+void main() {
+  ivec2 at = ivec2(int(gl_FragCoord.x), uH - 1 - int(gl_FragCoord.y));
+  vec4 cov = texelFetch(uCov, at, 0), age = uT - texelFetch(uArr, at, 0);
+  vec4 landed = clamp(age / uRise, 0.0, 1.0);
+  landed *= landed * (3.0 - 2.0 * landed);
+  vec4 fresh = 1.0 + uWet * exp(-max(age, vec4(0.0)) / 0.4); // wet pigment is brighter than dry
+  vec4 p = clamp(cov * landed * uGain * fresh, 0.0, 1.0);
+  vec4 sheet = texelFetch(uGround, at, 0); // r the paper, g a cover and b when it leaves, a the picture on its way through
+  float gone = smoothstep(sheet.b, sheet.b + 0.12, uT);
+  float L = sheet.r + sheet.g * (1.0 - gone) + sheet.a * uGhost;
+  L += (1.0 - L) * p.a; L += (1.0 - L) * p.b; L += (1.0 - L) * p.g; L += (1.0 - L) * p.r;
+  L *= 1.0 - uDrain * gone;
+  color = vec4(vec3(L), 1.0);
+}`;
+
+const ALLOWED = ["drawing", "strokes", "material", "reveal", "box", "draw", "start", "boil", "origin", "drain", "program", "family"];
+const REFUSED_FAMILIES = ["crime", "incidents", "incident", "deaths", "death"];
+let gl, program, ctx, look, order, uniforms, textures, library;
+
+function refuse(spec) {
+  for (const key of Object.keys(spec)) if (!ALLOWED.includes(key)) throw new Error(`ink: unknown spec key "${key}"`);
+  if (spec.program === "news") throw new Error("ink: a plate never goes to news");
+  if (REFUSED_FAMILIES.includes(spec.family)) throw new Error(`ink: a plate never goes to ${spec.family}`);
+  if (!REVEALS.includes(spec.reveal || "stroke")) throw new Error(`ink: no reveal "${spec.reveal}", one of ${REVEALS.join(", ")}`);
+  if (!NAMES.includes(spec.material || "chalk")) throw new Error(`ink: no material "${spec.material}", one of ${NAMES.join(", ")}`);
+}
+
+function texture(unit, internal, format, type, width, height, data, old) {
+  const t = old || gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0 + unit);
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, internal, width, height, 0, format, type, data);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  return t;
+}
+
+function compile() {
+  const make = (kind, source) => {
+    const s = gl.createShader(kind);
+    gl.shaderSource(s, source); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  };
+  program = gl.createProgram();
+  gl.attachShader(program, make(gl.VERTEX_SHADER, VERTEX));
+  gl.attachShader(program, make(gl.FRAGMENT_SHADER, FRAGMENT));
+  gl.linkProgram(program);
+  gl.useProgram(program);
+  gl.bindVertexArray(gl.createVertexArray());
+  uniforms = Object.fromEntries(["uCov", "uArr", "uGround", "uT", "uH", "uGain", "uWet", "uRise", "uDrain", "uGhost"].map((n) => [n, gl.getUniformLocation(program, n)]));
+  gl.uniform1i(uniforms.uCov, 0); gl.uniform1i(uniforms.uArr, 1); gl.uniform1i(uniforms.uGround, 2);
+}
+
+window.setup = async (spec, c) => {
+  refuse(spec);
+  ctx = c;
+  const canvas = document.getElementById("c");
+  canvas.width = c.width; canvas.height = c.height;
+  if (!gl) {
+    gl = canvas.getContext("webgl2", { antialias: false, preserveDrawingBuffer: true, alpha: false });
+    compile();
+  } else gl.viewport(0, 0, c.width, c.height);
+  let drawing = spec.strokes;
+  if (!drawing) {
+    library ||= await (await fetch("/ink/drawings.json")).json();
+    drawing = library[spec.drawing || "bridge"];
+    if (!drawing) throw new Error(`ink: no drawing "${spec.drawing}"`);
+  }
+  look = paint(spec.material || "chalk", spec, c, drawing);
+  textures = { ground: texture(2, gl.RGBA32F, gl.RGBA, gl.FLOAT, c.width, c.height, look.ground, textures?.ground), variants: [], slots: textures?.variants };
+  look.variants.forEach((v, i) => {
+    const old = textures.slots?.[i];
+    textures.variants.push({
+      cov: texture(0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, c.width, c.height, v.cov, old?.cov),
+      arr: texture(1, gl.RGBA32F, gl.RGBA, gl.FLOAT, c.width, c.height, v.arr, old?.arr),
+    });
+  });
+  look.variants = null;
+  const random = seeded(c.seed ^ 0x9e37); // a boil cycle that never shows the same drawing twice in a row
+  order = [];
+  for (let i = 0, last = -1; i < 64; i++) {
+    let next = Math.floor(random() * textures.variants.length);
+    if (next === last) next = (next + 1) % textures.variants.length;
+    order.push(next); last = next;
+  }
+  gl.uniform1i(uniforms.uH, c.height);
+  gl.uniform1f(uniforms.uDrain, look.drain);
+  gl.uniform4fv(uniforms.uGain, look.gain); gl.uniform4fv(uniforms.uWet, look.wet); gl.uniform4fv(uniforms.uRise, look.rise);
+};
+
+window.step = (t) => { // the lines are redrawn on twos; the paper never moves
+  const v = textures.variants[order[Math.floor(t * 15) % order.length]];
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, v.cov);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, v.arr);
+  gl.uniform1f(uniforms.uT, t);
+  const g = look.ghost; // the blurred picture rises, then gives way to the sharp one
+  gl.uniform1f(uniforms.uGhost, g ? Math.min(Math.max((t - g[0]) / (g[1] - g[0]), 0), 1) * (1 - Math.min(Math.max((t - g[1]) / (g[2] - g[1]), 0), 1)) : 0);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+};
+
+window.anchors = () => (look.dots.length ? { dot: look.dots[0] } : null);
+</script>

@@ -33,7 +33,16 @@ import re
 
 # The news rules' own allowlist of scene types (N1: no opinion or take scene), kept by hand on purpose: a new brush
 # (brushes/<type>.json) is allowed in news only once it is named here too.
-SCENE_TYPES = {"hook", "stat", "timeline", "where", "who", "points", "quote", "sources", "draw", "pair", "steps", "bars", "trend", "change", "sign", "end", "share", "rail", "compare", "link", "agree", "chapter", "ranking", "versus", "countdown", "calendar", "glossary", "checklist", "impact", "route", "budget", "kinetic", "odometer", "chart", "sparkline", "gauge", "map-focus", "kpi-grid", "ticker"}
+SCENE_TYPES = {"hook", "stat", "timeline", "where", "who", "points", "quote", "sources", "draw", "pair", "steps", "bars",
+               "trend", "change", "sign", "end", "share", "rail", "compare", "link", "agree", "chapter", "ranking", "versus", "countdown", "calendar", "glossary", "checklist", "impact", "route", "budget",
+               "kinetic", "odometer", "chart", "sparkline", "gauge", "map-focus", "kpi-grid", "ticker"}
+# Scene types that are not news types: never in SCENE_TYPES (so N1 refuses them in news), allowed in a program that
+# says so. A plate is a made picture (plates.py): it decorates an idea, it never depicts an event.
+MADE_PICTURE_TYPES = {"plate"}
+# Scene types that are never news types: outside SCENE_TYPES, so N1 refuses them in news; a program that has the idea
+# step may use them. state changes the film's object (thread.py): an idea, and news has no idea step.
+IDEA_TYPES = {"state"}
+NOT_NEWS_TYPES = MADE_PICTURE_TYPES | IDEA_TYPES
 RELATIVE_DAYS = ("დღეს", "გუშინ", "ხვალ", "ზეგ", "გუშინწინ")
 # Words that judge instead of report (stems: Georgian adds case endings). Extend from the edits log.
 EVALUATIVE = ("სკანდალურ", "შოკისმომგვრელ", "სამარცხვინო", "საოცარ", "გასაოცარ", "უპრეცედენტო", "საშინელ",
@@ -44,8 +53,9 @@ SENSITIVE = ("გაუპატიურ", "სექსუალურ ძა�
 DEATHS = ("გარდაიცვალ", "გარდაცვალ", "გარდაცვლ", "დაიღუპ", "დაღუპ", "იღუპებ", "სიკვდილ", "ცხედ", "მკვლელობ",
           "მოკლეს", "მოკლულ", "მოიკლ", "დაიხრჩო", "მსხვერპლ")
 # an icon's name and a sign's verb are drawn, not read; em points at a text already on screen; style is a stat's motion
-NOT_SCREEN = ("type", "at", "icon", "verb", "em", "style", "n", "of", "total", "show", "media", "rank", "status", "state")  # counts code makes (agree,
-# chapter) are not claims of the articles
+NOT_SCREEN = ("type", "at", "icon", "verb", "em", "style", "n", "of", "total", "show", "media", "rank", "status", "state",
+              "art")  # counts code makes (agree, chapter) are not claims of the articles; a scene's `art` is drawn
+# without its words (vignettes.py), so its coordinates are nothing anyone reads
 # N12: words that label an outlet by its side; a video never sorts outlets (stems: Georgian adds case endings)
 SIDES = ("პროსამთავრობო", "სამთავრობო მედი", "ოპოზიციურ", "პროსახელისუფლებო", "სახელისუფლებო მედი", "პრორუსულ",
          "პროდასავლურ")

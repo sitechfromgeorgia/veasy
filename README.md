@@ -62,6 +62,15 @@ python -m tt_shorts.engine qa     <file.mp4>                       # size, lengt
 python -m tt_shorts.engine probe  <story.json> [--look all]        # where every text really is, per scene (free)
 python -m tt_shorts.engine plan   <story.json> [--look kinetic]    # a storyboard before paying for a voice (free, ~5 s)
 python -m tt_shorts.engine selftest [--update]                     # golden stills: run before merging a visual change
+python -m tt_shorts.engine look   --job <id> | --story <file>      # what exists for a film and the next step (free)
+python -m tt_shorts.engine gallery --find "a number" | --real       # the brush book: every brush, with a real frame
+python -m tt_shorts.engine scenario fit <story.json>                # the plots that fit a story's facts, and why
+python -m tt_shorts.engine plate <kind> | list | shelf | use        # baked clips behind a scene (skill veasy:plates)
+python -m tt_shorts.engine thread <story.json>                      # the film's object across its scenes (free)
+python -m tt_shorts.engine vignettes <story.json>                   # which scene draws what, and where (free)
+python -m tt_shorts.engine vignettes <story.json> --draw            # the illustrator draws the rest (a model call)
+python -m tt_shorts.engine review <story.json>                      # free checks on the frames, and a repair loop
+python -m tt_shorts.engine steer  <story.json> --scene 3 --set label=... [--dry]  # change one scene, redraw only it
 python -m tt_shorts.engine learn  [--brand sitech]                 # the rules failing most lately
 python -m tt_shorts.engine package <file>.json [--only srt,texts]  # one render -> every surface (below), no new voice
 python -m tt_shorts.engine queue  add --ref 24886 | list | run | show <id> | retry <id> | cancel <id>
@@ -76,8 +85,10 @@ python -m tt_shorts.engine voices --story <story.json>             # Gemini tone
   ```bash
   python -m tt_shorts.engine compose scaffold <story> [--brand sitech] [--template auto] [--from DIR]  # a project
   python -m tt_shorts.engine compose check    <story> [--sources <story>.sources.json] [--shots DIR]   # every check
+  python -m tt_shorts.engine compose look     <story> [--video FILE]             # free: its sheets and timeline
   python -m tt_shorts.engine compose render   <story> [--engine silent]          # pinned render, mix, QA
   python -m tt_shorts.engine compose promote  <project> --as <id>                # an approved film -> templates/<id>
+  python -m tt_shorts.engine review <story> [--rounds 2] [--stills DIR] [--packet]  # the film's eyes: free checks, capped repair loop, facts untouched
   ```
   - The project (`$VEASY_HOME/cache/compose/<brand>-<ref>/`) holds the agent's `index.html`, `compositions/*.html`
     and `beats.json`, and Veasy's files: `frame.md` and `assets/brand.css` from the pack, `facts.json`,
@@ -91,6 +102,10 @@ python -m tt_shorts.engine voices --story <story.json>             # Gemini tone
     settled frame (`compose/probe.mjs`), the story's rule tier + K rules + kaeasy on every text the DOM shows, and
     `hyperframes check`. Problems hold the film; a film that would fetch, hide text or lose its chrome is not
     rendered.
+  - **`compose look`**: the film as a viewer gets it, before any voice is paid for: a sheet of its scenes and beats, a
+    strip across every cut, the frames at phone width, its timeline and, with a rendered file, its sound
+    (`hyperframes snapshot --review`, `keyframes`, `audio`, on this machine). The skill starts from an idea
+    (`STORYLINES.md`, `SPEC.md`) and ends with a fresh eye's notes on those sheets (`REVIEW.md`).
   - **Render**: `hyperframes render` with pinned settings (4 workers, software GL, `--quality looks`, 30 fps),
     then `props.mix_audio`, QA and the same result JSON as `engine render`. HyperFrames only runs through
     Veasy, with telemetry, update checks, skill installs and auto-installs off; `publish`, `cloud`, `lambda`, `tts`,
@@ -311,7 +326,10 @@ voice is made, and an engine (Remotion today, HyperFrames next) only draws local
   use into `assets/sfx/`, not in git). `sfx.cues(props)` places them from the timeline: a whoosh on every cut (a
   click on a plain `cut`), a pop when a mark or the outro chip lands, ticks while a stat counts and a thud as it
   settles, a blip as each bar grows. `props.mix_audio` lays them as one track under the voice at one constant
-  level (no ducking). `stories/24835-media.json` is the demo (four pictures from Openverse and Commons).
+  level (no ducking). `sfx: meaning` is the other way: one `impact` on the film's main moment, 2-4 small sounds, the
+  story's object's own (`obj-wood|glass|metal|paper|water|soft`, by code), nothing on a cut, and the music loop
+  starts where a bar's heavy hit lands on that moment (`music_hits.py`, level unchanged).
+  `stories/24835-media.json` is the demo (four pictures from Openverse and Commons).
 
 ## Icons and pictograms (`tt_shorts/icons.py`)
 

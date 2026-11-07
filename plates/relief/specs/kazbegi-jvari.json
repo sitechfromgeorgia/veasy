@@ -1,0 +1,13 @@
+{
+  "preset": "kazbegi-jvari",
+  "move": "descend",
+  "region": "mtskheta-mtianeti",
+  "from": "stepantsminda",
+  "via": "jvari-pass",
+  "to": "mtskheta",
+  "anchor": "mtskheta",
+  "anchors": [
+    "stepantsminda",
+    "mtskheta"
+  ]
+}

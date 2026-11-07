@@ -1,0 +1,48 @@
+== stories/scenario-before-and-after.json
+30.1 problems [] warnings 1 ['motion still: scene 3 (change): nothing changes for 3.4 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-cause-and-effect.json
+28.9 problems [] warnings 0 []
+== stories/scenario-chase-through-document.json
+29.3 problems [] warnings 0 []
+== stories/scenario-cold-open.json
+28.7 problems [] warnings 0 []
+== stories/scenario-countdown.json
+29.7 problems [] warnings 1 ['motion repeat: scenes 1 and 2 are both points: one type twice in a row']
+== stories/scenario-day-in-a-life.json
+29.3 problems [] warnings 0 []
+== stories/scenario-deadline.json
+27.8 problems [] warnings 2 ['motion still: scene 1 (calendar): nothing changes for 3.3 s after it settles (at most 3 s): split it, or give it less narration', 'motion still: scene 3 (impact): nothing changes for 3.4 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-false-lead.json
+28.5 problems [] warnings 0 []
+== stories/scenario-guess-the-number.json
+35.1 problems [] warnings 1 ['motion still: scene 1 (points): nothing changes for 3.5 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-head-to-head.json
+29.1 problems [] warnings 1 ['motion repeat: scenes 1 and 2 are both stat: one type twice in a row']
+== stories/scenario-map-tour.json
+27.1 problems [] warnings 1 ['motion still: scene 2 (route): nothing changes for 3.5 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-money-trail.json
+26.4 problems [] warnings 1 ['motion still: scene 2 (budget): nothing changes for 3.8 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-myth-vs-fact.json
+31.7 problems [] warnings 2 ['motion still: scene 2 (versus): nothing changes for 4.2 s after it settles (at most 3 s): split it, or give it less narration', 'motion still: scene 3 (bars): nothing changes for 3.6 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-object-biography.json
+29.3 problems [] warnings 1 ['motion still: scene 2 (route): nothing changes for 4.3 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-profile.json
+27.4 problems [] warnings 1 ['motion still: scene 1 (who): nothing changes for 3.1 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-reverse-chronology.json
+29.0 problems ['probe overflow: scene 3 (stat) frame 709: „9 800“ runs past its box (div[scene]) by 3 px across'] warnings 1 ['motion still: scene 2 (change): nothing changes for 3.5 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-rise-and-peak.json
+28.0 problems ['probe overflow: scene 1 (stat) frame 340: „9 800“ runs past its box (div[scene]) by 3 px across'] warnings 1 ['motion still: scene 2 (trend): nothing changes for 3.5 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-rule-and-exception.json
+28.2 problems [] warnings 0 []
+== stories/scenario-says-and-shows.json
+28.8 problems [] warnings 1 ['motion still: scene 2 (bars): nothing changes for 4.0 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-step-by-step.json
+30.1 problems [] warnings 1 ['motion still: scene 2 (checklist): nothing changes for 5.0 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-three-clues.json
+31.7 problems [] warnings 2 ['motion still: scene 2 (calendar): nothing changes for 3.0 s after it settles (at most 3 s): split it, or give it less narration', 'motion still: scene 3 (bars): nothing changes for 3.3 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-two-voices.json
+27.9 problems [] warnings 1 ['motion repeat: scenes 1 and 2 are both quote: one type twice in a row']
+== stories/scenario-what-changes-for-you.json
+28.1 problems [] warnings 1 ['motion still: scene 1 (impact): nothing changes for 3.6 s after it settles (at most 3 s): split it, or give it less narration']
+== stories/scenario-what-is-it.json
+29.5 problems [] warnings 1 ['motion still: scene 1 (glossary): nothing changes for 5.1 s after it settles (at most 3 s): split it, or give it less narration']

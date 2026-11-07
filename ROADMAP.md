@@ -179,7 +179,8 @@ Next for other clients:
 5. ~~**C5. `trend` (S-M).**~~ Done (drawn with pathLength, no extra package).
    - 3-8 points.
    - `evolvePath` draws the line; the red "now" dot sits on the last point.
-6. **C6. Small blocks (S each):** `steps`, `share` and `events` (as `rail`) done; `figures` open:
+6. **C6. Small blocks (S each):** `steps`, `share`, `events` (as `rail`) and `figures` done (`figures` is kit-only: not on
+   `news_check.SCENE_TYPES` and no writer line, an owner decides):
    - `events`: 2-4 dated items on a rail;
    - `steps`: 2-4 steps with arrows;
    - `figures`: 2-4 number tiles;
@@ -239,7 +240,7 @@ Visuals and motion:
      - OSM street maps of a ~1 km window for Tbilisi, Batumi and Kutaisi districts (credit in the corner);
      - the Natural Earth Ukraine point-of-view file for the world map (decision 3: check that Abkhazia and
        Tskhinvali stay in Georgia).
-5. **One-take camera:** scenes laid on a 2D path; the camera moves only during the cuts (anchors intact), the red
+5. ~~**One-take camera:**~~ Done in Remotion (2026-11-07, `tt_shorts/onetake.py`; not for `news`, not in HyperFrames yet). Scenes laid on a 2D path; the camera moves only during the cuts (anchors intact), the red
    dot travels the thread (`@remotion/paths`), parallax layers; zoom capped at 1.15 for hard news.
 
 Audience and formats:

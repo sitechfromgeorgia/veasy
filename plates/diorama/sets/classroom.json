@@ -1,0 +1,47 @@
+{
+ "id": "classroom",
+ "about": "a classroom as a tunnel book: a blackboard with chalk shapes, a clock, a globe on the teacher's desk, rows of desks and chairs",
+ "move": "crane",
+ "easing": "smoothstep",
+ "camera": { "vFov": 30
+ },
+ "direction": "down",
+ "startY": 3.5,
+ "endY": 1.65,
+ "startPitch": -9,
+ "endPitch": -1,
+ "baseZ": 11.6,
+ "targetY": 1.75,
+ "stage": { "key": [-5, 20, 6],
+  "aim": [0, 1.5, -1],
+  "angle": 22,
+  "power": 3,
+  "fill": 0.28,
+  "pool": 0.85,
+  "fog": [40, 80]
+ },
+ "anchors": {
+  "board": [0, 2.5, -3.8]
+ },
+ "parts": [
+  {"part": "glow", "at": [0,0,-5.4], "power": 1.1},
+  {"part": "plank-floor", "at": [0,0.02,0], "z": [-4.2,9], "tone": 0.34},
+  {"part": "sheet", "at": [0,0,-4.2], "tone": 0.46, "open": 0, "ring": false, "width": 10, "height": 8, "cornice": 4.5},
+  {"part": "blackboard", "at": [0,2.45,-4.1], "width": 3, "height": 1.55},
+  {"part": "clock", "at": [0,3.72,-4.1], "r": 0.27},
+  {"part": "window-set", "at": [-2.6,0,-4.1]},
+  {"part": "bookcase", "at": [2.55,0,-3.9], "width": 1.3, "height": 2.7},
+  {"part": "ground-row", "at": [0,0,-3.5], "height": 0.3, "tone": 0.34},
+  {"part": "teacher-desk", "at": [-0.5,0,-2.6], "width": 1.9},
+  {"part": "ground-row", "at": [0,0,-1.9], "height": 0.1, "tone": 0.28},
+  {"part": "desk-row", "at": [0,0,-0.9], "count": 3, "spacing": 1.5, "tone": 0.44},
+  {"part": "desk-row", "at": [0,0,0.9], "count": 3, "spacing": 1.5, "tone": 0.38},
+  {"part": "desk-row", "at": [0,0,2.7], "count": 3, "spacing": 1.5, "tone": 0.32},
+  {"part": "desk-row", "at": [0,0,4.5], "count": 3, "spacing": 1.5, "tone": 0.24},
+  {"part": "pendant", "at": [-1.1,5.4,-1], "drop": 1},
+  {"part": "pendant", "at": [1.1,5.4,-1], "drop": 1},
+  {"part": "pendant", "at": [-1.1,5.6,2], "drop": 1},
+  {"part": "pendant", "at": [1.1,5.6,2], "drop": 1},
+  {"part": "ground-row", "at": [0,0,6.2], "height": 0.2, "tone": 0.16}
+ ]
+}

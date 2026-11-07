@@ -501,8 +501,21 @@ def attach(scenes, story):
             s = {**s, **patch}
             if s["type"] == "stat":
                 s["isotype"] = isotype(s)
+        if s.get("type") == "points":
+            s = {**s, "glyphs": point_glyphs(s)}
         out.append(s)
     return out
+
+
+def point_glyphs(s):
+    """A points scene's icons, one per item, when every item's own words name a different one; else None and each item
+    gets a plain rule. Points have equal weight: they are never numbered (owner, 2026-11-07: „1, 2, 3“ on everything
+    bores)."""
+    items = [x if isinstance(x, str) else "" for x in s.get("items") or []]
+    names = [next((n for n in find(t) if n in library()), None) for t in items]
+    if not items or None in names or len(set(names)) < len(names):
+        return None
+    return [nodes(n) for n in names]
 
 
 def options():

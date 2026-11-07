@@ -62,7 +62,7 @@
       tl.fromTo("#s4-rays", { rotation: 0 }, { rotation: 20, duration: 2.4, ease: "none", svgOrigin: "320 320" }, A("sun"));
       tl.fromTo("#s4-lab", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "expo.out" }, A("sun") + 0.1);
       tl.to("#s4-mouth", { attr: { d: "M80 110 Q100 132 120 110" }, duration: 0.25, ease: "back.out(2)" }, A("sun") + 0.2);
-      tl.to(["#s4-sheet", "#s4-lab", "#s4-bot"], { opacity: 0, y: -60, duration: 0.3, ease: "power3.in", stagger: 0.03 }, A("moral"));
+      tl.to(["#s4-sheet", "#s4-lab", "#s4-bot"], { opacity: 0, y: -60, duration: 0.22, ease: "power3.in", stagger: 0.012 }, A("moral") - 0.3);
       window.__timelines["s4"] = tl;
     })();
   </script>

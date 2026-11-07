@@ -1,0 +1,64 @@
+<!-- block plate: a card with words over a baked plate (assets/plates/<id>.mp4, written by compose.plates): the clip plays
+     in a band inside the safe zone, the card is solid (var(--canvas-90)) so the probe's black and white grounds both
+     pass, and the accent dot follows the plate's anchors (inlined at assembly: {plate_dot}) -->
+<template>
+  <style>
+    #root { position: absolute; inset: 0; font-family: "Brand", sans-serif; color: var(--ink); }
+    #root [data-probe="scene"] { position: absolute; inset: 0; }
+    #root .band { position: absolute; left: 0; top: 248px; width: 1080px; height: 1132px; overflow: hidden; }
+    #root .band video { position: absolute; left: 0; top: -248px; width: 1080px; height: 1920px; }
+    #root .band i.scrim { position: absolute; inset: 0; background: var(--canvas); opacity: .45; }
+    #root .band i.fade { position: absolute; left: 0; right: 0; bottom: 0; height: 140px; background: linear-gradient(to bottom, var(--canvas-0), var(--canvas)); }
+    #root .dotf { position: absolute; left: 0; top: 0; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 14px; background: var(--accent); }
+    #root .card { position: absolute; left: 64px; width: 876px; background: var(--canvas-90); border: 2px solid var(--line-strong);
+      border-radius: 14px; padding: 40px; box-sizing: border-box; }
+    #root .card.top { top: 272px; } #root .card.mid { top: 640px; }
+    /* below y=1100 no text goes right of x=940, and scene text ends at y=1380: the low card is anchored to that line */
+    #root .card.low { bottom: 564px; width: 796px; }
+    #root .chip { display: inline-flex; align-items: center; gap: 12px; font-weight: 600; font-size: 34px; line-height: 1;
+      padding: 12px 24px 14px; border-radius: 999px; border: 2px solid var(--line-strong); white-space: nowrap; }
+    #root .chip i { width: 14px; height: 14px; border-radius: 7px; background: var(--accent); }
+    #root .head { margin-top: 28px; font-weight: 700; font-size: 72px; line-height: 1.16; }
+    #root .small { margin-top: 20px; font-weight: 400; font-size: 32px; line-height: 1.3; color: var(--muted); }
+    #root .note { margin-top: 16px; font-weight: 400; font-size: 24px; line-height: 1.2; color: var(--muted); }
+  </style>
+  <div id="root" data-composition-id="{id}" data-width="1080" data-height="1920">
+    <div data-probe="scene">
+      <!--plate-->
+      <div class="band">
+        <video id="{id}-v" src="assets/plates/{plate_id}.mp4" muted playsinline loop data-start="0"></video>
+        <i class="scrim"></i>
+        <i class="fade"></i>
+        <i id="{id}-dot" class="dotf"></i>
+      </div>
+      <!--/plate-->
+      <div id="{id}-card" class="card {plate_layout}">
+        <span class="chip"><i></i><span data-var-text="{slot_kicker}">…</span></span>
+        <div class="head"><span data-var-text="{slot_headline}">…</span></div>
+        <div class="small"><span data-var-text="{slot_label}">…</span></div>
+        <!--note--><div class="note">{plate_note}</div><!--/note-->
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#{id}-card", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, 0);
+      const track = {plate_dot};  // [[x, y], ...] page pixels at 30 fps; [] without a plate
+      const dot = document.getElementById("{id}-dot");
+      if (dot && track.length > 1) {
+        const step = 2, fps = 30, cycles = Math.ceil(40 / (track.length / fps));
+        const run = gsap.timeline();
+        for (let c = 0; c < cycles; c++) {
+          const at = (n) => track[Math.min(n, track.length - 1)];
+          run.set(dot, { x: at(0)[0], y: at(0)[1] - 248 });
+          for (let n = step; n < track.length + step; n += step) {
+            run.to(dot, { x: at(n)[0], y: at(n)[1] - 248, duration: step / fps, ease: "none" });
+          }
+        }
+        tl.add(run, 0);
+      } else if (dot) { dot.style.display = "none"; }
+      window.__timelines["{id}"] = tl;
+    })();
+  </script>
+</template>

@@ -1,0 +1,13 @@
+{
+  "name": "veasy-plates",
+  "private": true,
+  "description": "Clips baked once and played behind a scene as local files (README.md)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "puppeteer-core": "25.16.0",
+    "three": "0.184.0"
+  }
+}

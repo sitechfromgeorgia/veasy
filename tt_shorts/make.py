@@ -21,7 +21,8 @@ import re
 import sys
 import time
 
-from tt_shorts import brand as brand_mod, formats, meta, plan, programs, queue as queue_mod, store, styles, variety
+from tt_shorts import brand as brand_mod, formats, meta, plan, programs, queue as queue_mod, scenarios, store, \
+    styles, variety
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STORIES_DIR = ROOT / "stories"
@@ -185,7 +186,20 @@ def ask_one_round(
     return resolved, questions_log, False
 
 
-def make_film(
+NEXT = {"needs_input": "answer the questions, then call again",
+        "queued": "the worker takes it: veasy_queue shows the job",
+        "preview": "look at the stills, then call again without preview_storyboard",
+        "error": "fix what problems name, then call again",
+        "rendered": "run veasy_qa on the file; publish only when it has no problems"}
+
+
+def make_film(request: str, **kw) -> dict:
+    """The front door, with where the work stands and what comes next, so an agent never has to guess."""
+    result = _make_film(request, **kw)
+    return {**result, "state": result.get("status"), "next": NEXT.get(result.get("status"))}
+
+
+def _make_film(
     request: str,
     brand: str | None = None,
     style: str | None = None,
@@ -195,6 +209,7 @@ def make_film(
     queue: bool = False,
     engine_voice: str = "silent",
     preview_storyboard: bool = False,
+    scenario: str | None = None,
     answers: dict | None = None,
     interactive: bool = False,
     out: str | None = None,
@@ -241,11 +256,22 @@ def make_film(
         return {"status": "queued", "request": request, "job_id": job.get("id"), "created": created,
                 "brand": b_name, "program": intent.get("program") or programs.DEFAULT,
                 "questions_log": questions_log, "took": round(time.time() - t0, 2)}
+    try:  # --length: seconds, or short|standard|long (it was parsed and never used)
+        seconds = scenarios.parse_length(length)
+    except scenarios.ScenarioError as e:
+        return {"status": "error", "stage": "length", "problems": [str(e)], "request": request}
+    if intent.get("write") and scenario:
+        why = scenarios.refusal(intent.get("program") or programs.DEFAULT)
+        if why:
+            return {"status": "error", "stage": "scenario", "request": request,
+                    "problems": [why + ": ask for an explainer (a URL, pdf or text source)"]}
+        if preview_storyboard:  # the plot's storyboard, before the writer (the one paid step) runs
+            return _scenario_preview(intent, scenario, seconds, b_name, request, questions_log)
     if intent.get("write"):
         from tt_shorts import engine as engine_mod
         written = engine_mod.write_story(intent.get("source"), intent["ref"], brand=b_name,
                                          program=intent.get("program"), director=overrides.get("director"),
-                                         style=style)
+                                         style=style, scenario=scenario)
         if written.get("problems"):
             return {"status": "error", "stage": "write", "problems": written["problems"], "request": request,
                     "story": written["story"]}
@@ -254,6 +280,20 @@ def make_film(
     story_path = intent["story_path"]
 
     story_data = intent.get("story_data") or json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
+    chosen_scenario = story_data.get("scenario")
+    if scenario and not chosen_scenario:  # a story file with no plot yet: the best fit, stamped (code-owned)
+        try:
+            ranked = scenarios.fit(story_data, seconds=seconds)
+            pick = ranked[0]["scenario"] if scenario == "auto" and ranked else (None if scenario == "auto" else scenario)
+            if not pick:
+                raise scenarios.ScenarioError("no scenario fits this story's facts")
+            scenarios.stamp(story_data, pick)
+            pathlib.Path(story_path).write_text(json.dumps(story_data, ensure_ascii=False, indent=1) + "\n",
+                                                encoding="utf-8")
+            chosen_scenario = pick
+        except scenarios.ScenarioError as e:
+            return {"status": "error", "stage": "scenario", "problems": [str(e)], "request": request,
+                    "story": story_path}
     story_id = str(story_data.get("id") or pathlib.Path(story_path).stem)
 
     # Step 4: Derive brand, program, format, style, director, look, theme, engine
@@ -314,6 +354,14 @@ def make_film(
             "story": story_path,
         }
 
+    length_report = None
+    if seconds:  # the plan's own seconds against the request: a warning, never a failure
+        planned = plan_res.get("seconds")
+        length_report = {"requested": seconds, "planned": planned,
+                         "within": bool(planned) and abs(planned - seconds) <= seconds * 0.25}
+        if not length_report["within"]:
+            plan_res["warnings"] = plan_res.get("warnings", []) + [
+                f"length: asked for {seconds:g} s, the plan is {planned} s (a quarter off or more)"]
     # If preview storyboard was selected in questions or flag
     should_preview = preview_storyboard or str(resolved_answers.get("preview")).lower() in ("preview", "yes", "true", "კი")
     if should_preview:
@@ -327,6 +375,8 @@ def make_film(
             "plan": plan_res,
             "sheet": plan_res.get("sheet"),
             "stills": plan_res.get("stills", []),
+            "scenario": chosen_scenario,
+            "length": length_report,
             "questions_log": questions_log,
             "took": round(time.time() - t0, 2),
         }
@@ -388,7 +438,31 @@ def make_film(
         "file": render_res.get("file"),
         "seconds": render_res.get("seconds"),
         "plan_sheet": plan_res.get("sheet"),
+        "scenario": chosen_scenario,
+        "length": length_report,
         "questions_log": questions_log,
         "story": story_path,
         "took": round(time.time() - t0, 2),
     }
+
+
+def _scenario_preview(intent, scenario, seconds, b_name, request, questions_log):
+    """`make "<url>" --scenario auto --preview-storyboard`: fetch the source (free), rank the plots on its facts and
+    show the chosen one's storyboard, before the writer (a model call) runs."""
+    from tt_shorts import sources as src
+    prog = programs.get(intent.get("program") or "explainer")
+    data = src.fetch(intent.get("source") or prog["sources"][0], intent["ref"])
+    category = prog.get("category") or data["cluster"].get("category", "")
+    facts = scenarios.facts_of_text(data["articles"], category, prog["name"])
+    ranked = scenarios.fit({"program": prog["name"]}, facts=facts, seconds=seconds)
+    try:
+        sc = scenarios.get(ranked[0]["scenario"] if scenario == "auto" and ranked else scenario)
+    except scenarios.ScenarioError as e:
+        return {"status": "error", "stage": "scenario", "problems": [str(e)], "request": request}
+    if not scenarios.holds(sc, facts, prog["name"]):
+        return {"status": "error", "stage": "scenario", "request": request, "ranked": ranked,
+                "problems": [f"scenario {sc['id']} does not fit this source's facts"]}
+    return {"status": "preview", "request": request, "brand": b_name, "program": prog["name"], "scenario": sc["id"],
+            "storyboard": scenarios.storyboard(sc), "ranked": ranked[:5],
+            "facts": {k: v for k, v in facts.items() if v and k != "family"}, "writer_called": False,
+            "questions_log": questions_log}

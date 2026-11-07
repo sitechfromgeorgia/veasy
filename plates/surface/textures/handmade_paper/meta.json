@@ -1,0 +1,15 @@
+{
+  "id": "handmade_paper",
+  "name": "Handmade Rag Paper",
+  "category": "paper",
+  "description": "Heavyweight cotton rag paper with organic cellulose fibers, deckle pulp clumps, and micro-creases.",
+  "dimensions": [
+    512,
+    512
+  ],
+  "depth": 1.1,
+  "roughness": 0.9,
+  "height_sha256": "be15b4b9e85f2a536e8ad00125089ef458191e05d353046e5457a96421e3201a",
+  "normal_sha256": "f7134bbb33bf88c55d69b57ef1c31849a4f7df399a70aca2e977581c2372cb89",
+  "bytes": 810098
+}

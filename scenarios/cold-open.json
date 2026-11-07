@@ -1,0 +1,107 @@
+{
+  "id": "cold-open",
+  "title": "Cold Open",
+  "label": "ცივი დასაწყისი",
+  "about": "The most striking figure first, then the film goes back to how it came about.",
+  "eligible": [
+    {
+      "big_numbers": 1,
+      "facts": 2
+    },
+    {
+      "percents": 1,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh"
+    },
+    {
+      "id": "rewind",
+      "job": "setup",
+      "scene_types": [
+        "points",
+        "pair",
+        "timeline"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click"
+    },
+    {
+      "id": "cause",
+      "job": "complication",
+      "scene_types": [
+        "steps",
+        "points",
+        "change"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "tick"
+    },
+    {
+      "id": "proof",
+      "job": "evidence",
+      "scene_types": [
+        "stat",
+        "bars",
+        "trend"
+      ],
+      "word_budget": [
+        6,
+        18
+      ],
+      "sound": "tick"
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "big_numbers": 2,
+    "percents": 1,
+    "dates": 1
+  },
+  "brief": [
+    "The hook already says the striking figure, as the document writes it.",
+    "Then go back: how did it come about?",
+    "Nothing is held; the question is why, not what."
+  ]
+}

@@ -94,6 +94,11 @@ class Pictograms(unittest.TestCase):  # N10
         self.assertNotIn("x-2", news_check.screen_text(s))
         self.assertNotIn("stops", news_check.screen_text(s))
 
+    def test_a_scenes_drawing_is_not_screen_text(self):  # vignettes draw it without words: no N2 numbers
+        s = signed("2 ნოემბერს გაზი შეწყდება. ვაკეში გაზის მიწოდება შეწყდება.")
+        s["scenes"][1]["art"] = '<g class="s" style="--d:0.4s"><rect x="317" y="90" width="300" height="500"/></g>'
+        self.assertNotIn("317", news_check.screen_text(s))
+
     def test_problems_include_n10(self):
         s = signed("2 ნოემბერს გაზი შეწყდება. ვაკეში გაზის მიწოდება 6400 აბონენტს აქვს.")
         self.assertIn("N10", rules(news_check.problems(s, SRC)))

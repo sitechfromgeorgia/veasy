@@ -6,9 +6,11 @@ A format chooses only among what the engine can do:
   look      auto | editorial | kinetic | cards      (auto: by the story's category, the pack's look_by_family)
   captions  page | roll | keyword                   (captions.py; keyword: a dark box, the spoken word lit, one
                                                      keyword a page in the pack's design.keyword style)
-  transition auto | cut | line | panel | wipe | slide | push | dot | meter   (auto: the look's own;
-                                                     props.TRANSITIONS; meter: equaliser bars rise and fall;
-                                                     maskwipe, gridsplit and scalethrough move the scene itself)
+  transition auto | cut | line | panel | wipe | slide | push | dot | meter | ... | one-take
+                                                    (auto: the look's own; props.TRANSITIONS; meter: equaliser
+                                                     bars rise and fall; maskwipe, gridsplit and scalethrough
+                                                     move the scene itself; one-take: the scenes on one path, the
+                                                     camera moving only in the cuts; not for `news`)
   beats     on | off                                (beats.py: a change inside every scene each 1.5-3 s, on the
                                                      words; off: each scene's own stagger, as before)
   chapters  auto | on | off                         (chapters.py: "01 / 03" and a segmented bar in the header;
@@ -18,9 +20,11 @@ A format chooses only among what the engine can do:
   voice     family | <a preset>                     (family: by category, the pack's voice_by_family; presets are
                                                      voices.PRESETS plus the packs' own, e.g. sitech)
   music     family | <a family in brand.FAMILIES> | off
-  sfx       off | on                                (sfx.py: short sound effects on the timeline's events, a
+  sfx       off | on | meaning                      (sfx.py: short sound effects on the timeline's events, a
                                                      whoosh on a cut, a pop when a mark lands, ticks while a number
-                                                     counts; one constant level under the voice, no ducking)
+                                                     counts; one constant level under the voice, no ducking. meaning: one main
+                                                     sound on the film's main moment, 2-4 small ones, the object's own,
+                                                     none on a cut, the music's heavy hit on the moment)
   theme     default | auto | <a theme's name>       (default: the pack's default_theme, so nothing changes; auto:
                                                      variety picks among the pack's allowed themes, least used
                                                      lately; a name: that theme of the story's pack, e.g. light,
@@ -46,11 +50,11 @@ DIR = ROOT / "formats"
 LOOKS = ("auto", "editorial", "kinetic", "cards")
 CAPTIONS = ("page", "roll", "keyword")
 TRANSITIONS = ("auto", "cut", "line", "panel", "wipe", "slide", "push", "dot", "meter", "fade", "shutter", "split", "corner", "iris", "blind",
-               "maskwipe", "gridsplit", "scalethrough")  # props.TRANSITIONS + auto
+               "maskwipe", "gridsplit", "scalethrough", "one-take", "match", "object")  # props.TRANSITIONS + auto
 BEATS = ("on", "off")
 CHAPTERS = ("auto", "on", "off")
 OUTROS = swipe.OUTROS
-SFX = ("off", "on")
+SFX = ("off", "on", "meaning")
 THEME_MODES = ("default", "auto")  # or a theme's name (brand.json themes)
 ENGINES = ("remotion", "hyperframes")  # the two film engines (compose.py); remotion is the default
 DEFAULT_ENGINE = "remotion"

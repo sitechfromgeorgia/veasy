@@ -31,31 +31,53 @@ overlap with Veasy, **Veasy wins**:
 
 ## The workflow
 
+A film is made twice: in words, then in scenes. Build nothing before an idea is picked, and pay for no voice before
+someone has looked.
+
 ```bash
 python -m tt_shorts.engine compose blocks                                      # list all available blocks
 python -m tt_shorts.engine compose scaffold <story.json> [--blocks b1,b2,b3]   # assemble from blocks
 python -m tt_shorts.engine compose scaffold <story.json> [--template auto]     # or start from a template
 python -m tt_shorts.engine compose check <story.json> [--sources <story>.sources.json] [--shots out/shots]
+python -m tt_shorts.engine compose look <story.json> [--video <file.mp4>]      # free: see the film, frame by frame
 python -m tt_shorts.engine compose render <story.json> --engine silent         # a free preview, then the real voice
 ```
-Tool `veasy_compose` (action scaffold|check|render|promote|templates|blocks). Every command prints JSON.
+Tool `veasy_compose` (action scaffold|check|look|render|promote|templates|blocks). Every command prints JSON.
 
 1. **A story** (`veasy:write-script`; fiction: program `story`, `veasy:programs`): narration, `cta`, `characters`
    for fiction, and `scenes` with `at` anchors (they are the storyboard and the words the film may show).
    `engine check <story>` must pass first.
-2. **Scaffold.** The project is `$VEASY_HOME/cache/compose/<brand>-<ref>/` (or `--project`). Its agent files come
+2. **The idea, in `STORYLINES.md`.** First a line: what the viewer keeps. Then three different films, not three skins
+   on one: each has its own *object* (the one thing from this story that can be shown and can change), its own
+   *device* (what the film does with it) and its own *form* (how the cuts or the camera carry it), plus its first 2
+   seconds exactly, its beats in a line, its look inside the pack and its sound. Test each: swap in another story; if
+   it still works, it is a format, not an idea. One of the three is the bold one you wouldn't pick first. Pick the one
+   a stranger would follow and say why. News and law: the picture shows the fact and adds no meaning (the object
+   itself, how it works, its place, a number's real size), never a metaphor that argues.
+3. **The shots, in `SPEC.md`.** For each beat: its words, what is on screen when it settles, what changed, what
+   carries over from the last scene. Then the one hero moment, and the defaults this film refuses.
+4. **Scaffold.** The project is `$VEASY_HOME/cache/compose/<brand>-<ref>/` (or `--project`). Its agent files come
    from `--blocks <b1,b2,...>` (reusable blocks assembled in order), `--template <id>`, `--from <dir>`, the repo's
    `compose/<story id>/`, or a plain starter (one scene per story scene). Re-scaffolding keeps your files and
    rewrites Veasy's.
-3. **Read** `frame.md` (the pack's tokens, type ramp, the frame's bands, the pack's own rules), `facts.json` (every
+5. **Read** `frame.md` (the pack's tokens, type ramp, the frame's bands, the pack's own rules), `facts.json` (every
    fact you may show, by id) and `timing.json` (the words, chapters and beats in seconds).
-4. **Write** `beats.json` (chapters, an `end` anchor, and a beat every 1.5-3 s, each anchored to the words that say
+6. **Write** `beats.json` (chapters, an `end` anchor, and a beat every 1.5-3 s, each anchored to the words that say
    it), `index.html` (background + one host per scene) and `compositions/<scene>.html`. Your own SVG files go in
    `assets/art/`.
-5. **Check until `problems` is empty**, and look: `--shots DIR` saves the page at every beat's settled frame.
-6. **Render**: `--engine silent` first (free); the real voice (`gemini`) re-times the beats on its words. Through the
+7. **Check until `problems` is empty.** A `novelty` warning names the recent film this one resembles: change the
+   film, not the wording. `--shots DIR` saves the page at every beat's settled frame.
+8. **Look.** `engine compose look <story>` saves in `.veasy/look/` a sheet of every scene and beat, a strip
+   across every cut, the beat frames at phone width and `timeline.json`, and says which eases the film leans on; with
+   `--video <file>` it measures the sound too (`audio.json`). Open every sheet. Then a fresh eye: a sub-agent gets only
+   `SPEC.md` and the sheets, never your reasoning, and says what a stranger sees in each frame, whether the pictures
+   alone tell the story, what can't be read at phone width and what jumps at a cut. Its notes, one a line:
+   `t=4.2s · where · problem -> change`, P0 (breaks the read) or P1 (weakens the film), never a score. Fix the P0s and
+   write `REVIEW.md`: the notes, what you kept on purpose, the weakest shot, what nobody checked (sound is measured,
+   not heard). Look again only at what you changed.
+9. **Render**: `--engine silent` first (free); the real voice (`gemini`) re-times the beats on its words. Through the
    queue: `engine queue add --story <story> [--renderer hyperframes]`.
-7. **Review.** A composed film that passed QA ends `held` (error_class review) until a person watches it:
+10. **Review.** A composed film that passed QA ends `held` (error_class review) until a person watches it:
    `engine queue approve <id>` or `reject <id>`. A format's or program's `review: until:<n>` lets a brand's films
    through after n approved in a row.
 
@@ -70,8 +92,11 @@ Tool `veasy_compose` (action scaffold|check|render|promote|templates|blocks). Ev
   `data-until-shift`); Veasy writes `data-start`/`data-duration`. In a scene script:
   `const A = (b) => VEASY.at(b, "s3")` gives a beat in the scene's own seconds, so the film keeps its timing under
   another voice. `VEASY.beat(id)`, `VEASY.duration`, `VEASY.end` too.
-- **Text is data.** Every text inside a `data-probe="scene"` region, in the DOM (HTML or inline SVG `<text>`);
-  never in a `<canvas>`, WebGL or an image.
+- **One scene at a time.** A scene has left by the beat the next starts; hosts overlap only under a chapter's wipe.
+  `probe cut`: text on the other scene's text or drawing is a problem, two drawings a warning (a match cut).
+- **Text is data.** Every text inside a `data-probe="scene"` region, in the DOM (HTML or inline SVG `<text>`); never
+  in a `<canvas>`, WebGL or an image, in CSS `content` (a shape's is `""`), a counter, a list's numbers or an input,
+  and never as letters or digits outlined into SVG paths. No check can read those.
 - **The pack draws.** Colors only `var(--canvas|panel|ink|muted|accent|line|line-strong|grid|ticker|...)`, tints
   `--ink-10/20/40`, `--canvas-0/90`; SVG colors through CSS classes (`.k { stroke: var(--ink) }`), not attributes.
   Face "Brand" only. No logo, link or domain in a scene: the chrome has them. The pack's design rules in frame.md
@@ -89,35 +114,22 @@ Tool `veasy_compose` (action scaffold|check|render|promote|templates|blocks). Ev
 
 ## The Block Library (`compose/blocks/`)
 
-Agents assemble films from reusable, verified scene blocks (`python -m tt_shorts.engine compose blocks`):
-- `kinetic-headline`: giant kinetic text with accent pill, high-contrast block inversion, subtitle
-- `number-reveal`: massive metric counter with unit pill, track progress indicator, explanatory card
-- `map-pin`: geographic region with locator beacon, coordinates, and details card
-- `comparison`: side-by-side comparison with topic header, left/right pillars, summary takeaway
-- `icon-grid`: multi-item badge grid with animated SVG icons and descriptive labels
-- `quote`: quoted statement attribution card with quotation styling, speaker pill, verified role
-- `process`: vertical step-by-step pipeline sequence with connecting spine and phase badges
-- `chapter-card`: bold chapter title and thematic transition with backdrop numeral and summary
-- `end-card`: closing takeaway card with action pill and outro framing
-
-Scaffold with `--blocks <id1,id2,...>` to stitch chosen blocks into `index.html` hosts and `beats.json`.
+Reusable, verified scenes (`engine compose blocks` describes them): `kinetic-headline`, `number-reveal`, `map-pin`,
+`comparison`, `icon-grid`, `quote`, `process`, `chapter-card`, `end-card`. `--blocks <id1,id2,...>` stitches them into
+`index.html` hosts and `beats.json`. A block is a start, not a film: rewrite it to carry the idea.
 
 ## What `compose check` runs
 
-The story's own checks (`engine check`), Veasy's files against their hashes, our **lint** (13 rules:
-`color`, `font`, `link`, `net`, `canvas`, `probe`, `fact`, `host`, `locked`, `art`, `timeline`, `prefix`, `template`),
-the **layout probe** at every beat's settled frame (band, rail, captions, frame, overflow, glyph, font, size, the
-pack's accent rule, a text outside a region, any network request), the **story's rule tier** + K rules + kaeasy
+The story's own checks (`engine check`), Veasy's files against their hashes, our **lint** (15 rules, in
+`engine options`), the **layout probe** at every beat's settled frame (the frame's bands, overflow,
+glyph, font, size, the accent rule, stray or generated text, any network request) and through every cut, the
+**story's rule tier** + K rules + kaeasy
 on every text the DOM shows (news: numbers, quotes, no relative days against the articles; claims and law;
-story: S1, no real person), slots filled, and `hyperframes check` (its errors are problems, its warnings shown).
-A bound fact still counting at a settled frame is a warning.
+story: S1, no real person), slots filled, and `hyperframes check`.
+A bound fact still counting at a settled frame is a warning, as are a film close to the brand's recent composed films
+(`novelty`) and a missing `STORYLINES.md` or `SPEC.md`.
 
-The three sub-composition lint rules:
-- `timeline`: sub-composition scripts must register their timeline on `window.__timelines["<id>"] = tl;`
-- `prefix`: all element IDs must be prefixed with `<cid>-` or equal `'root'` to prevent DOM collisions across scenes
-- `template`: sub-compositions must be wrapped in `<template>` and declare `data-composition-id="<id>"`
-
-## Templates & Phase 4 Pipeline
+## Templates
 
 `engine compose promote <project> --as <id> [--label "..."] [--about "..."]` saves an approved film
 as `templates/<id>/`: its scenes with every fact and typed word turned into a slot, its beats without anchors,
@@ -126,10 +138,9 @@ and `manifest.json` (each slot's kind and example).
 fill `slots.json` (a fact slot `"=<fact id>"`, a words slot the words) and the beats' anchors, then scaffold
 again and check.
 
-A composed film stays held for review (`error_class review` in `queue.py`) unless its format or program says
-otherwise. Agents prepare template candidates; the owner marks a film approved.
+Agents prepare template candidates; the owner marks a film approved.
 
 ## Don'ts
 
-Never type a fact, a color, a font or a link; never fetch; never draw text in a canvas; never touch the chrome;
-never publish a film whose check or QA has problems, or a silent or edge preview.
+Never type a fact, a color, a font or a link; never fetch; never draw text in a canvas, in CSS or as paths; never touch
+the chrome; never publish a film whose check or QA has problems, or a silent or edge preview.

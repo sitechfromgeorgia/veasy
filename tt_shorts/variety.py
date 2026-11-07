@@ -6,7 +6,8 @@ Inside one brand and one look, each video gets its own combination of:
     motif       grid | diagonal | dots | rules | plain the background's texture; "icons" (the story's main icon
                 | icons                                tiled, icons.story_icon) only when the story has one
     enter       rise | slide | reveal | scale          how things come on screen
-    transition  the cut between scenes, from the ones that suit the look (when the format says "auto")
+    transition  the cut between scenes, from the ones that suit the look (when the format says "auto"); a film of a
+                program (not `news`) may also get "one-take", the camera path (onetake.py)
     music       one of the family's loops (tools/compose_music.py writes several per family)
 
 and, when the format says `theme: auto`, the theme: one of the pack's allowed palettes (brand.json "themes"; a
@@ -41,6 +42,11 @@ its stored picks back without a re-roll.
 fingerprint, similarity, distance, nearest and spread are pure; assess() measures any style against the brand's
 history without re-rolling (for `engine plan`).
 
+A film an agent composed (compose.py) has none of the kit's picks, so two of them would match on every empty field.
+assess_composed() compares such a film only with the brand's other composed films and only on what one has
+(COMPOSED_FIELDS: its template, its scene kinds, its opening scene, the ease its scenes use most, its music loop),
+too close at COMPOSED_CLOSE. It only warns: the film is the agent's to change, nothing re-rolls it.
+
 The history is a table in $VEASY_HOME/veasy.db: each finished render's picks (the fingerprint's columns), and since
 the guard its distance to the nearest recent video and the re-rolls it took (MIGRATIONS adds the columns to an
 older database). recent_sequences() gives the writer the scene orders used lately, so it can choose a different
@@ -68,6 +74,11 @@ TRANSITIONS = {
     "kinetic": ("panel", "push", "wipe", "cut", "meter", "split", "corner", "shutter", "blind"),
     "cards": ("line", "slide", "dot", "wipe", "fade", "split", "iris"),
 }
+# cuts offered only to a film of a program, never to `news` (a story with no program): the owner decides whether the
+# hard news gets the camera (CLAUDE.md: `news` stays exactly as it is). The option is one more in every look's pool.
+PROGRAM_ONLY = ("one-take",)
+# one more option each, only for a film with an object (thread.py): a story without one never sees them, so news can't
+THREAD_TRANSITIONS = ("match", "object")
 RECENT = 20
 
 # the novelty guard: the fingerprint's fields, their weights in similarity(), the threshold and the bound
@@ -75,12 +86,21 @@ FIELDS = ("director", "scenes", "hook", "motif", "enter", "transition", "music")
 WEIGHTS = {k: 1.0 for k in FIELDS}
 TOO_CLOSE = 5.0  # similarity at or above this to one of the last RECENT videos: re-roll ("5 of 7")
 REROLLS = 64  # at most this many re-rolls per plan
+# a composed film (compose.film_style): the fields it has, and the kit's share of them (5 of 7) as its threshold
+COMPOSED = "composed"  # its look in the history
+COMPOSED_FIELDS = ("template", "scenes", "hook", "enter", "music")
+COMPOSED_CLOSE = 3.5
 
 SCHEMA = """
 create table if not exists variety(
   ts text, brand text, story text, look text, hook text, motif text, enter text, transition text, music text,
   scenes text);
 create index if not exists variety_brand on variety(brand, ts);
+create table if not exists concepts(
+  ts text, brand text, story text, family text, object text, device text, rung integer, idea text);
+create index if not exists concepts_brand on concepts(brand, ts);
+create table if not exists plate_use(ts text, brand text, story text, scene integer, hash text, layout text);
+create index if not exists plate_use_brand on plate_use(brand, ts);
 """
 MIGRATIONS = {  # columns added since the table was first made; an older veasy.db gets them on first use
     "director": "alter table variety add column director text",  # directors.py, before writing
@@ -121,6 +141,16 @@ def _least_used(options, used, story, key):
     return pool[zlib.crc32(f"{story}|{key}".encode()) % len(pool)]
 
 
+def one_take_ok(program):
+    """May a story of this program get the one-take camera? Only a program other than `news` (no program at all)."""
+    return bool(program) and program != "news"
+
+
+def transitions_for(look, program=None):
+    """The cuts variety may pick for a look: TRANSITIONS, and the PROGRAM_ONLY ones after them for a film of a program."""
+    return TRANSITIONS[look] + (PROGRAM_ONLY if one_take_ok(program) else ())
+
+
 def options_for(key, icon=False):
     """A choice's options for one story: without a main icon, the icon motif is not one of them."""
     return OPTIONS[key] if icon else tuple(o for o in OPTIONS[key] if o not in NEEDS_ICON.get(key, ()))
@@ -144,6 +174,43 @@ def direct(brand, story, facts, program_scenes="all", forced=None):
     past = history(brand)
     same = next((r["director"] for r in past if r["story"] == str(story) and r["director"] in pool), None)
     return same or _least_used(pool, [r["director"] for r in past], story, "director")
+
+
+PLATE_LAYOUTS = ("top", "mid", "low")  # where the plate scene's card sits: one more option, never a replacement
+
+
+def _plate_rows(brand, n=RECENT * 3):
+    with _db() as con:
+        return [dict(r) for r in con.execute("select * from plate_use where brand=? order by ts desc, rowid desc limit ?",
+                                             (brand, n))]
+
+
+def pick_plate(brand, story, hashes):
+    """One baked plate of `hashes` for a story: the one it had before if still there, else the least used lately by the
+    brand (ties by the story id). Reads only: a queue job never bakes, it picks from the shelf. None: an empty shelf."""
+    if not hashes:
+        return None
+    rows = _plate_rows(brand)
+    same = next((r["hash"] for r in rows if r["story"] == str(story) and r["hash"] in hashes), None)
+    return same or _least_used(list(hashes), [r["hash"] for r in rows], story, "plate")
+
+
+def pick_plate_layout(brand, story, scene=0, allowed=None):
+    """Where a plate scene's card sits: the one it had before if still allowed, else the least used lately by the brand
+    among `allowed` (the layouts that leave the plate's anchor uncovered; default all)."""
+    pool = [x for x in PLATE_LAYOUTS if allowed is None or x in allowed] or list(PLATE_LAYOUTS)
+    rows = _plate_rows(brand)
+    same = next((r["layout"] for r in rows if r["story"] == str(story) and r["scene"] == scene and r["layout"] in pool), None)
+    return same or _least_used(pool, [r["layout"] for r in rows], f"{story}|{scene}", "plate-layout")
+
+
+def record_plate(brand, story, scene, hash16, layout):
+    """Remember a plate use (once per story and scene: a re-resolve replaces its row)."""
+    with _db() as con:
+        con.execute("delete from plate_use where brand=? and story=? and scene=?", (brand, str(story), scene))
+        con.execute("insert into plate_use(ts, brand, story, scene, hash, layout) values(?,?,?,?,?,?)",
+                    (dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), brand, str(story), scene, hash16,
+                     layout))
 
 
 def pick_theme(brand, story, themes, subset=None):
@@ -181,20 +248,25 @@ def fingerprint(style, scenes=None, director=None):
            **{k: st.get(k) for k in ("hook", "motif", "enter", "transition", "music")}}
     if st.get("story") is not None:
         out["story"] = str(st["story"])
+    if st.get("template"):
+        out["template"] = st["template"]
     film_style = st.get("style_slug") or (st.get("style") if isinstance(st.get("style"), str) else None)
     if film_style:
         out["style"] = film_style
     return out
 
 
-def similarity(a, b):
+def similarity(a, b, fields=FIELDS):
     """How much two fingerprints share, 0-7 (WEIGHTS): each single field when equal, the scene orders as their
-    difflib ratio (nothing when either is unknown). When named film styles are present in both, they add +1.0."""
+    difflib ratio (nothing when either is unknown). When named film styles are present in both, they add +1.0.
+    fields: the fields compared (COMPOSED_FIELDS for composed films; "template" counts only when both have one)."""
     out = 0.0
-    for k in FIELDS:
+    for k in fields:
         if k == "scenes":
             if a.get(k) is not None and b.get(k) is not None:
                 out += WEIGHTS[k] * difflib.SequenceMatcher(None, list(a[k]), list(b[k]), autojunk=False).ratio()
+        elif k == "template":
+            out += 1.0 if a.get(k) and a.get(k) == b.get(k) else 0.0
         elif a.get(k) == b.get(k):
             out += WEIGHTS[k]
     if a.get("style") is not None and b.get("style") is not None and a["style"] == b["style"]:
@@ -211,12 +283,12 @@ def too_close(a, b):
     return similarity(a, b) >= TOO_CLOSE
 
 
-def nearest(fp, past):
+def nearest(fp, past, fields=FIELDS):
     """(similarity, the nearest fingerprint) of fp against past fingerprints, newest first; the newest wins a tie.
     (0.0, None) when past is empty."""
     best, near = 0.0, None
     for other in past:
-        s = similarity(fp, other)
+        s = similarity(fp, other, fields)
         if near is None or s > best:
             best, near = s, other
     return best, near
@@ -227,9 +299,9 @@ def _others(rows, story):
     return [fingerprint(r) for r in rows if str(r["story"]) != str(story)]
 
 
-def _report(sim, near, rerolls=0, kept=False, warning=None):
-    return {"similarity": sim, "distance": round(1 - sim / sum(WEIGHTS.values()), 3),
-            "nearest": (near or {}).get("story"), "too_close": sim >= TOO_CLOSE, "rerolls": rerolls, "kept": kept,
+def _report(sim, near, rerolls=0, kept=False, warning=None, total=None, close=TOO_CLOSE):
+    return {"similarity": sim, "distance": round(1 - sim / (total or sum(WEIGHTS.values())), 3),
+            "nearest": (near or {}).get("story"), "too_close": sim >= close, "rerolls": rerolls, "kept": kept,
             "warning": warning}
 
 
@@ -258,6 +330,18 @@ def assess(brand, story, style, scenes=None):
     return _report(*nearest(fingerprint(style, scenes), _others(history(brand), story)))
 
 
+def assess_composed(brand, story, style, scenes):
+    """assess() for a film an agent composed: against the brand's other composed films among its last RECENT videos, on
+    COMPOSED_FIELDS. style, scenes: compose.film_style()'s. It warns and re-rolls nothing."""
+    past = [fingerprint(r) for r in history(brand) if r.get("look") == COMPOSED and str(r["story"]) != str(story)]
+    sim, near = nearest(fingerprint(style, scenes), past, COMPOSED_FIELDS)
+    warning = None
+    if sim >= COMPOSED_CLOSE:
+        warning = (f"novelty: this film shares {sim:g} of {len(COMPOSED_FIELDS)} with story {near.get('story')} "
+                   f"(too close at {COMPOSED_CLOSE:g}: scene kinds, opening scene, main ease, template, music)")
+    return _report(sim, near, warning=warning, total=len(COMPOSED_FIELDS), close=COMPOSED_CLOSE)
+
+
 # ---------------------------------------------------------------- picking
 
 
@@ -275,10 +359,12 @@ def _rerolls(first, options, used, story, n=None):
     return [{**first, **c} for c in combos[:REROLLS if n is None else n]]
 
 
-def choose(brand, story, look, transition="auto", loops=(), icon=False, director=None, scenes=None):
+def choose(brand, story, look, transition="auto", loops=(), icon=False, director=None, scenes=None, program=None, thread=False):
     """-> (style, novelty). style is pick()'s dict. novelty is the guard's report: assess()'s keys, with rerolls (how
     many were tried), kept (a re-render's stored picks) and warning (no re-roll was far enough; the farthest was taken).
-    scenes: the scene types the video shows (part of the fingerprint)."""
+    scenes: the scene types the video shows (part of the fingerprint). program: the story's program, which decides
+    whether the PROGRAM_ONLY cuts are among the options (transitions_for). thread: the film has an object, so
+    THREAD_TRANSITIONS are among its cuts."""
     past = history(brand)
     did = director["id"] if director else None
     same = next((r for r in past if r["story"] == str(story) and r["look"] == look and r["director"] == did), None)
@@ -289,8 +375,12 @@ def choose(brand, story, look, transition="auto", loops=(), icon=False, director
         if director:
             options[key] = _within(options[key], director[sub[key]])
     if transition in (None, "auto"):
-        options["transition"] = TRANSITIONS[look] if not director else \
-            tuple(t for t in TRANSITIONS[look] if t in director["transitions"]) or tuple(director["transitions"])
+        pool = transitions_for(look, program)
+        options["transition"] = pool if not director else \
+            tuple(t for t in pool if t in director["transitions"]) or \
+            tuple(t for t in director["transitions"] if t not in PROGRAM_ONLY or one_take_ok(program))
+        if thread:
+            options["transition"] += tuple(t for t in THREAD_TRANSITIONS if t not in options["transition"])
     names = [getattr(p, "name", str(p)) for p in loops]
     if names:
         options["music"] = tuple(names)
@@ -321,13 +411,13 @@ def choose(brand, story, look, transition="auto", loops=(), icon=False, director
     return out, _report(sim, near, k, warning=warning)  # k: the re-rolls tried (the last one is taken unless warned)
 
 
-def pick(brand, story, look, transition="auto", loops=(), icon=False, director=None, scenes=None):
+def pick(brand, story, look, transition="auto", loops=(), icon=False, director=None, scenes=None, program=None):
     """The style for one video: {hook, motif, enter, transition, music}. A story rendered before in this look gets its
     earlier picks back; otherwise each choice is the least used lately, re-rolled by the novelty guard when the plan
     is too close to a recent video (choose()). transition stays as given unless "auto"; music is None when there
     are no loops. icon: the story has a main icon (icons.story_icon), so the "icons" motif is one of its options.
     director: a directors.py director (dict): each choice stays inside its subsets. scenes: the shown scene types."""
-    return choose(brand, story, look, transition, loops, icon, director, scenes)[0]
+    return choose(brand, story, look, transition, loops, icon, director, scenes, program)[0]
 
 
 def pick_style(brand_name, story, program="news", family=None, engine=None):
@@ -358,6 +448,22 @@ def record(brand, story, look, style, scenes, novelty=None):
                      style.get("hook"), style.get("motif"), style.get("enter"), style.get("transition"),
                      style.get("music"), json.dumps(list(scenes)), style.get("director"), nov.get("distance"),
                      nov.get("rerolls"), style.get("template"), style.get("theme"), film_style))
+
+
+def record_concept(brand, story, family, concept):
+    """A film's idea (concept.py), once per story. Its own table: the fingerprint's thresholds are calibrated."""
+    with _db() as con:
+        con.execute("delete from concepts where brand=? and story=?", (brand, story))
+        con.execute("insert into concepts(ts, brand, story, family, object, device, rung, idea) values(?,?,?,?,?,?,?,?)",
+                    (dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), brand, story, family,
+                     concept["object"], concept["device"], concept["rung"], concept["idea"]))
+
+
+def recent_concepts(brand, n=100):
+    """The brand's last ideas, newest first."""
+    with _db() as con:
+        rows = con.execute("select * from concepts where brand=? order by ts desc, rowid desc limit ?", (brand, n))
+        return [dict(r) for r in rows.fetchall()]
 
 
 def recent_sequences(brand, n=12):

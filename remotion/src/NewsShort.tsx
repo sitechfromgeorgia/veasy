@@ -7,10 +7,13 @@ import {
 import { Captions } from "./Captions";
 import { useFontsLoaded } from "./fonts";
 import { LoopBack, loopSpeed, musicLevel, OutroChip, SwipeSlot } from "./outro";
-import { IconTile } from "./icons";
+import { FrozenParallax, OneTakeBand, Parallax, Thread } from "./onetake";
+import { motifCell, motifMark } from "./motif";
 import { SCENES } from "./scenes";
 import type { Scene, ShortProps, Transition } from "./types";
 import { Probe } from "./Probe";
+import { sweepOf, ThreadLayer } from "./thread";
+import { VignetteLayer } from "./vignette";
 import { Chip, Dot, flowOf, Logo, measure, Theme, useStyle, useTheme } from "./ui";
 
 const EXIT = 7; // frames a scene takes to leave
@@ -24,52 +27,9 @@ export const Background: React.FC = () => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const tile = motif === "icons" ? props.motifIcon : null;
-  const cell = tile ? 200 : motif === "dots" ? 48 : motif === "rules" ? 96
-    : motif === "waves" ? 80 : motif === "crosses" ? 64 : motif === "mesh" ? 80 : motif === "hash" ? 56 : 72;
+  const cell = motifCell(motif, !!tile);
   const pan = interpolate(frame, [0, durationInFrames], [0, cell]);
-  const mark = {
-    grid: <path d={`M${cell} 0H0V${cell}`} fill="none" stroke={GRID} strokeWidth={2} />,
-    diagonal: <path d={`M0 ${cell}L${cell} 0`} fill="none" stroke={GRID} strokeWidth={2} />,
-    dots: <circle cx={cell / 2} cy={cell / 2} r={3} fill={GRID} />,
-    rules: <path d={`M0 ${cell - 1}H${cell}`} fill="none" stroke={GRID} strokeWidth={2} />,
-    plain: null,
-    icons: tile ? <IconTile nodes={tile} cell={cell} color={GRID} /> : null,
-    crosses: (
-      <path
-        d={`M${cell / 2 - 6} ${cell / 2}H${cell / 2 + 6} M${cell / 2} ${cell / 2 - 6}V${cell / 2 + 6}`}
-        fill="none"
-        stroke={GRID}
-        strokeWidth={2}
-        strokeLinecap="round"
-      />
-    ),
-    mesh: (
-      <path
-        d={`M0 ${cell / 2}L${cell / 2} 0L${cell} ${cell / 2}L${cell / 2} ${cell}Z`}
-        fill="none"
-        stroke={GRID}
-        strokeWidth={1.5}
-      />
-    ),
-    waves: (
-      <path
-        d={`M0 ${cell / 2} Q${cell / 4} ${cell / 4} ${cell / 2} ${cell / 2} T${cell} ${cell / 2}`}
-        fill="none"
-        stroke={GRID}
-        strokeWidth={2}
-        strokeLinecap="round"
-      />
-    ),
-    hash: (
-      <path
-        d={`M${cell * 0.25} ${cell * 0.75}L${cell * 0.75} ${cell * 0.25} M${cell * 0.45} ${cell * 0.95}L${cell * 0.95} ${cell * 0.45}`}
-        fill="none"
-        stroke={GRID}
-        strokeWidth={1.8}
-        strokeLinecap="round"
-      />
-    ),
-  }[motif];
+  const mark = motifMark(motif, cell, tile);
   return (
     <AbsoluteFill style={{ background: CANVAS }}>
       <svg width={W} height={H + cell} style={{ position: "absolute", top: -cell + pan }}>
@@ -297,7 +257,7 @@ const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, la
   const n = enterFrames(p);
   const plain = MOVES.indexOf(tr) >= 0 && s.duration < n; // too short for the move: a cut
   const enter = first || plain ? 1 : ease(interpolate(frame, [0, n], [0, 1], CLAMP));
-  const out = last || tr === "cut" || plain ? 1
+  const out = last || tr === "cut" || tr === "one-take" || plain ? 1 // one-take: the camera carries the old scene away, it doesn't fade
     : interpolate(frame, [s.duration - EXIT, s.duration], [1, 0], CLAMP);
   const style: React.CSSProperties = {};
   let dx = 0, opacity = out, dy = (1 - out) * -48, scale = 1;
@@ -328,6 +288,17 @@ const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, la
     opacity = Math.min(enter, out);
     dy = 0;
   }
+  if (tr === "object") { // the object's body carries the cut (thread.tsx): the old scene goes behind it, the new one comes
+    const sweep = sweepOf(frame, s, last);
+    const [ox] = flowOf(p.style, [1, 0]);
+    if (sweep !== null) {
+      const k = Math.abs(sweep - 0.5) * 200; // how much of the band the scene shows on its side of the object
+      if (sweep < 0.5) style.clipPath = ox >= 0 ? `inset(0 0 0 ${100 - k}%)` : `inset(0 ${100 - k}% 0 0)`;
+      else if (!first) style.clipPath = ox >= 0 ? `inset(0 ${100 - k}% 0 0)` : `inset(0 0 0 ${100 - k}%)`;
+    }
+    opacity = 1;
+    dy = 0;
+  }
   const along = (d: number) => -(1 - enter) * d + (1 - out) * d; // comes in from behind, leaves ahead
   if (tr === "slide") { dx = along(160) * mx; dy = along(160) * my; opacity = Math.min(enter, out); }
   if (tr === "push") { dx = along(W) * mx; dy = along(SCENE_BOTTOM - SCENE_TOP) * my; opacity = 1; }
@@ -351,7 +322,13 @@ const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, la
   return { style, dx, dy, opacity, enter, out, scale };
 };
 
+/** A scene on the one-take path is seen through the camera (onetake.tsx); every other cut draws it where it is. */
 const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
+  const { props } = useTheme();
+  return props.transition === "one-take" && props.camera ? <OneTakeBand i={i}><SceneBody i={i} /></OneTakeBand> : <SceneBody i={i} />;
+};
+
+const SceneBody: React.FC<{ i: number }> = ({ i }) => {
   const { v, props } = useTheme();
   const s = props.scenes[i];
   const frame = useCurrentFrame();
@@ -362,7 +339,7 @@ const SceneSlot: React.FC<{ i: number }> = ({ i }) => {
   if (v === "cards" && s.type !== "end") {
     const left = SIDE - 16;
     const m = sceneMotion(tr, frame, s, first, last, durationInFrames, left, props);
-    const own = tr === "line" || tr === "cut" || tr === "panel" || tr === "meter" || tr === "fade" || tr === "shutter" || tr === "blind"; // the card's own entrance: it rises and settles
+    const own = tr === "line" || tr === "cut" || tr === "panel" || tr === "meter" || tr === "fade" || tr === "shutter" || tr === "blind" || tr === "match"; // the card's own entrance: it rises and settles
     const enter = own && !first ? interpolate(frame, [0, enterFrames(props)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
       easing: (t) => 1 - Math.pow(1 - t, 3) }) : 1; // the first card is there at frame 0 (outro.tsx: the opening)
     const shown = Math.min(enter, m.opacity);
@@ -461,22 +438,28 @@ export const NewsShort: React.FC<ShortProps> = (props) => {
   const theme = useMemo(() => ({ v: props.variant, props }), [props]);
   const { durationInFrames, fps } = useVideoConfig();
   const fonts = useFontsLoaded();
+  const oneTake = props.transition === "one-take" && !!props.camera;
   if (!fonts) return null; // nothing is measured with a fallback font (fonts.ts); the render waits for it
   return (
     <Theme.Provider value={theme}>
       <AbsoluteFill data-probe-root style={{ overflow: "hidden", fontFamily: FONT }}>
         <Background />
+        {props.transition === "one-take" && props.camera && <Parallax />}
         <Ticker />
         <Header />
         {props.scenes.map((s, i) => (
-          <Sequence key={i} from={s.from} durationInFrames={s.duration} layout="none">
+          // one-take: the old scene stays alive for the camera's window after its own end (no fade), the thread runs over it
+          <Sequence key={i} from={s.from} durationInFrames={s.duration + (oneTake && i < props.scenes.length - 1 ? props.camera!.cut : 0)} layout="none">
             <SwipeSlot i={i}><SceneSlot i={i} /></SwipeSlot>
             {i > 0 && <Cut />}
+            {oneTake && i > 0 && <Thread i={i} />}
             {props.transition === "meter" && i < props.scenes.length - 1 && <MeterRise duration={s.duration} />}
           </Sequence>
         ))}
+        <ThreadLayer />
+        <VignetteLayer />
         <OutroChip />
-        <LoopBack background={<Background />} hook={<SwipeSlot i={0}><SceneSlot i={0} /></SwipeSlot>} />
+        <LoopBack background={<><Background />{oneTake && <FrozenParallax />}</>} hook={<SwipeSlot i={0}><SceneSlot i={0} /></SwipeSlot>} />
         <Captions cap={props.captions} />
         <Footer />
         {props.probe && <Probe />}

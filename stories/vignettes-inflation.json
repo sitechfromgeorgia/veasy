@@ -1,0 +1,63 @@
+{
+ "id": "vignettes-inflation",
+ "brand": "tbilisi-today",
+ "program": "explainer",
+ "lang": "ka",
+ "category": "economy",
+ "date": "2026-11-03T12:00:00Z",
+ "sources": [
+  "საქსტატი",
+  "ეროვნული ბანკი"
+ ],
+ "cta": "გამოიწერე არხი",
+ "narration": "როგორ იცვლება ფასები და ინფლაცია საქართველოში ბოლო წლებში? წლიური ინფლაცია 3.8 პროცენტს შეადგენს, რაც მიზნობრივ 3 პროცენტთან ახლოსაა. სურსათზე ფასები 4 პროცენტით გაიზარდა, მომსახურებაზე კი 2 პროცენტით. ეროვნული ბანკი კი მკაცრ მონეტარულ პოლიტიკას ამ ეტაპზე უცვლელად ინარჩუნებს. დეტალები tbilisi.today-ზე. გამოიწერე არხი.",
+ "scenes": [
+  {
+   "type": "hook",
+   "at": "როგორ იცვლება",
+   "kicker": "ეკონომიკა",
+   "lines": [
+    "როგორ იცვლება",
+    "ფასები საქართველოში"
+   ],
+   "art": "<g class=\"s\" style=\"--d:0.2s\"><path d=\"M130 150 H230 L300 430 H690\" stroke=\"INK\" stroke-width=\"8\"/></g><g class=\"s\" style=\"--d:0.5s\"><path d=\"M250 210 H770 L720 380 H290\" stroke=\"INK\" stroke-width=\"8\"/></g><g class=\"r\" style=\"--d:0.8s\"><path d=\"M380 210 L392 380 M500 210 L505 380 M620 210 L610 380 M268 295 H745\" stroke=\"MUTED\" stroke-width=\"5\"/></g><g class=\"p\" style=\"--d:1.1s\"><circle cx=\"340\" cy=\"500\" r=\"36\" stroke=\"INK\" stroke-width=\"8\" fill=\"CANVAS\"/><circle cx=\"650\" cy=\"500\" r=\"36\" stroke=\"INK\" stroke-width=\"8\" fill=\"CANVAS\"/></g><g class=\"s\" style=\"--d:1.4s;--swing:5;--at:772,205\"><path d=\"M772 205 L835 112\" stroke=\"MUTED\" stroke-width=\"4\"/><path d=\"M790 70 H880 V190 L835 235 L790 190 Z\" stroke=\"INK\" stroke-width=\"7\" fill=\"CANVAS\"/></g><g class=\"m\" style=\"--d:1.7s;--from:0,70\"><path d=\"M835 205 V135 M812 158 L835 135 L858 158\" stroke=\"INK\" stroke-width=\"6\"/></g><circle class=\"p\" style=\"--d:2s\" cx=\"835\" cy=\"98\" r=\"12\" fill=\"ACCENT\" stroke=\"none\"/>"
+  },
+  {
+   "type": "stat",
+   "at": "წლიური ინფლაცია",
+   "kicker": "ინფლაცია",
+   "value": 3.8,
+   "suffix": "%",
+   "label": "წლიური მაჩვენებელი",
+   "em": "3.8",
+   "art": "<g class=\"s\" style=\"--d:0.2s\"><path d=\"M176 470 A300 300 0 0 1 776 470\" stroke=\"INK\" stroke-width=\"8\"/></g><g class=\"r\" style=\"--d:0.5s\"><path d=\"M186 470 L226 470 M225 325 L260 345 M331 219 L351 254 M476 180 L476 220 M621 219 L601 254 M727 325 L692 345 M766 470 L726 470\" stroke=\"MUTED\" stroke-width=\"6\"/></g><g class=\"r\" style=\"--d:0.9s\"><path d=\"M416 248 A230 230 0 0 1 536 248\" stroke=\"INK\" stroke-width=\"8\"/><path d=\"M156 470 H796\" stroke=\"LINE\" stroke-width=\"6\"/></g><g class=\"t\" style=\"--d:1.3s;--turn:-75;--at:476,470\"><path d=\"M476 470 L518 234\" stroke=\"INK\" stroke-width=\"8\"/></g><circle class=\"p\" style=\"--d:1.7s\" cx=\"476\" cy=\"470\" r=\"22\" fill=\"ACCENT\" stroke=\"none\"/>"
+  },
+  {
+   "type": "pair",
+   "at": "სურსათზე ფასები",
+   "kicker": "ფასები",
+   "items": [
+    {
+     "title": "სურსათი",
+     "sub": "+4%"
+    },
+    {
+     "title": "მომსახურება",
+     "sub": "+2%"
+    }
+   ],
+   "art": "<g class=\"s\" style=\"--d:0.2s\"><path d=\"M120 430 C120 280 200 230 300 230 C400 230 480 280 480 430 Z\" stroke=\"INK\" stroke-width=\"8\"/><path d=\"M90 430 H510\" stroke=\"LINE\" stroke-width=\"6\"/></g><g class=\"r\" style=\"--d:0.6s\"><path d=\"M220 300 L250 360 M290 290 L320 350 M360 300 L390 360\" stroke=\"MUTED\" stroke-width=\"6\"/></g><g class=\"s\" style=\"--d:0.9s\"><path d=\"M672 412 L835 170 M768 412 L605 170\" stroke=\"INK\" stroke-width=\"8\"/></g><g class=\"p\" style=\"--d:1.2s\"><circle cx=\"640\" cy=\"455\" r=\"48\" stroke=\"INK\" stroke-width=\"8\"/><circle cx=\"800\" cy=\"455\" r=\"48\" stroke=\"INK\" stroke-width=\"8\"/></g><g class=\"m\" style=\"--d:1.6s;--from:0,90\"><path d=\"M300 200 V100 M270 130 L300 100 L330 130\" stroke=\"INK\" stroke-width=\"6\"/><path d=\"M900 330 V280 M875 305 L900 280 L925 305\" stroke=\"MUTED\" stroke-width=\"6\"/></g><circle class=\"p\" style=\"--d:1.9s\" cx=\"720\" cy=\"341\" r=\"12\" fill=\"ACCENT\" stroke=\"none\"/>"
+  },
+  {
+   "type": "draw",
+   "at": "ეროვნული ბანკი",
+   "kicker": "პოლიტიკა",
+   "label": "პოლიტიკა უცვლელია",
+   "svg": "<g class=\"s\" style=\"--d:0.2s\"><path d=\"M236 230 L476 110 L716 230 Z\" stroke=\"INK\" stroke-width=\"7\"/></g><g class=\"s\" style=\"--d:0.5s\"><rect x=\"236\" y=\"230\" width=\"480\" height=\"40\" rx=\"8\" stroke=\"INK\" stroke-width=\"6\"/></g><g class=\"g\" style=\"--d:0.8s\"><rect x=\"276\" y=\"290\" width=\"40\" height=\"190\" rx=\"10\" stroke=\"INK\" stroke-width=\"6\"/></g><g class=\"g\" style=\"--d:0.9s\"><rect x=\"366\" y=\"290\" width=\"40\" height=\"190\" rx=\"10\" stroke=\"INK\" stroke-width=\"6\"/></g><g class=\"g\" style=\"--d:1.0s\"><rect x=\"456\" y=\"290\" width=\"40\" height=\"190\" rx=\"10\" stroke=\"INK\" stroke-width=\"6\"/></g><g class=\"g\" style=\"--d:1.1s\"><rect x=\"546\" y=\"290\" width=\"40\" height=\"190\" rx=\"10\" stroke=\"INK\" stroke-width=\"6\"/></g><g class=\"g\" style=\"--d:1.2s\"><rect x=\"636\" y=\"290\" width=\"40\" height=\"190\" rx=\"10\" stroke=\"INK\" stroke-width=\"6\"/></g><g class=\"r\" style=\"--d:1.1s\"><rect x=\"216\" y=\"490\" width=\"520\" height=\"30\" rx=\"6\" stroke=\"MUTED\" stroke-width=\"6\"/><rect x=\"196\" y=\"530\" width=\"560\" height=\"30\" rx=\"6\" stroke=\"MUTED\" stroke-width=\"6\"/></g><circle class=\"p\" style=\"--d:1.4s;--pulse:1\" cx=\"476\" cy=\"190\" r=\"16\" fill=\"ACCENT\" stroke=\"none\"/><text class=\"r\" style=\"--d:1.7s\" x=\"476\" y=\"612\" text-anchor=\"middle\" font-size=\"36\" font-weight=\"700\" fill=\"INK\">ეროვნული ბანკი</text>"
+  },
+  {
+   "type": "end",
+   "at": "დეტალები"
+  }
+ ]
+}

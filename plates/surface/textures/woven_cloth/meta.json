@@ -1,0 +1,15 @@
+{
+  "id": "woven_cloth",
+  "name": "Raw Woven Linen",
+  "category": "textile",
+  "description": "Coarse unbleached natural linen fabric with interlocking orthogonal warp and weft weave.",
+  "dimensions": [
+    512,
+    512
+  ],
+  "depth": 1.1,
+  "roughness": 0.8,
+  "height_sha256": "ac174ea8210f2b680135ba3b2031c52bd64960ee9eb019ea233f76dc70c5c368",
+  "normal_sha256": "7feed5678df89af7357525843b21d1e6d1ece0f615de74e9cccd4c01c6d43b4d",
+  "bytes": 828109
+}

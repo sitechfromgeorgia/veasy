@@ -1,0 +1,684 @@
+"""Tests for tt_shorts/review.py: Review Packet Builder for Veasy's film-eyes lane."""
+import json
+import os
+from unittest import mock
+import pathlib
+import unittest
+
+from tt_shorts import formats, review
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+
+class NoteFormatTest(unittest.TestCase):
+    def test_format_finding_matches_specification(self):
+        note = review.format_finding(
+            time_s=4.2,
+            where="scene 1 (stat)",
+            problem="numbers match previous frame",
+            change="vary card layout or consolidate",
+        )
+        self.assertEqual(
+            note,
+            "t=4.2s · scene 1 (stat) · numbers match previous frame -> vary card layout or consolidate",
+        )
+
+    def test_format_examples_from_user_requirements(self):
+        # Example 1
+        n1 = review.format_finding(2.1, "scene 1 (stat)", "numbers match previous frame", "vary card layout or consolidate")
+        self.assertEqual(n1, "t=2.1s · scene 1 (stat) · numbers match previous frame -> vary card layout or consolidate")
+
+        # Example 2
+        n2 = review.format_finding(6.8, "scene 3 (points)", "text extends into social rail (x=960, y=1240)", "trim line or reduce font size")
+        self.assertEqual(n2, "t=6.8s · scene 3 (points) · text extends into social rail (x=960, y=1240) -> trim line or reduce font size")
+
+        # Example 3
+        n3 = review.format_finding(10.5, "scene 4 (quote)", "text needs 3.2s but scene ends at 1.8s", "expand narration or trim quote")
+        self.assertEqual(n3, "t=10.5s · scene 4 (quote) · text needs 3.2s but scene ends at 1.8s -> expand narration or trim quote")
+
+    def test_parse_finding_roundtrip(self):
+        original = "t=6.8s · scene 3 (points) · text extends into social rail (x=960, y=1240) -> trim line or reduce font size"
+        parsed = review.parse_finding(original)
+        self.assertEqual(parsed["time"], 6.8)
+        self.assertEqual(parsed["where"], "scene 3 (points)")
+        self.assertEqual(parsed["problem"], "text extends into social rail (x=960, y=1240)")
+        self.assertEqual(parsed["change"], "trim line or reduce font size")
+        self.assertEqual(parsed["formatted"], original)
+
+    def test_parse_finding_with_unicode_arrow(self):
+        line = "t=10.5s · scene 4 (quote) · text needs 3.2s but scene ends at 1.8s → expand narration or trim quote"
+        parsed = review.parse_finding(line)
+        self.assertEqual(parsed["time"], 10.5)
+        self.assertEqual(parsed["where"], "scene 4 (quote)")
+        self.assertEqual(parsed["change"], "expand narration or trim quote")
+        # Canonical formatted string uses ->
+        self.assertIn("->", parsed["formatted"])
+
+    def test_parse_invalid_finding_raises_value_error(self):
+        with self.assertRaises(ValueError):
+            review.parse_finding("scene 1 has a bug")
+        with self.assertRaises(ValueError):
+            review.parse_finding("t=2.1s - scene 1 - problem")
+
+
+class RawConversionTest(unittest.TestCase):
+    def test_convert_motion_read_finding(self):
+        raw = {
+            "rule": "read",
+            "scene": 4,
+            "detail": "scene 4 (quote): „დეტალები“ is readable for 1.8 s, its 12 words need 3.2 s",
+            "hold": True,
+        }
+        scenes = [
+            {"scene": 0, "type": "hook", "start": 0.0},
+            {"scene": 1, "type": "stat", "start": 3.0},
+            {"scene": 2, "type": "timeline", "start": 5.5},
+            {"scene": 3, "type": "points", "start": 8.0},
+            {"scene": 4, "type": "quote", "start": 10.5},
+        ]
+        note = review.convert_motion_finding(raw, scenes)
+        self.assertEqual(note["priority"], "P0")
+        self.assertEqual(note["time"], 10.5)
+        self.assertIn("scene 4 (quote)", note["where"])
+        self.assertIn("needs 3.2s but scene ends at 1.8s", note["problem"])
+        self.assertEqual(note["change"], "expand narration or trim quote")
+        self.assertEqual(
+            note["formatted"],
+            "t=10.5s · scene 4 (quote) · text needs 3.2s but scene ends at 1.8s -> expand narration or trim quote",
+        )
+
+    def test_convert_probe_rail_issue(self):
+        issue = {
+            "rule": "rail",
+            "region": "scene",
+            "scene": 3,
+            "type": "points",
+            "frame": 204,  # 204 / 30 = 6.8s
+            "detail": "text „ქართული მედია“ (x=960.0, y=1240.0) right of rail (max 940 below y=1100)",
+        }
+        note = review.convert_probe_issue(issue)
+        self.assertEqual(note["priority"], "P0")
+        self.assertEqual(note["time"], 6.8)
+        self.assertEqual(note["where"], "scene 3 (points)")
+        self.assertEqual(note["problem"], "text extends into social rail (x=960, y=1240)")
+        self.assertEqual(note["change"], "trim line or reduce font size")
+        self.assertEqual(
+            note["formatted"],
+            "t=6.8s · scene 3 (points) · text extends into social rail (x=960, y=1240) -> trim line or reduce font size",
+        )
+
+    def test_convert_raw_string(self):
+        s = "t=2.1s · scene 1 (stat) · numbers match previous frame -> vary card layout or consolidate"
+        note = review.convert_raw_string(s)
+        self.assertEqual(note["time"], 2.1)
+        self.assertEqual(note["where"], "scene 1 (stat)")
+        self.assertEqual(note["problem"], "numbers match previous frame")
+        self.assertEqual(note["change"], "vary card layout or consolidate")
+
+
+class ZeroCodeLeakageContractTest(unittest.TestCase):
+    def test_assert_zero_code_leakage_blocks_html_files(self):
+        bad_packet = {
+            "sheets": {"index_file": "compositions/scene1.html"},
+        }
+        with self.assertRaises(review.CodeLeakageError) as ctx:
+            review.assert_zero_code_leakage(bad_packet)
+        self.assertIn(".html", str(ctx.exception))
+
+    def test_assert_zero_code_leakage_blocks_tsx_files(self):
+        bad_packet = {
+            "component": "remotion/src/scenes/stat.tsx",
+        }
+        with self.assertRaises(review.CodeLeakageError) as ctx:
+            review.assert_zero_code_leakage(bad_packet)
+        self.assertIn(".tsx", str(ctx.exception))
+
+    def test_assert_zero_code_leakage_blocks_script_tags(self):
+        bad_packet = {
+            "spec": {"goal": "<script>alert('pwn')</script>"},
+        }
+        with self.assertRaises(review.CodeLeakageError) as ctx:
+            review.assert_zero_code_leakage(bad_packet)
+        self.assertIn("Code pattern detected", str(ctx.exception))
+
+    def test_assert_zero_code_leakage_blocks_dom_templates(self):
+        bad_packet = {
+            "spec": {"template": "<template id='s1'><div class='box'></div></template>"},
+        }
+        with self.assertRaises(review.CodeLeakageError):
+            review.assert_zero_code_leakage(bad_packet)
+
+    def test_assert_zero_code_leakage_blocks_javascript_functions(self):
+        bad_packet = {
+            "motion": {"code": "function animate() { gsap.to('#box', {x: 100}); }"},
+        }
+        with self.assertRaises(review.CodeLeakageError):
+            review.assert_zero_code_leakage(bad_packet)
+
+    def test_valid_visual_spec_passes(self):
+        good_packet = {
+            "packet_version": "1.0",
+            "created_at": "2026-11-06T19:30:00Z",
+            "film_id": "24835",
+            "brand": "tbilisi-today",
+            "engine": "remotion",
+            "round": 1,
+            "spec": {
+                "goal": "Explain gas shutoff schedule in Varketili.",
+                "output": {"engine": "remotion", "width": 1080, "height": 1920, "fps": 30},
+                "time": {"seconds": 24.5, "frames": 735, "bpm": None},
+                "look": {"theme": "dark", "canvas": "#171817", "ink": "#F1EDE4", "accent": "#FF792E"},
+                "shots": [{"index": 0, "type": "hook", "hero_move": "Hook settles typography"}],
+                "banned": ["No floating particles", "No dark voids"],
+            },
+            "sheets": {
+                "contact_sheet": "renders/tbilisi-today/2026-11-06/24835-news.plan.jpg",
+                "review_beats": None,
+                "review_phone": None,
+                "review_seams": [],
+                "stills": [{"scene": 0, "type": "hook", "time": 0.0, "path": "stills/scene-0.png"}],
+            },
+            "timeline": {"duration_seconds": 24.5, "beats": []},
+            "reading_load": {"overall_load": 0.82, "scenes": []},
+            "findings": {
+                "summary": {"p0_count": 0, "p1_count": 1, "p2_count": 0, "verdict": "fix"},
+                "notes": [{
+                    "priority": "P1",
+                    "time": 2.1,
+                    "where": "scene 1 (stat)",
+                    "problem": "numbers match previous frame",
+                    "change": "vary card layout or consolidate",
+                    "formatted": "t=2.1s · scene 1 (stat) · numbers match previous frame -> vary card layout or consolidate",
+                }],
+            },
+            "comparison": {"has_comparison": False},
+        }
+        is_valid, errors = review.verify_contract_adherence(good_packet)
+        self.assertTrue(is_valid, errors)
+        self.assertEqual(errors, [])
+
+
+class ReviewPacketBuilderTest(unittest.TestCase):
+    def test_build_review_packet_on_fixture_story(self):
+        story = ROOT / "stories" / "24835.json"
+        packet = review.build_review_packet(story, fmt_name="news", round_num=1)
+
+        # Basic packet structure
+        self.assertEqual(packet["packet_version"], "1.0")
+        self.assertEqual(packet["film_id"], "24835")
+        self.assertEqual(packet["brand"], "tbilisi-today")
+        self.assertEqual(packet["round"], 1)
+
+        # Spec checks (contract adherence: no code)
+        self.assertIn("goal", packet["spec"])
+        self.assertIn("look", packet["spec"])
+        self.assertIn("banned", packet["spec"])
+        self.assertIn("shots", packet["spec"])
+
+        # Timeline and reading load
+        self.assertGreater(packet["timeline"]["duration_seconds"], 15.0)
+        self.assertGreaterEqual(len(packet["timeline"]["beats"]), 5)
+        self.assertGreater(packet["reading_load"]["overall_load"], 0.0)
+
+        # Findings structure
+        self.assertIn("summary", packet["findings"])
+        self.assertIn("notes", packet["findings"])
+
+        # Render Markdown summary
+        md = review.render_review_markdown(packet)
+        self.assertIn("# Review Packet: tbilisi-today · Film #24835", md)
+        self.assertIn("Visual Review Sheets", md)
+        self.assertIn("Film Spec (Director's Contract)", md)
+        self.assertIn("Beat Timeline & Reading Load", md)
+        self.assertIn("Review Notes & Prescribed Changes", md)
+
+
+class ComparisonRepresentationTest(unittest.TestCase):
+    def test_before_and_after_comparison(self):
+        # Round 1 packet with a P0 and a P1
+        r1_packet = {
+            "round": 1,
+            "sheets": {"contact_sheet": "out/round1.plan.jpg", "review_phone": "out/round1-phone.jpg"},
+            "reading_load": {
+                "overall_load": 1.12,
+                "scenes": [
+                    {"scene": 0, "type": "hook", "duration_s": 3.0, "words": 6, "words_per_second": 2.0, "load": 0.8, "status": "pass"},
+                    {"scene": 3, "type": "points", "duration_s": 2.0, "words": 10, "words_per_second": 5.0, "load": 1.4, "status": "overloaded"},
+                ],
+            },
+            "findings": {
+                "summary": {"p0_count": 1, "p1_count": 1, "p2_count": 0, "verdict": "fix"},
+                "notes": [
+                    {
+                        "priority": "P0",
+                        "time": 6.8,
+                        "where": "scene 3 (points)",
+                        "problem": "text extends into social rail (x=960, y=1240)",
+                        "change": "trim line or reduce font size",
+                        "formatted": "t=6.8s · scene 3 (points) · text extends into social rail (x=960, y=1240) -> trim line or reduce font size",
+                    },
+                    {
+                        "priority": "P1",
+                        "time": 2.1,
+                        "where": "scene 1 (stat)",
+                        "problem": "numbers match previous frame",
+                        "change": "vary card layout or consolidate",
+                        "formatted": "t=2.1s · scene 1 (stat) · numbers match previous frame -> vary card layout or consolidate",
+                    },
+                ],
+            },
+        }
+
+        # Round 2 packet: P0 resolved, P1 persists
+        r2_packet = {
+            "round": 2,
+            "sheets": {"contact_sheet": "out/round2.plan.jpg", "review_phone": "out/round2-phone.jpg"},
+            "reading_load": {
+                "overall_load": 0.85,
+                "scenes": [
+                    {"scene": 0, "type": "hook", "duration_s": 3.0, "words": 6, "words_per_second": 2.0, "load": 0.8, "status": "pass"},
+                    {"scene": 3, "type": "points", "duration_s": 3.5, "words": 8, "words_per_second": 2.3, "load": 0.85, "status": "pass"},
+                ],
+            },
+            "findings": {
+                "summary": {"p0_count": 0, "p1_count": 1, "p2_count": 0, "verdict": "fix"},
+                "notes": [
+                    {
+                        "priority": "P1",
+                        "time": 2.1,
+                        "where": "scene 1 (stat)",
+                        "problem": "numbers match previous frame",
+                        "change": "vary card layout or consolidate",
+                        "formatted": "t=2.1s · scene 1 (stat) · numbers match previous frame -> vary card layout or consolidate",
+                    },
+                ],
+            },
+        }
+
+        comparison = review.compare_review_packets(r1_packet, r2_packet)
+        self.assertTrue(comparison["has_comparison"])
+        self.assertEqual(comparison["previous_round"], 1)
+        self.assertEqual(comparison["current_round"], 2)
+        self.assertEqual(comparison["verdict"], "improved")
+
+        # P0 note is in resolved_notes
+        resolved = comparison["resolved_notes"]
+        self.assertEqual(len(resolved), 1)
+        self.assertIn("social rail", resolved[0]["problem"])
+
+        # P1 note is in persisting_notes
+        persisting = comparison["persisting_notes"]
+        self.assertEqual(len(persisting), 1)
+        self.assertIn("numbers match", persisting[0]["problem"])
+
+        # Sheet diff is tracked
+        self.assertEqual(comparison["sheets"]["before_contact_sheet"], "out/round1.plan.jpg")
+        self.assertEqual(comparison["sheets"]["after_contact_sheet"], "out/round2.plan.jpg")
+
+        # Load delta is tracked
+        self.assertAlmostEqual(comparison["load_deltas"]["3"]["diff"], -0.55)
+
+        # Markdown rendering with comparison
+        r2_full = {
+            "packet_version": "1.0",
+            "created_at": "2026-11-06T19:35:00Z",
+            "film_id": "24835",
+            "brand": "tbilisi-today",
+            "engine": "remotion",
+            "round": 2,
+            "spec": {
+                "goal": "Explain gas shutoff schedule in Varketili.",
+                "output": {"engine": "remotion", "width": 1080, "height": 1920, "fps": 30},
+                "time": {"seconds": 24.5, "frames": 735, "bpm": None},
+                "look": {"theme": "dark", "canvas": "#171817", "ink": "#F1EDE4", "accent": "#FF792E"},
+                "shots": [{"index": 0, "type": "hook", "hero_move": "Hook settles typography"}],
+                "banned": ["No floating particles", "No dark voids"],
+            },
+            "sheets": r2_packet["sheets"],
+            "timeline": {"duration_seconds": 24.5, "beats": []},
+            "reading_load": r2_packet["reading_load"],
+            "findings": r2_packet["findings"],
+            "comparison": comparison,
+        }
+        md = review.render_review_markdown(r2_full)
+        self.assertIn("Before-and-After Comparison (Round 1 -> Round 2)", md)
+        self.assertIn("Resolved Findings (1)", md)
+        self.assertIn("social rail", md)
+        self.assertIn("Before Sheet", md)
+
+
+class ReviewFactsDiffTest(unittest.TestCase):
+    def setUp(self):
+        self.story = json.loads((ROOT / "stories" / "24835.json").read_text(encoding="utf-8"))
+
+    def test_words_lost_sees_a_dropped_hedge_and_lets_a_word_move(self):
+        from tt_shorts import review
+        before = {"narration": "სავარაუდოდ გაიზარდა", "scenes": [{"type": "hook", "lines": ["ერთი ორი", "სამი"]}]}
+        moved = {"narration": "სავარაუდოდ გაიზარდა", "scenes": [{"type": "hook", "lines": ["ერთი", "ორი სამი"]}]}
+        cut = {"narration": "გაიზარდა", "scenes": [{"type": "hook", "lines": ["ერთი ორი", "სამი"]}]}
+        self.assertEqual(review.words_lost(before, moved), [])
+        self.assertEqual(review.words_lost(before, cut), ["სავარაუდოდ"])
+
+    def test_facts_diff_identical(self):
+        diff = review.facts_diff(self.story, self.story)
+        self.assertEqual(diff, [])
+
+    def test_facts_diff_number_changed(self):
+        import copy
+        modified = copy.deepcopy(self.story)
+        # Change 6400 to 6500 in stat scene
+        for sc in modified["scenes"]:
+            if sc.get("type") == "stat":
+                sc["value"] = 6500
+        diff = review.facts_diff(self.story, modified)
+        self.assertTrue(any("quantities/numbers mismatch" in d for d in diff))
+
+    def test_facts_diff_date_changed(self):
+        import copy
+        modified = copy.deepcopy(self.story)
+        modified["date"] = "2026-11-05T14:22:16Z"
+        diff = review.facts_diff(self.story, modified)
+        self.assertTrue(any("dates mismatch" in d for d in diff))
+
+    def test_facts_diff_quote_changed(self):
+        import copy
+        modified = copy.deepcopy(self.story)
+        modified["narration"] = modified["narration"].replace("„თბილისი ენერჯის“", "„ენერჯი კორპის“")
+        diff = review.facts_diff(self.story, modified)
+        self.assertTrue(any("quotes mismatch" in d for d in diff))
+
+    def test_facts_diff_proper_name_changed(self):
+        import copy
+        modified = copy.deepcopy(self.story)
+        modified["narration"] = modified["narration"].replace("ვარკეთილსა", "საბურთალოს")
+        diff = review.facts_diff(self.story, modified)
+        self.assertTrue(any("proper names mismatch" in d or "dates mismatch" in d for d in diff))
+
+    def test_facts_diff_sources_changed(self):
+        import copy
+        modified = copy.deepcopy(self.story)
+        modified["sources"] = ["ახალი წყარო"]
+        diff = review.facts_diff(self.story, modified)
+        self.assertTrue(any("sources mismatch" in d for d in diff))
+
+    def test_facts_diff_cluster_id_changed(self):
+        import copy
+        modified = copy.deepcopy(self.story)
+        modified["id"] = 99999
+        diff = review.facts_diff(self.story, modified)
+        self.assertTrue(any("story id changed" in d for d in diff))
+
+    def test_allowed_line_split_preserves_facts(self):
+        import copy
+        modified = copy.deepcopy(self.story)
+        hook = modified["scenes"][0]
+        hook["lines"] = ["ვარკეთილსა და ვაზისუბანში", "გაზი შეწყდება"]
+        diff = review.facts_diff(self.story, modified)
+        self.assertEqual(diff, [])
+
+
+class ReviewLoopTest(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        from unittest import mock
+        self.home = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"VEASY_HOME": self.home.name})
+        self.env.start()
+        self.story = json.loads((ROOT / "stories" / "24835.json").read_text(encoding="utf-8"))
+
+    def tearDown(self):
+        self.env.stop()
+        self.home.cleanup()
+
+    def test_review_story_24835_baseline(self):
+        res = review.review_story(self.story, rounds=2)
+        self.assertIn(res["status"], ("passed", "fixed"))
+        self.assertEqual(res["holds"], [])
+        self.assertEqual(res["facts_diff"], [])
+
+    def test_review_story_repairs_duplicate_scenes(self):
+        import copy
+        story = copy.deepcopy(self.story)
+        story["narration"] = story["narration"].replace(
+            "მისამართების სრული სია ბმულზეა.",
+            "მისამართების სრული სია ბმულზეა. აბონენტებს ურჩევენ წინასწარ მოამზადონ წყალი და თბილი ტანსაცმელი. "
+            "ამასთან მომსახურების ცენტრი ღამითაც უპასუხებს ყველა ზარს და დაგეხმარებათ.",
+        )
+        story["scenes"].insert(4, {
+            "type": "points",
+            "at": "მისამართების სრული",
+            "items": ["პირველი დეტალი", "მეორე დეტალი"]
+        })
+        story["scenes"].insert(5, {
+            "type": "points",
+            "at": "აბონენტებს ურჩევენ წინასწარ",
+            "items": ["მესამე დეტალი", "მეოთხე დეტალი"]
+        })
+        res = review.review_story(story, rounds=2)
+        self.assertIn(res["status"], ("fixed", "passed"))
+        self.assertEqual(res["holds"], [])
+        self.assertEqual(res["facts_diff"], [])
+        scene_types = [s["type"] for s in res["story"]["scenes"]]
+        self.assertFalse(any(a == b == "points" for a, b in zip(scene_types, scene_types[1:])))
+
+    def test_review_story_cap_enforcement(self):
+        import copy
+        story = copy.deepcopy(self.story)
+        story["scenes"][1]["at"] = "არარსებული ფრაზა ნარაციაში"
+        res = review.review_story(story, rounds=2, max_machine_rounds=2)
+        self.assertEqual(res["status"], "held")
+        self.assertTrue(res["holds"])
+        self.assertLessEqual(res["machine_rounds"], 2)
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+class SeededDefectTest(unittest.TestCase):
+    """Done-when 1: 12 seeded-broken stories sit in tests/fixtures/review/ and every one is caught by its own rule."""
+
+    FIX = sorted((ROOT / "tests" / "fixtures" / "review").glob("defect_*.json"))
+
+    def setUp(self):
+        import tempfile
+        self.home = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"VEASY_HOME": self.home.name})
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+        self.home.cleanup()
+
+    def test_twelve_fixtures(self):
+        self.assertEqual(len(self.FIX), 12)
+        self.assertEqual(sorted({p.name[7:9] for p in self.FIX}), [f"{i:02d}" for i in range(1, 13)])
+
+    def test_every_defect_is_caught_by_its_own_rule(self):
+        import tempfile
+        missed = []
+        for path in self.FIX:
+            story = json.loads(path.read_text(encoding="utf-8"))
+            with tempfile.TemporaryDirectory() as tmp:
+                got = review.detect(story, tmp)
+            want = story["defect"]["catch"]
+            if want not in got["rules"]:
+                missed.append((path.name, want, got["rules"]))
+            if story["defect"]["gate"] == "hold":
+                self.assertTrue(got["holds"], path.name)
+            else:
+                self.assertFalse(got["holds"], f"{path.name} is a warning-only defect but held: {got['holds']}")
+        self.assertEqual(missed, [])
+
+
+class RealFixTest(unittest.TestCase):
+    """Done-when 3: three films get a real repair and the facts diff stays empty."""
+
+    FILMS = ("defect_10_pingpong_cuts.json", "fixable_02_double_points.json", "fixable_03_short_read.json")
+
+    def setUp(self):
+        import tempfile
+        self.home = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"VEASY_HOME": self.home.name})
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+        self.home.cleanup()
+
+    def test_three_films_are_repaired_without_touching_a_fact(self):
+        for name in self.FILMS:
+            story = json.loads((ROOT / "tests" / "fixtures" / "review" / name).read_text(encoding="utf-8"))
+            before = review.audit_story(story)
+            res = review.review_story(story, rounds=2)
+            self.assertEqual(res["status"], "fixed", name)
+            self.assertTrue(res["applied_transforms"], name)
+            self.assertEqual(res["facts_diff"], [], name)
+            self.assertEqual(res["holds"], [], name)
+            after = review.audit_story(res["story"])
+            self.assertLess(len(after["warnings"]) + len(after["holds"]),
+                            len(before["warnings"]) + len(before["holds"]), name)
+
+    def test_a_repair_that_needs_a_new_fact_stays_held(self):
+        story = json.loads((ROOT / "tests" / "fixtures" / "review" / "defect_06_unreadable_text_hold.json")
+                           .read_text(encoding="utf-8"))
+        res = review.review_story(story, rounds=2)
+        self.assertEqual(res["status"], "held")
+        self.assertEqual(res["facts_diff"], [])
+
+    def test_notes_carry_a_time_and_follow_the_format(self):
+        note = review.convert_raw_string("motion repeat: scenes 1 and 2 are both quote: one type twice in a row",
+                                         [{"start": 0.0}, {"start": 6.1, "type": "quote"}, {"start": 9.0}])["formatted"]
+        self.assertTrue(review.NOTE_REGEX.match(note), note)
+        self.assertTrue(note.startswith("t=6.1s"), note)
+
+
+class ApprovedDemosTest(unittest.TestCase):
+    """Done-when 2: approved demos raise no false hold (pixel numbers: docs/research/film-eyes-calibration.json)."""
+
+    STORIES = ("24835", "24725", "veasy-demo", "veasy-scenes")
+
+    def setUp(self):
+        import tempfile
+        self.home = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {"VEASY_HOME": self.home.name})
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+        self.home.cleanup()
+
+    def test_no_hold_and_nothing_to_repair_on_approved_stories(self):
+        import tempfile
+        for name in self.STORIES:
+            story = json.loads((ROOT / "stories" / f"{name}.json").read_text(encoding="utf-8"))
+            with tempfile.TemporaryDirectory() as tmp:
+                got = review.detect(story, tmp)
+            self.assertEqual(got["holds"], [], name)
+            res = review.review_story(story, rounds=2)
+            self.assertIn(res["status"], ("passed", "fixed"), name)
+            self.assertEqual(res["facts_diff"], [], name)
+
+
+class ReportMetricsTest(unittest.TestCase):
+    """The report-only metrics: each fires on a made-up film, none holds, none fires on the approved stories."""
+
+    FPS = 30
+
+    def _scene(self, i, start_s, seconds, texts, kind="type", transition=None):
+        return {"type": kind, "from": int(start_s * self.FPS), "duration": int(seconds * self.FPS),
+                "transition": transition, "_texts": texts}
+
+    def _row(self, i, start_s, seconds, texts, typ="points", settled=1.0):
+        return {"scene": i, "type": typ, "from": int(start_s * self.FPS), "to": int((start_s + seconds) * self.FPS),
+                "leaves": int((start_s + seconds) * self.FPS), "seconds": seconds, "settled": settled,
+                "texts": [{"text": t, "words": len(t.split()), "need": 2.0, "in": at, "shown": seconds - at}
+                          for t, at in texts]}
+
+    def _props(self, rows, words=(), transition="cut", enter="scale"):
+        scenes = [{"type": r["type"], "from": r["from"], "duration": r["to"] - r["from"], "transition": transition}
+                  for r in rows]
+        return {"scenes": scenes, "durationInFrames": rows[-1]["to"], "words": list(words),
+                "style": {"enter": enter}, "transition": transition}
+
+    def _metrics(self, rows, **kw):
+        props = self._props(rows, **kw)
+        with mock.patch.object(review.motion_rules, "_laid_out", lambda p: p), \
+             mock.patch.object(review.motion_rules, "cuts", lambda p: [
+                 {"into": i, "kind": s["transition"], "direction": None} for i, s in enumerate(p["scenes"][1:], 1)]):
+            return review.eyes.report_metrics(props, timeline=rows)
+
+    def rules(self, res):
+        return {f["rule"] for f in res["findings"]}
+
+    def test_word_lag(self):
+        rows = [self._row(0, 0, 8, [("ალფა ბეტა გამა", 0.2)]), self._row(1, 8, 8, [("დელტა ეპსილონი ზეტა", 0.2)])]
+        words = [{"text": "ალფა", "start": 0.3}, {"text": "ბეტა", "start": 0.6},
+                 {"text": "დელტა", "start": 20.0}, {"text": "ეპსილონი", "start": 20.5}]
+        words[2]["start"] = 14.2  # said 6 s after the text of scene 1 comes on at 8.2
+        res = self._metrics(rows, words=words)
+        self.assertIn("word_lag", self.rules(res))
+        self.assertTrue(all(not f["hold"] for f in res["findings"]))
+        ok = self._metrics(rows, words=[{"text": "ალფა", "start": 0.3}, {"text": "ბეტა", "start": 0.6},
+                                        {"text": "დელტა", "start": 8.4}, {"text": "ეპსილონი", "start": 8.9}])
+        self.assertNotIn("word_lag", self.rules(ok))
+
+    def test_text_echo(self):
+        said = "ალფა ბეტა გამა დელტა ეპსილონი ზეტა ეტა თეტა იოტა კაპა ლამბდა მიუ"
+        rows = [self._row(0, 0, 6, [(said, 0.2)])]
+        words = [{"text": w, "start": i * 0.4} for i, w in enumerate(said.split())]
+        self.assertIn("text_echo", self.rules(self._metrics(rows, words=words)))
+        self.assertNotIn("text_echo", self.rules(self._metrics(rows, words=[{"text": "სხვა", "start": 0.1}])))
+
+    def test_post_cut_motion(self):
+        rows = [self._row(0, 0, 5, [("ა ბ", 0.2)])] + [self._row(i, 5 * i, 5, [("გ დ", 2.0)]) for i in (1, 2, 3)]
+        self.assertIn("post_cut_motion", self.rules(self._metrics(rows)))
+        live = [self._row(0, 0, 5, [("ა ბ", 0.2)])] + [self._row(i, 5 * i, 5, [("გ დ", 0.2)]) for i in (1, 2, 3)]
+        self.assertNotIn("post_cut_motion", self.rules(self._metrics(live)))
+
+    def test_hold_ratio(self):
+        rows = [self._row(i, 8 * i, 8, [("ა ბ", 0.2)], settled=1.0) for i in range(3)]
+        self.assertIn("hold_ratio", self.rules(self._metrics(rows)))
+        busy = [self._row(i, 8 * i, 8, [("ა ბ", 0.2)], settled=7.0) for i in range(3)]
+        self.assertNotIn("hold_ratio", self.rules(self._metrics(busy)))
+
+    def test_unrelated_cuts(self):
+        rows = [self._row(0, 0, 4, [("ჰუკი ტექსტი", 0.2)], typ="hook")]
+        rows += [self._row(i, 4 * i, 4, [(f"{a} {b}", 0.2)])
+                 for i, (a, b) in zip(range(1, 8), [("ალფაბეტი", "ბეღურა"), ("გემრიელი", "დარბაზი"), ("ევროპა", "ვარდი"),
+                                                    ("ზღვა", "თევზი"), ("იალქანი", "კარავი"), ("ლომი", "მთვარე"),
+                                                    ("ნავი", "ოქრო")])]
+        rows += [self._row(8, 32, 4, [("დასასრული", 0.2)], typ="end")]
+        self.assertIn("unrelated_cuts", self.rules(self._metrics(rows)))
+        linked = [self._row(0, 0, 4, [("ჰუკი ტექსტი", 0.2)], typ="hook")]
+        linked += [self._row(i, 4 * i, 4, [("გაზი შეწყდება", 0.2)]) for i in range(1, 8)]
+        linked += [self._row(8, 32, 4, [("დასასრული", 0.2)], typ="end")]
+        self.assertNotIn("unrelated_cuts", self.rules(self._metrics(linked)))
+
+    def test_keyframes_one_curve(self):
+        rows = [self._row(i, 4 * i, 4, [("ა ბ", 0.2)]) for i in range(8)]
+        self.assertIn("keyframes_one_curve", self.rules(self._metrics(rows, transition="cut")))
+        self.assertNotIn("keyframes_one_curve", self.rules(self._metrics(rows, transition="wipe")))
+
+    def test_keyframes_fade_up(self):
+        rows = [self._row(i, 4 * i, 4, [("ა ბ", 0.2)]) for i in range(5)]
+        self.assertIn("keyframes_fade_up", self.rules(self._metrics(rows, transition="fade", enter="rise")))
+        self.assertNotIn("keyframes_fade_up", self.rules(self._metrics(rows, transition="fade", enter="scale")))
+
+    def test_keyframes_text_moving_while_read(self):
+        rows = []
+        for i in range(4):
+            r = self._row(i, 4 * i, 4, [("ა ბ", 0.2), ("გ დ", 0.2)])
+            for t in r["texts"]:
+                t["need"] = 0.8  # read in 0.8 s while the entrance still moves for 0.5 s
+            rows.append(r)
+        self.assertIn("keyframes_text_moving", self.rules(self._metrics(rows)))
+        self.assertNotIn("keyframes_text_moving", self.rules(self._metrics(
+            [self._row(i, 4 * i, 4, [("ა ბ", 0.2), ("გ დ", 0.2)]) for i in range(4)])))
+
+    def test_approved_stories_raise_no_metric_warning(self):
+        for name in ("24835", "24725", "veasy-demo", "veasy-scenes", "veasy-new-01", "veasy-new-02"):
+            story = json.loads((ROOT / "stories" / f"{name}.json").read_text(encoding="utf-8"))
+            a = review.audit_story(story)
+            res = review.eyes.report_metrics(a["props"])
+            self.assertEqual(res["findings"], [], name)

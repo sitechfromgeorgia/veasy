@@ -31,7 +31,7 @@ Every command prints JSON on stdout (human notes go to stderr), so an agent can 
   python -m tt_shorts.engine rubrics list [--brand] | facts --source --ref | stamp <story> --rubric <id> [--sources]
                                                              # the rubrics: counters, which a cluster may be, a
                                                              # hand-written story's episode (rubrics.py)
-  python -m tt_shorts.engine compose scaffold|check|render stories/24835.json [--brand sitech] [--project DIR]
+  python -m tt_shorts.engine compose scaffold|check|look|render stories/24835.json [--brand sitech] [--project DIR]
                                     [--template ID|auto] [--from DIR]   # a film composed for HyperFrames (compose.py)
   python -m tt_shorts.engine compose promote <project> --as <id> | templates   # an approved film -> a template
   python -m tt_shorts.engine voices [--story stories/24835.json] [--only warm,clear]   # tone samples by ear
@@ -43,6 +43,7 @@ Where things are kept and what they are called: store.py ($VEASY_HOME). Brands: 
 Exit status: 0 when the command did what it says, 1 when a check or QA found problems, 2 on a usage error.
 """
 import argparse
+import collections
 import json
 import os
 import pathlib
@@ -50,10 +51,16 @@ import shutil
 import subprocess
 import sys
 
+if __name__ == "__main__" and sys.argv[1:2] == ["plate"]:  # a plate answer needs none of the engine's imports (a cache hit
+    from tt_shorts import plates as _plates  # is well under a second this way)
+
+    sys.exit(_plates.main(sys.argv[2:]))
+
 from tt_shorts import brand as packs
-from tt_shorts import (assets, captions, catalog, chapters, directors, formats, geo, icons, ka_check, kaeasy,
-                       meta, motion_rules, news_check, programs, props, rubrics, sfx, speech, store, styles, swipe,
-                       variety, voices)
+from tt_shorts import plates
+from tt_shorts import (assets, captions, catalog, chapters, concept, directors, flash, formats, geo, icons, illustrator,
+                       ka_check, kaeasy, meta, motion_rules, news_check, programs, props, rubrics, scenarios, sfx, speech, store,
+                       styles, swipe, thread, variety, vignettes, voices)
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -91,6 +98,10 @@ def options(brand_name=None, section=None):
         "variety": {"about": "each video's own hook layout, background motif, entrance, transition (when auto) and music "
                              "loop: the least used lately for the brand (tt_shorts/variety.py); never the palette",
                     **variety.OPTIONS, "transitions_by_look": variety.TRANSITIONS,
+                    "program_only_transitions": {"about": "one more option in every look's pool for a film of a program "
+                                                          "(a story with a \"program\" other than news); `news` never "
+                                                          "gets them, auto or named",
+                                                 "options": list(variety.PROGRAM_ONLY)},
                     "novelty": {"about": "before the voice, a plan sharing too_close or more of the fingerprint's "
                                          "fields with one of the brand's last recent videos is re-rolled (at most "
                                          "rerolls tries; then the farthest, with a warning)",
@@ -110,7 +121,12 @@ def options(brand_name=None, section=None):
                         "blind": "vertical ink louver blinds rotate and wipe across the scene",
                         "maskwipe": "a soft-edged horizontal mask sweeps the new scene in along the current",
                         "gridsplit": "the old frame breaks into four panels that slide apart over the next scene",
-                        "scalethrough": "the old scene scales up and fades through the new one"},
+                        "scalethrough": "the old scene scales up and fades through the new one",
+                        "one-take": "the scenes sit on one 2D path and the camera glides between them only in the "
+                                    "cut (zoom at most 1.15, parallax layers behind, the dot runs the thread); a "
+                                    "film of a program only, never news",
+                        "match": "only with a thread: the object's shape becomes the shape the next scene opens on",
+                        "object": "only with a thread: the object crosses the frame and carries the cut"},
         "outros": dict(swipe.ABOUT),
         "themes": {"about": "a pack's palettes (brand.json themes; brands.<pack>.themes lists them): a format's or "
                             "--theme's default (the pack's default theme: nothing changes), auto (variety: the least "
@@ -141,7 +157,11 @@ def options(brand_name=None, section=None):
         "film_engines": _film_engines(b),
         "formats": every,
         "directors": directors.options(),
+        "concepts": concept.options(),
+        "thread": thread.options(),
+        "vignettes": {**vignettes.options(), "illustrator": illustrator.options()},
         "rubrics": rubrics.options(),
+        "scenarios": scenarios.options(),
         "programs": {n: programs.summary(p) for n, p in programs.load_all().items()},
         "sources": _sources_about(),
         "compose_blocks": _film_engines(b)["compose"]["blocks"],
@@ -164,7 +184,9 @@ def options(brand_name=None, section=None):
                   "screenshots": "only from the pack's media.official and media.own and a program's screenshots",
                   "rule": "N13: labelled „" + b["strings"]["illustrative"] + "“, never for crime, incidents or deaths, "
                           "never presented as the event; no AI imagery until the owner decides"},
-        "sfx": {"about": "format key sfx: sound effects on the timeline's events, mixed by ffmpeg (sfx.py)",
+        "sfx": {"about": "format key sfx: sound effects on the timeline's events, mixed by ffmpeg (sfx.py); `meaning`: "
+                         "one main sound on the main moment, 2-4 small ones, the object's own, none on a cut, and the "
+                         "music loop shifted so a heavy hit lands on that moment (music_hits.py)",
                 **sfx.OPTIONS, "sounds": list(sfx.NAMES), "level_db": sfx.LEVEL_DB},
         "self_checks": {"plan": "engine plan <story> [--look]: a free storyboard before the voice is paid for: scene "
                                 "times, words and reading load, the variety picks (not recorded), the motion rules, "
@@ -192,7 +214,7 @@ def options(brand_name=None, section=None):
     styles_data = {
         "about": "named film styles as data (styles/<slug>): selects engine, palette mode, layout invariants, "
                  "directing constraints, and motion pacing (tt_shorts/styles.py)",
-        "known": {s["slug"]: {**styles.summary(s), "still": f"assets/stills/style-{s['slug']}.jpg"} for s in styles.load_all()},
+        "known": {s["slug"]: styles.summary(s) for s in styles.load_all()},
     }
     full = {
         "brand": b["name"],
@@ -200,6 +222,7 @@ def options(brand_name=None, section=None):
         "styles": styles_data,
         "advanced": advanced,
         **advanced,
+        "plates": plates.options(),
     }
     if section is None:
         return full
@@ -217,6 +240,7 @@ def options(brand_name=None, section=None):
             "programs": list(programs.load_all().keys()),
             "directors": list(directors.options().keys()),
             "rubrics": list(rubrics.options().keys()),
+            "scenarios": scenarios.names(),
             "sections": sorted(list(full.keys()) + ["summary"]),
             "hint": "Pass section='<name>' or --section <name> to inspect any section in detail.",
         }
@@ -238,7 +262,7 @@ def _film_engines(b):
             "engines": {"remotion": "the typed brush kit (NewsShort, scenes from brushes/): high volume, every video "
                                     "checked the same way",
                         "hyperframes": f"HyperFrames {compose.HF_VERSION}: a film the agent composes in HTML/CSS/GSAP "
-                                       "(engine compose scaffold|check|render, skill veasy:compose)"},
+                                       "(engine compose scaffold|check|look|render, skill veasy:compose)"},
             "default": formats.DEFAULT_ENGINE, "this_pack": b.get("engine"),
             "by_program": {n: p["engine"] for n, p in programs.load_all().items() if p.get("engine")},
             "by_format": {n: f["engine"] for n, f in formats.load_all().items() if f.get("engine")},
@@ -285,8 +309,11 @@ def structure_problems(story):
         p += [f"scene {i} ({t}): {x}" for x in shape_problems(s) + catalog.family_problems(s, family)]
     if "program" in story:  # a story without one is news, exactly as before programs
         p += programs.story_problems(story)
+    p += concept.story_problems(story)
+    p += plates.story_problems(story)
+    p += thread.story_problems(story)
     return p + icons.motif_problems(story) + directors.structure_problems(story) + rubrics.story_problems(story) + \
-        assets.problems(story)
+        scenarios.story_problems(story) + assets.problems(story)
 
 
 def _family(story):
@@ -318,7 +345,7 @@ def shape_problems(s):
     if t == "steps":
         if any(not isinstance(it, str) or not it.strip() for it in items or []):
             out.append("items: each step is a short text")
-    if t in ("bars", "trend", "compare"):
+    if t in ("bars", "trend", "compare", "figures"):
         for k, it in enumerate(items or []):
             if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not _number(it.get("value")):
                 out.append(f"items[{k}]: needs {{label, value}} with a number value")
@@ -366,6 +393,7 @@ def shape_problems(s):
     if t == "draw" and s.get("svg"):
         from tt_shorts import art
         out += art.scene_problems(s["svg"])
+    out += vignettes.own_problems(s)  # a scene's own drawing (vignettes.py)
     if t == "where" and s.get("area") is not None:
         out += geo.area_problems(s["area"])
     if t == "kinetic":
@@ -519,6 +547,11 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
                           caption_design=fmt["captions"], music=fmt["music"], transition=fmt["transition"],
                           outro=fmt["outro"], director=director, theme=theme, **formats.render_keys(fmt))
     checked = _probe_render(work, p)  # the layout probe: seconds, before the minutes of the render
+    relieved = thread.relieve(p, checked)  # a seat with text on it is given up: the thread never holds a video
+    relieved = vignettes.relieve(p, checked) or relieved  # and a drawing's seat too
+    if relieved:
+        (work / "props.json").write_text(json.dumps(p, ensure_ascii=False), encoding="utf-8")
+        checked = _probe_render(work, p)
     motion = motion_rules.check(p)  # with the real voice's timings: unreadable text holds the video, like the probe
     secs = p["durationInFrames"] / FPS
     target = pathlib.Path(out_path) if out_path else store.render_path(
@@ -587,12 +620,20 @@ def _resolve_media(story_path, fetch=True):
     """Resolve a story's show hints into its ledger, in place (assets.resolve_file) -> the report, or None for a
     story with no hints. A provider that fails leaves that scene without a picture: a warning, never a failure."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
-    if not any(isinstance(s, dict) and (s.get("show") or s.get("media")) for s in story.get("scenes") or []):
-        return None
-    try:
-        return assets.resolve_file(story_path, fetch=fetch)
-    except Exception as e:  # noqa: BLE001 - no picture is never a failed story
-        return {"errors": [f"media: {type(e).__name__}: {e}"]}
+    made = None
+    if any(isinstance(s, dict) and (s.get("show") or s.get("media")) for s in story.get("scenes") or []):
+        try:
+            made = assets.resolve_file(story_path, fetch=fetch)
+        except Exception as e:  # noqa: BLE001 - no picture is never a failed story
+            made = {"errors": [f"media: {type(e).__name__}: {e}"]}
+    if plates.plate_scenes(story):  # a plate from the shelf (never a bake); none on it is a warning
+        try:
+            rep = plates.resolve_file(story_path)
+        except Exception as e:  # noqa: BLE001
+            rep = {"warnings": [f"plates: {type(e).__name__}: {e}"]}
+        made = {**(made or {"scenes": {}, "errors": []}), "plates": rep.get("plates", {}),
+                "errors": (made or {}).get("errors", []) + rep.get("warnings", []), "changed": True}
+    return made
 
 
 def media_cmd(a):
@@ -600,6 +641,11 @@ def media_cmd(a):
     story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
     problems = assets.problems(story) + news_check.imagery(story)
     return out({"story": a.story, **report, "problems": problems}, 1 if problems else 0)
+
+
+def plate_cmd(a):
+    """Bake (or answer from the cache) a plate and tone it for every pack; `list` and `check` read only."""
+    return out(*plates.command(a))
 
 
 def selftest_cmd(a):
@@ -653,6 +699,9 @@ def film_engine(story_path, fmt, director=None, override=None):
 def render_any(story_path, fmt, engine="gemini", out_path=None, director=None, renderer=None):
     """Render in the story's film engine: Remotion (render_story) or HyperFrames (compose.render, the project in
     store.compose_dir, scaffolded first when there is none)."""
+    if out_path and pathlib.Path(out_path).with_suffix(".json").resolve() == pathlib.Path(story_path).resolve():
+        return {"problems": [f"--out {out_path} would write the film's summary over its own story "
+                             f"({pathlib.Path(story_path).name}): name the film differently"]}
     if film_engine(story_path, fmt, director, renderer) == "hyperframes":
         from tt_shorts import compose
         missing = _kaeasy_required()
@@ -668,7 +717,7 @@ def render(a):
 
 
 def compose_cmd(a):
-    """engine compose scaffold | check | render | promote | templates | blocks (compose.py)."""
+    """engine compose scaffold | check | look | render | promote | templates | blocks (compose.py)."""
     from tt_shorts import compose
     if a.action == "blocks":
         return out({"blocks": compose.blocks()})
@@ -704,6 +753,9 @@ def compose_cmd(a):
     if a.action == "check":
         r = compose.check(a.target, a.brand, a.project, a.engine, sources, hf=not a.no_hf, shots=a.shots,
                           theme=fmt["theme"], fmt=fmt)
+        return out(r, 1 if r["problems"] else 0)
+    if a.action == "look":
+        r = compose.look(a.target, a.brand, a.project, a.engine, a.video, theme=fmt["theme"], fmt=fmt)
         return out(r, 1 if r["problems"] else 0)
     if a.action == "render":
         r = compose.render(a.target, fmt, a.brand, a.project, a.engine, a.out, sources, hf=not a.no_hf,
@@ -749,8 +801,8 @@ def _loudness(path):
 
 
 def qa_file(path, fmt):
-    """Size, length window, loudness, a readable hook at frame 0 (swipe.opening_problems) and a contact sheet
-    -> dict with "problems". Used by `qa` and the queue."""
+    """Size, length window, loudness, a readable hook at frame 0 (swipe.opening_problems), flashing (flash.py) and a
+    contact sheet -> dict with "problems". Used by `qa` and the queue."""
     path = pathlib.Path(path)
     if not path.exists():
         return {"problems": [f"no such file: {path}"]}
@@ -774,6 +826,8 @@ def qa_file(path, fmt):
     light = _sidecar(path).get("mode") == "light"  # a light theme's ink is the dark pixels (render_story's mode)
     ink = swipe.opening_ink(path, light)  # the first frame decides the swipe: the hook must be on screen there
     problems += swipe.opening_problems(path, ink)
+    flashing = flash.measure(path)  # safety, whichever engine drew it (ITU BT.1702)
+    problems += flash.problems(flashing)
     sheet = path.with_suffix(".sheet.jpg")
     n = 8
     subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(path), "-vf",
@@ -783,7 +837,7 @@ def qa_file(path, fmt):
             "loudness": loud, "opening_ink": None if ink is None else round(ink, 3),
             "sheet": str(sheet.resolve()) if sheet.exists() else None,
             "probe": {k: probed.get(k) for k in ("problems", "frames", "texts")} if probed else None,
-            "problems": problems}
+            "flash": flashing, "problems": problems}
 
 
 def _sidecar(path):
@@ -808,7 +862,8 @@ def package_cmd(a):
 # ---------------------------------------------------------------- write / voices / doctor
 
 
-def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, director=None, rubric=None, style=None):
+def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, director=None, rubric=None, style=None,
+                scenario=None):
     """A source reference -> a written, checked story file (+ its sources beside it). Used by `write` and the queue.
     program: news (default: the news-cluster writer, as before programs) or another program (programs.py), which
     writes from its brief, under its scenes and rule tier. Every failed writer pass is remembered (failures.py).
@@ -816,7 +871,9 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
     code finds in the articles, before the writer runs, and the story keeps it (a code-owned field, like date).
     rubric: a rubric (rubrics.py): its eligibility must hold on the cluster's facts, the writer gets its brief and
     shape, and code stamps the story's rubric and episode (and part) after writing; an agree scene's facts are
-    filled by code from all the member articles."""
+    filled by code from all the member articles.
+    scenario: a scenario id or "auto" (scenarios.py): the writer gets its beats, the repairs hold the story to them,
+    and code stamps `scenario` after writing; news refuses one, and a scenario must fit the source's facts."""
     from tt_shorts import failures, sources as src, writer
     packs.load(brand)  # an unknown pack fails before any model call
     r = rubrics.get(rubric) if rubric else None
@@ -825,6 +882,8 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
             raise ValueError(f"rubric {r['id']} is a {r['program']} rubric, not {program}")
         program = r["program"]
     prog = programs.get(program)
+    if scenario and scenarios.refusal(prog["name"]):  # before any fetch or model call
+        raise ValueError(scenarios.refusal(prog["name"]))
     source = source or prog["sources"][0]
     programs.check_source(prog, source)  # and a source the program doesn't take
     data = src.fetch(source, ref)
@@ -840,6 +899,11 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
     grown = rubrics.growth(brand, data) if r and r["numbering"] == "part" else None
     members = rubrics.members_of(data)
     extra, extra_types, more = "", (), (lambda s: [])
+    idea = None
+    if prog.get("concept") and not code_writer:  # the idea step: code chooses one before the script (concept.py)
+        family = meta.family(category, packs.load(brand))
+        idea = concept.direct(prog, data["cluster"], data["articles"], brand, family,
+                              str(data["cluster"].get("id") or ref), variety.recent_concepts(brand))
     if r:
         rf = rubrics.facts(data, brand, grown)
         if not rubrics.holds(r, rf):
@@ -857,6 +921,30 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
                      **({"program": prog["name"]} if prog["name"] != programs.DEFAULT else {})}
             return fill + [x for x in rubrics.story_problems(draft) if not x.startswith("story:")] + \
                 rubrics.length_problems(draft) + rubrics.gate_problems(draft, grown)
+    if idea and idea["concept"]:  # the writer gets the idea, and the repairs hold it to it
+        extra = concept.brief_block(idea["concept"], prog) + extra
+        rubric_checks = more
+        more = lambda s: rubric_checks(s) + concept.story_problems(  # noqa: E731
+            {**s, "program": prog["name"], "concept": idea["concept"]})
+    chosen_sc = None
+    if scenario:
+        sfacts = scenarios.facts_of_text(data["articles"], category, prog["name"])
+        ranked = scenarios.fit({"program": prog["name"]}, facts=sfacts)
+        if scenario == "auto":
+            if not ranked:
+                raise ValueError("no scenario fits this source's facts; write without --scenario")
+            chosen_sc = scenarios.get(ranked[0]["scenario"])
+        else:
+            chosen_sc = scenarios.get(scenario)
+            if not scenarios.holds(chosen_sc, sfacts, prog["name"]):
+                raise ValueError(f"scenario {scenario} does not fit this source's facts (eligible: "
+                                 f"{chosen_sc['eligible']}, never: {chosen_sc['never']})")
+        extra = scenarios.brief_block(chosen_sc) + extra
+        extra_types = tuple(sorted(set(extra_types) | {t for b in chosen_sc["beats"] if b["scene_types"] != "any"
+                                                       for t in b["scene_types"]}))
+        plain = more
+        more = lambda s: plain(s) + [x for x in scenarios.check_plan_beats(  # noqa: E731
+            {**s, "program": prog["name"]}, chosen_sc)]
     try:  # failure memory: the writer reads the brand's recent mistakes; every failed pass is remembered
         if prog["name"] == programs.DEFAULT:
             story = writer.write(data["cluster"], data["articles"], avoid=variety.recent_sequences(brand),
@@ -875,6 +963,14 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
     story["source"] = {"name": source, "ref": str(ref)}
     if did:
         story["director"] = did  # code-owned: chosen before writing, kept on every re-render
+    if idea and idea["concept"]:
+        story["concept"] = idea["concept"]  # code-owned too; never on screen
+        unborne = concept.story_problems({**story, "program": prog["name"]})
+        if unborne:  # the script stands, the idea goes: the idea step never loses a video
+            del story["concept"]
+            idea = {**idea, "concept": None, "warning": "concept: dropped, the script can't carry it: " + "; ".join(unborne)}
+    if chosen_sc:
+        story["scenario"] = chosen_sc["id"]  # code-owned: the writer never picks one
     if style:
         story["style"] = styles.resolve_for_story(story, style)["slug"]
     programs.stamp(story, prog, data["cluster"])  # program, category, the document's facts and link: data
@@ -897,22 +993,122 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
     problems = check_story(story, texts)
     failures.record(brand, "check", problems)
     store.log("written", story=str(target), problems=problems)
+    if idea and idea["concept"] and not problems:
+        variety.record_concept(brand, story["id"], meta.family(story.get("category", ""), packs.load(brand)), story["concept"])
     result = {"story": str(target.resolve()), "sources": str(side.resolve()), "director": did,
               "scenes": [s["type"] for s in story["scenes"]], "problems": problems,
-              "warnings": directors.warnings(story, prog["scenes"]) + ((media or {}).get("errors") or [])}
+              "warnings": directors.warnings(story, prog["scenes"]) + ((media or {}).get("errors") or []) +
+              ([idea["warning"]] if idea and idea["warning"] else [])}
+    if idea:
+        result["concept"] = idea["concept"]
     if prog["name"] != programs.DEFAULT:
         result.update(program=prog["name"], rules=prog["rules"], publish=prog["publish"], format=prog["format"])
     if r:
         result.update(rubric=r["id"], episode=story["episode"], chip=rubrics.chip(story), format=r["format"])
+    if chosen_sc:
+        result["scenario"] = chosen_sc["id"]
     return result
+
+
+def thread_cmd(a):
+    """The film's thread, free: the drawing, the state, which scenes carry the object and where."""
+    story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
+    return out({"story": str(a.story), **thread.summary(story, None if a.look in (None, "auto") else a.look)})
+
+
+def vignettes_cmd(a):
+    """The film's drawings, free: which scene draws what, from where, and its seat. --draw: the illustrator draws what
+    the library can't (one model call, two with the repair) and the story gets the drawings that pass (--out, else in
+    place)."""
+    path = pathlib.Path(a.story)
+    story = json.loads(path.read_text(encoding="utf-8"))
+    look = "editorial" if a.look in (None, "auto") else a.look
+    if not getattr(a, "draw", False):
+        return out({"story": str(path), **vignettes.summary(story, look)})
+    story, report = illustrator.draw(story, look)
+    target = pathlib.Path(a.out) if a.out else path
+    if report["drawn"]:
+        target.write_text(json.dumps(story, ensure_ascii=False, indent=1), encoding="utf-8")
+    return out({"story": str(target), "illustrator": report, **vignettes.summary(story, look)},
+               1 if report["error"] else 0)
+
+
+def concept_cmd(a):
+    """`engine concept`: the idea step alone, for one source or a batch: no script, no voice, nothing recorded."""
+    prog = programs.get(a.program or "explainer")
+    if not prog.get("concept"):
+        return out({"problems": [f"program {prog['name']!r} has no idea step"]}, 2)
+    from tt_shorts import sources as src
+    b = packs.load(a.brand)
+    batch = json.loads(pathlib.Path(a.batch).read_text(encoding="utf-8")) if a.batch else \
+        [{"source": a.source or prog["sources"][0], "ref": a.ref}]
+    if any(x.get("ref") is None for x in batch):
+        return out({"problems": ["give --ref, or --batch with a list of {source, ref}"]}, 2)
+    ideas = concept.load_ideas(a.ideas) if a.ideas else None
+    past, found = variety.recent_concepts(b["name"]), []
+    for item in batch:
+        data = src.fetch(item.get("source") or prog["sources"][0], item["ref"])
+        category = prog.get("category") or data["cluster"].get("category", "")
+        family = meta.family(category, b)
+        sid = str(data["cluster"].get("id") or item["ref"])
+        r = concept.direct(prog, data["cluster"], data["articles"], b["name"], family, sid, past, ideas)
+        found.append({"story": sid, "family": family, **r})
+        if r["concept"]:  # a batch is a run: a later story sees the earlier ones
+            past = [{"story": sid, "family": family, **r["concept"]}] + past
+    chosen = [x["concept"] for x in found if x["concept"]]
+    objects = [c["object"] for c in chosen]
+    summary = {"stories": len(found), "chosen": len(chosen), "calls": sum(x["calls"] for x in found),
+               "devices": dict(collections.Counter(c["device"] for c in chosen)),
+               "rungs": dict(collections.Counter(c["rung"] for c in chosen)),
+               "repeated_objects": sorted({o for o in objects if objects.count(o) > 1}),
+               "turned_down": dict(collections.Counter(x.get("rule") for s in found for x in s["ideas"]
+                                                       if x.get("verdict") == "rejected"))}
+    return out({"program": prog["name"], "brand": b["name"], "summary": summary, "stories": found}, 0 if chosen else 1)
 
 
 def write(a):
     ref = a.ref if a.ref is not None else a.cluster
     if ref is None:
         return out({"problems": ["give --ref (or --cluster for tbilisi-today)"]}, 2)
-    result = write_story(a.source, ref, a.brand, a.out, a.program, a.director, a.rubric, style=getattr(a, "style", None))
+    result = write_story(a.source, ref, a.brand, a.out, a.program, a.director, a.rubric, style=getattr(a, "style", None),
+                          scenario=getattr(a, "scenario", None))
     return out(result, 1 if result["problems"] else 0)
+
+
+def scenario_cmd(a):
+    """engine scenario list | fit | stamp | board | check (scenarios.py)."""
+    try:
+        if a.action == "list":
+            return out(scenarios.options())
+        if a.action == "board":
+            sc = scenarios.get(a.story or "")
+            return out({"scenario": sc["id"], "title": sc["title"], "label": sc["label"], "about": sc["about"],
+                        "storyboard": scenarios.storyboard(sc), "brief": sc["brief"], "pacing": sc["pacing"]})
+        if not a.story:
+            return out({"problems": [f"scenario {a.action} needs a story file"]}, 2)
+        path = pathlib.Path(a.story)
+        story = json.loads(path.read_text(encoding="utf-8"))
+        if a.action == "check":
+            problems = scenarios.story_problems(story)
+            return out({"story": str(path), "scenario": story.get("scenario"), "problems": problems}, 1 if problems else 0)
+        ranked = scenarios.fit(story, seconds=scenarios.parse_length(a.length))
+        if a.action == "fit":
+            return out({"story": str(path), "program": programs.name_of(story),
+                        "facts": {k: v for k, v in scenarios.story_facts(story).items() if v},
+                        "ranked": ranked,
+                        **({"refused": scenarios.refusal(programs.name_of(story))} if scenarios.refusal(programs.name_of(story)) else {})},
+                       0 if ranked else 1)
+        want = a.scenario or "auto"  # stamp
+        if want == "auto":
+            if not ranked:
+                return out({"problems": ["no scenario fits this story"]}, 1)
+            want = ranked[0]["scenario"]
+        scenarios.stamp(story, want)  # an id, or ids joined by commas for the chapters of a long film
+        problems = scenarios.story_problems(story)
+        path.write_text(json.dumps(story, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        return out({"story": str(path), "scenario": want, "problems": problems}, 1 if problems else 0)
+    except (scenarios.ScenarioError, ValueError) as e:
+        return out({"problems": [str(e)]}, 2)
 
 
 def rubrics_cmd(a):
@@ -1015,14 +1211,20 @@ def make_cmd(a):
         music=getattr(a, "music", None),
         transition=getattr(a, "transition", None),
         outro=getattr(a, "outro", None),
+        scenario=getattr(a, "scenario", None),
     )
     return out(res, 1 if res.get("status") == "error" else 0)
 
 
+def look_cmd(a):
+    from tt_shorts import look
+    return out(look.look(a.job, a.story))
+
+
 def gallery_cmd(a):
     from tt_shorts import gallery
-    res = gallery.build_gallery(getattr(a, "out", None))
-    return out(res, 0)
+    res = gallery.run(real=a.real, find_query=a.find, only=a.only, limit=a.limit, want_examples=a.examples, seed=a.seed)
+    return out(res, 1 if res.get("render", {}).get("problems") else 0)
 
 def _source_tools():
     """What the document sources can use here (none of it blocks a news render)."""
@@ -1047,7 +1249,8 @@ def doctor(_a):
         "media providers": {n: why or "available" for n, why in assets.availability().items()},
         "GEMINI_API_KEY": bool(os.environ.get("GEMINI_API_KEY")),
         "alignment python": os.environ.get("ALIGN_PYTHON") or "unset (uses this python; needs torch + transformers)",
-        "writer key (OPENROUTER_API_KEY)": bool(os.environ.get("OPENROUTER_API_KEY")),
+        "writer key (OPENROUTER_API_KEY or SHORTS_WRITER_KEY)": bool(os.environ.get("OPENROUTER_API_KEY") or
+                                                                     os.environ.get("SHORTS_WRITER_KEY")),
         "D1 access (CLOUDFLARE_API_TOKEN)": bool(os.environ.get("CLOUDFLARE_API_TOKEN")),
         "home (VEASY_HOME)": str(store.home()),
         "kaeasy (Georgian gate)": kaeasy.version() or f"missing in {kaeasy.directory()} (KAEASY_DIR)",
@@ -1098,10 +1301,31 @@ def critique_cmd(a):
     return out(res, 1 if res.get("grade") == "FAIL" else 0)
 
 
+def review_cmd(a):
+    from tt_shorts import review
+    res = review.review_cli(a.story, rounds=a.rounds, format_name=a.format or "news", look=a.look,
+                            director=a.director, stills=a.stills, packet=a.packet, save=a.save)
+    return out(res, 1 if res.get("status") == "held" else 0)
+
+
 def dry_run_cmd(a):
     from tt_shorts import dry_run as dr
     res = dr.dry_run(a.story, fmt_name=a.format, voice_engine=a.engine, director=a.director)
     return out(res, 1 if res.get("problems") else 0)
+
+
+def steer_cmd(a):
+    from tt_shorts import steer as st
+    res = st.steer(a.story, scene=a.scene, set_kv=a.set, tighter=a.tighter, breathe=a.breathe, land=a.land,
+                   dry=a.dry, out_path=a.out, engine=a.engine, format_name=a.format, look=a.look,
+                   director=a.director, sources=a.sources)
+    return out(res, 1 if res.get("problems") else 0)
+
+
+def room_cmd(a):
+    from tt_shorts import room as rm
+    model = rm.write_room(a.target, engine_override=a.renderer)
+    return out({"room": model["room_html"], "scenes": model["scene_count"], "film_engine": model["film_engine"]})
 
 
 # ---------------------------------------------------------------- cli
@@ -1161,6 +1385,22 @@ def main(argv=None):
     pk = sub.add_parser("package")
     pk.add_argument("render", help="the render's .json manifest (or its .mp4)")
     pk.add_argument("--only", help="comma-separated: srt,vtt,cover,carousel,teaser,texts,telegram (default all)")
+    cn = sub.add_parser("concept", help="the idea step alone: ideas from named rungs, judged and chosen by code; no "
+                                        "script, no voice, nothing recorded")
+    cn.add_argument("--program", help="a program with an idea step (default explainer)")
+    cn.add_argument("--source", help="as `write` (default: the program's first source)")
+    cn.add_argument("--ref", help="the story's reference in its source")
+    cn.add_argument("--batch", help="a JSON file: [{\"source\": ..., \"ref\": ...}, ...]")
+    cn.add_argument("--brand", default=packs.DEFAULT)
+    cn.add_argument("--ideas", help="a JSON file of an agent's own ideas: judged the same way, no model call")
+    th = sub.add_parser("thread", help="the film's object, free: drawing, state, which scenes carry it, their seats")
+    th.add_argument("story")
+    th.add_argument("--look", choices=("auto",) + packs.LOOKS, default="auto")
+    vg = sub.add_parser("vignettes", help="the film's drawings, free: which scene draws what, from where, their seats")
+    vg.add_argument("story")
+    vg.add_argument("--look", choices=("auto",) + packs.LOOKS, default="auto")
+    vg.add_argument("--draw", action="store_true", help="the illustrator draws what the library can't (a model call)")
+    vg.add_argument("--out", help="with --draw: write the story here instead of in place")
     w = sub.add_parser("write")
     w.add_argument("--program", help="news (default), explainer, law, blog... (see options: programs)")
     w.add_argument("--style", help="a named film style to set on the story")
@@ -1171,7 +1411,14 @@ def main(argv=None):
     w.add_argument("--brand", default=packs.DEFAULT, help="the brand pack the story will be rendered with")
     w.add_argument("--director", help="force a director (default: the least used eligible one, variety.direct)")
     w.add_argument("--rubric", help="a rubric (see options: rubrics): number, changes, continues, agree, digest")
+    w.add_argument("--scenario", help="a scenario (see options: scenarios) or auto: the plot the beats follow")
     w.add_argument("--out")
+    sn = sub.add_parser("scenario", help="the plots (scenarios.py): list | fit <story> | stamp <story> --scenario <id> | "
+                                         "board <id> | check <story>")
+    sn.add_argument("action", choices=["list", "fit", "stamp", "board", "check"])
+    sn.add_argument("story", nargs="?", help="a story file (fit, stamp, check) or a scenario id (board)")
+    sn.add_argument("--scenario", help="stamp: the scenario to set (or auto: the best fit)")
+    sn.add_argument("--length", help="fit: the film's seconds (45, 45s, short, long)")
     ru = sub.add_parser("rubrics")
     ru.add_argument("action", choices=["list", "facts", "stamp"])
     ru.add_argument("story", nargs="?", help="stamp: the hand-written story file to stamp (in place)")
@@ -1218,6 +1465,19 @@ def main(argv=None):
     md = sub.add_parser("media")
     md.add_argument("story")
     md.add_argument("--offline", action="store_true", help="no network: keep what the ledger has, drop the rest")
+    pt = sub.add_parser("plate", help="a baked plate for a scene: <kind> | list | check | use | shelf (plates.py)")
+    pt.add_argument("kind", help="a plate kind (plates/<kind>/), or list, check, use (a named plate on a scene), shelf (bake the ground plates)")
+    pt.add_argument("--seconds", type=float, default=6)
+    pt.add_argument("--seed", type=int, default=1)
+    pt.add_argument("--scale", type=float, default=1, help="bake at this fraction of 1080x1920 (0.5 is a preview)")
+    pt.add_argument("--spec", help="a JSON file for the kind's setup")
+    pt.add_argument("--brand", help="tone for this pack only (default: every pack)")
+    pt.add_argument("--program", help="the story's program: news is refused")
+    pt.add_argument("--family", help="the story's family: crime is refused")
+    pt.add_argument("--text", help="the story's words: deaths, crime and incidents are refused")
+    pt.add_argument("--story", help="use: the story file")
+    pt.add_argument("--scene", type=int, help="use: the plate scene's index")
+    pt.add_argument("--hash", help="use: the baked plate (engine plate list)")
     st = sub.add_parser("selftest")
     st.add_argument("--update", action="store_true", help="rewrite tests/golden/ after a deliberate visual change")
     st.add_argument("--story", help="comma-separated fixtures (default veasy-scenes,veasy-demo)")
@@ -1250,7 +1510,7 @@ def main(argv=None):
     g = sub.add_parser("gc")
     g.add_argument("--dry-run", action="store_true")
     cp = sub.add_parser("compose", help="films composed for HyperFrames (compose.py)")
-    cp.add_argument("action", choices=["scaffold", "check", "render", "promote", "templates", "blocks"])
+    cp.add_argument("action", choices=["scaffold", "check", "look", "render", "promote", "templates", "blocks"])
     cp.add_argument("target", nargs="?", help="the story JSON (promote: the project folder)")
     cp.add_argument("--brand", help="the pack to build for (default: the story's)")
     cp.add_argument("--project", help="the project folder (default: $VEASY_HOME/cache/compose/<brand>-<ref>)")
@@ -1263,6 +1523,7 @@ def main(argv=None):
     cp.add_argument("--sources", help="check/render: the member articles (default <story>.sources.json)")
     cp.add_argument("--no-hf", action="store_true", help="check/render: skip `hyperframes check` (faster)")
     cp.add_argument("--shots", help="check: save the page at each probed time (PNG) in this folder")
+    cp.add_argument("--video", help="look: a rendered file to measure the sound of (default: this story's render today)")
     cp.add_argument("--theme", help="the pack's theme: default, auto or a name (brand.json themes)")
     cp.add_argument("--format", help="render: a format (default: the story's program's)")
     for k in ("captions", "voice", "music", "platform", "style"):
@@ -1281,6 +1542,15 @@ def main(argv=None):
     cr.add_argument("--format", help="a format (default: the story's program's, news for news)")
     cr.add_argument("--look", choices=formats.LOOKS)
     cr.add_argument("--director", help="force a director")
+    rv = sub.add_parser("review", help="the film's eyes: free checks and a capped repair loop that never changes a fact")
+    rv.add_argument("story")
+    rv.add_argument("--rounds", type=int, default=2, help="repair rounds (hard caps: 3 machine, 2 look)")
+    rv.add_argument("--format", help="a format (default news)")
+    rv.add_argument("--look", choices=formats.LOOKS)
+    rv.add_argument("--director", help="force a director")
+    rv.add_argument("--stills", help="a folder of stills (engine still --out): also run the pixel checks on them")
+    rv.add_argument("--packet", action="store_true", help="add the review packet (spec and sheets only, never code)")
+    rv.add_argument("--save", action="store_true", help="write the repaired story back to the file")
     dr = sub.add_parser("dry-run", help="pre-flight cost and timing calculator before rendering")
     dr.add_argument("story")
     dr.add_argument("--format", help="a format (default: the story's program's, news for news)")
@@ -1296,6 +1566,8 @@ def main(argv=None):
     mk.add_argument("--style", help="how it looks and sounds (see options: styles)")
     mk.add_argument("--source", help="where facts come from (tbilisi-today, ordo, sitech, url, pdf, text)")
     mk.add_argument("--length", help="short (15-30s), standard (30-45s), long (45-60s) or target seconds")
+    mk.add_argument("--scenario", help="the plot (see options: scenarios) or auto: the best fit to the facts; with "
+                                       "--preview-storyboard a URL gets its storyboard before the writer is paid")
     mk.add_argument("--yes", "-y", action="store_true", help="accept code's decisions and defaults; ask no interactive questions")
     mk.add_argument("--queue", action="store_true", help="add to the job queue instead of rendering immediately")
     mk.add_argument("--preview-storyboard", action="store_true", help="build contact sheet and stop at plan stage")
@@ -1310,8 +1582,33 @@ def main(argv=None):
     mk.add_argument("--music", help="override music")
     mk.add_argument("--transition", choices=formats.TRANSITIONS, help="override transition")
     mk.add_argument("--outro", choices=formats.OUTROS, help="override outro")
-    gy = sub.add_parser("gallery", help="generate static HTML visual catalogue of all styles, looks, scenes and directors")
-    gy.add_argument("--out", help="target HTML file (default out/gallery.html)")
+    sr = sub.add_parser("steer", help="change one scene of a film and redraw only it; --dry says the cost first")
+    sr.add_argument("story", help="a story .json or a rendered .mp4")
+    sr.add_argument("--scene", help="scene number (3) or s3")
+    sr.add_argument("--set", action="append", help="slot=value (repeatable); narration changes cost a full render with a new voice")
+    sr.add_argument("--tighter", action="store_true", help="pull the cut earlier (-0.4 s)")
+    sr.add_argument("--breathe", action="store_true", help="add room after the scene settles (+0.5 s)")
+    sr.add_argument("--land", action="store_true", help="hold the payoff (+0.3 s) and mark the key phrase")
+    sr.add_argument("--dry", action="store_true", help="say what the change will cost and render nothing")
+    sr.add_argument("--sources", help="the member articles (JSON list; default <story>.sources.json): a news story's words need them")
+    sr.add_argument("--out", help="output .mp4 (default: the film's own)")
+    sr.add_argument("--engine", default="silent", choices=["gemini", "edge", "silent"], help="voice engine (default silent preview)")
+    sr.add_argument("--format")
+    sr.add_argument("--look", choices=formats.LOOKS)
+    sr.add_argument("--director")
+    rmp = sub.add_parser("room", help="write <render>.room.html: every scene, its words, timing, cost and a steer command")
+    rmp.add_argument("target", help="a story .json or a rendered .mp4")
+    rmp.add_argument("--renderer", choices=["remotion", "hyperframes"])
+    lk = sub.add_parser("look", help="what exists for a job or a story, and the next step (free, read-only)")
+    lk.add_argument("--job", help="a queue job id")
+    lk.add_argument("--story", help="a story file, or its name in stories/")
+    gy = sub.add_parser("gallery", help="the brush book: out/gallery/index.html, a searchable catalogue of real renders")
+    gy.add_argument("--real", action="store_true", help="render the missing stills first (cached by hash)")
+    gy.add_argument("--find", help="the entries that fit a need, e.g. \"a number\" (JSON, no render)")
+    gy.add_argument("--only", help="render only one kind: brush, hook, motif, entrance, transition, director, style, rubric")
+    gy.add_argument("--examples", action="store_true", help="annotated example films and a bad-to-fixed pair, rotated by --seed")
+    gy.add_argument("--seed", default="", help="the rotation of --examples (a story id, a date): the same seed, the same examples")
+    gy.add_argument("--limit", type=int, help="render at most N items of each group (a trial)")
     a = ap.parse_args(argv)
     if a.cmd == "compose" and a.engine is None:
         a.engine = "gemini" if a.action == "render" else "silent"
@@ -1348,7 +1645,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "concept": concept_cmd, "thread": thread_cmd, "vignettes": vignettes_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd, "plate": plate_cmd, "scenario": scenario_cmd, "review": review_cmd, "steer": steer_cmd, "room": room_cmd, "look": look_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
     except FileNotFoundError as e:

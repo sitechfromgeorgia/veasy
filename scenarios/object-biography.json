@@ -1,0 +1,107 @@
+{
+  "id": "object-biography",
+  "title": "One Object's Biography",
+  "label": "ნივთის ამბავი",
+  "about": "One thing, from where it started through the places or years it passed to where it is now.",
+  "eligible": [
+    {
+      "dates": 2,
+      "facts": 2
+    },
+    {
+      "places": 2,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh"
+    },
+    {
+      "id": "origin",
+      "job": "setup",
+      "scene_types": [
+        "where",
+        "timeline",
+        "route"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click"
+    },
+    {
+      "id": "journey",
+      "job": "evidence",
+      "scene_types": [
+        "route",
+        "timeline",
+        "trend",
+        "steps"
+      ],
+      "word_budget": [
+        6,
+        18
+      ],
+      "sound": "tick"
+    },
+    {
+      "id": "now",
+      "job": "payoff",
+      "scene_types": [
+        "stat",
+        "change",
+        "where"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud"
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "dates": 2,
+    "places": 2
+  },
+  "brief": [
+    "Follow one object or thing the document tracks.",
+    "Years and places are the document's own.",
+    "Now is the payoff."
+  ]
+}
