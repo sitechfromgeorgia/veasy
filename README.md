@@ -62,6 +62,13 @@ python -m tt_shorts.engine qa     <file.mp4>                       # size, lengt
 python -m tt_shorts.engine probe  <story.json> [--look all]        # where every text really is, per scene (free)
 python -m tt_shorts.engine plan   <story.json> [--look kinetic]    # a storyboard before paying for a voice (free, ~5 s)
 python -m tt_shorts.engine selftest [--update]                     # golden stills: run before merging a visual change
+python -m tt_shorts.engine look   --job <id> | --story <file>      # what exists for a film and the next step (free)
+python -m tt_shorts.engine gallery --find "a number" | --real       # the brush book: every brush, with a real frame
+python -m tt_shorts.engine scenario fit <story.json>                # the plots that fit a story's facts, and why
+python -m tt_shorts.engine plate <kind> | list | shelf | use        # baked clips behind a scene (skill veasy:plates)
+python -m tt_shorts.engine thread <story.json>                      # the film's object across its scenes (free)
+python -m tt_shorts.engine review <story.json>                      # free checks on the frames, and a repair loop
+python -m tt_shorts.engine steer  <story.json> --scene 3 --set label=... [--dry]  # change one scene, redraw only it
 python -m tt_shorts.engine learn  [--brand sitech]                 # the rules failing most lately
 python -m tt_shorts.engine package <file>.json [--only srt,texts]  # one render -> every surface (below), no new voice
 python -m tt_shorts.engine queue  add --ref 24886 | list | run | show <id> | retry <id> | cancel <id>

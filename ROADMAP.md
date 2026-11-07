@@ -240,7 +240,7 @@ Visuals and motion:
      - OSM street maps of a ~1 km window for Tbilisi, Batumi and Kutaisi districts (credit in the corner);
      - the Natural Earth Ukraine point-of-view file for the world map (decision 3: check that Abkhazia and
        Tskhinvali stay in Georgia).
-5. **One-take camera:** scenes laid on a 2D path; the camera moves only during the cuts (anchors intact), the red
+5. ~~**One-take camera:**~~ Done in Remotion (2026-11-07, `tt_shorts/onetake.py`; not for `news`, not in HyperFrames yet). Scenes laid on a 2D path; the camera moves only during the cuts (anchors intact), the red
    dot travels the thread (`@remotion/paths`), parallax layers; zoom capped at 1.15 for hard news.
 
 Audience and formats:
