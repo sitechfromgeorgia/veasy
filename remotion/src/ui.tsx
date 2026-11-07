@@ -3,6 +3,7 @@ import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig }
 import { CANVAS, FONT, INK, LINE_STRONG, MARK_BG, MARK_INK, RED, T_PATH } from "./brand";
 import { marked } from "./marker";
 import { MediaCredit, SceneMedia } from "./media";
+import { counted, decimalsOf, group } from "./number";
 import type { Motion, Scene, ShortProps, Style, Variant } from "./types";
 
 type Ctx = { v: Variant; props: ShortProps };
@@ -458,15 +459,16 @@ export const Headline: React.FC<{
   );
 };
 
-/** A count-up from 0, grouped as Georgian writes thousands ("6 400"). */
+export { group };
+
+/** A count-up from 0, written as Georgian writes numbers ("6 400", "3,8"), ending on the exact fact (number.ts). */
 export const CountUp: React.FC<{ to: number; delay?: number; frames?: number }> = ({ to, delay = 0, frames = 32 }) => {
   const frame = useCurrentFrame();
   const t = interpolate(frame - delay, [0, frames], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
     easing: (x) => 1 - Math.pow(1 - x, 3) });
-  return <>{group(Math.round(to * t))}</>;
+  return <>{group(counted(to, t), decimalsOf(to))}</>;
 };
 
-export const group = (n: number) => n.toLocaleString("en-US").replace(/,/g, " ");
 
 /** Scene frame: kicker and headline on top, the body fills the rest of the scene band. A scene with a picture
  *  (media.tsx, tt_shorts/assets.py) gets it behind everything, and its label and credit in a row at the bottom. */
