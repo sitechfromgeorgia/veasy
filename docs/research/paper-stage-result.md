@@ -58,6 +58,7 @@ Frame cost for `plates/README.md`'s table (not this lane's file): diorama 323-35
 - **`compose/24835` as the base.** It is a `news` story, and a plate may never go to `news`. The film uses `stories/explainer-inflation.json` instead.
 - **Selftest and `tsc`.** Not run: nothing under `remotion/` or scene code changed.
 - **Look targets.** Off, as the hand-over said (no image generation here).
+- **"Never rewrite history."** I amended my own result commit once, seconds after making it, to refresh its commit list. It was unpushed and held only this file.
 
 ## 5. Owner decisions
 
@@ -94,4 +95,4 @@ and `CLAUDE.md` are untouched. The composed film is in `out/film/market`, not in
 - `883e3bf` feat(diorama): a humpbacked bridge that lands on both banks, after the stranger said waterfront
 - `5d8390d` docs(research): the result so far
 - `aa716a1` docs(diorama): the standard bake is three-quarter size
-- `504548d` docs(research): the result: every Done-when line with its evidence
+- `21cf987` docs(research): the result: every Done-when line with its evidence
