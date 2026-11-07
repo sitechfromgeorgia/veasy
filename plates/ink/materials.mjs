@@ -76,6 +76,7 @@ class Painter {
       }
       dep.flush(layers[m.layer], m.take);
     }
+    if (this.after) this.after(layers, variant);
     return layers;
   }
 }
@@ -153,9 +154,9 @@ function gouges(m, pass, layer, o) {
   for (const g of out) {
     const n = g.widths.length - 1, w = g.widths;
     const lean = rnd(); // a knife enters steep and leaves shallow, at a different point each time
-    m.mark(pass, layer, g.pts, {
-      w: (u) => w[Math.round(u * n)] * Math.pow(Math.sin(Math.PI * clamp(Math.pow(u, 0.7 + 0.6 * lean))), 0.55), n: 1,
-    }, o.take, { lap: o.lap, hand: 0.5 });
+    const style = { w: (u) => w[Math.round(u * n)] * Math.pow(Math.sin(Math.PI * clamp(Math.pow(u, 0.7 + 0.6 * lean))), 0.55), n: 1 };
+    if (o.into) o.into.push({ pts: g.pts, style, key: o.into.length + 1 });
+    else m.mark(pass, layer, g.pts, style, o.take, { lap: o.lap, hand: 0.5 });
   }
 }
 
@@ -197,10 +198,12 @@ const MATERIALS = {
       const bloomX = r.cx + (rnd() - 0.5) * (r.x1 - r.x0) * 0.5, bloomY = r.cy + (rnd() - 0.5) * (r.y1 - r.y0) * 0.5;
       const bloomR = Math.sqrt(r.area) * (0.22 + 0.16 * rnd()), bloomKey = rnd() * 60;
       const take = (v, p) => {
-        const near = pl.edge[p], own = pl.id[p] === r.id;
+        const px = p % W, py = (p - px) / W; // a brush never fills exactly up to the line
+        const q = clamp(Math.round(px + (noise.at(px / (70 * S), py / (70 * S)) - 0.5) * 34 * S), 0, W - 1) + clamp(Math.round(py + (noise.at(py / (70 * S) + 9, px / (70 * S)) - 0.5) * 34 * S), 0, H - 1) * W;
+        const near = pl.edge[q], own = pl.id[q] === r.id;
         const inside = own ? 1 : smooth(leak * (0.3 + 1.6 * F[p]), 0, near);
-        let out = v * (0.74 + 0.26 * T[p]) * (0.6 + 0.8 * pl.tone[p] / Math.max(0.1, r.tone) * (0.55 + 0.6 * M[p])) * inside;
-        out *= 1 + 1.7 * Math.exp(-near / (3.5 * S)) * (own ? 1 : 0.2);
+        let out = v * (0.74 + 0.26 * T[p]) * (0.6 + 0.8 * pl.tone[q] / Math.max(0.1, r.tone) * (0.55 + 0.6 * M[p])) * inside;
+        out *= 1 + 0.8 * Math.exp(-near / (6 * S)) * (own ? 1 : 0.2);
         if (big) {
           const x = p % W, y = (p - x) / W, d = Math.hypot(x - bloomX, y - bloomY);
           const front = d - bloomR * (0.7 + 0.75 * noise.fbm(x / (34 * S) + bloomKey, y / (34 * S), 3));
@@ -223,11 +226,11 @@ const MATERIALS = {
     for (const s of lines(pl)) {
       const keep = KEEP[s.line] ?? 1;
       for (const pts of pieces(s, 0.8)) {
-        const key = m.marks.length * 1.7, base = s.w * (1 + 1.5 * keep), L = length(pts);
+        const key = m.marks.length * 1.7, base = s.w * (0.9 + 1.5 * keep), L = length(pts), span = L / (280 * S);
         m.mark(ink, LINE, pts, {
-          w: pressure(noise, key, base, 1.2 + L / (190 * S)), n: Math.max(6, Math.round(base * 1.2)), dry: 1.15, skip: 0.2, wander: 0.2, rim: 0.7, bleed: 0.2, body: 0.62, edge: 0.05,
-          flow: (u) => keep * (0.9 - 0.2 * u),
-        }, wet, { lap: 1.2 });
+          w: pressure(noise, key, base, 1.2 + L / (190 * S)), n: Math.max(6, Math.round(base * 1.2)), dry: 1.35, skip: 0.22, wander: 0.2, bleed: 0.2, body: 0.9, edge: 0.05,
+          flow: (u) => keep * 1.05 * smooth(0.28, 0.52, noise.at(u * span + key, key + 5)), // the edge is lost, then found again
+        }, wet, { lap: 1.2, hand: 5 });
       }
     }
     // a few drops off the loaded brush
@@ -239,58 +242,87 @@ const MATERIALS = {
   },
 
   woodcut(m) {
-    const { sheet, pl, S, W, H, noise, rnd } = m, { T, M, ground } = sheet;
+    const { sheet, pl, S, W, H, noise, rnd, dep } = m, { T, M, ground } = sheet;
     m.hand = 0.9; m.boil = 0.55; m.boilStep = 40;
-    // the plank: long grain bending around two knots, seen in the bare wood and as hairlines through every printed mass
-    const G = new Float32Array(W * H);
-    const knots = [[W * (0.15 + 0.7 * rnd()), H * (0.08 + 0.2 * rnd())], [W * (0.15 + 0.7 * rnd()), H * (0.74 + 0.2 * rnd())]];
+    // the plank: long grain bending around two knots, faint in the bare paper, plain in every printed mass
+    const G = new Float32Array(W * H), R = new Float32Array(W * H);
+    const knots = [[W * (0.15 + 0.7 * rnd()), H * (0.42 + 0.2 * rnd())], [W * (0.15 + 0.7 * rnd()), H * (0.74 + 0.2 * rnd())]];
     for (let y = 0, p = 0; y < H; y++) {
       for (let x = 0; x < W; x++, p++) {
         const X = x / S;
         let Y = y / S + 110 * noise.fbm(X / 700, y / S / 340, 3);
         for (const [kx, ky] of knots) {
           const dx = (x - kx) / S, dy = (y - ky) / S;
-          Y += (dy < 0 ? 1 : -1) * 70 * Math.exp(-(dx * dx) / 42000 - (dy * dy) / 9000);
+          Y += (dy < 0 ? 1 : -1) * 90 * Math.exp(-(dx * dx) / 42000 - (dy * dy) / 9000);
         }
-        const ring = 0.5 + 0.5 * Math.sin(Y * 0.09 + 5 * noise.fbm(X / 900, Y / 120, 2));
-        const hair = noise.fbm(X / 260 + 40, Y / 2.1, 3);
-        G[p] = hair * 0.72 + ring * 0.28;
-        ground[p] = 0.02 + 0.02 * ring * ring + 0.03 * smooth(0.46, 0.66, hair) + 0.012 * M[p];
+        R[p] = 0.5 + 0.5 * Math.sin(Y * 0.085 + 5 * noise.fbm(X / 900, Y / 120, 2));
+        G[p] = noise.fbm(X / 260 + 40, Y / 2.1, 3);
+        ground[p] = 0.018 + 0.018 * R[p] * R[p] + 0.024 * smooth(0.46, 0.66, G[p]) + 0.01 * M[p];
       }
     }
-    const take = (v, p) => smooth(0.46, 0.52, v) * (1 - 0.92 * smooth(0.6, 0.66, G[p])) * (0.93 + 0.07 * T[p]);
-    const cut = m.pass(0.3), inner = m.pass(0.46), halo = m.pass(0.24);
+    // the ink took on the plank's high grain and missed its pores
+    const plank = (p) => (1 - 0.95 * smooth(0.56, 0.61, G[p] + R[p] * 0.04)) * (0.8 + 0.2 * R[p]) * (0.92 + 0.08 * T[p]);
+    const take = (v, p) => smooth(0.46, 0.52, v) * plank(p);
+    const jag = (x, y) => clamp(Math.round(x + (noise.at(x / (15 * S), y / (15 * S)) - 0.5) * 9 * S), 0, W - 1) + clamp(Math.round(y + (noise.at(y / (15 * S), x / (15 * S)) - 0.5) * 9 * S), 0, H - 1) * W;
+    const block = m.pass(0.5), cut = m.pass(0.3), halo = m.pass(0.2);
 
-    // the outline: no line at all, but a run of knife cuts, each a straight-sided wedge, overlapping along the form
+    // the masses, inked and printed: a cut edge, the grain through it
+    for (const r of regions(pl, 160 * S * S).filter((x) => !x.open)) { // only what was drawn as a solid: the air between lines stays air
+      const size = clamp(Math.sqrt(r.area) * 0.5, 14 * S, 60 * S);
+      const inside = (v, p) => { const x = p % W; return pl.id[jag(x, (p - x) / W)] === r.id ? plank(p) : 0; };
+      for (const seg of sweep(pl, r, W, r.angle * 0.3, size * 0.8, rnd, { min: 4 * S })) {
+        m.mark(block, TONE, seg, { w: () => size * 1.7, n: 0, body: 1, edge: 0.05 }, inside, { hand: 1, boil: 0 });
+      }
+    }
+    // the drawing, cut out of the masses in dark wedges; a line in open air is a ridge left standing
+    const cuts = [];
     for (const s of lines(pl)) {
-      const keep = KEEP[s.line] ?? 1, base = s.w * (0.95 + 1.45 * keep);
+      const keep = KEEP[s.line] ?? 1, base = s.w * (0.8 + 1.1 * keep);
       for (const pts of pieces(s, 0.7)) {
         const p = walk(pts, 2), L = p.L;
         for (let d = 0; d < L - 4 * S;) {
-          const len = Math.min(L - d, (44 + 96 * rnd()) * S), side = (rnd() - 0.5) * base * 0.5, facet = [];
-          const steps = Math.max(1, Math.round(len / (24 * S)));
+          const len = Math.min(L - d, (50 + 110 * rnd()) * S), side = (rnd() - 0.5) * base * 0.35, facet = [];
+          const steps = Math.max(1, Math.round(len / (34 * S)));
           for (let k = 0; k <= steps; k++) {
             const i = Math.min(p.n - 1, Math.round(((d + (len * k) / steps) / L) * (p.n - 1)));
             facet.push(p.x[i] + p.nx[i] * side, p.y[i] + p.ny[i] * side);
           }
-          const fat = base * (0.6 + 0.7 * rnd()), peak = 0.3 + 0.4 * rnd();
-          m.mark(cut, LINE, Float32Array.from(facet), { w: (u) => fat * Math.min(1, (u < peak ? u / peak : (1 - u) / (1 - peak)) * 1.5), n: 1 }, take, { hand: 0, boil: 0.4 });
-          d += len * (0.62 + 0.3 * rnd());
+          const fat = base * (0.65 + 0.6 * rnd()), peak = 0.15 + 0.5 * rnd();
+          const style = { w: (u) => fat * Math.min(1, u < peak ? u / peak : (1 - u) / (1 - peak)), n: 1 };
+          const at = Math.min(p.n - 1, Math.round(((d + len / 2) / L) * (p.n - 1))), gap = 7 * S;
+          const look = (o) => { const r = pl.regions[pl.id[clamp(Math.round(p.x[at] + p.nx[at] * o), 0, W - 1) + clamp(Math.round(p.y[at] + p.ny[at] * o), 0, H - 1) * W]]; return r.id && !r.open; };
+          if (look(gap) || look(-gap)) cuts.push({ pts: Float32Array.from(facet), style, key: cuts.length + 1 });
+          else m.mark(cut, LINE, Float32Array.from(facet), { ...style, w: (u) => style.w(u) * 1.5 }, take, { hand: 0, boil: 0.4 });
+          d += len * (0.7 + 0.28 * rnd());
         }
       }
     }
-    // inside the shapes: cuts along the form, wider where the tone is lighter, so masses break into wedges
-    gouges(m, inner, TONE, {
-      keep: (p) => pl.id[p] > 0, tone: (p) => pl.tone[p], sep: (t) => (15 - 6 * t) * S, field: pl.edge, near: 30 * S,
-      angle: (p) => pl.regions[pl.id[p]].angle, min: 10 * S, max: 170 * S, take, lap: 1.5,
+    // the shading: more cuts where the tone is darker, along the form near an edge, across the mass inside it
+    gouges(m, cut, TONE, {
+      keep: (p) => pl.id[p] > 0 && !pl.regions[pl.id[p]].open, tone: (p) => clamp(0.92 - pl.tone[p]), sep: () => 13 * S, field: pl.edge, near: 24 * S,
+      angle: (p) => pl.regions[pl.id[p]].angle, min: 14 * S, max: 170 * S, into: cuts,
     });
-    // around the object: the block cleared in rings that echo its silhouette, and thinning out
-    const R = 240 * S;
+    // a shape nobody filled keeps the dark, with light cuts along its form
+    gouges(m, cut, SOFT, {
+      keep: (p) => pl.id[p] > 0 && pl.regions[pl.id[p]].open && pl.edge[p] > 5 * S, tone: (p) => clamp(0.2 + pl.tone[p] * 0.9), sep: () => 15 * S, field: pl.edge, near: 24 * S,
+      angle: (p) => pl.regions[pl.id[p]].angle, min: 16 * S, max: 150 * S, take, lap: 1.5,
+    });
+    m.after = (layers, variant) => {
+      const carved = { c: new Float32Array(W * H), a: new Float32Array(W * H).fill(1e6) };
+      for (const c of cuts) {
+        const p = shake(walk(c.pts, 1), noise, c.key + 900, 0.4 * S, 90 * S, 0.45 * S, 45 * S, variant);
+        brush(dep, p, c.style, { t0: 0, dur: 1 }, c.key, noise);
+        dep.flush(carved, (v) => smooth(0.38, 0.54, v));
+      }
+      const mass = layers[TONE].c;
+      for (let p = 0; p < mass.length; p++) mass[p] *= 1 - carved.c[p];
+    };
+    // the cleared ground around it: thin ridges the gouge left, echoing the silhouette and thinning out
     gouges(m, halo, BACK, {
-      keep: (p) => !pl.id[p] && !pl.line[p] && pl.sil[p] > 16 * S && pl.sil[p] < R, tone: (p) => 0.4 * Math.exp(-pl.sil[p] / (90 * S)),
-      sep: () => 15 * S, field: pl.sil, near: 1e9, min: 16 * S, max: 150 * S, take, broken: 0.55, lap: 1.5,
+      keep: (p) => !pl.id[p] && !pl.line[p] && pl.sil[p] > 20 * S && pl.sil[p] < 220 * S, tone: (p) => 0.26 * Math.exp(-pl.sil[p] / (110 * S)),
+      sep: () => 19 * S, field: pl.sil, near: 1e9, min: 20 * S, max: 170 * S, take, broken: 0.5, lap: 1.5,
     });
-    return { gain: [1, 1, 1, 1], wet: [0.15, 0.15, 0.15, 0.15], rise: [0.03, 0.05, 0.05, 0.05] };
+    return { gain: [1, 1, 1, 0.8], wet: [0.12, 0.12, 0.12, 0.12], rise: [0.03, 0.06, 0.05, 0.05] };
   },
 
   blueprint(m) {
@@ -325,8 +357,8 @@ const MATERIALS = {
       const pts = Float32Array.of(a[0] - ux * from, a[1] - uy * from, b[0] + ux * to, b[1] + uy * to), blob = 3 * S / (d + from + to);
       m.mark(ink, LINE, pts, {
         w: (u) => base * (0.88 + 0.26 * noise.at(u * 5 + key, key) + 0.5 * Math.exp(-u / blob)),
-        flow: (u) => press * (0.7 + 0.42 * noise.at(u * 3.5 + key, key + 4)), n: 1,
-      }, pen, { hand: 0.45 });
+        flow: (u) => press * (0.66 + 0.5 * noise.at(u * 3.5 + key, key + 4)), n: 1,
+      }, pen, { hand: 0.7 });
     };
     const dashes = (a, b, base, press, on, off, dot) => {
       const d = Math.hypot(b[0] - a[0], b[1] - a[1]), ux = (b[0] - a[0]) / d, uy = (b[1] - a[1]) / d;
@@ -337,9 +369,9 @@ const MATERIALS = {
       }
     };
     const pencil = (a, b) => m.mark(build, SOFT, Float32Array.of(...a, ...b), { w: () => 1.1 * S, n: 1, flow: () => 0.4 }, pen, { hand: 0.3 });
-    const past = () => (2.5 + 6 * rnd()) * S;
+    const past = () => (4 + 11 * rnd()) * S;
     for (const s of lines(pl)) {
-      const keep = KEEP[s.line] ?? 1, base = keep === 1 ? Math.max(2.9 * S, s.w * 0.56) : keep > 0.6 ? 1.8 * S : 1.2 * S;
+      const keep = KEEP[s.line] ?? 1, base = keep === 1 ? Math.max(3.4 * S, s.w * 0.66) : keep > 0.6 ? 1.8 * S : 1.1 * S;
       const press = 0.74 + 0.26 * keep;
       const straight = [];
       if (s.box) {
@@ -362,13 +394,14 @@ const MATERIALS = {
         else rule(a, b, base, press, past(), past());
       }
     }
-    // section lines in the solid parts: a ruled 45 degrees, even and exact
+    // section lines along the inside of a solid part, thinning away from it: a draughtsman indicates, he doesn't fill
+    const along = (v, p) => pen(v, p) * smooth(64 * S, 30 * S, pl.edge[p] + (F[p] - 0.5) * 44 * S);
     for (const r of regions(pl, 1400 * S * S)) {
       if (r.fill === "none" && r.tone < 0.3) continue;
       const gap = (15 - 7 * r.tone) * S, f = 0.32 + 0.28 * r.tone;
       for (const seg of sweep(pl, r, W, -Math.PI / 4, gap, rnd, { margin: 1 * S, min: 5 * S })) {
         const a = (rnd() - 0.6) * 5 * S, b = (rnd() - 0.6) * 5 * S, load = f * (0.72 + 0.5 * rnd()), c = Math.SQRT1_2; // a set square, by eye
-        m.mark(section, TONE, Float32Array.of(seg[0] - a * c, seg[1] + a * c, seg[2] + b * c, seg[3] - b * c), { w: () => 1.3 * S, n: 1, flow: () => load }, pen, { hand: 0.45 });
+        m.mark(section, TONE, Float32Array.of(seg[0] - a * c, seg[1] + a * c, seg[2] + b * c, seg[3] - b * c), { w: () => 1.1 * S, n: 1, flow: () => load * 0.8 }, along, { hand: 0.6 });
       }
     }
     // the object's size, ruled below it, with no figure on it: the figure is the film's
@@ -426,10 +459,10 @@ const MATERIALS = {
         const px = Math.round(x - shiftX), py = Math.round(y - shiftY), p = clamp(px, 0, W - 1) + clamp(py, 0, H - 1) * W;
         const inside = pl.id[p] > 0;
         let q;
-        if (inside) q = 0.06 + 1.3 * pl.tone[p] * pl.tone[p];
+        if (inside) q = 0.03 + 1.5 * pl.tone[p] * pl.tone[p] * (0.2 + 0.95 * smooth(0, 74 * S, pl.edge[p])); // the dot is the tone: it swells across a form
         else {
           if (!inPanel(x, y) || pl.sil[p] < 34 * S) continue;
-          q = 0.03 + 0.16 * smooth(py0, py1, y) ** 1.6;
+          q = 0.02 + 0.3 * smooth(py0, py1, y) ** 2;
         }
         const r = pitch * Math.sqrt(Math.pow(clamp(q), 1 / 1.35) / Math.PI) * 1.05;
         const load = 0.5 + 0.5 * rnd() + 0.2 * noise.at(x / (40 * S), y / (40 * S)), wx = (rnd() - 0.5) * 1.6 * S, wy = (rnd() - 0.5) * 1.6 * S;
