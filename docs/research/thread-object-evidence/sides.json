@@ -1,0 +1,413 @@
+[
+ {
+  "pair": 0,
+  "side": "kit",
+  "story": "explainer-inflation",
+  "scenes": [
+   "hook",
+   "stat",
+   "pair",
+   "points",
+   "end"
+  ],
+  "transition": "iris",
+  "thread": [],
+  "warnings": []
+ },
+ {
+  "pair": 0,
+  "side": "object",
+  "story": "explainer-inflation",
+  "scenes": [
+   "hook",
+   "stat",
+   "state",
+   "pair",
+   "points",
+   "end"
+  ],
+  "transition": "slide",
+  "thread": [
+   0,
+   1,
+   2,
+   3,
+   4
+  ],
+  "warnings": []
+ },
+ {
+  "pair": 1,
+  "side": "kit",
+  "story": "law-constitution-17",
+  "scenes": [
+   "hook",
+   "quote",
+   "points",
+   "pair",
+   "end"
+  ],
+  "transition": "meter",
+  "thread": [],
+  "warnings": []
+ },
+ {
+  "pair": 1,
+  "side": "object",
+  "story": "law-constitution-17",
+  "scenes": [
+   "hook",
+   "quote",
+   "points",
+   "state",
+   "pair",
+   "end"
+  ],
+  "transition": "dot",
+  "thread": [
+   0,
+   1,
+   2,
+   3,
+   4
+  ],
+  "warnings": []
+ },
+ {
+  "pair": 2,
+  "side": "kit",
+  "story": "bipi-draws",
+  "scenes": [
+   "hook",
+   "steps",
+   "points",
+   "end"
+  ],
+  "transition": "line",
+  "thread": [],
+  "warnings": []
+ },
+ {
+  "pair": 2,
+  "side": "object",
+  "story": "bipi-draws",
+  "scenes": [
+   "hook",
+   "steps",
+   "draw",
+   "state",
+   "points",
+   "end"
+  ],
+  "transition": "line",
+  "thread": [
+   0,
+   1,
+   2,
+   3,
+   4
+  ],
+  "warnings": []
+ },
+ {
+  "pair": 3,
+  "side": "kit",
+  "story": "veasy-brushes",
+  "scenes": [
+   "hook",
+   "share",
+   "rail",
+   "stat",
+   "compare",
+   "link",
+   "stat",
+   "end"
+  ],
+  "transition": "wipe",
+  "thread": [],
+  "warnings": []
+ },
+ {
+  "pair": 3,
+  "side": "object",
+  "story": "veasy-brushes",
+  "scenes": [
+   "hook",
+   "share",
+   "rail",
+   "stat",
+   "state",
+   "compare",
+   "link",
+   "stat",
+   "end"
+  ],
+  "transition": "fade",
+  "thread": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7
+  ],
+  "warnings": []
+ },
+ {
+  "pair": 4,
+  "side": "kit",
+  "story": "veasy-demo",
+  "scenes": [
+   "hook",
+   "stat",
+   "timeline",
+   "where",
+   "who",
+   "points",
+   "quote",
+   "sources",
+   "end"
+  ],
+  "transition": "meter",
+  "thread": [],
+  "warnings": []
+ },
+ {
+  "pair": 4,
+  "side": "object",
+  "story": "veasy-demo",
+  "scenes": [
+   "hook",
+   "stat",
+   "timeline",
+   "where",
+   "state",
+   "who",
+   "points",
+   "quote",
+   "sources",
+   "end"
+  ],
+  "transition": "slide",
+  "thread": [
+   0,
+   1,
+   2,
+   4,
+   5,
+   6,
+   7
+  ],
+  "warnings": []
+ },
+ {
+  "pair": 5,
+  "side": "kit",
+  "story": "veasy-icons",
+  "scenes": [
+   "hook",
+   "sign",
+   "sign",
+   "stat",
+   "sign",
+   "sign",
+   "end"
+  ],
+  "transition": "dot",
+  "thread": [],
+  "warnings": []
+ },
+ {
+  "pair": 5,
+  "side": "object",
+  "story": "veasy-icons",
+  "scenes": [
+   "hook",
+   "sign",
+   "state",
+   "sign",
+   "stat",
+   "sign",
+   "sign",
+   "end"
+  ],
+  "transition": "object",
+  "thread": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "warnings": []
+ },
+ {
+  "pair": 6,
+  "side": "kit",
+  "story": "veasy-new-01",
+  "scenes": [
+   "hook",
+   "ranking",
+   "versus",
+   "budget",
+   "impact",
+   "end"
+  ],
+  "transition": "dot",
+  "thread": [],
+  "warnings": []
+ },
+ {
+  "pair": 6,
+  "side": "object",
+  "story": "veasy-new-01",
+  "scenes": [
+   "hook",
+   "ranking",
+   "versus",
+   "budget",
+   "state",
+   "impact",
+   "end"
+  ],
+  "transition": "shutter",
+  "thread": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "warnings": []
+ },
+ {
+  "pair": 7,
+  "side": "kit",
+  "story": "veasy-new-02",
+  "scenes": [
+   "hook",
+   "countdown",
+   "calendar",
+   "glossary",
+   "checklist",
+   "route",
+   "end"
+  ],
+  "transition": "line",
+  "thread": [],
+  "warnings": []
+ },
+ {
+  "pair": 7,
+  "side": "object",
+  "story": "veasy-new-02",
+  "scenes": [
+   "hook",
+   "countdown",
+   "state",
+   "calendar",
+   "glossary",
+   "checklist",
+   "route",
+   "end"
+  ],
+  "transition": "fade",
+  "thread": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "warnings": []
+ },
+ {
+  "pair": 8,
+  "side": "kit",
+  "story": "veasy-scenes",
+  "scenes": [
+   "hook",
+   "draw",
+   "pair",
+   "steps",
+   "bars",
+   "trend",
+   "change",
+   "end"
+  ],
+  "transition": "fade",
+  "thread": [],
+  "warnings": []
+ },
+ {
+  "pair": 8,
+  "side": "object",
+  "story": "veasy-scenes",
+  "scenes": [
+   "hook",
+   "draw",
+   "pair",
+   "steps",
+   "bars",
+   "trend",
+   "state",
+   "change",
+   "end"
+  ],
+  "transition": "fade",
+  "thread": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7
+  ],
+  "warnings": []
+ },
+ {
+  "pair": 9,
+  "side": "kit",
+  "story": "veasy-map",
+  "scenes": [
+   "hook",
+   "where",
+   "where",
+   "where",
+   "end"
+  ],
+  "transition": "meter",
+  "thread": [],
+  "warnings": []
+ },
+ {
+  "pair": 9,
+  "side": "object",
+  "story": "veasy-map",
+  "scenes": [
+   "hook",
+   "where",
+   "state",
+   "points",
+   "steps",
+   "end"
+  ],
+  "transition": "shutter",
+  "thread": [
+   0,
+   2,
+   3,
+   4
+  ],
+  "warnings": []
+ }
+]
