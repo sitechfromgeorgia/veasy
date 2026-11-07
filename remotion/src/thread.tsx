@@ -157,6 +157,7 @@ export const ThreadLayer: React.FC = () => {
   const t = threadT(s, local);
   const first = scenes.findIndex((x) => seatOf(x)) === i;
   const drawn = first ? local + (i === 0 ? 14 : 0) : 1e6; // the opening: it is half drawn at frame 0
+  const out = interpolate(CROSS - tail, [0, CROSS], [0, 1], clamp); // how far the cut ahead has come, 0..1
   const fill = (children: React.ReactNode) => <AbsoluteFill style={{ pointerEvents: "none" }}>{children}</AbsoluteFill>;
   if (props.transition === "object") {
     const sweep = sweepOf(local, s, end);
@@ -177,7 +178,7 @@ export const ThreadLayer: React.FC = () => {
   if (props.transition === "match" && (leaving || (arriving && prev))) {
     const form = (x: SceneThread | undefined) => th.forms[x?.form ?? "circle"];
     if (leaving) {
-      const p = smooth(interpolate(tail, [CROSS, 0], [0, 1], clamp));
+      const p = smooth(out);
       const r = next ? between(here, next, p * 0.5) : here;
       return fill(<Shape th={th} r={r} d={interpolatePath(p, th.main, form(next))} opacity={next ? 1 : 1 - p * 0.5} />);
     }
@@ -191,9 +192,9 @@ export const ThreadLayer: React.FC = () => {
   }
   let r: Rect = here, opacity = 1;
   if (leaving) {
-    if (next) r = between(here, next, smooth(interpolate(tail, [CROSS, 0], [0, 1], clamp)) * 0.5);
+    if (next) r = between(here, next, smooth(out) * 0.5);
     else {
-      opacity = interpolate(tail, [CROSS, 0], [1, 0], clamp);
+      opacity = 1 - out;
       r = { ...here, y: here.y + (1 - opacity) * 40 };
     }
   } else if (arriving) {

@@ -208,7 +208,7 @@ class Cuts(unittest.TestCase):
 
     def test_a_film_with_a_thread_moves_through_every_cut_evenly(self):
         for look in variety.TRANSITIONS:
-            options = variety.TRANSITIONS[look] + variety.THREAD_PICKS
+            options = variety.TRANSITIONS[look] + variety.THREAD_TRANSITIONS
             got = self.run_of(look, True, len(options))
             self.assertEqual(sorted(set(got)), sorted(options), look)
             self.assertEqual({got.count(o) for o in options}, {1}, look)
@@ -224,6 +224,11 @@ class Cuts(unittest.TestCase):
         self.assertTrue(set(variety.THREAD_TRANSITIONS) <= set(props.TRANSITIONS))
         for look, cuts in variety.TRANSITIONS.items():
             self.assertFalse(set(cuts) & set(variety.THREAD_TRANSITIONS), look)
+
+    def test_no_form_has_several_parts(self):  # interpolatePath throws on them
+        t, _ = thread.plan(demo())
+        for d in [*t["forms"].values(), t["main"]]:
+            self.assertEqual(d.count("M"), 1)
 
     def test_every_form_is_a_closed_path_in_the_drawing_s_box(self):
         t, _ = thread.plan(demo())
@@ -246,6 +251,12 @@ class Options(unittest.TestCase):
         types = (ROOT / "remotion" / "src" / "types.ts").read_text(encoding="utf-8")
         self.assertTrue(all(f'"{t}"' in types for t in variety.THREAD_TRANSITIONS))
         self.assertTrue(all(f'"{s}"' in types for s in thread.STATES))
+
+    def test_the_layer_never_counts_a_range_backwards(self):  # remotion's interpolate throws: every cut of a film crashed
+        for name in ("thread.tsx", "scenes/state.tsx"):
+            code = (ROOT / "remotion" / "src" / name).read_text(encoding="utf-8")
+            for lo, hi in re.findall(r"interpolate\([^,]+,\s*\[([^,\]]+),\s*([^,\]]+)\]", code):
+                self.assertFalse(lo.strip() == "CROSS" and hi.strip() == "0", name)
 
     def test_paths_is_pinned_to_remotion(self):
         pkg = json.loads((ROOT / "remotion" / "package.json").read_text(encoding="utf-8"))["dependencies"]
