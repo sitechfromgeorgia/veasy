@@ -1590,6 +1590,10 @@ def audit_story(story: dict[str, Any], fmt_name: str = "news", look: str | None 
             findings.append(f)
             warnings.append(f"eyes {f['rule']}: {f['detail']}")
 
+        for f in eyes.report_metrics(built_props, motion.get("timeline"))["findings"]:
+            findings.append(f)
+            warnings.append(f"eyes {f['rule']}: {f['detail']}")
+
         nov_warning = (built_props.get("novelty") or {}).get("warning")
         if nov_warning:
             warnings.append(f"variety novelty: {nov_warning}")

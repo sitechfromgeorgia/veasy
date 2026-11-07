@@ -27,6 +27,20 @@ loop repairs warnings; `engine review`, tool, three real repairs; skill + README
 - Pingpong repair works on the scenes' own `transition` and `flow`; the facts guard treats layout keys as code.
 - Facts guard: name stems matched by prefix (a changed place name was missed before).
 
+## 3b. Report-only metrics (phase 3 of the report)
+
+`eyes.report_metrics(props)`, run inside `review.audit_story`: `word_lag`, `text_echo`, `post_cut_motion`,
+`hold_ratio`, `unrelated_cuts` and the film-level `keyframes_one_curve`, `keyframes_fade_up`,
+`keyframes_text_moving`. They reuse the motion timeline and cuts and the existing per-scene `spoken_redundancy`;
+all are warnings (`hold=False`), numbers are always in `metrics`. One test each in `tests/test_review.py`
+(`ReportMetricsTest`) plus a test that none fires on six approved stories (nine checked by hand, including
+sitech-cybercartel, explainer-inflation, law-constitution-17). Calibration finding: the first thresholds fired on
+every approved film (scene text legitimately comes on up to 5 s before its words, one curve is the pack's normal cut,
+`rise` is one option of eight), so thresholds sit outside the approved range and the `word_lag` rule in particular
+is weak; it needs a per-word timing of the screen text to be sharper. The `keyframes` rules read the cut kinds and
+the style's entrance, not real easing curves (props do not carry them). The brief did not define the five metrics
+beyond their names, so the definitions are mine. Owner decision 4: confirm or replace them.
+
 ## 4. What was not done, and corrections
 
 - The first result file claimed edits to `engine.py`, `plugin.yaml`, `__init__.py`, `test_plugin.py`, README. None
@@ -54,6 +68,7 @@ Remotion source changed).
 1. Which warnings should become holds once the calibration set grows (`spoken_redundancy`, `safe_zone` first?).
    Today only `read` and `flash` hold.
 2. Whether the loop may ever rewrite narration or a quote to cure a `read` hold; it refuses today (facts guard).
+4. The definitions of the five report-only metrics (section 3b) are an interpretation of the report's names.
 3. Thresholds in `eyes.py` rest on four approved demos; more films are needed before tightening.
 
 ## 8. Proposed paragraph for CLAUDE.md

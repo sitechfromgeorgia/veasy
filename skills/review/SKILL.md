@@ -27,6 +27,7 @@ Only two things hold a film. Everything else is a warning until it has been cali
 | `spoken_redundancy` | warning | a scene only shows the words the voice says |
 | `safe_zone` | warning | ink in the social rail (x>940, y 1100-1552), or a hook line over 26 characters |
 | `repeat`, `pingpong`, `still` | warning | the motion rules of `engine plan`: same type twice, back-and-forth cuts, nothing moves for over 3 s |
+| `word_lag`, `text_echo`, `post_cut_motion`, `hold_ratio`, `unrelated_cuts`, `keyframes_*` | warning (report only) | text 5.5 s ahead of its words; 85% of screen words already spoken; dead second after most cuts; over 55% of the film held still; middle cuts joining scenes that share no word; one `cut` curve throughout, fade-up with fade cuts, text still moving for most of its reading time |
 
 The pixel rules need frames: `engine still <story> --engine silent --out <dir>` first, then
 `engine review <story> --stills <dir>`. A still takes about a minute on a busy machine; the story checks need none.

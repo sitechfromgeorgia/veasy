@@ -570,3 +570,107 @@ class ApprovedDemosTest(unittest.TestCase):
             res = review.review_story(story, rounds=2)
             self.assertIn(res["status"], ("passed", "fixed"), name)
             self.assertEqual(res["facts_diff"], [], name)
+
+
+class ReportMetricsTest(unittest.TestCase):
+    """The report-only metrics: each fires on a made-up film, none holds, none fires on the approved stories."""
+
+    FPS = 30
+
+    def _scene(self, i, start_s, seconds, texts, kind="type", transition=None):
+        return {"type": kind, "from": int(start_s * self.FPS), "duration": int(seconds * self.FPS),
+                "transition": transition, "_texts": texts}
+
+    def _row(self, i, start_s, seconds, texts, typ="points", settled=1.0):
+        return {"scene": i, "type": typ, "from": int(start_s * self.FPS), "to": int((start_s + seconds) * self.FPS),
+                "leaves": int((start_s + seconds) * self.FPS), "seconds": seconds, "settled": settled,
+                "texts": [{"text": t, "words": len(t.split()), "need": 2.0, "in": at, "shown": seconds - at}
+                          for t, at in texts]}
+
+    def _props(self, rows, words=(), transition="cut", enter="scale"):
+        scenes = [{"type": r["type"], "from": r["from"], "duration": r["to"] - r["from"], "transition": transition}
+                  for r in rows]
+        return {"scenes": scenes, "durationInFrames": rows[-1]["to"], "words": list(words),
+                "style": {"enter": enter}, "transition": transition}
+
+    def _metrics(self, rows, **kw):
+        props = self._props(rows, **kw)
+        with mock.patch.object(review.motion_rules, "_laid_out", lambda p: p), \
+             mock.patch.object(review.motion_rules, "cuts", lambda p: [
+                 {"into": i, "kind": s["transition"], "direction": None} for i, s in enumerate(p["scenes"][1:], 1)]):
+            return review.eyes.report_metrics(props, timeline=rows)
+
+    def rules(self, res):
+        return {f["rule"] for f in res["findings"]}
+
+    def test_word_lag(self):
+        rows = [self._row(0, 0, 8, [("ალფა ბეტა გამა", 0.2)]), self._row(1, 8, 8, [("დელტა ეპსილონი ზეტა", 0.2)])]
+        words = [{"text": "ალფა", "start": 0.3}, {"text": "ბეტა", "start": 0.6},
+                 {"text": "დელტა", "start": 20.0}, {"text": "ეპსილონი", "start": 20.5}]
+        words[2]["start"] = 14.2  # said 6 s after the text of scene 1 comes on at 8.2
+        res = self._metrics(rows, words=words)
+        self.assertIn("word_lag", self.rules(res))
+        self.assertTrue(all(not f["hold"] for f in res["findings"]))
+        ok = self._metrics(rows, words=[{"text": "ალფა", "start": 0.3}, {"text": "ბეტა", "start": 0.6},
+                                        {"text": "დელტა", "start": 8.4}, {"text": "ეპსილონი", "start": 8.9}])
+        self.assertNotIn("word_lag", self.rules(ok))
+
+    def test_text_echo(self):
+        said = "ალფა ბეტა გამა დელტა ეპსილონი ზეტა ეტა თეტა იოტა კაპა ლამბდა მიუ"
+        rows = [self._row(0, 0, 6, [(said, 0.2)])]
+        words = [{"text": w, "start": i * 0.4} for i, w in enumerate(said.split())]
+        self.assertIn("text_echo", self.rules(self._metrics(rows, words=words)))
+        self.assertNotIn("text_echo", self.rules(self._metrics(rows, words=[{"text": "სხვა", "start": 0.1}])))
+
+    def test_post_cut_motion(self):
+        rows = [self._row(0, 0, 5, [("ა ბ", 0.2)])] + [self._row(i, 5 * i, 5, [("გ დ", 2.0)]) for i in (1, 2, 3)]
+        self.assertIn("post_cut_motion", self.rules(self._metrics(rows)))
+        live = [self._row(0, 0, 5, [("ა ბ", 0.2)])] + [self._row(i, 5 * i, 5, [("გ დ", 0.2)]) for i in (1, 2, 3)]
+        self.assertNotIn("post_cut_motion", self.rules(self._metrics(live)))
+
+    def test_hold_ratio(self):
+        rows = [self._row(i, 8 * i, 8, [("ა ბ", 0.2)], settled=1.0) for i in range(3)]
+        self.assertIn("hold_ratio", self.rules(self._metrics(rows)))
+        busy = [self._row(i, 8 * i, 8, [("ა ბ", 0.2)], settled=7.0) for i in range(3)]
+        self.assertNotIn("hold_ratio", self.rules(self._metrics(busy)))
+
+    def test_unrelated_cuts(self):
+        rows = [self._row(0, 0, 4, [("ჰუკი ტექსტი", 0.2)], typ="hook")]
+        rows += [self._row(i, 4 * i, 4, [(f"{a} {b}", 0.2)])
+                 for i, (a, b) in zip(range(1, 8), [("ალფაბეტი", "ბეღურა"), ("გემრიელი", "დარბაზი"), ("ევროპა", "ვარდი"),
+                                                    ("ზღვა", "თევზი"), ("იალქანი", "კარავი"), ("ლომი", "მთვარე"),
+                                                    ("ნავი", "ოქრო")])]
+        rows += [self._row(8, 32, 4, [("დასასრული", 0.2)], typ="end")]
+        self.assertIn("unrelated_cuts", self.rules(self._metrics(rows)))
+        linked = [self._row(0, 0, 4, [("ჰუკი ტექსტი", 0.2)], typ="hook")]
+        linked += [self._row(i, 4 * i, 4, [("გაზი შეწყდება", 0.2)]) for i in range(1, 8)]
+        linked += [self._row(8, 32, 4, [("დასასრული", 0.2)], typ="end")]
+        self.assertNotIn("unrelated_cuts", self.rules(self._metrics(linked)))
+
+    def test_keyframes_one_curve(self):
+        rows = [self._row(i, 4 * i, 4, [("ა ბ", 0.2)]) for i in range(8)]
+        self.assertIn("keyframes_one_curve", self.rules(self._metrics(rows, transition="cut")))
+        self.assertNotIn("keyframes_one_curve", self.rules(self._metrics(rows, transition="wipe")))
+
+    def test_keyframes_fade_up(self):
+        rows = [self._row(i, 4 * i, 4, [("ა ბ", 0.2)]) for i in range(5)]
+        self.assertIn("keyframes_fade_up", self.rules(self._metrics(rows, transition="fade", enter="rise")))
+        self.assertNotIn("keyframes_fade_up", self.rules(self._metrics(rows, transition="fade", enter="scale")))
+
+    def test_keyframes_text_moving_while_read(self):
+        rows = []
+        for i in range(4):
+            r = self._row(i, 4 * i, 4, [("ა ბ", 0.2), ("გ დ", 0.2)])
+            for t in r["texts"]:
+                t["need"] = 0.8  # read in 0.8 s while the entrance still moves for 0.5 s
+            rows.append(r)
+        self.assertIn("keyframes_text_moving", self.rules(self._metrics(rows)))
+        self.assertNotIn("keyframes_text_moving", self.rules(self._metrics(
+            [self._row(i, 4 * i, 4, [("ა ბ", 0.2), ("გ დ", 0.2)]) for i in range(4)])))
+
+    def test_approved_stories_raise_no_metric_warning(self):
+        for name in ("24835", "24725", "veasy-demo", "veasy-scenes", "veasy-new-01", "veasy-new-02"):
+            story = json.loads((ROOT / "stories" / f"{name}.json").read_text(encoding="utf-8"))
+            a = review.audit_story(story)
+            res = review.eyes.report_metrics(a["props"])
+            self.assertEqual(res["findings"], [], name)

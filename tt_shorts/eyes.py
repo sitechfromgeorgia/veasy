@@ -514,3 +514,128 @@ def check_eyes(
             "warnings_count": len(warnings),
         },
     }
+
+
+# -----------------------------------------------------------------------------
+# 8. Report-only metrics (phase 3 of the 2026 report): they measure and warn, never hold
+# -----------------------------------------------------------------------------
+
+WORD_LAG_MAX = 5.5          # s: a text may show this much BEFORE its words are spoken (approved films reach 5.0: scene text comes on with its sentence; a late build is normal)
+TEXT_ECHO_MAX = 0.85        # share of on-screen words the narration already says
+POST_CUT_DEAD = 1.0         # s: nothing new on screen this long after a cut
+POST_CUT_SHARE = 0.5        # share of cuts that may be dead
+HOLD_RATIO_MAX = 0.55       # share of the film where nothing changes after the scene settled
+UNRELATED_MAX = 0.9         # share of middle cuts between scenes sharing no word
+CURVE_SHARE_MAX = 0.9       # share of cuts using one transition curve (kind); a pack's own cut is one curve
+FADE_UP_ENTERS = ("rise",)  # the entrance style that is a fade-up
+MOVING_READ_SHARE = 0.7     # share of texts still moving during half or more of their reading time
+
+
+def _prefix_key(token: str) -> str:
+    return token[:5]
+
+
+def _spoken_starts(words: list[dict[str, Any]]) -> dict[str, list[float]]:
+    out: dict[str, list[float]] = {}
+    for w in words:
+        for t in _clean_tokens(str(w.get("text", ""))):
+            out.setdefault(_prefix_key(t), []).append(float(w.get("start", 0.0)))
+    return out
+
+
+def report_metrics(props: dict[str, Any], timeline: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Built props -> {"metrics": {...numbers}, "findings": [warnings]}; every finding has hold=False."""
+    rows = timeline if timeline is not None else motion_rules.timeline(motion_rules._laid_out(props))
+    cuts = motion_rules.cuts(motion_rules._laid_out(props)) if props.get("scenes") else []
+    fps = motion_rules.FPS
+    findings: list[dict[str, Any]] = []
+    metrics: dict[str, Any] = {}
+    total = max(1e-6, props.get("durationInFrames", 0) / fps)
+
+    # word_lag: when a text comes on against when the voice says its first word
+    spoken_seq = [(_prefix_key(t), float(w.get("start", 0.0)))
+                  for w in props.get("words") or [] for t in _clean_tokens(str(w.get("text", "")))]
+    bigrams: dict[tuple[str, str], list[float]] = {}
+    for (k1, t1), (k2, _t2) in zip(spoken_seq, spoken_seq[1:]):
+        bigrams.setdefault((k1, k2), []).append(t1)
+    lags: list[float] = []
+    worst: tuple[float, int, str] | None = None
+    for r in rows:
+        base = r["from"] / fps
+        for t in r["texts"]:
+            toks = _clean_tokens(t["text"])
+            if len(toks) < 2:
+                continue  # one word matches by chance: only two words in a row count
+            shown_at = base + t["in"]
+            cands = [x for x in bigrams.get((_prefix_key(toks[0]), _prefix_key(toks[1])), []) if abs(x - shown_at) <= 6.0]
+            if not cands:
+                continue
+            lag = shown_at - min(cands, key=lambda s: abs(s - shown_at))
+            lags.append(lag)
+            if lag < 0 and (worst is None or lag < worst[0]):
+                worst = (lag, r["scene"], t["text"])
+    metrics["word_lag_early_max"] = round(max((-x for x in lags if x < 0), default=0.0), 2)
+    metrics["word_lag_late_max"] = round(max((x for x in lags if x > 0), default=0.0), 2)
+    if worst and worst[0] < -WORD_LAG_MAX:
+        findings.append(_finding("word_lag", f"scene {worst[1]}: {_quote(worst[2])} comes on {worst[0]:+.1f} s from the "
+                                             f"voice saying it (max {WORD_LAG_MAX:g} s): move the anchor or the text's beat",
+                                 worst[1]))
+
+    # text_echo: how much of everything on screen the narration already says
+    spoken = {_prefix_key(t) for w in props.get("words") or [] for t in _clean_tokens(str(w.get("text", "")))}
+    shown = [tok for r in rows for t in r["texts"] if r["type"] != "end" for tok in _clean_tokens(t["text"])]
+    echo = (sum(1 for tok in shown if _prefix_key(tok) in spoken) / len(shown)) if shown else 0.0
+    metrics["text_echo"] = round(echo, 2)
+    if len(shown) >= 12 and echo > TEXT_ECHO_MAX:
+        findings.append(_finding("text_echo", f"{echo:.0%} of the words on screen are words the voice says (max "
+                                              f"{TEXT_ECHO_MAX:.0%}): the screen adds almost nothing"))
+
+    # post_cut_motion: a cut followed by a dead second
+    dead = [r["scene"] for r in rows[1:] if r["type"] != "end" and r["texts"]
+            and min(t["in"] for t in r["texts"]) > POST_CUT_DEAD]
+    metrics["post_cut_dead"] = len(dead)
+    if rows[1:] and len(dead) / max(1, len(rows) - 1) > POST_CUT_SHARE:
+        findings.append(_finding("post_cut_motion", f"{len(dead)} of {len(rows) - 1} cuts show nothing new for over "
+                                                    f"{POST_CUT_DEAD:g} s (scenes {', '.join(map(str, dead))})"))
+
+    # hold_ratio: time with nothing changing, over the film
+    held = sum(max(0.0, (r["leaves"] - r["from"]) / fps - r["settled"]) for r in rows if r["type"] != "end")
+    metrics["hold_ratio"] = round(held / total, 2)
+    if held / total > HOLD_RATIO_MAX:
+        findings.append(_finding("hold_ratio", f"{held / total:.0%} of the film is held still after scenes settle "
+                                               f"(max {HOLD_RATIO_MAX:.0%}): add beats or cut sooner"))
+
+    # unrelated_cuts: adjacent middle scenes that share no word
+    sets = [{_prefix_key(tok) for t in r["texts"] for tok in _clean_tokens(t["text"])} for r in rows]
+    mid = [i for i, r in enumerate(rows) if r["type"] not in ("hook", "end")]
+    pairs = [(i, i + 1) for i in mid if i + 1 in mid]
+    unrelated = [(a, b) for a, b in pairs if sets[a] and sets[b] and not (sets[a] & sets[b])]
+    metrics["unrelated_cuts"] = len(unrelated)
+    if len(pairs) >= 6 and len(unrelated) / len(pairs) > UNRELATED_MAX:
+        findings.append(_finding("unrelated_cuts", f"{len(unrelated)} of {len(pairs)} cuts between middle scenes join "
+                                                   f"scenes that share no word: link them with a shared noun or number"))
+
+    # keyframes (film level): one curve, fade-up everywhere, text moving while it is read
+    kinds = [c["kind"] for c in cuts if c["kind"] not in ("crossfade",)]
+    share = (max(kinds.count(k) for k in set(kinds)) / len(kinds)) if kinds else 0.0
+    metrics["curve_share"] = round(share, 2)
+    if len(kinds) >= 6 and share > CURVE_SHARE_MAX and kinds[0] == "cut":
+        findings.append(_finding("keyframes_one_curve", f"{share:.0%} of the cuts use one transition (max "
+                                                        f"{CURVE_SHARE_MAX:.0%}): vary the curve"))
+    enter = (props.get("style") or {}).get("enter")
+    metrics["enter"] = enter
+    if enter in FADE_UP_ENTERS and kinds and kinds.count("fade") / len(kinds) >= 0.5:
+        findings.append(_finding("keyframes_fade_up", f"text rises in and half the cuts are fades ('{enter}'): all fade-up; "
+                                                      f"pick another entrance or cut"))
+    moving = []
+    for r in rows:
+        for t in r["texts"]:
+            if t["need"] > 0 and (motion_rules.SETTLE / t["need"]) >= 0.5:
+                moving.append(t)
+    all_texts = [t for r in rows for t in r["texts"]]
+    mshare = len(moving) / len(all_texts) if all_texts else 0.0
+    metrics["moving_while_read"] = round(mshare, 2)
+    if len(all_texts) >= 6 and mshare > MOVING_READ_SHARE:
+        findings.append(_finding("keyframes_text_moving", f"{mshare:.0%} of the texts are still moving for half their "
+                                                          f"reading time: shorten the entrance or lengthen the text"))
+    return {"metrics": metrics, "findings": findings}
