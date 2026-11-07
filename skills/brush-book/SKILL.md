@@ -7,7 +7,7 @@ description: "Use when you must choose WHAT a story should look like: which scen
 
 A catalogue of **real renders**: every picture is a frame the engine drew (nothing is a mock-up), with the command
 for it and when not to use it. It reads brushes, variety options, directors, styles, rubrics and baked plates from
-data, so what is merged later appears by itself after a rebuild.
+data, so a brush, block, template or plate merged later appears by itself after a rebuild (a test adds fixtures to prove it).
 
 ## The one line
 
@@ -16,7 +16,7 @@ python -m tt_shorts.engine gallery --find "a number"
 ```
 
 You get the five best entries as JSON: `id`, `type` (brush, hook, motif, entrance, transition, director, style,
-rubric, plate), `need` (when to use it), `command`, `still` (a path under `out/gallery/`) and `when_not_to_use`.
+rubric, block, template, plate), `need` (when to use it), `command`, `still` (a path under `out/gallery/`) and `when_not_to_use`.
 Open the `still` and look at it before you choose. The first match is usually right; read `when_not_to_use` of the
 first two before you commit.
 
@@ -62,6 +62,9 @@ bend a brush to a fact it was not made for.
   look; a rubric is a named show. Their cards say when not to use them. A style card is the kit's preview with the
   style's own picks; a style of the other engine (HyperFrames) is drawn here as the kit shows its picks, not as that
   engine would compose it.
+- **Blocks and templates** are the HyperFrames side: a block (`compose/blocks/`) is one composed scene with bound
+  slots, a template (`templates/`) an approved film to follow. Their picture is a real `compose look` frame strip with
+  the slots filled by their own examples; the command is `compose scaffold <story> --blocks <id>` or `--template <id>`.
 - **Plates** appear when someone has baked `plates/<kind>/poster.png`. They are grey, hold no text, and are never for
   news, crime, incidents or deaths.
 

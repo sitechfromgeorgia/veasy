@@ -5,7 +5,10 @@ import pathlib
 import tempfile
 import unittest
 
-from tt_shorts import brand, catalog, directors, engine, gallery, props, rubrics, styles, variety
+import shutil
+from unittest import mock
+
+from tt_shorts import brand, catalog, compose, directors, engine, gallery, props, rubrics, styles, variety
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -27,7 +30,7 @@ class Catalogue(unittest.TestCase):
         want = {f"hook-{o}" for o in variety.OPTIONS["hook"]} | {f"motif-{o}" for o in variety.OPTIONS["motif"]} \
             | {f"entrance-{o}" for o in variety.OPTIONS["enter"]} | {f"director-{d}" for d in directors.load_all()} \
             | {f"style-{s['slug']}" for s in styles.load_all()} | {f"rubric-{r}" for r in rubrics.load_all()} \
-            | {f"transition-{t}" for t in props.TRANSITIONS}
+            | {f"transition-{t}" for t in props.TRANSITIONS} | {f"block-{b}" for b in compose.blocks()}             | {f"template-{t}" for t in compose.templates()}
         self.assertEqual(want - set(self.by_id), set())
 
     def test_ids_and_files_are_unique(self):
@@ -50,6 +53,44 @@ class Catalogue(unittest.TestCase):
             (kind / "poster.png").unlink()
             kind.rmdir()
         self.assertNotIn("plate-zz-test-kind", {i["id"] for i in gallery.items()})
+
+
+class AddedLater(unittest.TestCase):
+    """What another lane merges later (a brush, a block, a template, a plate, a variety option) is in the book after a
+    rebuild with no change to gallery.py: each is added here as a throwaway fixture and removed again."""
+
+    def test_new_brush_block_template_plate_and_option_appear_by_themselves(self):
+        made = []
+        try:
+            brush = json.loads((ROOT / "brushes" / "stat.json").read_text(encoding="utf-8"))
+            brush["type"], brush["order"] = "zzfixture", 997
+            brush["schema"]["type"] = brush["example"]["type"] = "zzfixture"
+            (ROOT / "brushes" / "zzfixture.json").write_text(json.dumps(brush, ensure_ascii=False), encoding="utf-8")
+            made.append(ROOT / "brushes" / "zzfixture.json")
+            shutil.copytree(ROOT / "compose" / "blocks" / "quote", ROOT / "compose" / "blocks" / "zz-block")
+            made.append(ROOT / "compose" / "blocks" / "zz-block")
+            shutil.copytree(ROOT / "templates" / "news-kinetic", ROOT / "templates" / "zz-template")
+            made.append(ROOT / "templates" / "zz-template")
+            (ROOT / "plates" / "zz-plate").mkdir()
+            (ROOT / "plates" / "zz-plate" / "poster.png").write_bytes(b"x")
+            made.append(ROOT / "plates" / "zz-plate")
+            catalog._load.cache_clear()  # the engine reads brushes once per process; a rebuild is a new process
+            with mock.patch.dict(variety.OPTIONS, {"hook": (*variety.OPTIONS["hook"], "zz-hook")}):
+                items = {i["id"]: i for i in gallery.items()}
+                page = gallery.build_page(list(items.values()), out_dir=pathlib.Path(__import__("tempfile").mkdtemp()))
+            for want in ("brush-zzfixture", "block-zz-block", "template-zz-template", "plate-zz-plate", "hook-zz-hook"):
+                self.assertIn(want, items, want)
+                self.assertIn(f'id="{want}"', page.read_text(encoding="utf-8"))
+            self.assertEqual(len(items["brush-zzfixture"]["files"]), len(brand.LOOKS) * len(gallery.themes()))
+            self.assertTrue(items["block-zz-block"]["files"][""].endswith("block-zz-block.jpg"))
+            self.assertIn("compose scaffold <story> --blocks zz-block", items["block-zz-block"]["command"])
+            self.assertEqual(gallery.find("zzfixture", list(items.values()), n=1)[0]["id"], "brush-zzfixture")
+        finally:
+            for m in made:
+                shutil.rmtree(m) if m.is_dir() else m.unlink()
+            catalog._load.cache_clear()
+        ids = {i["id"] for i in gallery.items()}
+        self.assertFalse({"brush-zzfixture", "block-zz-block", "template-zz-template", "plate-zz-plate"} & ids)
 
 
 class Search(unittest.TestCase):

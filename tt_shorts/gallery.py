@@ -142,6 +142,20 @@ def items() -> list[dict]:
         out.append({"id": f"rubric-{r}", "kind": "rubric", "title": r, "what": _txt(spec.get("about") or spec.get("chip") or r),
                     "use_when": "a named show with a chip in the hook", "avoid_when": "only when its eligibility rules hold (rubrics.py)",
                     "words": _words("rubric show chip", r, spec.get("about")), "files": {"": f"stills/rubric-{r}.jpg"}})
+    from tt_shorts import compose
+    for bid, bm in sorted(compose.blocks().items()):
+        out.append({"id": f"block-{bid}", "kind": "block", "title": bid, "what": _txt(bm.get("about") or bm.get("label") or bid),
+                    "use_when": "a composed (HyperFrames) film: assemble it with other blocks, each slot bound to a fact",
+                    "avoid_when": "a film of the typed brush kit (use a brush); never type a fact into a slot, bind it",
+                    "slots": {k: v.get("kind") for k, v in bm.get("slots", {}).items()},
+                    "words": _words("block composed hyperframes", bid, bm.get("label"), bm.get("about")),
+                    "files": {"": f"stills/block-{bid}.jpg"}})
+    for tid, tm in sorted(compose.templates().items()):
+        out.append({"id": f"template-{tid}", "kind": "template", "title": tid, "what": _txt(tm.get("about") or tm.get("label") or tid),
+                    "use_when": f"a composed film that follows an approved one (made from story {tm.get('from', {}).get('story')}, pack {tm.get('from', {}).get('brand')})",
+                    "avoid_when": "a story that needs a shape the template has no beat for; then compose from blocks",
+                    "words": _words("template composed hyperframes film", tid, tm.get("label"), tm.get("about")),
+                    "files": {"": f"stills/template-{tid}.jpg"}})
     for poster in sorted((ROOT / "plates").glob("*/poster.png")):
         kind = poster.parent.name
         out.append({"id": f"plate-{kind}", "kind": "plate", "title": kind, "what": f"a baked grey plate: {kind}",
@@ -167,6 +181,10 @@ def command_for(it: dict) -> str:
         return f"python -m tt_shorts.engine plan <story> --director {t}"
     if it["kind"] == "style":
         return f"python -m tt_shorts.engine plan <story> --style {it['id'][len('style-'):]}"
+    if it["kind"] == "block":
+        return f"python -m tt_shorts.engine compose scaffold <story> --blocks {t}"
+    if it["kind"] == "template":
+        return f"python -m tt_shorts.engine compose scaffold <story> --template {t}"
     if it["kind"] == "rubric":
         return f"python -m tt_shorts.engine rubrics   # then set \"rubric\": \"{t}\" in the story"
     return "node plates/run.mjs " + t + " --spec s.json --seconds 6 --seed 1 --out out/plates/x"
@@ -322,6 +340,19 @@ def render(only: str | None = None, limit: int | None = None) -> dict:
 
     per, done = probe.run_jobs(jobs) if jobs else ([], {})
     made, problems = 0, []
+    for i in [x for x in its if x["kind"] in ("block", "template")][: limit or None]:
+        rel = i["files"][""]
+        key = _composed_hash(i)
+        if man.get(rel, {}).get("hash") == _sha(env, key) and (OUT / rel).exists():
+            cached += 1
+            continue
+        try:
+            _render_composed(i, OUT / rel)
+        except Exception as e:  # noqa: BLE001 - one item failing is a problem to report, not the book's end
+            problems.append(f"{i['id']}: {type(e).__name__}: {str(e)[:200]}")
+            continue
+        man[rel] = {"hash": _sha(env, key), "item": i["id"]}
+        made += 1
     for m, rows in zip(meta, per):
         files = {x["frame"]: x["file"] for x in rows if x.get("file")}
         kind, payload, look, th = m["post"]
@@ -370,6 +401,101 @@ def render(only: str | None = None, limit: int | None = None) -> dict:
     (OUT / "manifest.json").write_text(json.dumps(man, ensure_ascii=False, indent=1, sort_keys=True), encoding="utf-8")
     return {"made": made, "cached": cached, "jobs": len(jobs), "problems": problems,
             "took": round(time.time() - t0, 1), "bundle_built": done.get("built")}
+
+
+def _composed_hash(i: dict):
+    """What a block's or a template's picture depends on: its own files (and the story it is shown with)."""
+    from tt_shorts import compose
+    root = (compose.blk.BLOCKS_DIR if i["kind"] == "block" else compose.TEMPLATES) / i["title"]
+    files = sorted(f for f in root.rglob("*") if f.is_file())
+    return [i["id"], [(str(f.relative_to(root)), hashlib.sha256(f.read_bytes()).hexdigest()[:12]) for f in files],
+            hashlib.sha256((ROOT / "tt_shorts" / "compose.py").read_bytes()).hexdigest()[:12]]
+
+
+def _fill_slots(project: pathlib.Path) -> None:
+    """Fill every empty slot with its own example (a block's or template's slots carry one): a picture of the shape."""
+    p = project / "slots.json"
+    if not p.exists():
+        return
+    d = json.loads(p.read_text(encoding="utf-8"))
+    for v in d.values():
+        if isinstance(v, dict) and v.get("value") in (None, "") and "example" in v:
+            v["value"] = v["example"]
+    p.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def _anchor_beats(project: pathlib.Path, story: dict) -> None:
+    """A template's beats have no anchors: spread the story's own narration over them, in order."""
+    bp = project / "beats.json"
+    sheet = json.loads(bp.read_text(encoding="utf-8"))
+    words = story["narration"].split()
+    items = [c for c in sheet.get("chapters", [])] + [b for b in sheet.get("beats", [])] + [sheet.get("end", {})]
+    todo = [x for x in items if isinstance(x, dict) and x.get("at") is None]
+    if not todo:
+        return
+    step = max(1, len(words) // (len(todo) + 1))
+    for n, x in enumerate(todo):
+        x["at"] = " ".join(words[n * step:n * step + 2])
+    sheet["story"] = sheet.get("story")
+    if sheet.get("chapters") and not sheet["chapters"][0].get("title"):
+        sheet["chapters"][0]["title"] = sheet["chapters"][0].get("example") or "-"
+    bp.write_text(json.dumps(sheet, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def _story_for(i: dict) -> pathlib.Path:
+    """The story a composed item is shown with: the one it was promoted from, else any story of its pack."""
+    from tt_shorts import compose
+    if i["kind"] == "template":
+        frm = compose.templates()[i["title"]].get("from", {})
+        own = ROOT / "stories" / f"{frm.get('story')}.json"
+        if own.exists():
+            return own
+        pool = sorted((ROOT / "stories").glob("*.json"))
+        for f in pool:
+            if json.loads(f.read_text(encoding="utf-8")).get("brand") == frm.get("brand") and frm.get("brand"):
+                return f
+    return ROOT / "stories" / "24835.json"
+
+
+def _render_composed(i: dict, dest: pathlib.Path) -> None:
+    """A real picture of a block or a template: scaffold a throwaway HyperFrames project for it, fill its slots with
+    their examples, take the free `compose look` sheet and keep three of its frames side by side."""
+    from PIL import Image
+    from tt_shorts import compose
+    story_path = _story_for(i)
+    project = OUT / "projects" / i["id"]
+    if project.exists():
+        import shutil
+        shutil.rmtree(project)
+    if i["kind"] == "template" and (ROOT / "compose" / story_path.stem).is_dir() and \
+            compose.templates()[i["title"]].get("from", {}).get("story") == story_path.stem:
+        import shutil
+        shutil.copytree(ROOT / "compose" / story_path.stem, project)  # the finished film the template was made from
+        compose.scaffold(str(story_path), project=str(project))  # kept files; now it builds and locks
+    else:
+        kw = {"blocks": i["title"]} if i["kind"] == "block" else {"template": i["title"]}
+        compose.scaffold(str(story_path), project=str(project), force=True, **kw)
+        _fill_slots(project)
+        if i["kind"] == "template":
+            _anchor_beats(project, json.loads(story_path.read_text(encoding="utf-8")))
+            compose.scaffold(str(story_path), project=str(project))  # kept files; now it builds and locks
+    res = compose.look(str(story_path), project=str(project))
+    if res.get("problems") or not res.get("sheets"):
+        raise RuntimeError("; ".join(res.get("problems") or ["no sheets"]))
+    with Image.open(res["sheets"]["phone"]) as sheet:
+        sheet = sheet.convert("RGB")
+        cw = sheet.width // 4
+        ch = round(cw * 1.85)
+        cells = [(c % 4, c // 4) for c in range(4 * max(1, round(sheet.height / ch)))]
+        picks = [cells[k] for k in (1, 2, 3) if k < len(cells)] or [cells[0]]
+        crops = [sheet.crop((x * cw, y * ch + 24, (x + 1) * cw, (y + 1) * ch)) for x, y in picks]
+    out = Image.new("RGB", (sum(c.width for c in crops), crops[0].height))
+    x = 0
+    for c in crops:
+        out.paste(c, (x, 0))
+        x += c.width
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    out.save(dest, "JPEG", quality=84, optimize=True)
 
 
 def _hash_data(i: dict, m: dict):
