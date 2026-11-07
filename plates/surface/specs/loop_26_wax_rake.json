@@ -1,6 +1,6 @@
 {
   "material": "wax",
-  "light": "sweep",
+  "light": "rake",
   "scale": 1.0,
   "depth": 0.8,
   "roughness": 0.3,

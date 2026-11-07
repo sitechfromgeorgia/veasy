@@ -361,38 +361,10 @@
       ],
       "depth": 0.6,
       "roughness": 0.35,
-      "bytes": 442647,
+      "bytes": 424025,
       "sha256": {
-        "height": "84beffca0959b5e3ade235673ef057abfd4be921e200c6af824a8c82a8a64674",
-        "normal": "237d288e9685a7b5230bc99542a8c9e88ca5549afe161a3b87579721fefc3505"
-      }
-    },
-    "ceramic_glaze": {
-      "id": "ceramic_glaze",
-      "name": "Crazed Ceramic Glaze",
-      "category": "ceramic",
-      "description": "Glossy glaze with an orange-peel swell, hairline crazing and a few pinholes.",
-      "generator": "tools/surface_procedural.py:ceramic_glaze@v1",
-      "seed": 1004,
-      "date": "2026-11-07",
-      "license": "procedural",
-      "commercial": true,
-      "n13_label_required": true,
-      "files": {
-        "height": "assets/surfaces/ceramic_glaze/height.png",
-        "normal": "assets/surfaces/ceramic_glaze/normal.png",
-        "meta": "assets/surfaces/ceramic_glaze/meta.json"
-      },
-      "dimensions": [
-        384,
-        384
-      ],
-      "depth": 0.9,
-      "roughness": 0.2,
-      "bytes": 288561,
-      "sha256": {
-        "height": "de86cd2886b124d7634dad5ff7f488cf48eef785e801fb8ef52607645b4b5680",
-        "normal": "728e4076a657e578afe0bfed292df79f5ec496bc8d02502ae316479e36fe87a8"
+        "height": "b9fb7aa661e56b974778811b5c8fcff9814c27adac64bc0ba150f6e23a628750",
+        "normal": "09a27ef03bd25b433b7324e10999d821e6af588cd2b681e3e420cf7efc4f104a"
       }
     },
     "cork": {
@@ -417,10 +389,10 @@
       ],
       "depth": 1.1,
       "roughness": 0.9,
-      "bytes": 453267,
+      "bytes": 437492,
       "sha256": {
-        "height": "c9d2fdc90a998a76e2727aaff1612a32df0423b850b2ae49a05fc3b2eb3b2732",
-        "normal": "92afbcdcfc9c3aa5fe965d9a90416659ea09d959c7be2ce5c95900eef060149c"
+        "height": "3c887c7e7e4f4d2ce6128cb89b8d00d60aa4c5c3cfb89199194c4984ac954722",
+        "normal": "9c762ba4178275f4c457b85b48feadcfdf3a22253bceb581d14bf82236da3641"
       }
     },
     "corrugated_card": {
@@ -479,69 +451,13 @@
         "normal": "dd4587eb173f7c9cb881d715083f42afc7f48514e38b7280f75d0c1ef581a16e"
       }
     },
-    "felt": {
-      "id": "felt",
-      "name": "Pressed Wool Felt",
-      "category": "textile",
-      "description": "Dense matted wool fibres in a soft, uneven pressed mat.",
-      "generator": "tools/surface_procedural.py:felt@v1",
-      "seed": 1008,
-      "date": "2026-11-07",
-      "license": "procedural",
-      "commercial": true,
-      "n13_label_required": true,
-      "files": {
-        "height": "assets/surfaces/felt/height.png",
-        "normal": "assets/surfaces/felt/normal.png",
-        "meta": "assets/surfaces/felt/meta.json"
-      },
-      "dimensions": [
-        384,
-        384
-      ],
-      "depth": 0.7,
-      "roughness": 1.0,
-      "bytes": 305307,
-      "sha256": {
-        "height": "4c447a6e076fbc9720ab6033480d9c6b20c2651e2f420e4a3245479eb78c525f",
-        "normal": "ba9a702f66f555099bb8c3341e38484f893c278370d1d8e3702a635a1be25239"
-      }
-    },
-    "ice": {
-      "id": "ice",
-      "name": "Clouded Ice",
-      "category": "ice",
-      "description": "Smooth glassy ice with rolling melt swells, a few fracture lines and trapped bubbles.",
-      "generator": "tools/surface_procedural.py:ice@v1",
-      "seed": 1009,
-      "date": "2026-11-07",
-      "license": "procedural",
-      "commercial": true,
-      "n13_label_required": true,
-      "files": {
-        "height": "assets/surfaces/ice/height.png",
-        "normal": "assets/surfaces/ice/normal.png",
-        "meta": "assets/surfaces/ice/meta.json"
-      },
-      "dimensions": [
-        384,
-        384
-      ],
-      "depth": 1.0,
-      "roughness": 0.15,
-      "bytes": 197586,
-      "sha256": {
-        "height": "6674678756885aec5a3f4a276d50f04135d1583d192af5593de8e27d31fc2120",
-        "normal": "7a2ffbca72b9183f0897771e88fc7c5128274eddd90f2ed063ad78d163653db2"
-      }
-    },
     "knit_wool": {
       "id": "knit_wool",
       "name": "Knitted Wool",
       "category": "textile",
       "description": "Stockinette knit rows of chunky wool stitches with fibre fuzz.",
       "generator": "tools/surface_procedural.py:knit_wool@v1",
-      "seed": 1010,
+      "seed": 1008,
       "date": "2026-11-07",
       "license": "procedural",
       "commercial": true,
@@ -557,66 +473,10 @@
       ],
       "depth": 1.5,
       "roughness": 0.95,
-      "bytes": 403815,
+      "bytes": 404318,
       "sha256": {
-        "height": "05e14fafdb6b56b9c13914c6cd9eccff36023ef3e73bdf580efa8a650d044edb",
-        "normal": "fb49c76f139da8cc8afca59b683eb73878658d3bb87f1fdf2e2ef008ce684f67"
-      }
-    },
-    "lead": {
-      "id": "lead",
-      "name": "Soft Lead Sheet",
-      "category": "metal",
-      "description": "Soft, dented lead sheet crossed by hairline scratches.",
-      "generator": "tools/surface_procedural.py:lead@v1",
-      "seed": 1011,
-      "date": "2026-11-07",
-      "license": "procedural",
-      "commercial": true,
-      "n13_label_required": true,
-      "files": {
-        "height": "assets/surfaces/lead/height.png",
-        "normal": "assets/surfaces/lead/normal.png",
-        "meta": "assets/surfaces/lead/meta.json"
-      },
-      "dimensions": [
-        384,
-        384
-      ],
-      "depth": 0.9,
-      "roughness": 0.6,
-      "bytes": 224149,
-      "sha256": {
-        "height": "e71c58270344f0474bbc9fe0f18aa0886b5a01d3c67493c7d57a739ca0576a91",
-        "normal": "c01aa6b4a61c2b2527328fee8a28dd1d056598afad38f2bc199e8c98f31acbd3"
-      }
-    },
-    "linen": {
-      "id": "linen",
-      "name": "Slubbed Linen",
-      "category": "textile",
-      "description": "Plain-weave linen with uneven slubbed threads.",
-      "generator": "tools/surface_procedural.py:linen@v1",
-      "seed": 1012,
-      "date": "2026-11-07",
-      "license": "procedural",
-      "commercial": true,
-      "n13_label_required": true,
-      "files": {
-        "height": "assets/surfaces/linen/height.png",
-        "normal": "assets/surfaces/linen/normal.png",
-        "meta": "assets/surfaces/linen/meta.json"
-      },
-      "dimensions": [
-        384,
-        384
-      ],
-      "depth": 1.2,
-      "roughness": 0.85,
-      "bytes": 459583,
-      "sha256": {
-        "height": "732d30cbf0e6d9747f390e41dba18f9857527178612e8e7072ec92f19e55ff51",
-        "normal": "787d56db28ab296e49d03177103514e6b319209a8743c50b7e76188a3cdfa314"
+        "height": "d9ec1722520bd8f4e47a689b23eec884df117ff2c3b958cce5902ac060821508",
+        "normal": "6e9b5c48b3a983f1f44a35f914edcda87a86e460ed5e319809ca955587080adf"
       }
     },
     "pumice": {
@@ -625,7 +485,7 @@
       "category": "stone",
       "description": "Light volcanic stone riddled with large and small gas pits.",
       "generator": "tools/surface_procedural.py:pumice@v1",
-      "seed": 1013,
+      "seed": 1010,
       "date": "2026-11-07",
       "license": "procedural",
       "commercial": true,
@@ -641,10 +501,10 @@
       ],
       "depth": 1.5,
       "roughness": 0.95,
-      "bytes": 435836,
+      "bytes": 414681,
       "sha256": {
-        "height": "737648712736ff31d2178f707004bbc1c098a591fc00316ad527d2db32051fa7",
-        "normal": "555bb9f4655e92cea7d81a8d5f30296dc862db9728d1fa8a7dcfe999ddb14a5a"
+        "height": "bdbec1d076fcd9c3e459045b37b8a1e2065ae7f3e42913e846e8e8a0a63bcc4e",
+        "normal": "de236bf2f87d5df0ba4833f54510be3703d6bd6f460db4473d24196484d59b85"
       }
     },
     "rippled_sand": {
@@ -653,7 +513,7 @@
       "category": "earth",
       "description": "Wind ripples in fine sand with sharp crests and soft troughs.",
       "generator": "tools/surface_procedural.py:rippled_sand@v1",
-      "seed": 1014,
+      "seed": 1011,
       "date": "2026-11-07",
       "license": "procedural",
       "commercial": true,
@@ -669,10 +529,10 @@
       ],
       "depth": 1.4,
       "roughness": 0.8,
-      "bytes": 335423,
+      "bytes": 335543,
       "sha256": {
-        "height": "1de506073f4b56e7f11348af9c73992fb3c3b8bbe66e61ad257369c06bc6b029",
-        "normal": "a89e7a9e057060ab9d552d1b0dcfa41d95ee6e13cfb7a842c0ac6e1f08859dde"
+        "height": "4267492d1477e29a424b81f1eb13933f5904799538d972100913ba1c32202795",
+        "normal": "b30959520b63d85723392cfb1d566651a4a64a52ca2b4425a3aa7f535e4091e2"
       }
     },
     "rust": {
@@ -681,7 +541,7 @@
       "category": "metal",
       "description": "Corroded iron with blistered scale, pits and flaking patches.",
       "generator": "tools/surface_procedural.py:rust@v1",
-      "seed": 1015,
+      "seed": 1012,
       "date": "2026-11-07",
       "license": "procedural",
       "commercial": true,
@@ -697,10 +557,10 @@
       ],
       "depth": 1.6,
       "roughness": 0.95,
-      "bytes": 404675,
+      "bytes": 372739,
       "sha256": {
-        "height": "73c72dfcd3834a5015b14da1d65977cc2b7d6872a088f6e4f0e877d633764334",
-        "normal": "9ff41df98b21e0f4a9c63dfdc22050d0ef9354ff98f989202ef64b079cca623d"
+        "height": "624bf6911d679425bf9ed6652162833816a49512269b27bad0287f383ee50946",
+        "normal": "dbfdbcb9c5b6e8084b610f58c0fbbe1822c84b2f564c50dc50f6d705436681b7"
       }
     },
     "sandstone": {
@@ -709,7 +569,7 @@
       "category": "stone",
       "description": "Wind-worn sandstone with warped sedimentary strata, sandy grain and weathering pits.",
       "generator": "tools/surface_procedural.py:sandstone@v1",
-      "seed": 1016,
+      "seed": 1013,
       "date": "2026-11-07",
       "license": "procedural",
       "commercial": true,
@@ -725,10 +585,10 @@
       ],
       "depth": 1.2,
       "roughness": 0.85,
-      "bytes": 343322,
+      "bytes": 347237,
       "sha256": {
-        "height": "78a7cd444b2d1f0c3b0dc3276e1e6c3dab740207557461075e6bfc3085e94595",
-        "normal": "69d7a1a2d5adced02f411756241ffa9254e33448007d90847d2a86601305cfa0"
+        "height": "c075e1f8b314f1e5ddd7d7e0ec9a1cec6fdff1b4ef4aa1bed891cf8501ac9ebd",
+        "normal": "690e557fd3a8b24d9a20da562b014b7f43f9e6b803e18460293b300295c1113f"
       }
     },
     "slate": {
@@ -737,7 +597,7 @@
       "category": "stone",
       "description": "Dark cleaved slate plates with stepped flake edges and fine cleavage streaks.",
       "generator": "tools/surface_procedural.py:slate@v1",
-      "seed": 1017,
+      "seed": 1014,
       "date": "2026-11-07",
       "license": "procedural",
       "commercial": true,
@@ -753,38 +613,10 @@
       ],
       "depth": 1.5,
       "roughness": 0.55,
-      "bytes": 290125,
+      "bytes": 289836,
       "sha256": {
-        "height": "6e4ebf26dececc560677302d2c3fb5aed94366fd78c3e673cfa26d7f4b5982ea",
-        "normal": "293a7974ad2c80da1544b412fa03c7f7cf482d59074eaff962a4b086b0ea28bc"
-      }
-    },
-    "tooled_leather": {
-      "id": "tooled_leather",
-      "name": "Pebbled Leather",
-      "category": "leather",
-      "description": "Pebble-grain leather with deep crease lines.",
-      "generator": "tools/surface_procedural.py:tooled_leather@v1",
-      "seed": 1018,
-      "date": "2026-11-07",
-      "license": "procedural",
-      "commercial": true,
-      "n13_label_required": true,
-      "files": {
-        "height": "assets/surfaces/tooled_leather/height.png",
-        "normal": "assets/surfaces/tooled_leather/normal.png",
-        "meta": "assets/surfaces/tooled_leather/meta.json"
-      },
-      "dimensions": [
-        384,
-        384
-      ],
-      "depth": 1.3,
-      "roughness": 0.55,
-      "bytes": 425714,
-      "sha256": {
-        "height": "e89ef1867f0eb1973fc4e77a24919fc37ad3b91e35763111489550d6b29e3328",
-        "normal": "2f3a1ecfa49107037f6b44d523dbe840ad387750c7b76b2d126e9f8e076d94a3"
+        "height": "506933804d4bf733898ad26b7ff2224a113bf6adf849e087b48b48a992575430",
+        "normal": "bf002f48c229f27722679ef4af3790bfe0f98caab0b51282d04ede8472338de0"
       }
     },
     "wax": {
@@ -793,7 +625,7 @@
       "category": "wax",
       "description": "Smooth, slowly flowing melted wax with broad drips and swells.",
       "generator": "tools/surface_procedural.py:wax@v1",
-      "seed": 1019,
+      "seed": 1016,
       "date": "2026-11-07",
       "license": "procedural",
       "commercial": true,
@@ -809,14 +641,14 @@
       ],
       "depth": 0.8,
       "roughness": 0.3,
-      "bytes": 76280,
+      "bytes": 72211,
       "sha256": {
-        "height": "53937baf808b46ca2c7fc08b9c5e7ce3abc03858585c946646c387584bf3eba0",
-        "normal": "2cf5a0f1b42b5d5aa8ae78456084f1a3b5a235c0049663f4cf894f4613532fd3"
+        "height": "22e6d7c7f522a59d0999b23ce015901b9e6943c3366b03aae578ac62643cd136",
+        "normal": "c7291cb589b01f83b94a153264c8532db0ad231af904384cd0cfb9685efd4c40"
       }
     }
   },
-  "material_count": 29,
-  "total_disk_mb": 13.258,
+  "material_count": 23,
+  "total_disk_mb": 11.354,
   "budget_pass": true
 }

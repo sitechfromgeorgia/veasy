@@ -254,21 +254,6 @@ def cracked_earth(seed, n):
     return norm01(h)
 
 
-def ice(seed, n):
-    a = spectral(seed, n, 3.2, fmin=1, fmax=9, salt=41)
-    b = spectral(seed, n, 3.2, fmin=1, fmax=9, salt=42)
-    base = warp(spectral(seed, n, 3.0, fmin=1, fmax=7, salt=43), a, b, 40.0)
-    f1, f2, _ = worley(seed, n, 4, 1.0, salt=44)
-    wa = spectral(seed, n, 2.4, fmin=2, fmax=20, salt=45)
-    wb = spectral(seed, n, 2.4, fmin=2, fmax=20, salt=46)
-    fault = warp(f2 - f1, wa, wb, 26.0)
-    cracks = 1.0 - smoothstep(0.0, 2.2, fault)
-    f1b, _, _ = worley(seed, n, 22, 1.0, salt=47)
-    bubbles = smoothstep(7.0, 0.0, f1b) * (spectral(seed, n, 0.3, fmin=1, salt=48) > 0.78)
-    h = 0.75 * base - 0.45 * cracks + 0.25 * blur(bubbles.astype(np.float32), 1.0) * 3
-    return norm01(blur(h, 0.8))
-
-
 def bark(seed, n):
     w1 = spectral(seed, n, 2.4, sx=1.0, sy=1.0, fmin=1, fmax=12, salt=51)
     w2 = spectral(seed, n, 2.4, fmin=1, fmax=12, salt=52)
@@ -278,24 +263,6 @@ def bark(seed, n):
     fis = warp(norm01(ridged ** 3), w1, w2, 24.0)
     h = 0.45 * big + 0.55 * (1 - fis)
     h = h * (0.8 + 0.2 * spectral(seed, n, 1.2, fmin=20, salt=55))
-    return norm01(h)
-
-
-def felt(seed, n):
-    fibres = scratches(seed, n, 9000, 20, 0.0, spread=3.0, salt=61)
-    h = blur(fibres, 1.3) + 0.15 * spectral(seed, n, 0.8, fmin=40, salt=62)
-    h = h + 0.9 * spectral(seed, n, 2.6, fmin=2, fmax=18, salt=63)
-    return norm01(blur(h, 0.8))
-
-
-def linen(seed, n):
-    t = 64
-    sx = spectral(seed, n, 2.0, sx=14.0, sy=1.0, fmin=1, fmax=40, salt=71)
-    sy = spectral(seed, n, 2.0, sx=1.0, sy=14.0, fmin=1, fmax=40, salt=72)
-    thick_x = 0.8 + 0.4 * sx
-    thick_y = 0.8 + 0.4 * sy
-    h = weave(n, t, 1, thick_x, thick_y, gap=0.15)
-    h = h + 0.12 * spectral(seed, n, 1.0, fmin=30, salt=73)
     return norm01(h)
 
 
@@ -314,7 +281,7 @@ def brushed_steel(seed, n):
     g2 = spectral(seed, n, 1.0, sx=14.0, sy=1.0, fmin=2, salt=92)
     ph = spectral(seed, n, 3.0, fmin=1, fmax=4, salt=93)
     sc = scratches(seed, n, 60, 220, 0.0, spread=0.01, salt=94)
-    h = 0.5 * g1 + 0.35 * g2 + 0.2 * blur(sc, 0.6) * 3
+    h = 0.6 * g1 + 0.4 * g2 + 0.35 * blur(sc, 0.6) * 3
     return norm01(warp(h, ph, ph, 6.0))
 
 
@@ -324,18 +291,10 @@ def rust(seed, n):
     pit = spectral(seed, n, 1.1, fmin=12, fmax=140, salt=102)
     f1, _, _ = worley(seed, n, 30, 1.0, salt=103)
     crater = smoothstep(9.0, 0.0, f1) * (spectral(seed, n, 0.4, fmin=1, salt=104) > 0.7)
-    h = 0.5 * blis + 0.35 * pit * (0.4 + blis) - 0.5 * blur(crater.astype(np.float32), 1.2) * 3
+    h = 0.9 * blis + 0.3 * pit * (0.4 + blis) - 0.5 * blur(crater.astype(np.float32), 1.2) * 3
     flake = spectral(seed, n, 1.8, fmin=6, fmax=60, salt=105)
     h = h + 0.2 * (flake > 0.7) * flake
     return norm01(erode(norm01(h), 3, 0.05))
-
-
-def lead(seed, n):
-    low = spectral(seed, n, 3.0, fmin=1, fmax=8, salt=111)
-    sc = scratches(seed, n, 120, 50, 0.0, spread=3.1416, salt=112)
-    dents = spectral(seed, n, 2.0, fmin=6, fmax=40, salt=113)
-    h = 0.6 * low + 0.3 * dents - 0.12 * blur(sc, 0.6) * 3
-    return norm01(blur(h, 0.9))
 
 
 def wax(seed, n):
@@ -346,19 +305,6 @@ def wax(seed, n):
     ridge = 1.0 - np.abs(2 * warp(drips, a, b, 90.0) - 1)
     h = 0.6 * base + 0.5 * ridge ** 4 + 0.3 * spectral(seed, n, 4.0, fmin=1, fmax=4, salt=124)
     return norm01(blur(h, 2.2))
-
-
-def ceramic_glaze(seed, n):
-    orange = spectral(seed, n, 2.8, fmin=3, fmax=30, salt=131)
-    f1, f2, _ = worley(seed, n, 14, 1.0, salt=132)
-    wa = spectral(seed, n, 2.0, fmin=3, fmax=24, salt=133)
-    wb = spectral(seed, n, 2.0, fmin=3, fmax=24, salt=134)
-    gap = warp(f2 - f1, wa, wb, 16.0)
-    craze = 1.0 - smoothstep(0.0, 1.6, gap)
-    swell = spectral(seed, n, 3.4, fmin=1, fmax=5, salt=135)
-    pin = spectral(seed, n, 0.5, fmin=1, salt=136) > 0.9985
-    h = 0.55 * swell + 0.2 * orange - 0.3 * craze - 0.4 * blur(pin.astype(np.float32), 1.5) * 8
-    return norm01(blur(h, 0.7))
 
 
 def rippled_sand(seed, n):
@@ -372,26 +318,14 @@ def rippled_sand(seed, n):
     return norm01(h)
 
 
-def tooled_leather(seed, n):
-    f1, f2, ident = worley(seed, n, 36, 0.9, salt=151)
-    pebble = np.sqrt(np.clip(1.0 - (f1 / (n / 36 * 0.75)) ** 2, 0, 1))
-    pebble = pebble * (0.8 + 0.2 * cell_values(seed, 36, ident))
-    cr = spectral(seed, n, 1.8, fmin=2, fmax=40, salt=152)
-    creases = (1.0 - np.abs(2 * cr - 1)) ** 6
-    wa = spectral(seed, n, 2.4, fmin=1, fmax=8, salt=153)
-    h = pebble - 0.55 * creases
-    h = h + 0.25 * wa
-    return norm01(h)
-
-
 def cork(seed, n):
-    f1, f2, ident = worley(seed, n, 40, 1.0, salt=161)
+    f1, f2, ident = worley(seed, n, 30, 1.0, salt=161)
     chunk = cell_values(seed, 40, ident)
-    pores = spectral(seed, n, 0.5, fmin=1, salt=162) > 0.86
+    pores = spectral(seed, n, 0.5, fmin=1, salt=162) > 0.8
     pore = blur(pores.astype(np.float32), 1.6)
     f1b, _, _ = worley(seed, n, 55, 1.0, salt=163)
     pit = smoothstep(7.0, 1.0, f1b) * (spectral(seed, n, 0.3, fmin=1, salt=164) > 0.72)
-    h = 0.5 * chunk + 0.2 * smoothstep(0, 8, f2 - f1) - 0.7 * blur(pit.astype(np.float32), 1.0) * 2 - pore * 1.5
+    h = 0.5 * chunk + 0.2 * smoothstep(0, 8, f2 - f1) - 0.7 * blur(pit.astype(np.float32), 1.0) * 2 - pore * 3.0
     h = h + 0.15 * spectral(seed, n, 1.4, fmin=8, salt=165)
     return norm01(h)
 
@@ -418,9 +352,9 @@ def basket_weave(seed, n):
 
 def pumice(seed, n):
     base = spectral(seed, n, 2.4, fmin=2, fmax=24, salt=181)
-    f1, _, _ = worley(seed, n, 18, 1.0, salt=182)
+    f1, _, _ = worley(seed, n, 9, 1.0, salt=182)
     f2b, _, _ = worley(seed, n, 44, 1.0, salt=183)
-    big = smoothstep(16.0, 6.0, f1) * (spectral(seed, n, 0.3, fmin=1, salt=184) > 0.45)
+    big = smoothstep(28.0, 10.0, f1) * (spectral(seed, n, 0.3, fmin=1, salt=184) > 0.35)
     small = smoothstep(8.0, 2.0, f2b) * (spectral(seed, n, 0.3, fmin=1, salt=185) > 0.5)
     h = 0.6 * base + 0.3 * spectral(seed, n, 1.2, fmin=20, salt=186) - 1.1 * blur(big.astype(np.float32), 1.5) - 0.5 * blur(small.astype(np.float32), 1.0)
     return norm01(h)
@@ -461,39 +395,27 @@ MATERIALS: Dict[str, dict] = {
                       description="Wind-worn sandstone with warped sedimentary strata, sandy grain and weathering pits."),
     "cracked_earth": dict(fn=cracked_earth, name="Cracked Dry Earth", category="earth", depth=1.7, roughness=0.9,
                           description="Sun-baked clay in curling polygonal plates divided by deep drying cracks."),
-    "ice": dict(fn=ice, name="Clouded Ice", category="ice", depth=1.0, roughness=0.15,
-                description="Smooth glassy ice with rolling melt swells, a few fracture lines and trapped bubbles."),
     "bark": dict(fn=bark, name="Furrowed Bark", category="wood", depth=1.8, roughness=0.9,
                  description="Deep vertical bark furrows with warped, ridged plates."),
-    "felt": dict(fn=felt, name="Pressed Wool Felt", category="textile", depth=0.7, roughness=1.0,
-                 description="Dense matted wool fibres in a soft, uneven pressed mat."),
-    "linen": dict(fn=linen, name="Slubbed Linen", category="textile", depth=1.2, roughness=0.85,
-                  description="Plain-weave linen with uneven slubbed threads."),
-    "corrugated_card": dict(fn=corrugated_card, name="Corrugated Card", category="paper", depth=1.6, roughness=0.85,
+    "corrugated_card": dict(scale=0.8, fn=corrugated_card, name="Corrugated Card", category="paper", depth=1.6, roughness=0.85,
                             description="Cardboard flutes with paper fibre and soft crush marks."),
-    "brushed_steel": dict(fn=brushed_steel, name="Brushed Steel", category="metal", depth=0.6, roughness=0.35,
+    "brushed_steel": dict(scale=0.7, fn=brushed_steel, name="Brushed Steel", category="metal", depth=0.6, roughness=0.35,
                           description="Fine horizontal brushing lines with a few long scratches."),
     "rust": dict(fn=rust, name="Blistered Rust", category="metal", depth=1.6, roughness=0.95,
                  description="Corroded iron with blistered scale, pits and flaking patches."),
-    "lead": dict(fn=lead, name="Soft Lead Sheet", category="metal", depth=0.9, roughness=0.6,
-                 description="Soft, dented lead sheet crossed by hairline scratches."),
     "wax": dict(fn=wax, name="Melted Wax", category="wax", depth=0.8, roughness=0.3,
                 description="Smooth, slowly flowing melted wax with broad drips and swells."),
-    "ceramic_glaze": dict(fn=ceramic_glaze, name="Crazed Ceramic Glaze", category="ceramic", depth=0.9, roughness=0.2,
-                          description="Glossy glaze with an orange-peel swell, hairline crazing and a few pinholes."),
     "rippled_sand": dict(fn=rippled_sand, name="Rippled Sand", category="earth", depth=1.4, roughness=0.8,
                          description="Wind ripples in fine sand with sharp crests and soft troughs."),
-    "tooled_leather": dict(fn=tooled_leather, name="Pebbled Leather", category="leather", depth=1.3, roughness=0.55,
-                           description="Pebble-grain leather with deep crease lines."),
-    "cork": dict(fn=cork, name="Agglomerated Cork", category="organic", depth=1.1, roughness=0.9,
+    "cork": dict(scale=0.8, fn=cork, name="Agglomerated Cork", category="organic", depth=1.1, roughness=0.9,
                  description="Pressed cork granules with scattered pits and pores."),
-    "basket_weave": dict(fn=basket_weave, name="Basket Weave", category="textile", depth=1.6, roughness=0.8,
+    "basket_weave": dict(scale=0.6, fn=basket_weave, name="Basket Weave", category="textile", depth=1.6, roughness=0.8,
                          description="Woven reed slats in a checkerboard basket pattern."),
     "pumice": dict(fn=pumice, name="Pitted Pumice", category="stone", depth=1.5, roughness=0.95,
                    description="Light volcanic stone riddled with large and small gas pits."),
-    "brain_coral": dict(fn=brain_coral, name="Meandering Coral", category="organic", depth=1.4, roughness=0.7,
+    "brain_coral": dict(scale=0.8, fn=brain_coral, name="Meandering Coral", category="organic", depth=1.4, roughness=0.7,
                         description="Labyrinth ridges grown by reaction-diffusion, like brain coral."),
-    "knit_wool": dict(fn=knit_wool, name="Knitted Wool", category="textile", depth=1.5, roughness=0.95,
+    "knit_wool": dict(scale=0.6, fn=knit_wool, name="Knitted Wool", category="textile", depth=1.5, roughness=0.95,
                       description="Stockinette knit rows of chunky wool stitches with fibre fuzz."),
 }
 

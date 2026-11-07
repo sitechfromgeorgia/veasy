@@ -1,7 +1,7 @@
 {
   "material": "brushed_steel",
   "light": "rake",
-  "scale": 1.0,
+  "scale": 0.7,
   "depth": 0.6,
   "roughness": 0.35,
   "intensity": 1.0
