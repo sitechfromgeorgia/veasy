@@ -1,0 +1,100 @@
+<!doctype html>
+<!-- plates/matter: unit blocks with mass. The page only reads cache/sim.bin (baked by bake.mjs) and draws it. -->
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+<script type="importmap">{"imports": {"three": "/node_modules/three/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from "three";
+import { getCameraFrame } from "./camera.mjs";
+import { computeGroupBounds, GROUP_TONES } from "./forms.mjs";
+import { calculateAnchors } from "./anchors.mjs";
+
+const HEADER = 32, FLOATS = 7;
+let renderer, scene, camera, ctx, meta, data, blocks, assignments, bounds, count, frames, form;
+const flat = (f) => { // block positions of frame f as [x, y, z] rows
+  const out = new Array(count);
+  for (let i = 0; i < count; i++) { const o = (f * count + i) * FLOATS; out[i] = [data[o], data[o + 1], data[o + 2]]; }
+  return out;
+};
+const frameAt = (t) => Math.max(0, Math.min(frames - 1, Math.round(t * ctx.fps)));
+
+window.setup = async (spec, c) => {
+  ctx = c;
+  meta = await (await fetch("/matter/cache/meta.json")).json();
+  const buf = await (await fetch("/matter/cache/sim.bin")).arrayBuffer();
+  const head = new DataView(buf);
+  if (head.getUint32(0, false) !== 0x564d5452) throw new Error("not a VMTR file");
+  frames = head.getUint32(8, true); count = head.getUint32(12, true); form = meta.form;
+  data = new Float32Array(buf, HEADER, frames * count * FLOATS);
+
+  assignments = new Array(count);
+  let at = 0;
+  meta.groups.forEach((g, gi) => {
+    for (let k = 0; k < g.count && at < count; k++, at++) assignments[at] = { groupId: g.id, groupIndex: gi };
+  });
+  while (at < count) assignments[at++] = { groupId: meta.groups[meta.groups.length - 1].id, groupIndex: meta.groups.length - 1 };
+  bounds = computeGroupBounds(flat(frames - 1), assignments);
+  // the split camera looks for "main" and "share": alias group 0 and 1
+  if (meta.groups.length > 1) { bounds.groups.main ||= bounds.groups[meta.groups[0].id]; bounds.groups.share ||= bounds.groups[meta.groups[1].id]; }
+
+  renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(1);
+  renderer.setSize(c.width, c.height);
+  document.body.appendChild(renderer.domElement);
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x000000);
+  scene.fog = new THREE.Fog(0x000000, 14, 46);
+  camera = new THREE.PerspectiveCamera(38, c.width / c.height, 0.1, 120);
+  const ex = Number(spec.exposure ?? 0.4); // tone only: a dim master is also what flash safety wants (flash.py)
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 0.9 * ex));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2 * ex);
+  sun.position.set(-5, 9, 4);
+  scene.add(sun);
+
+  const table = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+  table.rotation.x = -Math.PI / 2;
+  scene.add(table);
+
+  const s = meta.blockSize * 0.94;
+  blocks = new THREE.InstancedMesh(new THREE.BoxGeometry(s, s, s), new THREE.MeshLambertMaterial({ color: 0xffffff }), count);
+  const col = new THREE.Color();
+  // one group: bands of a tenth of the blocks alternate in tone, so a climb past a tall column can be seen
+  const banded = meta.groups.length === 1 && form === "too-tall";
+  for (let i = 0; i < count; i++) {
+    const tone = banded ? GROUP_TONES[Math.floor((i * 10) / count) % 2 ? 2 : 0] : GROUP_TONES[assignments[i].groupIndex % GROUP_TONES.length];
+    blocks.setColorAt(i, col.setHex(tone));
+  }
+  blocks.frustumCulled = false; // the instances move far from where frame 0 put them: a cached bounding sphere would cull them
+  scene.add(blocks);
+};
+
+function pose(t) {
+  const f = frameAt(t);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
+  for (let i = 0; i < count; i++) {
+    const o = (f * count + i) * FLOATS;
+    p.set(data[o], data[o + 1], data[o + 2]);
+    q.set(data[o + 3], data[o + 4], data[o + 5], data[o + 6]);
+    blocks.setMatrixAt(i, m.compose(p, q, one));
+  }
+  blocks.instanceMatrix.needsUpdate = true;
+  const cam = getCameraFrame(form, t, ctx.seconds, bounds);
+  camera.fov = cam.fov; camera.updateProjectionMatrix();
+  camera.position.set(...cam.position);
+  camera.lookAt(...cam.target);
+  camera.updateMatrixWorld(true);
+  const away = Math.hypot(cam.position[0] - cam.target[0], cam.position[1] - cam.target[1], cam.position[2] - cam.target[2]);
+  scene.fog.near = away * 1.1; scene.fog.far = away * 3.2; // depth falloff that scales with the shot, so a wide shot isn't fogged to black
+}
+
+window.step = (t) => { pose(t); renderer.render(scene, camera); };
+
+window.anchors = (t) => {
+  const f = frameAt(t);
+  const out = calculateAnchors(flat(f), assignments, camera, ctx.width, ctx.height, { form, restBounds: bounds });
+  if (meta.groups.length > 1) { // one dot per named share, so the film's DOM can sit on it
+    meta.groups.forEach((g) => { out[`share:${g.id}`] = out[`dot:${g.id}`]; });
+  }
+  return out;
+};
+</script>
