@@ -1,19 +1,19 @@
 // The part kit: what a set is made of. A part is a function of its JSON (`at`, `turn`, `scale` place it) and returns
 // cards. A part names a thing, never a place: there is a tunnel flat, never a particular museum.
 import * as THREE from "three";
+import { createStandeeFromDrawing } from "./extruder.mjs";
+import { createPaperMaterial } from "./kit.mjs";
 import { arc, archOutline, block, card, group, rect, rings, strip } from "./paper.mjs";
 
-function checkerFloor({ at, x = [-4, 4], z = [-12, 8], size = 0.9, tones = [0.46, 0.34] }, { random }) {
-  const parts = [block(x[0], -0.1, x[1], 0, z[0], z[1], { tone: 0.06 })];
-  const rows = Math.round((z[1] - z[0]) / size), cols = Math.round((x[1] - x[0]) / size);
+// The boards of the stage: wide strips across it, every other one lapped over its neighbours, its cut edge to the camera.
+function boards({ at, x = [-4, 4], z = [-12, 8], size = 1.15, tones = [0.46, 0.36], lift = 0.05 }, { random }) {
+  const parts = [block(x[0], -0.1, x[1], -0.02, z[0], z[1], { tone: 0.06 })];
+  const rows = Math.round((z[1] - z[0]) / size);
   for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) { // sheets laid by hand, each lapped over its neighbours
-      const half = size / 2 + 0.03, top = (r + c) % 2, tone = tones[top] + (random() - 0.5) * 0.06;
-      const tile = card(rect(-half, -half, half, half), { tone, depth: 0.01, bevel: 0.01, wobble: 0.014, warp: 0.004, spin: 0.05 });
-      tile.rotation.x = Math.PI / 2;
-      tile.position.set(x[0] + (c + 0.5) * size + (random() - 0.5) * 0.03, top ? 0.052 : 0.03, z[0] + (r + 0.5) * size + (random() - 0.5) * 0.03);
-      parts.push(tile);
-    }
+    const top = r % 2, tone = tones[top] + (random() - 0.5) * 0.05, z0 = z[0] + r * size, shift = (random() - 0.5) * 0.12;
+    const overlap = top ? 0.1 : 0;
+    parts.push(card(rect(x[0] + shift, -0.02, x[1] + shift, top ? lift : lift * 0.3), { tone: 0.86, edge: tone, edgeGlow: 0, z: z0 - overlap,
+      depth: size + overlap * 2, bevel: 0.004, wobble: 0.012, warp: 0, spin: 0.006 }));
   }
   return group(parts, { at });
 }
@@ -29,7 +29,7 @@ function columnCards({ x = 0, base = 0, height = 3.2, r = 0.2, tone = 0.7, z = 0
     facet.position.set(x + r * Math.cos(step / 2) * Math.sin(a), 0, z + r * Math.cos(step / 2) * Math.cos(a));
     parts.push(facet);
   }
-  const collar = (y, list) => group(rings(list, { tone: tone + 0.06, step: 0.03, sides: 22 }), { at: [x, y, z] });
+  const collar = (y, list) => group(rings(list, { tone: tone + 0.06, step: 0.06, sides: 18 }), { at: [x, y, z] });
   parts.push(collar(base, [[0, r * 1.5], [0.12, r * 1.5], [0.14, r * 1.26], [0.3, r * 1.08]]));
   parts.push(collar(top - 0.34, [[0, r * 1.0], [0.16, r * 1.14], [0.22, r * 1.46], [0.34, r * 1.62]]));
   return parts;
@@ -40,13 +40,6 @@ function archFlat({ at, width = 6, height = 6, open = 1.8, spring = 2.5, tone = 
   const y = spring + open / 2, z = 0.03;
   const outline = [[-width / 2, 0], [-open / 2, 0], ...arc(0, spring, open / 2, 180, 0, 26), [open / 2, 0], [width / 2, 0], [width / 2, height], [-width / 2, height]];
   const parts = [card(outline, { tone, depth: 0.05 })]; // one outline: a hole that touches the edge breaks the triangulation
-  const foot = [[-width / 2, 0]]; // the folded foot it stands on, pinked by the shears
-  for (let px = -width / 2; px < width / 2 - 0.01; px += 0.14) foot.push([px + 0.07, 0.17], [px + 0.14, 0.07]);
-  foot.push([width / 2, 0]);
-  const fold = card(foot.reverse(), { tone: tone - 0.06, depth: 0.012, bevel: 0.004, wobble: 0.004, warp: 0 });
-  fold.rotation.x = Math.PI / 2;
-  fold.position.set(0, 0.075, 0.05);
-  parts.push(fold);
   if (ring) {
     const outer = open / 2 + 0.2;
     parts.push(card([...arc(0, spring, outer, 0, 180, 26), ...arc(0, spring, open / 2, 180, 0, 26)],
@@ -96,6 +89,12 @@ function painting({ at, turn, w = 1, h = 1.3, kind = 0, tone = 0.72 }) {
     parts.push(card([[-w * 0.4, -h * 0.4], [-w * 0.08, -h * 0.4], [w * 0.2, h * 0.38], [-w * 0.1, h * 0.38]], { tone: 0.82, z, wobble: 0.006, depth: 0.02 }));
     parts.push(card(arc(w * 0.18, -h * 0.14, w * 0.2, 0, 360, 22).slice(0, -1), { tone: 0.5, z: z + 0.03, wobble: 0.006, depth: 0.02 }));
   }
+  for (const [sx, sy] of [[-1, 1], [1, 1], [1, -1], [-1, -1]]) { // masking tape over the corners
+    const piece = card(rect(-0.13, -0.035, 0.13, 0.035), { tone: 0.8, edge: 0.9, edgeGlow: 0.1, z: 0.09, depth: 0.006, bevel: 0.002, wobble: 0.008, warp: 0, spin: 0.3 });
+    piece.position.set(sx * (w / 2 + b * 0.5), sy * (h / 2 + b * 0.5), 0);
+    piece.rotation.z = sx * sy * -Math.PI / 4;
+    parts.push(piece);
+  }
   return group(parts, { at, turn });
 }
 
@@ -103,7 +102,7 @@ const jarProfile = [[0.06, 0], [0.16, 0.02], [0.08, 0.1], [0.26, 0.42], [0.31, 0
 
 function amphora({ at, height = 1.1, tone = 0.72 }) {
   const k = height / 1.26, profile = jarProfile.map(([x, y]) => [y * k, x * k]);
-  const parts = rings(profile, { tone, stripes: [[0.46 * k, 0.5 * k], [0.62 * k, 0.74 * k], [0.86 * k, 0.9 * k]] });
+  const parts = rings(profile, { tone: 0.6, step: 0.056, stripes: [[0.62 * k, 0.74 * k], [0.9 * k, 0.97 * k]] });
   for (const side of [1, -1]) { // handles: two cut loops, laminated
     const p = arc(side * 0.22 * k, 1.03 * k, 0.15 * k, side > 0 ? 100 : 80, side > 0 ? -70 : 250, 12);
     parts.push(strip(p, 0.05, { tone, depth: 0.03, z: -0.02 }), strip(p, 0.034, { tone: tone + 0.1, depth: 0.012, z: 0.02 }));
@@ -118,7 +117,7 @@ function bust({ at, height = 1, tone = 0.7 }) {
     [0.56, 0.08, 0.08], [0.64, 0.08, 0.085], [0.68, 0.13, 0.15], [0.76, 0.165, 0.19], [0.86, 0.165, 0.19], [0.94, 0.12, 0.14], [0.99, 0.05, 0.06]]
     .map(([y, a, b]) => [y * k, a * k, b * k]);
   const nose = block(-0.02 * k, 0.74 * k, 0.02 * k, 0.83 * k, 0.17 * k, 0.21 * k, { tone: tone + 0.1 });
-  return group([rings(profile, { tone, step: 0.021, sides: 24 }), nose], { at });
+  return group([rings(profile, { tone: 0.6, step: 0.04, sides: 20 }), nose], { at });
 }
 
 function pedestal({ at, width = 0.8, height = 1, depth = 0.8, tone = 0.46 }) {
@@ -170,12 +169,12 @@ function lightWall({ at, width = 8, height = 7, windows = 3, w = 1, spring = 3, 
     const x = (i - (windows - 1) / 2) * (w + gap);
     holes.push(archOutline(x, sill, w, spring));
     for (let k = 1; k <= 3; k++) { // bars
-      parts.push(card(rect(x - w / 2, sill + spring * k / 3 - 0.012, x + w / 2, sill + spring * k / 3 + 0.012), { tone: 0.2, z: 0.012, depth: 0.012, wobble: 0 }));
+      parts.push(card(rect(x - w / 2, sill + spring * k / 3 - 0.022, x + w / 2, sill + spring * k / 3 + 0.022), { tone: 0.3, z: -0.16, depth: 0.03, wobble: 0.006, warp: 0, bevel: 0.006 }));
     }
-    parts.push(card(rect(x - 0.012, sill, x + 0.012, sill + spring + w / 2), { tone: 0.2, z: 0.012, depth: 0.012, wobble: 0 }));
+    parts.push(card(rect(x - 0.022, sill, x + 0.022, sill + spring + w / 2), { tone: 0.3, z: -0.1, depth: 0.03, wobble: 0.006, warp: 0, bevel: 0.006 }));
   }
   parts.push(card(rect(-width / 2, 0, width / 2, height), { holes, tone, depth: 0.04 }));
-  parts.push(card(rect(-width / 2, 0, width / 2, height), { tone: 0.9, glow, z: -0.5, wobble: 0 }));
+  parts.push(card(rect(-width / 2, 0, width / 2, height), { tone: 0.9, glow, z: -0.7, wobble: 0, bevel: 0, warp: 0 }));
   return group(parts, { at });
 }
 
@@ -196,7 +195,16 @@ function bench({ at, turn, width = 1.4, tone = 0.5 }) {
   ], { at, turn });
 }
 
+// Any drawing of assets/drawings, standing: a dark card cut around it, the lines in pale card on its face.
+function standee({ at, turn, drawing, height = 1.2, tone = 0x2e2e2e, base = "disc" }, { drawings }) {
+  if (!drawings[drawing]) throw new Error(`no drawing "${drawing}"`);
+  const figure = createStandeeFromDrawing(drawings[drawing], { standardHeight: height, cardStyle: "cutout", baseType: base,
+    margin: 0.05, baseRadius: 0.3, paperThickness: 0.04, cardMaterial: createPaperMaterial(tone), baseMaterial: createPaperMaterial(0x6e6e6e) });
+  return group([figure], { at, turn });
+}
+
 export const PARTS = {
-  "checker-floor": checkerFloor, "arch-flat": archFlat, painting, amphora, bust, pedestal, rope, "side-wall": sideWall,
+  standee,
+  boards, "arch-flat": archFlat, painting, amphora, bust, pedestal, rope, "side-wall": sideWall,
   "light-wall": lightWall, ceiling, bench,
 };

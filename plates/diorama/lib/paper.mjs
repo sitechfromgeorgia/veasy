@@ -41,16 +41,17 @@ function handCut(points, wobble) { // a knife wavers on a long edge and misses a
 
 function paint(geometry, tone, edge, glow, edgeGlow) { // attribute ink: linear tone, then glow
   const count = geometry.attributes.position.count;
-  const ink = new Float32Array(count * 2);
+  const ink = new Float32Array(count * 3), sheet = random(); // every sheet has its own tooth
   const groups = geometry.groups.length ? geometry.groups : [{ start: 0, count, materialIndex: 0 }];
   for (const g of groups) {
     const cut = g.materialIndex === 1, value = linear(cut ? edge : tone);
     for (let i = g.start; i < g.start + g.count; i++) {
-      ink[i * 2] = value;
-      ink[i * 2 + 1] = cut ? edgeGlow : glow;
+      ink[i * 3] = value;
+      ink[i * 3 + 1] = cut ? edgeGlow : glow;
+      ink[i * 3 + 2] = sheet;
     }
   }
-  geometry.setAttribute("ink", new THREE.BufferAttribute(ink, 2));
+  geometry.setAttribute("ink", new THREE.BufferAttribute(ink, 3));
   geometry.clearGroups();
   return geometry;
 }
@@ -73,8 +74,10 @@ function warp(geometry, amount) {
 // Options: holes, z (the back of the card), depth, tone, edge, glow (lit from within: a window, a sky), wobble, bevel.
 // The bevel is the cut edge seen from the front: a facet that takes the light on one side and loses it on the other.
 export function card(outline, o = {}) {
-  const { holes = [], z = 0, depth = 0.04, tone = 0.6, edge = Math.min(0.95, tone + 0.4), edgeGlow = 0.2, glow = 0, wobble = 0.022 } = o;
-  const { bevel = wobble ? 0.017 : 0.006, warp: bend = wobble ? 0.018 : 0, spin = wobble ? 0.008 : 0 } = o;
+  const { holes = [], z = 0, depth = 0.05, tone = 0.6, edge = Math.min(0.96, tone + 0.46), edgeGlow = 0.24, glow = 0, wobble = 0.024 } = o;
+  const xs = outline.map((p) => p[0]), ys = outline.map((p) => p[1]);
+  const narrow = Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  const { bevel = wobble ? Math.min(0.028, narrow * 0.09) : 0.006, warp: bend = wobble ? 0.018 : 0, spin = wobble ? 0.008 : 0 } = o;
   const toPoints = (pts) => (wobble ? handCut(pts, wobble) : pts).map(([x, y]) => new THREE.Vector2(x, y));
   const shape = new THREE.Shape(toPoints(outline));
   for (const hole of holes) shape.holes.push(new THREE.Path(toPoints(hole)));
@@ -106,20 +109,22 @@ export function strip(points, width, o = {}) {
   return card([...right, ...left], { wobble: 0, bevel: 0, ...o });
 }
 
-// A round thing as a laser-cut stack: discs of board, one on the next. profile: [[y, radius], ...], or [y, rx, rz].
+// A round thing as a stack of a few thick discs of board, glued by hand: none quite over the last, each with its pale
+// cut edge. profile: [[y, radius], ...], or [y, rx, rz].
 export function rings(profile, o = {}) {
-  const { step = 0.024, squash = 1, sides = 30, tone = 0.7, stripes = [] } = o;
+  const { step = 0.085, squash = 1, sides = 26, tone = 0.7, stripes = [] } = o;
   const top = profile[profile.length - 1][0], out = [];
   for (let y = profile[0][0]; y < top; y += step) {
     let i = 0;
     while (i < profile.length - 2 && profile[i + 1][0] <= y) i++;
     const [y0, a0, b0 = a0 * squash] = profile[i], [y1, a1, b1 = a1 * squash] = profile[i + 1];
-    const f = (y - y0) / (y1 - y0), ease = f * f * (3 - 2 * f), rx = a0 + (a1 - a0) * ease, rz = b0 + (b1 - b0) * ease;
-    const painted = stripes.some(([from, to]) => y >= from && y < to);
-    const ring = card(arc(0, 0, rx, 0, 360, sides, rz).slice(0, -1), { tone: painted ? 0.16 : tone + (random() - 0.5) * 0.08,
-      edge: painted ? 0.24 : tone + (random() - 0.5) * 0.1, edgeGlow: 0, depth: step * 0.72, bevel: 0, wobble: 0.003, warp: 0 });
+    const f = (y + step / 2 - y0) / (y1 - y0), ease = Math.min(1, f), rx = a0 + (a1 - a0) * ease, rz = b0 + (b1 - b0) * ease;
+    const painted = stripes.some(([from, to]) => y + step / 2 >= from && y + step / 2 < to);
+    const face = painted ? 0.18 : tone + (random() - 0.5) * 0.06;
+    const ring = card(arc(0, 0, rx, 0, 360, sides, rz).slice(0, -1), { tone: face, edge: painted ? 0.42 : Math.min(0.96, face + 0.26),
+      edgeGlow: painted ? 0.04 : 0.14, depth: step * 0.8, bevel: 0.005, wobble: 0.012, warp: 0, spin: 0 });
     ring.rotation.x = -Math.PI / 2;
-    ring.position.y = y;
+    ring.position.set((random() - 0.5) * 0.016, y, (random() - 0.5) * 0.016);
     out.push(ring);
   }
   return out;
@@ -134,13 +139,27 @@ export function group(parts, { at, turn, scale } = {}) {
   return g;
 }
 
+function faceFront(geometry) { // flat art: SVG winds either way, and only front faces are drawn
+  const p = geometry.attributes.position, n = geometry.attributes.normal;
+  for (let i = 0; i + 2 < p.count; i += 3) {
+    const area = (p.getX(i + 1) - p.getX(i)) * (p.getY(i + 2) - p.getY(i)) - (p.getX(i + 2) - p.getX(i)) * (p.getY(i + 1) - p.getY(i));
+    if (area < 0) {
+      const [x, y, z] = [p.getX(i + 1), p.getY(i + 1), p.getZ(i + 1)];
+      p.setXYZ(i + 1, p.getX(i + 2), p.getY(i + 2), p.getZ(i + 2));
+      p.setXYZ(i + 2, x, y, z);
+    }
+  }
+  for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 0, 1);
+}
+
 function fromMaterial(mesh) { // a mesh of the kit or the extruder: its Lambert tones become the card's attributes
   const geometry = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+  if (mesh.userData.flat) faceFront(geometry);
   const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
   const c = material.color, grey = (c.r + c.g + c.b) / 3;
-  const ink = new Float32Array(geometry.attributes.position.count * 2);
-  for (let i = 0; i < ink.length; i += 2) ink[i] = grey;
-  geometry.setAttribute("ink", new THREE.BufferAttribute(ink, 2));
+  const ink = new Float32Array(geometry.attributes.position.count * 3);
+  for (let i = 0; i < ink.length; i += 3) ink[i] = grey;
+  geometry.setAttribute("ink", new THREE.BufferAttribute(ink, 3));
   return geometry;
 }
 

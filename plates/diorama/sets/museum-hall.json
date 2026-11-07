@@ -12,18 +12,17 @@
   "angle": 21,
   "power": 2.2,
   "fill": 0.13,
-  "fog": [5, 17],
-  "fogTone": 0.2,
+  "fog": [6, 20],
+  "fogTone": 0.16,
   "pool": 0.5
  },
  "anchors": {
   "exhibit": [0, 2.1, -1.4]
  },
  "parts": [{
-   "part": "checker-floor",
-   "x": [-2.7, 2.7],
-   "z": [-10.8, 10.8],
-   "size": 0.9
+   "part": "boards",
+   "x": [-3.4, 3.4],
+   "z": [-10.35, 11.5]
   },
   {
    "part": "ceiling",
@@ -39,7 +38,9 @@
    "w": 1.1,
    "spring": 3.1,
    "height": 9,
-   "width": 10
+   "width": 10,
+   "glow": 2.2,
+   "tone": 0.34
   },
   {
    "part": "arch-flat",

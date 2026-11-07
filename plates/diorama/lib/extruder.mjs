@@ -263,6 +263,37 @@ export function createPaperCardShape(cardWidth, cardHeight, baseHeight, tabWidth
 // ============================================================================
 
 /**
+ * A card cut around the drawing, as a toy theatre's actor is: the convex hull of its points grown by a margin, with
+ * the mounting tab. A hull is always one simple outline, so no drawing can break it.
+ *
+ * @param {Array<[number, number]>} points Drawing points in card space
+ * @param {number} margin Paper left around the drawing
+ * @param {[number, number]} tab Half width of the tab and the y of its foot
+ * @returns {THREE.Shape}
+ */
+export function createCutoutShape(points, margin, [tabHalf, tabFoot]) {
+  const grown = [[-tabHalf, tabFoot], [tabHalf, tabFoot]];
+  for (const [x, y] of points) {
+    for (let i = 0; i < 12; i++) {
+      const a = i * Math.PI / 6;
+      grown.push([x + margin * Math.cos(a), y + margin * Math.sin(a)]);
+    }
+  }
+  grown.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const half = (list) => {
+    const hull = [];
+    for (const p of list) {
+      while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], p) <= 0) hull.pop();
+      hull.push(p);
+    }
+    return hull.slice(0, -1);
+  };
+  const hull = [...half(grown), ...half([...grown].reverse())];
+  return new THREE.Shape(hull.map(([x, y]) => new THREE.Vector2(x, y)));
+}
+
+/**
  * Builds the freestanding paper foot/pedestal with a physical vertical mounting slot.
  *
  * @param {number} cardWidth Width of the standee card
@@ -447,7 +478,7 @@ export function buildStandeeArtworkGeometry(paths, bounds, scale, baseHeight, ma
     else if (isAccent) mat = materials.accent;
 
     // 1. Closed Filled Shapes
-    if (style.fill && style.fill !== "none") {
+    if (rawFill && rawFill !== "none") { // SVG fills black by default, but these drawings mean line unless they say fill
       const shapes = SVGLoader.createShapes(p);
       for (const sh of shapes) {
         const pts = sh.getPoints();
@@ -483,6 +514,7 @@ export function buildStandeeArtworkGeometry(paths, bounds, scale, baseHeight, ma
         if (!hasNaN) {
           geom.computeVertexNormals();
           const mesh = new THREE.Mesh(geom, mat);
+          mesh.userData.flat = true;
           mesh.castShadow = false;
           mesh.receiveShadow = false;
           artGroup.add(mesh);
@@ -529,6 +561,7 @@ export function buildStandeeArtworkGeometry(paths, bounds, scale, baseHeight, ma
           if (!hasNaN) {
             sGeom.computeVertexNormals();
             const strokeMesh = new THREE.Mesh(sGeom, mat);
+            strokeMesh.userData.flat = true;
             strokeMesh.castShadow = false;
             strokeMesh.receiveShadow = false;
             artGroup.add(strokeMesh);
@@ -620,10 +653,19 @@ export function createStandeeFromDrawing(drawingData, options = {}) {
   group.add(pedestal);
 
   // 5. Extruded Paper Backing Card with Integrated Mounting Tab
-  const cardShape = createPaperCardShape(cardWidth, cardHeight, baseHeight, tabWidth, slotDepth, {
-    cornerRadius: options.cornerRadius,
-    cardStyle: options.cardStyle
-  });
+  const cxSvg = (bounds.minX + bounds.maxX) / 2;
+  const cardShape = options.cardStyle === "cutout"
+    ? createCutoutShape(
+      parsed.paths.flatMap((p) => p.subPaths.flatMap((sub) => sub.getPoints().map((pt) => [
+        (pt.x - cxSvg) * scale, baseHeight + margin + (bounds.maxY - pt.y) * scale
+      ]))),
+      margin,
+      [tabWidth / 2, baseHeight - slotDepth + 0.005]
+    )
+    : createPaperCardShape(cardWidth, cardHeight, baseHeight, tabWidth, slotDepth, {
+      cornerRadius: options.cornerRadius,
+      cardStyle: options.cardStyle
+    });
 
   const cardGeom = new THREE.ExtrudeGeometry(cardShape, {
     depth: paperThickness,

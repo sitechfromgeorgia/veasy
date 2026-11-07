@@ -7,12 +7,12 @@ import { mergePaper, seedPaper } from "./paper.mjs";
 import { PARTS } from "./parts.mjs";
 
 const VERTEX = /* glsl */ `
-in vec2 ink;
+in vec3 ink;
 uniform mat4 lightMatrix;
 uniform vec3 keyAt;
 uniform vec3 fillFrom;
 uniform float fill, keyPower, fogNear, fogFar;
-out float vTone, vGlow, vKey, vAmbient, vFog;
+out float vTone, vGlow, vKey, vAmbient, vFog, vRough;
 out vec4 vLight;
 out vec2 vPaper;
 void main() {
@@ -22,7 +22,8 @@ void main() {
   vKey = max(dot(normal, toKey), 0.0) * keyPower;
   vAmbient = fill * (0.6 + 0.4 * dot(normal, fillFrom));
   vLight = lightMatrix * vec4(position + normal * 0.012, 1.0);
-  vPaper = vec2(position.x + position.z * 0.61, position.y + position.z * 0.83) * 0.42;
+  vRough = 0.5 + 0.9 * fract(ink.z * 7.0);
+  vPaper = vec2(position.x + position.z * 0.61, position.y + position.z * 0.83) * (0.3 + 0.24 * ink.z) + ink.z * vec2(13.0, 7.0);
   vec4 view = modelViewMatrix * vec4(position, 1.0);
   vFog = 1.0 - clamp((-view.z - fogNear) / (fogFar - fogNear), 0.0, 1.0);
   gl_Position = projectionMatrix * view;
@@ -34,7 +35,7 @@ precision highp sampler2DShadow;
 uniform sampler2DShadow shade;
 uniform sampler2D grain;
 uniform float poolEdge, soft, fogTone;
-in float vTone, vGlow, vKey, vAmbient, vFog;
+in float vTone, vGlow, vKey, vAmbient, vFog, vRough;
 in vec4 vLight;
 in vec2 vPaper;
 out vec4 frag;
@@ -48,7 +49,7 @@ void main() {
       + texture(shade, vec3(lit.xy + vec2(-soft, -soft * 0.4), z)) + texture(shade, vec3(lit.xy + vec2(soft * 0.4, -soft), z)));
   }
   float tooth = texture(grain, vPaper).r; // the sheet's tooth shows in the light that rakes it, far less in the shade
-  float tone = vTone * (direct * (0.45 + 1.1 * tooth) + vAmbient * (0.8 + 0.4 * tooth) + vGlow);
+  float tone = vTone * (direct * (1.0 + (tooth - 0.5) * vRough) + vAmbient * (0.8 + 0.4 * tooth) + vGlow);
   frag = vec4(vec3(sqrt(mix(fogTone, tone, vFog))), 1.0); // a quick gamma: a plate is tone
 }`;
 
@@ -92,7 +93,7 @@ function grainTexture(random) { // the tooth of a rough board: soft blobs at thr
 }
 
 function bakeShadow(renderer, mesh, s) { // the one render of the light's view; the material reads its depth from now on
-  const { key = [-3.5, 15, 6], aim = [0, 1, -1], angle = 26, map = 2048 } = s;
+  const { key = [-3.5, 15, 6], aim = [0, 1, -1], angle = 26, map = 4096 } = s;
   const eye = new THREE.PerspectiveCamera(angle * 2, 1, s.shadowNear ?? 2, s.shadowFar ?? 40);
   eye.position.set(...key);
   eye.lookAt(...aim);
@@ -134,7 +135,7 @@ export function buildStage(spec, { renderer, random, drawings }) {
     uniforms: {
       lightMatrix: { value: shadow.matrix }, keyAt: { value: key }, keyPower: { value: s.power ?? 1.1 },
       fillFrom: { value: new THREE.Vector3(...(s.fillFrom || [0.3, 0.8, 0.5])).normalize() }, fill: { value: s.fill ?? 0.16 },
-      fogNear: { value: fogNear }, fogFar: { value: fogFar }, poolEdge: { value: s.pool ?? 0.55 }, fogTone: { value: (s.fogTone ?? 0) ** 2 }, soft: { value: (s.soft ?? 1.6) / (s.map ?? 2048) },
+      fogNear: { value: fogNear }, fogFar: { value: fogFar }, poolEdge: { value: s.pool ?? 0.55 }, fogTone: { value: (s.fogTone ?? 0) ** 2 }, soft: { value: (s.soft ?? 1.2) / (s.map ?? 4096) },
       shade: { value: shadow.texture }, grain: { value: grainTexture(random) },
     },
     depthFunc: THREE.LessEqualDepth,
