@@ -65,6 +65,7 @@ export const Plate: React.FC<{ s: Scene; inner?: number }> = ({ s, inner = INNER
               {marked(s, "headline", text, { px: size })}
             </div>
             {s.label && <div style={{ fontFamily: FONT, fontWeight: 400, fontSize: 32, lineHeight: 1.3, color: MUTED, marginTop: 20 }}>{s.label}</div>}
+            {p?.label && <div style={{ fontFamily: FONT, fontWeight: 400, fontSize: 24, lineHeight: 1.2, color: MUTED, marginTop: 16 }}>{p.label}</div>}
           </div>
         </In>
       </div>

@@ -74,6 +74,8 @@ def _project(pose, w, width=1080, height=1920):
 class TestGeorgiaRelief(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
+        if not (RELIEF_DIR / "relief_meta.json").is_file():  # git-ignored: tools/build_relief.py makes it, from the network
+            raise unittest.SkipTest("assets/relief is not built (python tools/build_relief.py)")
         cls.map_data = json.loads(MAP_JSON.read_text(encoding="utf-8"))
         cls.meta = json.loads((RELIEF_DIR / "relief_meta.json").read_text(encoding="utf-8"))
         cls.dem_bytes = (RELIEF_DIR / "georgia_dem.bin").read_bytes()

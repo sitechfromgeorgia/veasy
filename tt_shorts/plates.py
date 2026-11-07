@@ -35,6 +35,10 @@ REFUSED_WORDS = ("დაიღუპ", "გარდაიცვალ", "გა
                  "ავარი", "კატასტროფ", "ხანძარ", "აფეთქებ", "თავდასხმ", "კრიმინალ",
                  "killed", "dead", "death", "murder", "shot", "crash", "fire", "explosion", "attack", "arrest")
 LICENCE = "own"  # drawn by Veasy's own code (three.js, MIT, is the only library): nothing to credit
+# What the shelf may hand a film by itself: kinds that say nothing, only tone and grain. The others carry a claim of
+# their own (matter: a count proved against one fact; relief: a real region; diorama: a kind of place; ink: one
+# drawing), so behind any other story they would be false. A film gets one of those only by name: `plate use`.
+GROUND_KINDS = ("example", "surface")
 
 
 class PlateError(ValueError):
@@ -265,6 +269,22 @@ def library():
     return sorted(out, key=lambda m: m["mtime"])
 
 
+def shelf():
+    """The baked plates a story may be handed without asking: the ground kinds only (GROUND_KINDS)."""
+    return [m for m in library() if m.get("kind") in GROUND_KINDS]
+
+
+def generated(manifest):
+    """True when a plate holds a picture a model made: a surface on a material the ledger marks `ai`, or on one the
+    ledger doesn't know. Such a plate carries the pack's label (N13)."""
+    if manifest.get("kind") != "surface":
+        return False
+    name = (manifest.get("spec") or {}).get("material")
+    f = ROOT / "assets" / "surfaces" / "LEDGER.json"
+    entry = json.loads(f.read_text(encoding="utf-8")).get("materials", {}).get(name) if f.is_file() else None
+    return not entry or entry.get("license") == "ai"
+
+
 # ---------------------------------------------------------------- the command (engine plate, or python -m tt_shorts.plates)
 
 
@@ -277,6 +297,10 @@ def command(a):
     if a.kind == "check":
         problems = [x for k in kinds() for x in check_kind(k)]
         return {"kinds": kinds(), "problems": problems}, 1 if problems else 0
+    if a.kind == "use":
+        return use(a.story, a.scene, a.hash)
+    if a.kind == "shelf":
+        return bake_shelf(a.seconds, a.seed, a.scale, a.brand)
     why = refusal(program=a.program, family=a.family, text=a.text or "")
     if why:
         return {"kind": a.kind, "refused": why, "problems": [why]}, 1
@@ -303,6 +327,9 @@ def main(argv=None):
     ap.add_argument("--program")
     ap.add_argument("--family")
     ap.add_argument("--text")
+    ap.add_argument("--story")
+    ap.add_argument("--scene", type=int)
+    ap.add_argument("--hash")
     obj, code = command(ap.parse_args(argv))
     sys.stdout.write(json.dumps(obj, ensure_ascii=False, indent=1) + chr(10))
     return code
@@ -320,19 +347,37 @@ LINT = (("Math.random", "unseeded random: use plates/lib/seeded.mjs"),
         ("https://", "a network address: a plate reads local files only"))
 
 
+IMPORT = re.compile(r"""(?:\bfrom\s+|\bimport\s*\(?\s*|\bsrc=)["'](\.{0,2}/[^"']+\.m?js)["']""")
+COMMENT = re.compile(r"/\*.*?\*/|(?<![:\"'`])//[^\n]*", re.S)  # a rule may name what it forbids
+XMLNS = re.compile(r"https?://www\.w3\.org/\S*")  # an SVG namespace is a name, not an address
+
+
+def page_files(d):
+    """What a kind's page runs: index.html and every local module it reaches. Tools node runs beside it (a bake's timer,
+    a test) never touch a frame."""
+    seen, todo = [], [d / "index.html"]
+    while todo:
+        f = todo.pop().resolve()
+        if f in seen or not f.is_file():
+            continue
+        seen.append(f)
+        for ref in IMPORT.findall(f.read_text(encoding="utf-8", errors="replace")):
+            if not ref.startswith("/node_modules/"):
+                todo.append(PLATES / ref[1:] if ref.startswith("/") else f.parent / ref)
+    return sorted(seen)
+
+
 def check_kind(kind):
     """Problems of one kind's folder (the contract in plates/README.md that a program can read): [] when clean."""
     d = PLATES / kind
     if not (d / "index.html").is_file():
         return [f"{kind}: no index.html"]
     out = []
-    for f in sorted(d.rglob("*")):
-        if f.suffix not in (".html", ".js", ".mjs") or not f.is_file():
-            continue
-        text = f.read_text(encoding="utf-8", errors="replace")
+    for f in page_files(d):
+        text = XMLNS.sub("", COMMENT.sub("", f.read_text(encoding="utf-8", errors="replace")))
         for needle, why in LINT:
             if needle in text:
-                out.append(f"{kind}/{f.relative_to(d).as_posix()}: {needle}: {why}")
+                out.append(f"{kind}/{f.relative_to(PLATES.resolve()).as_posix() if PLATES.resolve() in f.parents else f.name}: {needle}: {why}")
     if "window.setup" not in (d / "index.html").read_text(encoding="utf-8") and not any(
             "window.setup" in f.read_text(encoding="utf-8", errors="replace") for f in d.rglob("*.*")
             if f.suffix in (".js", ".mjs") and f.is_file()):
@@ -363,10 +408,13 @@ def ledger_entry(manifest):
     """A story's `assets` entry for one plate: kind, hash, seed, licence, the master's sha. Code-owned."""
     h = manifest["hash"]
     master = store.home() / "cache" / "plates" / h / "plate.mp4"
-    return {"id": f"plate-{h}", "kind": "plate", "provider": "plates", "url": f"veasy:plates/{manifest['kind']}",
-            "licence": LICENCE, "author": "", "title": manifest["kind"], "fetched": store.today(),
-            "sha": sha_of(master) if master.is_file() else "", "file": f"cache/plates/{h}/plate.mp4",
-            "hash": h, "seed": manifest["seed"]}
+    entry = {"id": f"plate-{h}", "kind": "plate", "provider": "plates", "url": f"veasy:plates/{manifest['kind']}",
+             "licence": LICENCE, "author": "", "title": manifest["kind"], "fetched": store.today(),
+             "sha": sha_of(master) if master.is_file() else "", "file": f"cache/plates/{h}/plate.mp4",
+             "hash": h, "seed": manifest["seed"]}
+    if generated(manifest):
+        entry["generated"] = True  # N13: the scene shows the pack's label (for_props)
+    return entry
 
 
 def entry_problems(e):
@@ -454,17 +502,17 @@ def resolve(story, b=None):
     if problems:
         report["warnings"] += problems
         return story, report
-    shelf = {m["hash"]: m for m in library()}
+    ground = {m["hash"]: m for m in shelf()}
     ledger = [e for e in story.get("assets") or [] if isinstance(e, dict)]
     have = {e["id"] for e in ledger}
     for i, s in todo:
-        h = variety.pick_plate(pack["name"], story.get("id"), sorted(shelf))
+        h = variety.pick_plate(pack["name"], story.get("id"), sorted(ground))
         if not h:
             report["warnings"].append(f"scene {i} (plate): no baked plate on the shelf (engine plate example): the scene "
                                       "is drawn on the plain canvas")
             continue
         layout = variety.pick_plate_layout(pack["name"], story.get("id"), i, free_layouts(tracks_of(h)))
-        e = ledger_entry(shelf[h])
+        e = ledger_entry(ground[h])
         if e["id"] not in have:
             ledger.append(e)
             have.add(e["id"])
@@ -474,6 +522,49 @@ def resolve(story, b=None):
     if ledger:
         story["assets"] = ledger
     return story, report
+
+
+def use(path, scene, hash16):
+    """Put one named baked plate on a story's plate scene (`plate use`), the only way a kind outside GROUND_KINDS reaches
+    a film: the agent who baked it for this story's facts says so. All the story's refusals still apply -> (JSON, exit)."""
+    from tt_shorts import brand, variety
+    path = pathlib.Path(path or "")
+    if not path.is_file():
+        return {"problems": [f"no story at {path}: plate use --story <file> --scene <n> --hash <hash>"]}, 1
+    story = json.loads(path.read_text(encoding="utf-8"))
+    scenes = dict(plate_scenes(story))
+    if scene not in scenes:
+        return {"problems": [f"scene {scene} is not a plate scene (plate scenes: {sorted(scenes)})"]}, 1
+    manifest = cached(str(hash16 or ""))
+    if not manifest:
+        return {"problems": [f"no baked plate {hash16}: see engine plate list"]}, 1
+    problems = story_problems({**story, "scenes": [{**s, "plate": None} if isinstance(s, dict) else s
+                                                   for s in story["scenes"]]})
+    if problems:
+        return {"problems": problems}, 1
+    pack = brand.of(story)
+    e = ledger_entry({**manifest, "hash": hash16})
+    ledger = [x for x in story.get("assets") or [] if isinstance(x, dict) and x.get("id") != e["id"]]
+    layout = variety.pick_plate_layout(pack["name"], story.get("id"), scene, free_layouts(tracks_of(hash16)))
+    scenes[scene]["plate"] = {"asset": e["id"], "layout": layout}
+    story["assets"] = ledger + [e]
+    variety.record_plate(pack["name"], story.get("id"), scene, hash16, layout)
+    path.write_text(json.dumps(story, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    return {"scene": scene, "asset": e["id"], "kind": manifest["kind"], "layout": layout, "problems": []}, 0
+
+
+def bake_shelf(seconds=6, seed=1, scale=1, brand_name=None):
+    """Bake every ground plate that ships as a spec, once (a person's or an agent's command, never a queue job's): the
+    shelf `resolve` picks from. A cached plate costs nothing -> (JSON, exit)."""
+    specs = sorted((PLATES / "surface" / "specs").glob("*.json"))
+    made, failed = [], []
+    for spec in specs:
+        try:
+            m = make("surface", seconds, seed, scale, str(spec), [brand_name] if brand_name else None)
+            made.append({"spec": spec.stem, "hash": m["hash"]})
+        except PlateError as e:
+            failed.append(f"{spec.stem}: {e}")
+    return {"baked": made, "problems": failed}, 1 if failed else 0
 
 
 def resolve_file(path):
@@ -513,7 +604,8 @@ def for_props(story, b, public, flat=False):
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(clip, dest)
         tracks = tracks_of(ledger[aid]["hash"])
-        out[aid] = {"src": f"plates/{dest.name}", "frames": manifest["frames"], "tracks": tracks}
+        out[aid] = {"src": f"plates/{dest.name}", "frames": manifest["frames"], "tracks": tracks,
+                    "label": b["strings"]["illustrative"] if ledger[aid].get("generated") else None}
     return out
 
 if __name__ == "__main__":

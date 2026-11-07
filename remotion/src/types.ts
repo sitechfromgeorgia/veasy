@@ -182,6 +182,7 @@ export type Scene = SceneBase & {
 // DOM accent dot follows (plates/<kind>/anchors.json: page pixels per plate frame, 1080x1920)
 export type PlateProps = {
   src: string; frames: number; layout: "top" | "mid" | "low"; tracks: Record<string, [number, number][]>;
+  label?: string | null; // the pack's N13 label, when the plate holds a model's picture (plates.generated)
 };
 
 // tt_shorts/brand.py for_remotion(): the brand pack, without file paths

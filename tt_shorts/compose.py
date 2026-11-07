@@ -959,9 +959,14 @@ def _plate_block(text, story, scene):
     e = next((x for x in story.get("assets") or [] if x.get("id") == p.get("asset")), None)
     if not e:
         text = re.sub(r"<!--plate-->.*?<!--/plate-->", "", text, flags=re.S)
+        text = re.sub(r"<!--note-->.*?<!--/note-->", "", text, flags=re.S)
         return text.replace("{plate_layout}", "mid").replace("{plate_dot}", "[]").replace("{plate_id}", "none")
-    from tt_shorts import plates
+    from tt_shorts import brand, plates
     dot = (plates.tracks_of(e["hash"]).get("dot") or [])
+    if e.get("generated"):  # N13: a plate holding a model's picture carries the pack's label, in the card
+        text = text.replace("{plate_note}", brand.of(story)["strings"]["illustrative"])
+    else:
+        text = re.sub(r"<!--note-->.*?<!--/note-->", "", text, flags=re.S)
     return (text.replace("{plate_id}", e["id"]).replace("{plate_layout}", p.get("layout") or "mid")
             .replace("{plate_dot}", json.dumps(dot, separators=(",", ":"))))
 

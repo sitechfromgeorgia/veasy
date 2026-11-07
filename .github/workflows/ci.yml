@@ -21,10 +21,12 @@ jobs:
           cache-dependency-path: |
             remotion/package-lock.json
             compose/package-lock.json
+            plates/package-lock.json
       - name: Node dependencies (the tests draw Remotion stills and scaffold composed films, so they come first)
         run: |
           npm ci --no-audit --no-fund --prefix remotion
           npm ci --no-audit --no-fund --prefix compose
+          npm ci --no-audit --no-fund --prefix plates
       - name: Python tests (checks, captions, formats, plugin, kaeasy adapter)
         run: python -m unittest discover -s tests
       - name: Type-check the compositions

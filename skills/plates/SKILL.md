@@ -80,3 +80,17 @@ clip after x264 stays within a mean of about 1 colour step of it. The accent is 
 - No text, logo, accent or real place in a kind; no `Math.random` or clock (use `plates/lib/seeded.mjs`).
 - No generated image in a plate (this lane ships none); no opinion scene; the writer never sets `plate` or `assets`.
 - Don't edit `assets/plates/` in a composed film: it is Veasy's (locked); don't bake inside a render or a queue job.
+
+## The shelf and the named plate
+
+The shelf hands a film only plates that say nothing: `example` and `surface` (`plates.GROUND_KINDS`). `engine plate shelf`
+bakes them once. `matter`, `relief`, `diorama` and `ink` each make a claim of their own (a count proved against one fact, a
+real region, a kind of place, one drawing), so they never reach a film by themselves. To use one, bake it for this story and
+name it:
+
+```bash
+python -m tt_shorts.engine plate matter --spec s.json
+python -m tt_shorts.engine plate use --story story.json --scene 2 --hash <its hash>
+```
+
+Every refusal still applies. A surface on a material a model made carries the pack's „illustrative" label by itself (N13).

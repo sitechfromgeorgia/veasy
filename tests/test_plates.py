@@ -166,6 +166,24 @@ class Command(unittest.TestCase):
             shutil.rmtree(d)
 
 
+    def test_check_kind_reads_what_the_page_runs(self):
+        import shutil
+        d = plates.PLATES / "zz_mod"
+        d.mkdir()
+        try:
+            (d / "index.html").write_text('<script type="module">import { a } from "./a.mjs";\n'
+                                          'window.setup=()=>{};window.step=()=>a;</script>')
+            (d / "a.mjs").write_text('// no Math.random here\nimport { b } from "./b.mjs";\nexport const a = b;\n'
+                                     'const svg = "http://www.w3.org/2000/svg";\n')
+            (d / "b.mjs").write_text("export const b = 1;\n")
+            (d / "bake.mjs").write_text("const t0 = Date.now();\n")  # a tool node runs: it never touches a frame
+            self.assertEqual(plates.check_kind("zz_mod"), [])
+            (d / "b.mjs").write_text("export const b = Math.random();\n")  # two imports deep
+            self.assertIn("Math.random", " ".join(plates.check_kind("zz_mod")))
+        finally:
+            shutil.rmtree(d)
+
+
 class Ledger(unittest.TestCase):
     def test_entry_has_kind_hash_seed_licence(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"VEASY_HOME": tmp}):
@@ -186,13 +204,13 @@ def demo(**over):
     return st
 
 
-def fake_shelf(home, *hashes, dot=None):
+def fake_shelf(home, *hashes, dot=None, kind="example", spec=None):
     for h in hashes:
         d = pathlib.Path(home) / "cache" / "plates" / h
         d.mkdir(parents=True)
         (d / "plate.mp4").write_bytes(h.encode())
-        (d / "plate.json").write_text(json.dumps({"kind": "example", "hash": h, "seed": 1, "seconds": 4, "scale": 1,
-                                                  "fps": 30, "frames": 120, "ms_per_frame": 200,
+        (d / "plate.json").write_text(json.dumps({"kind": kind, "hash": h, "seed": 1, "seconds": 4, "scale": 1,
+                                                  "spec": spec, "fps": 30, "frames": 120, "ms_per_frame": 200,
                                                   "anchors": ["dot"] if dot else []}))
         if dot:
             (d / "anchors.json").write_text(json.dumps({"fps": 30, "tracks": {"dot": [list(dot)] * 120}}))
@@ -250,6 +268,77 @@ class InTheStory(unittest.TestCase):
         self.assertEqual((e["licence"], e["provider"], e["seed"]), ("own", "plates", 1))
         self.assertEqual(assets.problems(story), [])
         self.assertEqual(plates.story_problems(story), [])
+
+    def test_the_shelf_never_hands_a_film_a_plate_that_makes_a_claim(self):
+        fake_shelf(self.tmp.name, "aaaaaaaaaaaaaaaa", kind="matter")  # a count proved against one fact
+        fake_shelf(self.tmp.name, "bbbbbbbbbbbbbbbb", kind="relief")  # a real region
+        fake_shelf(self.tmp.name, "cccccccccccccccc", kind="surface", spec={"material": "limestone"})
+        story, _ = plates.resolve(demo())
+        self.assertEqual([e["hash"] for e in story["assets"] if e["kind"] == "plate"], ["cccccccccccccccc"])
+
+    def test_with_only_claiming_plates_the_scene_stays_on_the_canvas(self):
+        fake_shelf(self.tmp.name, "aaaaaaaaaaaaaaaa", kind="diorama")
+        fake_shelf(self.tmp.name, "bbbbbbbbbbbbbbbb", kind="ink")
+        story, rep = plates.resolve(demo())
+        self.assertFalse([e for e in story.get("assets") or [] if e["kind"] == "plate"])
+        self.assertTrue(rep["warnings"])
+
+    def write_demo(self, **over):
+        path = pathlib.Path(self.tmp.name) / "story.json"
+        path.write_text(json.dumps(demo(**over), ensure_ascii=False), encoding="utf-8")
+        scene = next(i for i, x in enumerate(demo(**over)["scenes"]) if x["type"] == "plate")
+        return path, scene
+
+    def test_use_puts_a_named_plate_on_a_scene(self):
+        fake_shelf(self.tmp.name, "aaaaaaaaaaaaaaaa", kind="matter")
+        path, scene = self.write_demo()
+        got, code = plates.use(path, scene, "aaaaaaaaaaaaaaaa")
+        self.assertEqual((code, got["problems"], got["kind"]), (0, [], "matter"))
+        story = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(story["scenes"][scene]["plate"]["asset"], "plate-aaaaaaaaaaaaaaaa")
+        self.assertEqual(plates.story_problems(story), [])
+
+    def test_use_keeps_every_refusal(self):
+        fake_shelf(self.tmp.name, "aaaaaaaaaaaaaaaa", kind="matter")
+        path, scene = self.write_demo(program="news")
+        self.assertEqual(plates.use(path, scene, "aaaaaaaaaaaaaaaa")[1], 1)
+        path, scene = self.write_demo()
+        self.assertEqual(plates.use(path, scene, "ffffffffffffffff")[1], 1)  # not baked
+        self.assertEqual(plates.use(path, scene + 100, "aaaaaaaaaaaaaaaa")[1], 1)  # not a plate scene
+        self.assertEqual(plates.use(pathlib.Path(self.tmp.name) / "none.json", scene, "aaaaaaaaaaaaaaaa")[1], 1)
+
+    def test_a_model_made_surface_carries_the_label_and_a_code_made_one_does_not(self):
+        from tt_shorts import brand, compose
+        fake_shelf(self.tmp.name, "aaaaaaaaaaaaaaaa", kind="surface", spec={"material": "limestone"})
+        fake_shelf(self.tmp.name, "bbbbbbbbbbbbbbbb", kind="example")
+        ai = plates.ledger_entry(plates.cached("aaaaaaaaaaaaaaaa"))
+        own = plates.ledger_entry(plates.cached("bbbbbbbbbbbbbbbb"))
+        self.assertTrue(ai["generated"])
+        self.assertNotIn("generated", own)
+        self.assertTrue(plates.generated({"kind": "surface", "spec": {"material": "no-such-material"}}))  # unknown: strict
+        self.assertEqual(plates.entry_problems(ai), [])
+        pack = brand.load()
+        word = pack["strings"]["illustrative"]
+        block = "<!--note--><i>{plate_note}</i><!--/note-->"
+        story = {"assets": [ai]}
+        self.assertIn(word, compose._plate_block(block, story, {"plate": {"asset": ai["id"]}}))
+        self.assertNotIn("note", compose._plate_block(block, {"assets": [own]}, {"plate": {"asset": own["id"]}}))
+        self.assertNotIn("note", compose._plate_block(block, {}, {}))
+        scene = {"type": "plate", "plate": {"asset": ai["id"]}}
+        with mock.patch.object(plates, "tone_clip", lambda m, out, c, i: pathlib.Path(out).write_bytes(b"x")):
+            drawn = plates.for_props({"assets": [ai], "scenes": [scene]}, pack, self.tmp.name)
+        self.assertEqual(drawn[ai["id"]]["label"], word)
+
+    def test_shelf_bakes_each_surface_spec_and_says_what_failed(self):
+        def bake(kind, seconds, seed, scale, spec, brands):
+            if "02" in spec:
+                raise plates.PlateError("broke")
+            return {"hash": "aaaaaaaaaaaaaaaa"}
+        with mock.patch.object(plates, "make", bake):
+            got, code = plates.bake_shelf()
+        self.assertEqual(code, 1)
+        self.assertTrue(got["baked"])
+        self.assertEqual(len(got["problems"]), 1)
 
     def test_free_layouts_leave_the_dot_uncovered(self):
         self.assertEqual(plates.free_layouts({"dot": [[540, 960]] * 3}), ["top"])
