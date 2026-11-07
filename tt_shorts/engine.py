@@ -51,6 +51,11 @@ import shutil
 import subprocess
 import sys
 
+if __name__ == "__main__" and sys.argv[1:2] == ["plate"]:  # a plate answer needs none of the engine's imports (a cache hit
+    from tt_shorts import plates as _plates  # is well under a second this way)
+
+    sys.exit(_plates.main(sys.argv[2:]))
+
 from tt_shorts import brand as packs
 from tt_shorts import plates
 from tt_shorts import (assets, captions, catalog, chapters, concept, directors, flash, formats, geo, icons, ka_check,

@@ -329,6 +329,12 @@ class Baked(unittest.TestCase):
         self.assertEqual(again["hash"], self.first["hash"])
         self.assertLess(time.time() - start, 1.0)
 
+    def test_a_repeat_call_needs_neither_node_nor_the_packs(self):
+        with mock.patch.object(plates, "hash_of", side_effect=AssertionError("node asked")),                 mock.patch.object(plates, "palettes", side_effect=AssertionError("packs loaded")):
+            again = plates.make("example", seconds=1, seed=7, scale=0.25)
+        self.assertTrue(again["cached"])
+        self.assertEqual(again["clips"], self.first["clips"])
+
     def test_another_seed_is_another_plate(self):
         self.assertNotEqual(plates.hash_of("example", 1, 8, 0.25), self.first["hash"])
 

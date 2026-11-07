@@ -201,8 +201,44 @@ def clip_name(canvas, ink):
     return f"tone-{canvas.lstrip('#').lower()}-{ink.lstrip('#').lower()}.mp4"
 
 
+def _fast_key(kind, seconds, seed, scale, spec, brands):
+    """What a finished answer is a function of, read from file stats alone (no node, no brand loading): the kind's files,
+    run.mjs, the packs' brand.json files, the spec's contents and the numbers. None when something can't be read."""
+    try:
+        files = [PLATES / "run.mjs", *sorted((PLATES / kind).rglob("*")), *sorted((ROOT / "brands").glob("*/brand.json"))]
+        sig = [[str(f.relative_to(ROOT)), f.stat().st_size, f.stat().st_mtime_ns] for f in files if f.is_file()]
+        body = pathlib.Path(spec).read_text(encoding="utf-8") if spec else ""
+        return hashlib.sha256(json.dumps([kind, seconds, seed, scale, body, sig, brands], sort_keys=True).encode()).hexdigest()
+    except OSError:
+        return None
+
+
+def _index_path():
+    return store.home() / "cache" / "plates" / "index.json"
+
+
 def make(kind, seconds=6, seed=1, scale=1, spec=None, brands=None):
-    """The `engine plate` answer: bake or hit the cache, tone every pack's line (cached beside the master)."""
+    """The `engine plate` answer: bake or hit the cache, tone every pack's line (cached beside the master). A repeat
+    call is answered from an index of finished answers keyed by file stats: no node, no brand loading (a few ms)."""
+    key = _fast_key(kind, seconds, seed, scale, spec, brands)
+    try:
+        index = json.loads(_index_path().read_text(encoding="utf-8")) if key else {}
+    except (OSError, ValueError):
+        index = {}
+    hit = index.get(key)
+    if hit and cached(hit["hash"]) and all((store.home() / c).is_file() for t in hit["clips"].values() for c in t.values()):
+        return {**hit, "cached": True}
+    answer = _make(kind, seconds, seed, scale, spec, brands)
+    if key:
+        index[key] = answer
+        try:
+            _index_path().write_text(json.dumps(index), encoding="utf-8")
+        except OSError:
+            pass
+    return answer
+
+
+def _make(kind, seconds, seed, scale, spec, brands):
     manifest, hit = bake(kind, seconds, seed, scale, spec)
     d = store.plate_dir(manifest["hash"])
     clips = {}
