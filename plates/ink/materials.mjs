@@ -2,7 +2,7 @@
 // sheet. Nothing here filters a finished picture: every hatch, gouge and brush stroke is a mark of its own, laid on the
 // paper at its own moment. Light pigment on a dark sheet: the engine maps black to the pack's canvas, white to its ink.
 import { seeded } from "/lib/seeded.mjs";
-import { blur, brush, clamp, Deposit, length, Noise, pieces, plan, shake, smooth, sweep, walk } from "./core.mjs";
+import { blur, brush, clamp, Deposit, distance, length, Noise, pieces, plan, shake, smooth, sweep, walk } from "./core.mjs";
 
 export const LINE = 0, TONE = 1, SOFT = 2, BACK = 3; // the four layers of a bake, each with its own moment per pixel
 
@@ -31,7 +31,10 @@ class Painter {
     const W = ctx.width, H = ctx.height, S = W / 1080;
     Object.assign(this, { name, spec, ctx, W, H, S, seed: ctx.seed });
     this.noise = new Noise(ctx.seed * 7 + 3);
-    this.rnd = seeded(ctx.seed * 31 + 11);
+    let salt = 7; // one seed, a different sheet for each drawing
+    for (const s of drawing.strokes) for (let i = 0; i < s.pts.length; i += 7) salt = (Math.imul(salt, 31) + Math.round(s.pts[i] * 10)) | 0;
+    this.salt = (salt >>> 0) % 997;
+    this.rnd = seeded(ctx.seed * 31 + 11 + this.salt);
     this.sheet = new Sheet(W, H, S, this.noise);
     this.pl = plan(drawing, { W, H, S, box: spec.box || [40, 640, 1000], seed: ctx.seed });
     this.marks = [];
@@ -161,49 +164,68 @@ const MATERIALS = {
     const { sheet, pl, S, W, H, noise, rnd } = m, { T, F, M, ground } = sheet;
     m.hand = 2.4; m.boil = 0.8; m.boilStep = 70;
     for (let p = 0; p < W * H; p++) ground[p] = 0.03 + 0.03 * M[p] + 0.022 * F[p] * T[p];
-    const grain = (v, p) => v * (0.5 + 0.34 * T[p] + 0.42 * F[p]) * (0.72 + 0.5 * M[p]);
+    const grain = (v, p) => v * (0.5 + 0.34 * T[p] + 0.42 * F[p]);
     const air = m.pass(0.16), wash = m.pass(0.34), ink = m.pass(0.5);
 
-    // a loose stroke of thin pigment behind the object, wider than the drawing: the sheet has been worked on
-    const [bx, by, bw] = [pl.ox, pl.oy, 952 * pl.scale];
-    for (let i = 0; i < 3; i++) {
-      const y = by + (0.24 + 0.27 * i + 0.05 * rnd()) * 640 * pl.scale;
-      const pts = [];
-      for (let k = 0; k <= 8; k++) {
-        const u = k / 8;
-        pts.push(bx - 30 * S + (bw + 60 * S) * u, y + Math.sin(u * 3.1 + i * 1.7) * 26 * S);
+    // one pool of thin pigment behind the object, laid by a wide brush: a hard wobbling edge where it dried, the
+    // pigment carried out to that edge, soft in the middle (Curtis et al., Deegan's ring)
+    const [bx, by, bw] = [pl.ox, pl.oy, 952 * pl.scale], bh = 640 * pl.scale;
+    const reach = new Uint8Array(W * H);
+    for (let y = 0, p = 0; y < H; y++) {
+      for (let x = 0; x < W; x++, p++) {
+        const nx = ((x - bx) / bw - 0.5) * 2, ny = ((y - by) / bh - 0.56) * 2;
+        const shape = nx * nx * 0.9 + ny * ny * 1.5 + (noise.fbm(x / (150 * S) + m.salt, y / (120 * S) + m.salt * 0.37, 4) - 0.5) * 2.1;
+        reach[p] = shape > 0.86 ? 1 : 0;
       }
-      const width = (118 + 40 * rnd()) * S, flow = 0.15 + 0.06 * rnd();
-      m.mark(air, BACK, Float32Array.from(pts), {
-        w: (u) => width * (0.72 + 0.34 * Math.sin(Math.PI * u)), n: 40, dry: 1.3, skip: 0.5, wander: 0.5, flow: () => flow, bleed: 0.2, body: 0.5,
-      }, grain, { hand: 8 });
+    }
+    const shore = distance(reach, W, H);
+    const pool = (v, p) => {
+      const d = shore[p];
+      if (d <= 0) return 0;
+      return v * (0.34 + 0.9 * M[p] * F[p] + 1.9 * Math.exp(-d / (5 * S)) + 0.5 * Math.exp(-d / (46 * S))) * (0.7 + 0.5 * T[p]);
+    };
+    for (let i = 0; i < 5; i++) {
+      const y = by + (0.1 + 0.2 * i) * bh, pts = [];
+      for (let k = 0; k <= 6; k++) pts.push((i % 2 ? bx + bw + 60 * S - ((bw + 120 * S) * k) / 6 : bx - 60 * S + ((bw + 120 * S) * k) / 6), y + Math.sin(k * 0.9 + i) * 22 * S);
+      m.mark(air, BACK, Float32Array.from(pts), { w: () => bh * 0.34, n: 0, body: 0.17, edge: 0.3, bleed: 0.25 }, pool, { hand: 6, lap: 1.3 });
     }
 
-    // washes: a flat brush filling each shape, the pigment gathering along the wet edge
+    // washes: a flat brush filling each shape, the pigment gathering along the wet edge, a backrun where it stayed wet
     for (const r of regions(pl, 500 * S * S)) {
-      const size = clamp(Math.sqrt(r.area) * 0.42, 20 * S, 72 * S), flow = 0.08 + 0.8 * r.tone * r.tone;
-      const leak = 2.5 * S;
+      const size = clamp(Math.sqrt(r.area) * 0.42, 20 * S, 72 * S), flow = 0.1 + 1.15 * r.tone * r.tone;
+      const leak = 2.5 * S, big = r.area > 9000 * S * S;
+      const bloomX = r.cx + (rnd() - 0.5) * (r.x1 - r.x0) * 0.5, bloomY = r.cy + (rnd() - 0.5) * (r.y1 - r.y0) * 0.5;
+      const bloomR = Math.sqrt(r.area) * (0.22 + 0.16 * rnd()), bloomKey = rnd() * 60;
       const take = (v, p) => {
-        const near = pl.edge[p];
-        const inside = pl.id[p] === r.id ? 1 : smooth(leak * (0.3 + 1.6 * F[p]), 0, near);
-        return grain(v, p) * inside * (1 + 1.5 * Math.exp(-near / (3.5 * S)) * (pl.id[p] === r.id ? 1 : 0.2));
+        const near = pl.edge[p], own = pl.id[p] === r.id;
+        const inside = own ? 1 : smooth(leak * (0.3 + 1.6 * F[p]), 0, near);
+        let out = v * (0.74 + 0.26 * T[p]) * (0.6 + 0.8 * pl.tone[p] / Math.max(0.1, r.tone) * (0.55 + 0.6 * M[p])) * inside;
+        out *= 1 + 1.7 * Math.exp(-near / (3.5 * S)) * (own ? 1 : 0.2);
+        if (big) {
+          const x = p % W, y = (p - x) / W, d = Math.hypot(x - bloomX, y - bloomY);
+          const front = d - bloomR * (0.7 + 0.75 * noise.fbm(x / (34 * S) + bloomKey, y / (34 * S), 3));
+          out *= front < 0 ? 0.62 : 1;
+          out += 0.4 * out * Math.exp(-Math.abs(front) / (2.4 * S));
+        }
+        return out;
       };
       const angle = r.angle * 0.35;
       for (const seg of sweep(pl, r, W, angle, size * 0.72, rnd, { min: 10 * S })) {
-        const f = flow * (0.82 + 0.3 * rnd());
-        m.mark(wash, TONE, seg, { w: () => size, n: Math.max(6, Math.round(size / (2.2 * S))), dry: 0.7, skip: 0.2, wander: 0.45, flow: () => f, bleed: 0.34, body: 0.66 }, take, { hand: 3, lap: 1.5 });
+        const f = flow * (0.8 + 0.34 * rnd());
+        m.mark(wash, TONE, seg, { w: () => size, n: Math.max(6, Math.round(size / (2.6 * S))), dry: 0.62, skip: 0.14, wander: 0.45, flow: () => f, bleed: 0.34, body: 0.74, edge: 0.3 }, take, { hand: 3, lap: 1.5 });
       }
     }
 
     // the line: a pointed brush, loaded at the start of a stroke, thin at the neck, running dry at the end
+    const fibre = (v, p) => smooth(0.1, 0.34, v - (1 - T[p]) * 0.16 - (1 - F[p]) * 0.1) * (0.8 + 0.2 * v) * (0.9 + 0.14 * T[p]);
     for (const s of lines(pl)) {
       const keep = KEEP[s.line] ?? 1;
       for (const pts of pieces(s, 0.8)) {
-        const key = m.marks.length * 1.7, base = s.w * (1.5 + 1.1 * keep);
+        const key = m.marks.length * 1.7, base = s.w * (1.5 + 1.2 * keep);
         m.mark(ink, LINE, pts, {
-          w: pressure(noise, key, base), n: Math.max(5, Math.round(base * 1.1)), dry: 0.7, skip: 0.2, wander: 0.3, bleed: 0.2, body: 0.8,
-          flow: (u) => keep * (0.82 + 0.22 * (1 - u)),
-        }, (v, p) => v * (0.84 + 0.16 * T[p]), { lap: 1.2 });
+          w: pressure(noise, key, base), n: Math.max(6, Math.round(base * 1.3)), dry: 0.92, skip: 0.26, wander: 0.3, bleed: 0.2, body: 0.5, edge: 0.14,
+          flow: (u) => keep * (1 - 0.12 * u),
+        }, fibre, { lap: 1.2 });
       }
     }
     // a few drops off the loaded brush
@@ -223,21 +245,21 @@ const MATERIALS = {
       for (let x = 0; x < W; x++, p++) {
         const X = x / S, Y = y / S, warp = 90 * noise.fbm(X / 620, Y / 300, 3);
         const ring = 0.5 + 0.5 * Math.sin((Y + warp) * 0.135 + 7 * noise.fbm(X / 900, Y / 90, 2));
-        const hair = noise.fbm(X / 170 + 40, Y / 2.6, 3);
+        const hair = noise.fbm(X / 190 + 40, (Y + warp * 0.4) / 3.4, 3);
         G[p] = clamp(0.2 + 0.5 * ring + 0.9 * (hair - 0.42));
-        ground[p] = 0.018 + 0.05 * G[p] * G[p] + 0.012 * M[p];
+        ground[p] = 0.022 + 0.034 * G[p] * G[p] + 0.014 * M[p];
       }
     }
     const take = (v, p) => {
       const pressed = smooth(0.34, 0.52, v + (G[p] - 0.5) * 0.08);
-      const miss = smooth(0.7, 0.8, T[p] * 0.45 + G[p] * 0.62); // salt: where the block's ink didn't reach the paper
-      return pressed * (0.62 + 0.38 * G[p]) * (1 - 0.8 * miss) * 1.1;
+      const miss = smooth(0.74, 0.86, G[p]) * smooth(0.5, 0.62, T[p]); // the block's grain, where ink didn't reach the paper
+      return pressed * (0.78 + 0.26 * G[p]) * (1 - 0.72 * miss);
     };
     const cut = m.pass(0.3), inner = m.pass(0.46), halo = m.pass(0.24);
 
     // the outline, left standing by a knife: straight facets, each one a wedge
     for (const s of lines(pl)) {
-      const keep = KEEP[s.line] ?? 1, base = s.w * (0.9 + 1.5 * keep);
+      const keep = KEEP[s.line] ?? 1, base = s.w * (1 + 1.8 * keep);
       for (const pts of pieces(s, 0.7)) {
         const facet = [], L = length(pts), every = 26 * S;
         const p = walk(pts, 2);
@@ -261,8 +283,8 @@ const MATERIALS = {
     // around the object: the block cleared in rings that echo its silhouette, and thinning out
     const R = 240 * S;
     gouges(m, halo, BACK, {
-      keep: (p) => !pl.id[p] && !pl.line[p] && pl.sil[p] > 7 * S && pl.sil[p] < R, tone: (p) => 0.62 * Math.exp(-pl.sil[p] / (95 * S)),
-      sep: () => 14 * S, field: pl.sil, near: 1e9, min: 16 * S, max: 150 * S, take, broken: 0.55, lap: 1.5,
+      keep: (p) => !pl.id[p] && !pl.line[p] && pl.sil[p] > 7 * S && pl.sil[p] < R, tone: (p) => 0.5 * Math.exp(-pl.sil[p] / (80 * S)),
+      sep: () => 15 * S, field: pl.sil, near: 1e9, min: 16 * S, max: 150 * S, take, broken: 0.55, lap: 1.5,
     });
     return { gain: [1, 1, 1, 1], wet: [0.15, 0.15, 0.15, 0.15], rise: [0.03, 0.05, 0.05, 0.05] };
   },
@@ -275,7 +297,7 @@ const MATERIALS = {
     for (let y = 0, p = 0; y < H; y++) {
       for (let x = 0; x < W; x++, p++) {
         const coat = noise.fbm(x / (640 * S), y / (15 * S), 3), weave = Math.sin((x / S) * 2.1) * Math.sin((y / S) * 2.1);
-        let v = 0.05 + 0.055 * M[p] + 0.05 * coat * coat + 0.008 * weave + 0.012 * T[p];
+        let v = 0.062 + 0.03 * M[p] + 0.05 * coat * coat + 0.008 * weave + 0.012 * T[p];
         const fold = Math.min(Math.abs(x - foldX), Math.abs(y - foldA), Math.abs(y - foldB)) / S + (F[p] - 0.5) * 1.2;
         v += 0.028 * Math.exp((-fold * fold) / 2.2) * (0.5 + F[p]) + 0.012 * Math.exp(-Math.abs(fold) / 22);
         ground[p] = v;
@@ -285,11 +307,11 @@ const MATERIALS = {
     const pen = (v, p) => v * (0.8 + 0.2 * T[p]) * (0.9 + 0.1 * F[p]);
     const step = 54 * S;
     for (let i = 1, x = (W % step) / 2; x < W; x += step, i++) {
-      const y0 = 40 * S + rnd() * 30 * S, f = i % 5 ? 0.09 : 0.2;
+      const y0 = 40 * S + rnd() * 30 * S, f = i % 5 ? 0.15 : 0.3;
       m.mark(grid, BACK, Float32Array.of(x, y0, x + 1.5 * S * (rnd() - 0.5), H - y0), { w: () => (i % 5 ? 0.9 : 1.2) * S, n: 1, flow: () => f, skip: 0.1 }, pen, { hand: 0.5 });
     }
     for (let i = 1, y = (H % step) / 2; y < H; y += step, i++) {
-      const x0 = 30 * S + rnd() * 26 * S, f = i % 5 ? 0.09 : 0.2;
+      const x0 = 30 * S + rnd() * 26 * S, f = i % 5 ? 0.15 : 0.3;
       m.mark(grid, BACK, Float32Array.of(x0, y, W - x0, y + 1.5 * S * (rnd() - 0.5)), { w: () => (i % 5 ? 0.9 : 1.2) * S, n: 1, flow: () => f, skip: 0.1 }, pen, { hand: 0.5 });
     }
     // light construction lines, run past their corners; then the inked line over them
@@ -346,7 +368,7 @@ const MATERIALS = {
       }
     }
     // the screen: 45 degrees, each dot a dab of ink that grows in place, dot gain from the tone
-    const pitch = 13 * S, c = Math.SQRT1_2, shiftX = 3.5 * S, shiftY = -2.5 * S, dots = [];
+    const pitch = 14 * S, c = Math.SQRT1_2, shiftX = 3.5 * S, shiftY = -2.5 * S, dots = [];
     const span = Math.ceil((W + H) / pitch);
     for (let i = -span; i <= span; i++) {
       for (let j = -span; j <= span; j++) {
@@ -354,7 +376,7 @@ const MATERIALS = {
         if (x < 0 || y < 0 || x >= W || y >= H) continue;
         const px = Math.round(x - shiftX), py = Math.round(y - shiftY), p = clamp(px, 0, W - 1) + clamp(py, 0, H - 1) * W;
         const inside = pl.id[p] > 0;
-        let q = inside ? pl.tone[p] : 0.5 * Math.exp(-pl.sil[p] / (135 * S)) * (0.8 + 0.5 * noise.at(x / (150 * S), y / (150 * S)));
+        let q = inside ? pl.tone[p] : 0.3 * Math.exp(-pl.sil[p] / (85 * S)) * (0.7 + 0.6 * noise.at(x / (110 * S), y / (110 * S)));
         q *= 0.9 + 0.2 * noise.at(x / (60 * S), y / (60 * S));
         if (q < 0.04) continue;
         const r = pitch * Math.sqrt(Math.pow(q, 1 / 1.35) / Math.PI) * 1.05;
@@ -393,16 +415,16 @@ const MATERIALS = {
     }
     // chalk stays on the slate's high points: the harder the press, the deeper it reaches
     const dry = (v, p) => {
-      const high = T[p] * 0.66 + F[p] * 0.34;
+      const high = T[p] * 0.5 + F[p] * 0.5;
       return smooth(0.56, 0.72, v * 0.9 + high * 0.55) * (0.72 + 0.34 * high);
     };
     const side = m.pass(0.34), stick = m.pass(0.5), dust = m.pass(0.16);
     for (const r of regions(pl, 700 * S * S)) {
-      const size = clamp(Math.sqrt(r.area) * 0.34, 16 * S, 44 * S), f = 0.26 + 0.5 * r.tone;
+      const size = clamp(Math.sqrt(r.area) * 0.3, 14 * S, 40 * S), f = 0.2 + 0.46 * r.tone;
       const clip = (v, p) => (pl.id[p] === r.id ? dry(v * (0.92 + 0.2 * pl.tone[p]), p) : 0);
       for (const seg of sweep(pl, r, W, r.angle * 0.7, size * 0.7, rnd, { min: 8 * S })) {
-        const load = f * (0.8 + 0.35 * rnd());
-        m.mark(side, TONE, seg, { w: () => size, n: 9, body: 0.92, skip: 0.2, wander: 0.3, flow: () => load }, clip, { hand: 4, lap: 1.4 });
+        const load = f * (0.66 + 0.6 * rnd());
+        m.mark(side, TONE, seg, { w: () => size, n: 12, body: 0.42, edge: 0.25, skip: 0.42, wander: 0.3, flow: (u) => load * (1.25 - 0.4 * u) }, clip, { hand: 4, lap: 1.4 });
       }
     }
     const lay = (pts, base, press, key) => {
@@ -466,9 +488,9 @@ const MATERIALS = {
     }
     // hatching: nested sets, so a darker tone adds strokes and never moves one (tonal art maps)
     for (const r of regions(pl, 300 * S * S)) {
-      const sets = [[r.angle, 0.2], [r.angle + 0.92, 0.44], [r.angle - 0.42, 0.66]];
+      const sets = [[r.angle, 0.12], [r.angle + 0.92, 0.36], [r.angle - 0.42, 0.6]];
       sets.forEach(([angle, from], set) => {
-        const gap = (8.5 - set) * S;
+        const gap = (7 - set * 0.7) * S;
         for (const seg of sweep(pl, r, W, angle, gap, rnd, { margin: 1.5 * S, min: 7 * S })) {
           const x = Math.round((seg[0] + seg[2]) / 2), y = Math.round((seg[1] + seg[3]) / 2), t = pl.tone[x + y * W] || r.tone;
           if (t < from || rnd() > 0.45 + 0.9 * (t - from)) continue;
@@ -486,22 +508,152 @@ const MATERIALS = {
 };
 
 export const NAMES = Object.keys(MATERIALS);
+export const REVEALS = ["stroke", "scrape", "print_through", "flood"];
+
+// Reveals are only a change to when pigment lands. `stroke` is the marks' own order. The others replace that moment.
+function scrape(m, draw, start) { // a cover the tool drags off in streaks; the picture was there all along
+  const { W, H, S, noise, pl, dep, rnd } = m;
+  const box = { c: new Float32Array(W * H), a: new Float32Array(W * H).fill(1e6) };
+  const top = pl.oy - 150 * S, high = 640 * pl.scale + 300 * S, runs = 7, wide = (high / runs) * 1.55;
+  for (let i = 0; i < runs; i++) {
+    const y = top + (i + 0.5) * (high / runs), flip = i % 2, a = flip ? W + 60 * S : -60 * S, b = flip ? -60 * S : W + 60 * S;
+    const pts = Float32Array.of(a, y - 16 * S, (a + b) / 2, y + 24 * S * (rnd() - 0.5), b, y + 18 * S);
+    const time = { t0: start + (draw * i) / runs, dur: (draw / runs) * 1.1 };
+    brush(dep, shake(walk(pts, 2), noise, 500 + i, 6 * S, 200 * S, 0, 60, 0), { w: () => wide, n: 46, dry: 0.5, skip: 0.42, wander: 0.5, flow: () => 1, r: 4.2 * S }, time, 500 + i, noise);
+    dep.flush(box);
+  }
+  return box.a;
+}
+
+function rubbed(m, draw, start) { // the print comes through under the baren: in patches, not in order
+  const { W, H, S, noise, sheet } = m;
+  const at = new Float32Array(W * H);
+  for (let y = 0, p = 0; y < H; y++) {
+    for (let x = 0; x < W; x++, p++) {
+      const patch = clamp((noise.fbm(x / (170 * S), y / (120 * S), 3) - 0.28) * 2.3);
+      at[p] = start + draw * (0.38 + 0.6 * patch + 0.03 * sheet.T[p]);
+    }
+  }
+  return at;
+}
+
+// Ink poured on: first-passage time over a random floor, so the front runs in fingers and leaves bays (Dijkstra)
+function pour(W, H, S, noise, origins) {
+  const w = Math.ceil(W / 3), h = Math.ceil(H / 3), n = w * h, time = new Float32Array(n).fill(Infinity), cost = new Float32Array(n);
+  for (let y = 0, p = 0; y < h; y++) {
+    for (let x = 0; x < w; x++, p++) {
+      const c = noise.fbm((x * 3) / (70 * S), (y * 3) / (70 * S), 4);
+      cost[p] = 0.5 + 3.4 * c * c + 0.5 * noise.at((x * 3) / (14 * S), (y * 3) / (14 * S));
+    }
+  }
+  const heap = [], swap = (i, j) => { const t = heap[i]; heap[i] = heap[j]; heap[j] = t; };
+  const add = (t, p) => {
+    heap.push([t, p]);
+    for (let i = heap.length - 1; i > 0;) { const u = (i - 1) >> 1; if (heap[u][0] <= heap[i][0]) break; swap(i, u); i = u; }
+  };
+  const pop = () => {
+    const top = heap[0], last = heap.pop();
+    if (heap.length) {
+      heap[0] = last;
+      for (let i = 0; ;) {
+        let c = 2 * i + 1;
+        if (c >= heap.length) break;
+        if (c + 1 < heap.length && heap[c + 1][0] < heap[c][0]) c++;
+        if (heap[i][0] <= heap[c][0]) break;
+        swap(i, c); i = c;
+      }
+    }
+    return top;
+  };
+  for (const [x, y] of origins) {
+    const p = clamp(Math.round(x / 3), 0, w - 1) + clamp(Math.round(y / 3), 0, h - 1) * w;
+    time[p] = 0; add(0, p);
+  }
+  let latest = 0;
+  while (heap.length) {
+    const [t, p] = pop();
+    if (t > time[p]) continue;
+    latest = t;
+    const x = p % w, y = (p - x) / w;
+    for (const [dx, dy, len] of [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.41], [1, -1, 1.41], [-1, 1, 1.41], [-1, -1, 1.41]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+      const q = nx + ny * w, next = t + len * (cost[p] + cost[q]) * 0.5;
+      if (next < time[q]) { time[q] = next; add(next, q); }
+    }
+  }
+  const out = new Float32Array(W * H);
+  for (let y = 0, p = 0; y < H; y++) {
+    for (let x = 0; x < W; x++, p++) {
+      const fx = Math.min(w - 1.001, x / 3), fy = Math.min(h - 1.001, y / 3), ix = fx | 0, iy = fy | 0, u = fx - ix, v = fy - iy, q = ix + iy * w;
+      out[p] = ((time[q] * (1 - u) + time[q + 1] * u) * (1 - v) + (time[q + w] * (1 - u) + time[q + w + 1] * u) * v) / latest;
+    }
+  }
+  return out;
+}
+
+function flood(spec, ctx) {
+  const W = ctx.width, H = ctx.height, S = W / 1080, noise = new Noise(ctx.seed * 13 + 5);
+  const seconds = ctx.seconds, n = W * H, drain = spec.drain !== false;
+  const fill = spec.draw ?? seconds * (drain ? 0.42 : 0.8), start = spec.start ?? 0.1, hold = drain ? seconds * 0.1 : 0;
+  const origin = (spec.origin || [0.5, 0.42]).map((v, i) => v * (i ? H : W));
+  const first = pour(W, H, S, noise, [origin]);
+  const second = drain ? pour(W, H, S, new Noise(ctx.seed * 17 + 9), [[W - origin[0], H - origin[1]]]) : null;
+  const cov = new Uint8Array(n * 4), arr = new Float32Array(n * 4).fill(1e6), ground = new Float32Array(n * 4);
+  for (let y = 0, p = 0; y < H; y++) {
+    for (let x = 0; x < W; x++, p++) {
+      const fringe = (noise.fbm(x / (9 * S), y / (9 * S), 3) - 0.5) * 0.03;
+      cov[p * 4] = 255;
+      arr[p * 4] = start + fill * Math.pow(clamp(first[p] + fringe), 1.25); // fast at the pour, slowing as it spreads
+      ground[p * 4 + 2] = second ? start + fill + hold + (seconds - start - fill - hold - 0.1) * Math.pow(clamp(second[p] + fringe), 1.25) : 1e6;
+    }
+  }
+  return { ground, variants: [{ cov, arr }], dots: [], marks: 1, gain: [1, 1, 1, 1], wet: [0, 0, 0, 0], rise: [0.05, 1, 1, 1], drain: drain ? 1 : 0, ghost: 0, cover: 0 };
+}
 
 export function paint(name, spec, ctx, drawing) {
+  if (spec.reveal === "flood") return flood(spec, ctx);
   const m = new Painter(name, spec, ctx, drawing);
   const look = MATERIALS[name](m);
-  const draw = spec.draw ?? ctx.seconds * 0.72;
-  m.schedule(spec.start ?? 0.15, draw);
-  const count = spec.boil === 0 ? 1 : 3;
+  const draw = spec.draw ?? ctx.seconds * 0.72, start = spec.start ?? 0.15, reveal = spec.reveal || "stroke";
+  m.schedule(start, draw);
+  const moment = reveal === "scrape" ? scrape(m, draw, start) : reveal === "print_through" ? rubbed(m, draw, start) : null;
+  const count = spec.boil === 0 ? 1 : 3, n = m.W * m.H;
   const variants = [];
+  const ground = new Float32Array(n * 4), base = m.sheet.ground;
+  for (let p = 0; p < n; p++) { ground[p * 4] = base[p]; ground[p * 4 + 2] = 1e6; }
   for (let v = 0; v < count; v++) {
     const layers = m.paint(v);
-    const n = m.W * m.H, cov = new Uint8Array(n * 4), arr = new Float32Array(n * 4);
+    const cov = new Uint8Array(n * 4), arr = new Float32Array(n * 4);
     for (let l = 0; l < 4; l++) {
       const { c, a } = layers[l];
-      for (let p = 0; p < n; p++) { cov[p * 4 + l] = Math.round(clamp(c[p]) * 255); arr[p * 4 + l] = a[p]; }
+      for (let p = 0; p < n; p++) {
+        cov[p * 4 + l] = Math.round(clamp(c[p]) * 255);
+        arr[p * 4 + l] = moment ? moment[p] : a[p];
+      }
+    }
+    if (v === 0 && moment) {
+      if (reveal === "scrape") { // a cover over the drawing, gone where the tool has passed
+        for (let p = 0; p < n; p++) {
+          ground[p * 4 + 1] = moment[p] < 1e5 ? 0.05 + 0.1 * m.sheet.M[p] * m.sheet.F[p] : 0;
+          ground[p * 4 + 2] = moment[p];
+        }
+      } else { // the same picture, blurred, on its way through the sheet
+        const flat = new Float32Array(n);
+        for (let p = 0; p < n; p++) {
+          let sum = 0;
+          for (let l = 0; l < 4; l++) sum += (cov[p * 4 + l] / 255) * (l === 3 ? 0.4 : 1);
+          flat[p] = clamp(sum);
+        }
+        const soft = blur(flat, m.W, m.H, 5 * m.S);
+        for (let p = 0; p < n; p++) ground[p * 4 + 3] = soft[p] * 0.55;
+      }
     }
     variants.push({ cov, arr });
   }
-  return { ground: m.sheet.ground, variants, dots: m.pl.dots, marks: m.marks.length, ...look };
+  return {
+    ground, variants, dots: m.pl.dots, marks: m.marks.length, ...look, drain: 0,
+    ghost: reveal === "print_through" ? [start, start + draw * 0.5, start + draw] : 0,
+    rise: reveal === "stroke" ? look.rise : [0.12, 0.12, 0.12, 0.12],
+  };
 }

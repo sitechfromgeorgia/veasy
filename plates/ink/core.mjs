@@ -196,10 +196,10 @@ export class Deposit {
 }
 
 // A brush: `n` bristles across the width, each with its own load, wandering a little along the stroke.
-// st: {w(u) full width, flow(u), n, r?, dry, skip, wander, rim, bleed, body (the soft mass under the bristles)}; time: {t0, dur}. Bleed is written into the
+// st: {w(u) full width, flow(u), n, r?, dry, skip, wander, rim, bleed, body (the mass under the bristles), edge (how soft that mass ends)}; time: {t0, dur}. Bleed is written into the
 // moment a pixel is touched: pigment reaches the edge of a stroke later than its middle, as the square root of time.
 export function brush(dep, p, st, time, key, noise) {
-  const { n = 1, dry = 0, skip = 0, wander = 0, rim = 0, bleed = 0, body = 0 } = st;
+  const { n = 1, dry = 0, skip = 0, wander = 0, rim = 0, bleed = 0, body = 0, edge = 0.8 } = st;
   const flowAt = st.flow || (() => 1);
   const nv = new Float32Array(n), thirst = new Float32Array(n), id = new Float32Array(n);
   for (let b = 0; b < n; b++) {
@@ -212,7 +212,7 @@ export function brush(dep, p, st, time, key, noise) {
     const u = i / (p.n - 1), s = u * p.L, w = st.w(u) / 2, f = flowAt(u);
     const r = st.r ?? (n === 1 ? Math.max(0.5, w) : Math.max(0.7, (2 * w) / n * 0.8));
     const a = time.t0 + time.dur * u;
-    if (body && i % Math.max(1, Math.round(w / 3)) === 0) dep.dab(p.x[i], p.y[i], w, f * body, a + bleed * 0.3, w * 0.8);
+    if (body && i % Math.max(1, Math.round(w / 3)) === 0) dep.dab(p.x[i], p.y[i], w, f * body, a + bleed * 0.3, Math.max(1, w * edge));
     for (let b = 0; b < n; b++) {
       const v = nv[b];
       let ink = f;
@@ -256,6 +256,45 @@ export function plan(drawing, { W, H, S, box, seed }) {
     let most = 0;
     for (const [k, v] of counts) if (v > most) { most = v; region.parent = k; }
   }
+  const line = new Uint8Array(W * H), solid = new Uint8Array(W * H);
+  const stamp = (x, y, r) => {
+    for (let py = Math.max(0, Math.floor(y - r)); py <= Math.min(H - 1, Math.ceil(y + r)); py++) {
+      for (let px = Math.max(0, Math.floor(x - r)); px <= Math.min(W - 1, Math.ceil(x + r)); px++) {
+        if ((px - x) ** 2 + (py - y) ** 2 <= r * r) { line[px + py * W] = 1; solid[px + py * W] = 1; }
+      }
+    }
+  };
+  for (const s of strokes) {
+    if (s.line === "none") continue;
+    const p = walk(s.closed ? closeRing(s.pts) : s.pts, 1.5);
+    for (let i = 0; i < p.n; i++) stamp(p.x[i], p.y[i], Math.max(1, s.w / 2));
+  }
+  // what the lines enclose is a shape too, however it was drawn: flood the sheet from its border, the rest is inside
+  const outside = new Uint8Array(W * H), stack = new Int32Array(W * H);
+  let top = 0;
+  const push = (p) => { if (!outside[p] && !line[p] && !id[p]) { outside[p] = 1; stack[top++] = p; } };
+  const flood = (start, mark) => {
+    push(start);
+    while (top) {
+      const p = stack[--top], x = p % W;
+      mark(p);
+      if (x > 0) push(p - 1);
+      if (x < W - 1) push(p + 1);
+      if (p >= W) push(p - W);
+      if (p + W < W * H) push(p + W);
+    }
+  };
+  for (let x = 0; x < W; x++) { flood(x, () => {}); flood(x + (H - 1) * W, () => {}); }
+  for (let y = 0; y < H; y++) { flood(y * W, () => {}); flood(W - 1 + y * W, () => {}); }
+  const minArea = 400 * S * S;
+  for (let p = 0; p < W * H; p++) {
+    if (outside[p] || line[p] || id[p]) continue;
+    const region = { id: regions.length, fill: "CANVAS", order: 0, parent: 0, open: true }, cells = [];
+    flood(p, (q) => cells.push(q));
+    if (cells.length < minArea) continue;
+    regions.push(region);
+    for (const q of cells) id[q] = region.id;
+  }
   for (const r of regions) Object.assign(r, { area: 0, sx: 0, sy: 0, x0: W, y0: H, x1: 0, y1: 0 });
   for (let y = 0, p = 0; y < H; y++) {
     for (let x = 0; x < W; x++, p++) {
@@ -276,25 +315,12 @@ export function plan(drawing, { W, H, S, box, seed }) {
     else if (r.fill === "LINE") tone = 0.4;
     else {
       for (let k = 0; k < picks.length && Math.abs(picks[(start + k) % picks.length] - parent) < 0.22; k++) tone = picks[(start + k + 1) % picks.length];
-      if (r.fill === "none") tone *= 0.6;
+      if (r.fill === "none" || r.open) tone *= 0.6; // a shape nobody filled may only be the air between two lines
     }
     r.tone = tone;
     r.angle = -0.95 + (rnd() - 0.5) * 0.3; // a right hand's diagonal, a little different per shape
   }
 
-  const line = new Uint8Array(W * H), solid = new Uint8Array(W * H);
-  const stamp = (x, y, r) => {
-    for (let py = Math.max(0, Math.floor(y - r)); py <= Math.min(H - 1, Math.ceil(y + r)); py++) {
-      for (let px = Math.max(0, Math.floor(x - r)); px <= Math.min(W - 1, Math.ceil(x + r)); px++) {
-        if ((px - x) ** 2 + (py - y) ** 2 <= r * r) { line[px + py * W] = 1; solid[px + py * W] = 1; }
-      }
-    }
-  };
-  for (const s of strokes) {
-    if (s.line === "none") continue;
-    const p = walk(s.closed ? closeRing(s.pts) : s.pts, 1.5);
-    for (let i = 0; i < p.n; i++) stamp(p.x[i], p.y[i], Math.max(1, s.w / 2));
-  }
   for (let p = 0; p < W * H; p++) if (id[p]) solid[p] = 1;
   const borders = Uint8Array.from(line);
   for (let y = 1, p = W + 1; y < H - 1; y++, p += 2) {
