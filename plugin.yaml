@@ -19,6 +19,7 @@ provides_tools:
   - veasy_doctor
   - veasy_critique
   - veasy_dry_run
+  - veasy_look
   - veasy_brand
 provides_hooks:
   - pre_llm_call

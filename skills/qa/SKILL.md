@@ -77,3 +77,9 @@ Before rendering or paying for a voice, run:
    Free calculation ($0.00) of character counts, spoken seconds, estimated TTS cost, monthly budget status, and whether the voice/bundle is cached.
 2. `python -m tt_shorts.engine critique <story.json>` (tool `veasy_critique`):
    Runs an automated pre-flight visual checklist over the plan's stills: safe zones, text reading load, static stretches, novelty, hook pacing, and brand contrast. Returns score (0-100), grade (PASS / NEEDS_ATTENTION / FAIL), and contact sheet path (`.plan.jpg`).
+
+## Look: what exists, and what next (free)
+
+`python -m tt_shorts.engine look --job <id>` or `--story <file>` (tool `veasy_look`) reads only: the sheets already on
+disk (QA sheet, plan sheet, composed `look` sheets), numbers, warnings, checks, the idea the story keeps and the
+`next` step. It renders nothing; what is missing is named in `missing`. Run it first on any job someone else started.
