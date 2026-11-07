@@ -35,7 +35,7 @@ FILLER = "ეს სცენა ფუნჯების წიგნისთ�
 SYNONYMS = {  # what a story needs -> words an agent may type; matched against an entry's slots and text
     "number": "number count amount sum price figure how many total",
     "place": "place map where region city location town",
-    "list": "list items several steps process checklist sequence",
+    "list": "list items several checklist",
     "time": "time date when schedule deadline calendar duration countdown",
     "compare": "compare versus difference before after against two sides",
     "change": "change trend rise fall growth over time months years",
@@ -413,6 +413,12 @@ def _extra_frames(m: dict, frames: list[int]) -> list[pathlib.Path]:
 # ------------------------------------------------------------------------------------------------ search and page
 
 
+def need_score(it: dict, need: str) -> int:
+    """How strongly an entry's own what/use_when/title speak of one need (SYNONYMS): its words, and the need's name."""
+    primary = set(re.findall(r"[a-z]+", (it["what"] + " " + it["use_when"] + " " + it["title"]).lower()))
+    return len(primary & set(SYNONYMS[need].split())) + (3 if need in primary else 0)
+
+
 def find(query: str, its=None, n: int = 5) -> list[dict]:
     """The entries that fit a need ("a number", "a place"), best first. A need word ("number") counts for the
     brushes whose slots or text carry it, more for the one that carries only it (a stat is a number, a bar is
@@ -425,8 +431,7 @@ def find(query: str, its=None, n: int = 5) -> list[dict]:
     for it in its:
         text = set(re.findall(r"[a-zა-ჰ]+", (it["words"] + " " + it["title"] + " " + it["what"] + " " + it["use_when"]).lower()))
         title = set(re.findall(r"[a-z]+", it["title"].lower()))
-        primary = set(re.findall(r"[a-z]+", (it["what"] + " " + it["use_when"] + " " + it["title"]).lower()))
-        hit = sum(len(primary & set(SYNONYMS[nd].split())) + (3 if nd in primary else 0) for nd in named)
+        hit = sum(need_score(it, nd) for nd in named)
         score = 2.0 * hit + len(q & text) * 0.5 + 4 * len(q & title) + (2 if it["kind"] == "brush" else 0)
         if q & text or q & title or hit:
             scored.append((score, it))
@@ -462,9 +467,10 @@ def build_page(its=None, out_dir: pathlib.Path | None = None) -> pathlib.Path:
         else:
             pic = f'<figure class="one"><img loading="lazy" src="{html.escape(rel(first))}" alt="{html.escape(it["title"])}"></figure>'
             scene, repro = "", ""
+        nscore = html.escape(json.dumps({k: v for k in SYNONYMS if (v := need_score(it, k))}))
         words = html.escape(f'{it["kind"]} {it["title"]} {it["words"]} {it["what"]} {it["use_when"]}'.lower())
         cards.append(
-            f'<article class="card" data-kind="{it["kind"]}" data-words="{words}" id="{it["id"]}">{pic}'
+            f'<article class="card" data-kind="{it["kind"]}" data-words="{words}" data-need="{nscore}" id="{it["id"]}">{pic}'
             f'<div class="body"><span class="kind">{it["kind"]}</span><h3>{html.escape(it["title"])}</h3>'
             f'<p>{html.escape(it["what"])}</p><p><b>Use when</b> {html.escape(it["use_when"])}</p>'
             f'<p class="avoid"><b>Not when</b> {html.escape(it["avoid_when"])}</p>'
@@ -517,13 +523,13 @@ pre{font-size:11px;white-space:pre-wrap;word-break:break-word;background:var(--b
 {{CARDS}}
 </main><div id="none">No entry matches. Try a need: number, place, list, time, compare, change, quote.</div>
 <script>
-const SYN={number:"count amount sum price figure total",place:"map where region city location",list:"items steps process checklist sequence",time:"date when schedule deadline calendar countdown",compare:"versus difference before after",change:"trend rise fall growth",quote:"said statement citation",share:"percent percentage whole",rank:"ranking top order",picture:"icon drawing sign symbol",source:"link article reference",word:"term meaning glossary definition"};
+const SYN={process:"steps stages sequence procedure how",number:"count amount sum price figure total",place:"map where region city location",list:"items several checklist",time:"date when schedule deadline calendar countdown",compare:"versus difference before after",change:"trend rise fall growth",quote:"said statement citation",share:"percent percentage whole",rank:"ranking top order",picture:"icon drawing sign symbol",source:"link article reference",word:"term meaning glossary definition"};
 const STOP=new Set(["a","an","the","of","for","to","in","and","or","my","story","with"]);
 const cards=[...document.querySelectorAll(".card")];let kind="",theme="";
-function terms(s){const t=s.toLowerCase().split(/[^a-z\\u10d0-\\u10ff0-9]+/).filter(w=>w&&!STOP.has(w));const o=new Set(t);t.forEach(w=>{for(const k in SYN){if(k===w||(w.length>3&&k.startsWith(w.slice(0,4))))SYN[k].split(" ").forEach(x=>o.add(x))}});return [...o]}
-function run(){const q=document.getElementById("q").value.trim();const t=terms(q);let n=0;
+function terms(s){const t=s.toLowerCase().split(/[^a-z\\u10d0-\\u10ff0-9]+/).filter(w=>w&&!STOP.has(w));const o=new Set(t),named=new Set();t.forEach(w=>{for(const k in SYN){if(k===w||(w.length>3&&k.startsWith(w.slice(0,4)))||SYN[k].split(" ").includes(w)){named.add(k);SYN[k].split(" ").forEach(x=>o.add(x))}}});o.named=named;return o}
+function run(){const q=document.getElementById("q").value.trim();const T=terms(q),t=[...T];let n=0;
 cards.forEach(c=>{const w=c.dataset.words;let ok=(!kind||c.dataset.kind===kind);let s=0;
-if(t.length){t.forEach(x=>{if(w.includes(x))s++});ok=ok&&s>0}c.style.display=ok?"":"none";c.style.order=ok?-s:0;if(ok)n++});
+if(t.length){t.forEach(x=>{if(w.includes(x))s+=.5});const ns=JSON.parse(c.dataset.need||"{}");let nm=0;T.named.forEach(k=>{nm+=ns[k]||0});s+=2*nm;ok=ok&&(s>0);if(c.dataset.kind==="brush")s+=2}c.style.display=ok?"":"none";c.style.order=ok?-Math.round(s*10):0;if(ok)n++});
 document.getElementById("count").textContent=n+" shown";document.getElementById("none").style.display=n?"none":"block"}
 document.getElementById("q").addEventListener("input",run);
 document.querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>{kind=b.dataset.kind;document.querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===b));run()}));
