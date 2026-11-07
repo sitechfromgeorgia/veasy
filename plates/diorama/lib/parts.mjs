@@ -14,7 +14,7 @@ const mirror = (points) => points.map(([x, y]) => [-x, y]).reverse();
 // A silhouette folded down its middle and stood up: the left half takes the light, the right half loses it. The crease
 // is the proof that this is a sheet. `half` is the right half, from its foot on x=0 round to its top on x=0.
 function folded(half, o = {}) {
-  const { fold = 16, wobble = 0.012, warp = 0 } = o;
+  const { fold = 16, wobble = 0.016, warp = 0 } = o;
   const a = fold * Math.PI / 180;
   const right = card(half, { wobble, warp, spin: 0, ...o }), left = card(mirror(half), { wobble, warp, spin: 0, ...o });
   right.rotation.y = a;
@@ -23,8 +23,16 @@ function folded(half, o = {}) {
 }
 
 // A sheet across the stage, with an arched opening the view passes through.
-function sheet({ at, width = 9, height = 7, tone = 0.4, open = 2.4, spring = 3.2, sill = 0.34, ring = true, cornice = 0, panes = false, windows = 0, gap = 0.5 }) {
-  const parts = [], holes = [];
+// A crease where the sheet was once folded: a score line and the pale break beside it.
+function crease(random, width, height, tone, clear) { // clear: the height above which the sheet has no opening
+  const x = (random() - 0.5) * width * 0.8, lean = (random() - 0.5) * 1.6, y0 = clear + random() * 0.4, y1 = height, line = [];
+  for (let i = 0; i <= 6; i++) line.push([x + lean * i / 6 + (random() - 0.5) * 0.02, y0 + (y1 - y0) * i / 6]);
+  return [strip(line, 0.018, { tone: tone - 0.14, z: 0.07, depth: 0.004 }), strip(line.map(([a, b]) => [a + 0.018, b]), 0.012, { tone: tone + 0.2, z: 0.07, depth: 0.004 })];
+}
+
+function sheet({ at, width = 9, height = 7, tone = 0.4, open = 2.4, spring = 3.2, sill = 0.34, ring = true, cornice = 0, panes = false, windows = 0, gap = 0.5 }, { random }) {
+  const clear = sill + spring + open / 2 + 0.4;
+  const parts = [...crease(random, width, height, tone, clear), ...crease(random, width, height, tone, clear)], holes = [];
   if (windows) {
     for (let i = 0; i < windows; i++) {
       const x = (i - (windows - 1) / 2) * (open + gap);
@@ -80,7 +88,8 @@ function glow({ at, width = 12, height = 9, power = 1.4, tone = 0.8 }) {
 // A ground row: a low strip across the stage, its top edge cut by hand.
 function groundRow({ at, width = 12, height = 0.3, tone = 0.4 }, { random }) {
   const top = [];
-  for (let x = width / 2; x > -width / 2; x -= 0.7) top.push([x, height + (random() - 0.5) * 0.03]);
+  const phase = random() * 6.3, wave = 0.5 + random() * 0.6;
+  for (let x = width / 2; x > -width / 2; x -= 0.4) top.push([x, height + 0.05 * Math.sin(x * wave + phase) + (random() - 0.5) * 0.035]);
   return group([card([[-width / 2, 0], [width / 2, 0], ...top], { tone, depth: 0.04 })], { at });
 }
 
@@ -142,18 +151,18 @@ function amphora({ at, height = 1.1, tone = 0.72 }) {
     const p = arc(side * 0.22 * k, 1.03 * k, 0.15 * k, side > 0 ? 100 : 80, side > 0 ? -70 : 250, 8);
     parts.push(strip(p, 0.06, { tone: tone - 0.2, z: -0.1, depth: 0.03 }));
   }
-  parts.push(...folded(half.map(([x, y]) => [x * 1.05, y]), { tone: tone - 0.36, fold: 16 }).map((c) => { c.position.z = -0.05; return c; }));
-  parts.push(...folded(half, { tone, fold: 16 }));
-  const band = (y, tall, shade, lift) => {
-    const w0 = widthAt(y - tall) * 0.98, w1 = widthAt(y + tall) * 0.98;
-    return folded([[0, y - tall], [w0, y - tall], [w1, y + tall], [0, y + tall]], { tone: shade, fold: 16, depth: 0.02, bevel: 0.006, wobble: 0.008, z: lift + 0.06 });
+  parts.push(...folded(half.map(([x, y]) => [x * 1.05, y]), { tone: tone - 0.36, fold: 10 }).map((c) => { c.position.z = -0.05; return c; }));
+  parts.push(...folded(half, { tone, fold: 10 }));
+  const band = (y, tall, teeth) => { // cut from a dark sheet and glued across the fold
+    const w0 = widthAt(y - tall) * 0.95, w1 = widthAt(y + tall) * 0.95, top = [];
+    for (let i = teeth; i >= 0; i--) {
+      const x = w1 * i / Math.max(1, teeth);
+      top.push([x, y + tall]);
+      if (teeth && i) top.push([x - w1 / teeth / 2, y + tall + 0.05]);
+    }
+    return folded([[-0.02, y - tall], [w0, y - tall], ...top.map(([x, b]) => [Math.max(-0.02, x), b])], { tone: 0.2, fold: 10, depth: 0.02, bevel: 0.006, wobble: 0.01, z: 0.09 });
   };
-  parts.push(...band(0.68 * k, 0.09 * k, 0.16, 0.05), ...band(0.46 * k, 0.03 * k, 0.16, 0.05), ...band(0.9 * k, 0.03 * k, 0.16, 0.05));
-  for (let i = 0; i < 5; i++) { // the running figure on the band
-    const x = (i + 0.5) * 0.05 * k;
-    parts.push(...folded([[x - 0.014, 0.62 * k], [x + 0.014, 0.62 * k], [x + 0.014, 0.74 * k], [x - 0.014, 0.74 * k]].map(([a, b]) => [Math.max(0.002, a), b]),
-      { tone: tone - 0.02, fold: 16, depth: 0.012, bevel: 0, wobble: 0.004, z: 0.16 }));
-  }
+  parts.push(...band(0.66 * k, 0.07 * k, 4), ...band(0.44 * k, 0.025 * k, 0), ...band(0.9 * k, 0.025 * k, 0));
   return group(parts, { at });
 }
 
@@ -163,10 +172,10 @@ function bust({ at, height = 1, tone = 0.68 }) {
   const half = P([[0, 0], [0.13, 0], [0.17, 0.08], [0.09, 0.11], [0.3, 0.26], [0.37, 0.4], [0.15, 0.5], [0.075, 0.56], [0.08, 0.66],
     [0.15, 0.72], [0.175, 0.82], [0.14, 0.94], [0.06, 1], [0, 1.01]]);
   return group([
-    ...folded(half.map(([x, y]) => [x * 1.05, y * 1.01]), { tone: tone - 0.36, fold: 18 }).map((c) => { c.position.z = -0.05; return c; }),
-    ...folded(half, { tone, fold: 18 }),
-    ...folded(P([[0, 0.14], [0.26, 0.26], [0.33, 0.39], [0.13, 0.47], [0, 0.4]]), { tone: tone - 0.16, fold: 18, z: 0.11, depth: 0.02 }),
-    ...folded(P([[0, 0.9], [0.17, 0.84], [0.15, 0.93], [0.06, 1], [0, 1.01]]), { tone: tone - 0.24, fold: 18, z: 0.11, depth: 0.02 }),
+    ...folded(half.map(([x, y]) => [x * 1.05, y * 1.01]), { tone: tone - 0.36, fold: 12 }).map((c) => { c.position.z = -0.05; return c; }),
+    ...folded(half, { tone, fold: 12 }),
+    ...folded(P([[0, 0.14], [0.26, 0.26], [0.33, 0.39], [0.13, 0.47], [0, 0.4]]), { tone: tone - 0.16, fold: 12, z: 0.09, depth: 0.02 }),
+    ...folded(P([[0, 0.9], [0.17, 0.84], [0.15, 0.93], [0.06, 1], [0, 1.01]]), { tone: tone - 0.24, fold: 12, z: 0.09, depth: 0.02 }),
   ], { at });
 }
 

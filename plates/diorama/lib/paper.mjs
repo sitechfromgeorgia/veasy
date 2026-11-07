@@ -60,7 +60,7 @@ function paint(geometry, tone, edge, glow, edgeGlow) { // attribute ink: linear 
 function warp(geometry, amount) {
   const fx = 0.5 + random() * 0.9, fy = 0.5 + random() * 0.9, px = random() * 6.3, py = random() * 6.3;
   const pos = geometry.attributes.position, normal = geometry.attributes.normal;
-  const gain = 6 * amount;
+  const gain = 9 * amount;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i), nz = normal.getZ(i);
     pos.setZ(i, pos.getZ(i) + amount * Math.sin(x * fx + px) * Math.sin(y * fy + py));
@@ -74,10 +74,12 @@ function warp(geometry, amount) {
 // Options: holes, z (the back of the card), depth, tone, edge, glow (lit from within: a window, a sky), wobble, bevel.
 // The bevel is the cut edge seen from the front: a facet that takes the light on one side and loses it on the other.
 export function card(outline, o = {}) {
-  const { holes = [], z = 0, depth = 0.05, tone = 0.6, edge = Math.min(0.96, tone + 0.46), edgeGlow = 0.24, glow = 0, wobble = 0.024 } = o;
+  const { holes = [], z = 0, depth = 0.05, tone: asked = 0.6, edgeGlow = 0.06, glow = 0, wobble = 0.024 } = o;
+  const tone = asked + (wobble ? (random() - 0.5) * 0.05 : 0), { edge = Math.min(0.96, tone + 0.34) } = o; // no two sheets of one stock match
   const xs = outline.map((p) => p[0]), ys = outline.map((p) => p[1]);
   const narrow = Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
-  const { bevel = wobble ? Math.min(0.028, narrow * 0.09) : 0.006, warp: bend = wobble ? 0.018 : 0, spin = wobble ? 0.008 : 0 } = o;
+  const { bevel = wobble ? Math.min(0.03, narrow * 0.09) * (0.45 + random() * 0.75) : 0.006, warp: bend = wobble ? 0.016 + Math.min(0.03, narrow * 0.006) : 0,
+    spin = wobble ? 0.016 : 0 } = o;
   const toPoints = (pts) => (wobble ? handCut(pts, wobble) : pts).map(([x, y]) => new THREE.Vector2(x, y));
   const shape = new THREE.Shape(toPoints(outline));
   for (const hole of holes) shape.holes.push(new THREE.Path(toPoints(hole)));
