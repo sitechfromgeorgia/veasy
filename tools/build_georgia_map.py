@@ -947,7 +947,8 @@ def main():
     for name, data in files.items():
         target = out if name == "georgia" else out.with_name(f"{name}.json")
         text = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
-        target.write_text(text + "\n", encoding="utf-8")
+        with open(target, "w", encoding="utf-8", newline="\n") as f:  # the same bytes on any platform
+            f.write(text + "\n")
         report[target.name] = {"bytes": len(text.encode()),
                                "parts": {k: len(json.dumps(v, ensure_ascii=False)) for k, v in data.items()}}
     print(json.dumps(report, ensure_ascii=False))
