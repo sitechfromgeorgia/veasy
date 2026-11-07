@@ -326,10 +326,12 @@ def build_room_model(target, story_path=None, engine_override=None, out_html=Non
         commands = {
             "dry_set": f'{cmd_base} --set {prim_k}="{esc_val}" --dry',
             "set": f'{cmd_base} --set {prim_k}="{esc_val}"',
-            "tighter": f"{cmd_base} --tighter",
-            "breathe": f"{cmd_base} --breathe",
-            "land": f"{cmd_base} --land",
+            "tighter": f"{cmd_base} --tighter --dry",
+            "breathe": f"{cmd_base} --breathe --dry",
+            "land": f"{cmd_base} --land --dry",
         }
+        if not fields:  # no text slot on this scene: only the rhythm verbs apply
+            commands["dry_set"] = commands["set"] = "(this scene has no text slot: use the timing verbs below)"
         cost_before = {
             "text_edit": f"{dur_s:.1f} s of picture (scene {i}, frames {start_f}-{end_f}), $0.00",
             "timing_verb": f"{dur_s:.1f} s of picture (scene {i}, checked by motion_rules), $0.00",
