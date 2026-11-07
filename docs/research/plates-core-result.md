@@ -95,3 +95,16 @@ players, frames not re-rendered after it), a dot with a job (the example plate's
 kind, not of the core) and quieter chrome (caption, watermark: not this lane's).
 Not met literally: `engine plate example --seconds 4` was run at 6 s and 1 s; the cache answer is 0.2 s in process
 (`test_second_call_...` holds <1 s) but 1.3-2.4 s as a CLI process on this loaded machine (interpreter start-up).
+
+## 9. Closing round (2026-11-07, after the integrating session's four points)
+
+1. Cache hit: `engine plate` now takes an early path before the engine's imports, and `plates.make` answers a repeat call from
+   an index of finished answers keyed by file stats (no node, no brand loading; `test_a_repeat_call_needs_neither_node_nor_the_packs`).
+   Measured as a CLI process: 594-668 ms, with the machine's CPU at 100% from other lanes' work (before: 1.3-2.4 s).
+2. `engine plate example --seconds 4`, fresh home: first call 94 s (bake 256 ms a frame + toning four clips for both packs and
+   both themes), second call `cached: true` in 594 and 650 ms.
+3. Both proof films re-rendered with the bottom fade: `qa` probe problems none, flash passes (area 0.0), only "no audio track"
+   (silent voice). New frames in `docs/research/plates-core-frames/`. Critic (sonnet, frames only): composed frame the stronger,
+   fade clean; suggested a more opaque card in the Remotion look and a brighter label. Not changed: the card is 92% on purpose
+   (a constant in `plate.tsx`), listed for the owner.
+4. `tsc --noEmit` clean, `engine selftest` problems none (goldens unchanged); full suite below.
