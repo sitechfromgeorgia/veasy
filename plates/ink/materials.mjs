@@ -221,7 +221,7 @@ const MATERIALS = {
     for (const s of lines(pl)) {
       const keep = KEEP[s.line] ?? 1;
       for (const pts of pieces(s, 0.8)) {
-        const key = m.marks.length * 1.7, base = s.w * (1.5 + 1.2 * keep);
+        const key = m.marks.length * 1.7, base = s.w * (1 + 1.05 * keep);
         m.mark(ink, LINE, pts, {
           w: pressure(noise, key, base), n: Math.max(6, Math.round(base * 1.3)), dry: 0.92, skip: 0.26, wander: 0.3, bleed: 0.2, body: 0.5, edge: 0.14,
           flow: (u) => keep * (1 - 0.12 * u),
@@ -355,20 +355,32 @@ const MATERIALS = {
 
   halftone(m) {
     const { sheet, pl, S, W, H, noise, rnd } = m, { T, F, M, ground } = sheet;
-    m.hand = 0.8; m.boil = 0.3; m.boilStep = 80;
-    for (let p = 0; p < W * H; p++) ground[p] = 0.022 + 0.022 * M[p] + 0.02 * F[p] * T[p];
-    const printed = (v, p) => smooth(0.42, 0.58, v + (T[p] - 0.5) * 0.42 + (F[p] - 0.5) * 0.2) * (0.74 + 0.2 * F[p] + 0.16 * M[p]);
-    const key = m.pass(0.34), screen = m.pass(0.66);
-    // the key plate: a solid line, a little off register from the screen
+    m.hand = 1; m.boil = 0.3; m.boilStep = 80;
+    for (let p = 0; p < W * H; p++) ground[p] = 0.02 + 0.02 * M[p] + 0.024 * F[p] * T[p];
+    // the rollers ran short in places: the plate takes ink in long bands and patches
+    const starve = new Float32Array(W * H);
+    for (let y = 0, p = 0; y < H; y++) {
+      for (let x = 0; x < W; x++, p++) starve[p] = 0.62 + 0.5 * noise.fbm(x / (420 * S) + 9, y / (70 * S), 3) + 0.14 * F[p];
+    }
+    const printed = (v, p) => {
+      const edge = smooth(0.44, 0.56, v + (T[p] - 0.5) * 0.36 + (F[p] - 0.5) * 0.22);
+      const salt = smooth(0.56, 0.66, T[p] * 0.5 + F[p] * 0.5) * smooth(0.82, 1.02, 1.5 - starve[p]);
+      return edge * clamp(starve[p]) * (1 - 0.85 * salt);
+    };
+    const key = m.pass(0.3), tint = m.pass(0.28), screen = m.pass(0.42);
+    // the key plate: a thin solid line
     for (const s of lines(pl)) {
-      const keep = KEEP[s.line] ?? 1, base = s.w * (0.8 + 1.0 * keep);
+      const keep = KEEP[s.line] ?? 1, base = s.w * (0.5 + 0.75 * keep);
       for (const pts of pieces(s, 0.8)) {
         const k = rnd() * 50;
-        m.mark(key, LINE, pts, { w: (u) => base * (0.82 + 0.4 * noise.at(u * 7 + k, k)), n: 1, flow: () => 0.95 }, printed);
+        m.mark(key, LINE, pts, { w: (u) => base * (0.7 + 0.6 * noise.at(u * 6 + k, k)), n: 1, flow: () => 0.96 }, printed);
       }
     }
-    // the screen: 45 degrees, each dot a dab of ink that grows in place, dot gain from the tone
-    const pitch = 14 * S, c = Math.SQRT1_2, shiftX = 3.5 * S, shiftY = -2.5 * S, dots = [];
+    // the tint plate, cut by hand and off register: its shapes miss the line, and a graded panel stands behind them,
+    // knocked out around the object
+    const pitch = 15 * S, c = Math.SQRT1_2, shiftX = 13 * S, shiftY = -9 * S, dots = [];
+    const px0 = 54 * S, px1 = 1026 * S, py0 = pl.oy - 70 * S, py1 = pl.oy + 640 * pl.scale + 34 * S;
+    const inPanel = (x, y) => x > px0 + (y - py0) * 0.02 && x < px1 - (y - py0) * 0.03 && y > py0 + (x - px0) * 0.016 && y < py1 - (x - px0) * 0.01;
     const span = Math.ceil((W + H) / pitch);
     for (let i = -span; i <= span; i++) {
       for (let j = -span; j <= span; j++) {
@@ -376,23 +388,26 @@ const MATERIALS = {
         if (x < 0 || y < 0 || x >= W || y >= H) continue;
         const px = Math.round(x - shiftX), py = Math.round(y - shiftY), p = clamp(px, 0, W - 1) + clamp(py, 0, H - 1) * W;
         const inside = pl.id[p] > 0;
-        let q = inside ? pl.tone[p] : 0.3 * Math.exp(-pl.sil[p] / (85 * S)) * (0.7 + 0.6 * noise.at(x / (110 * S), y / (110 * S)));
-        q *= 0.9 + 0.2 * noise.at(x / (60 * S), y / (60 * S));
-        if (q < 0.04) continue;
-        const r = pitch * Math.sqrt(Math.pow(q, 1 / 1.35) / Math.PI) * 1.05;
-        dots.push({ x, y, r, order: inside ? pl.regions[pl.id[p]].order : 1e4 + pl.sil[p], back: !inside });
+        let q;
+        if (inside) q = 0.1 + 1.1 * pl.tone[p] * pl.tone[p];
+        else {
+          if (!inPanel(x, y) || pl.sil[p] < 26 * S) continue;
+          q = 0.05 + 0.3 * smooth(py0, py1, y) ** 1.6;
+        }
+        const r = pitch * Math.sqrt(Math.pow(clamp(q), 1 / 1.35) / Math.PI) * 1.05;
+        dots.push({ x, y, r, order: inside ? pl.regions[pl.id[p]].order : 1e4, back: !inside });
       }
     }
     dots.sort((a, b) => a.order - b.order || a.y - b.y);
     for (const d of dots) {
-      const lean = noise.at(d.x / 3 + 5, d.y / 3) * 0.6 * S;
-      m.custom(screen, d.back ? BACK : TONE, 5 + d.r * 0.2, (dep, time) => {
+      const lean = noise.at(d.x / 3 + 5, d.y / 3) * 0.7 * S;
+      m.custom(d.back ? tint : screen, d.back ? BACK : TONE, 5 + d.r * 0.2, (dep, time) => {
         dep.dab(d.x, d.y, d.r * 0.5, 1, time.t0, 1.2 * S);
         dep.dab(d.x + lean, d.y - lean, d.r * 0.78, 1, time.t0 + 0.09, 1.4 * S);
         dep.dab(d.x, d.y + lean, d.r, 0.9, time.t0 + 0.2, 1.6 * S);
       }, printed);
     }
-    return { gain: [1, 1, 1, 1], wet: [0.1, 0.12, 0.12, 0.12], rise: [0.04, 0.05, 0.05, 0.05] };
+    return { gain: [1, 1, 1, 0.8], wet: [0.1, 0.12, 0.12, 0.12], rise: [0.04, 0.05, 0.05, 0.05] };
   },
 
   chalk(m) {
@@ -429,13 +444,13 @@ const MATERIALS = {
     }
     const lay = (pts, base, press, key) => {
       m.mark(stick, LINE, pts, {
-        w: (u) => base * (0.72 + 0.56 * noise.at(u * 4 + key, key)), n: 3, body: 1, wander: 0.2,
-        flow: (u) => press * (0.72 + 0.5 * noise.at(u * 6 + key * 2, key + 3)) * smooth(0, 0.03, u) * (1 - 0.3 * smooth(0.9, 1, u)),
+        w: (u) => base * (0.55 + 0.9 * noise.at(u * 3 + key, key)), n: 3, body: 1, edge: 0.5, wander: 0.3,
+        flow: (u) => press * (0.56 + 0.8 * noise.at(u * 5 + key * 2, key + 3)) * smooth(0, 0.03, u) * (1 - 0.3 * smooth(0.9, 1, u)),
       }, dry, { lap: 1.2 });
-      m.mark(stick, SOFT, pts, { w: () => base * 3.4, n: 0, body: 0.2 * press }, (v, p) => v * (0.3 + 0.8 * F[p]), { hand: 3 });
+      m.mark(stick, SOFT, pts, { w: () => base * 2.8, n: 0, body: 0.09 * press }, (v, p) => v * (0.2 + 1.2 * F[p] * T[p]), { hand: 3 });
     };
     for (const s of lines(pl)) {
-      const keep = KEEP[s.line] ?? 1, base = Math.max(5 * S, s.w * (0.75 + 0.75 * keep));
+      const keep = KEEP[s.line] ?? 1, base = Math.max(4.5 * S, s.w * (0.65 + 0.6 * keep));
       for (const pts of pieces(s, 0.8)) {
         lay(pts, base, 0.62 + 0.4 * keep, rnd() * 70);
         if (keep === 1 && rnd() < 0.6) lay(pts, base * 0.8, 0.8, rnd() * 70);
