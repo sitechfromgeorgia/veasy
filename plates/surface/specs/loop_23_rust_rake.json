@@ -1,0 +1,8 @@
+{
+  "material": "rust",
+  "light": "rake",
+  "scale": 1.0,
+  "depth": 1.6,
+  "roughness": 0.95,
+  "intensity": 1.0
+}

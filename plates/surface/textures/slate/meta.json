@@ -1,0 +1,15 @@
+{
+  "id": "slate",
+  "name": "Cleaved Slate",
+  "category": "stone",
+  "description": "Dark cleaved slate plates with stepped flake edges and fine cleavage streaks.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.5,
+  "roughness": 0.55,
+  "height_sha256": "506933804d4bf733898ad26b7ff2224a113bf6adf849e087b48b48a992575430",
+  "normal_sha256": "bf002f48c229f27722679ef4af3790bfe0f98caab0b51282d04ede8472338de0",
+  "bytes": 289836
+}

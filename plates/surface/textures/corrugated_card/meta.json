@@ -1,0 +1,15 @@
+{
+  "id": "corrugated_card",
+  "name": "Corrugated Card",
+  "category": "paper",
+  "description": "Cardboard flutes with paper fibre and soft crush marks.",
+  "dimensions": [
+    384,
+    384
+  ],
+  "depth": 1.6,
+  "roughness": 0.85,
+  "height_sha256": "7a2ceda00b34ff8074effe80b4ce822057184641f1b912d547beadb0eccea3d2",
+  "normal_sha256": "1376859400ace15e847573f9e9d0413da5bbc8f63369dc6e551565d628b1e03a",
+  "bytes": 385074
+}

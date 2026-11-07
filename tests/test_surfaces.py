@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from tools import surface_procedural as sp
 from tools.build_surfaces import (
     MAX_GIT_MB,
     MATERIALS_CATALOG,
@@ -18,6 +19,8 @@ from tools.build_surfaces import (
     compute_sha256,
     make_seamless_tile,
     process_material,
+    process_procedural,
+    validate_record,
     to_normalized_greyscale,
 )
 
@@ -137,6 +140,90 @@ class TestBuildSurfaces(unittest.TestCase):
             self.assertIn("depth", entry)
             self.assertIn("roughness", entry)
             self.assertTrue(entry.get("n13_label_required", False))
+
+
+class TestProcedural(unittest.TestCase):
+    """The code-drawn materials: deterministic, seamless, never marked ai."""
+
+    N = 128
+
+    def test_critic_approved_set_kept(self):
+        self.assertGreaterEqual(len(sp.MATERIALS), 14)  # 14 survived the critics (15 were asked for)
+
+    def test_same_seed_same_bytes(self):
+        for mid in sp.MATERIALS:
+            a = sp.generate(mid, sp.default_seed(mid), self.N)
+            b = sp.generate(mid, sp.default_seed(mid), self.N)
+            self.assertEqual(a.tobytes(), b.tobytes(), mid)
+            self.assertEqual(a.shape, (self.N, self.N))
+            self.assertGreaterEqual(float(a.min()), 0.0)
+            self.assertLessEqual(float(a.max()), 1.0)
+
+    def test_seed_changes_result(self):
+        for mid in ("slate", "bark", "wax"):
+            a = sp.generate(mid, 1, self.N)
+            b = sp.generate(mid, 2, self.N)
+            self.assertNotEqual(a.tobytes(), b.tobytes(), mid)
+
+    def test_tiles_are_seamless_and_not_flat(self):
+        for mid in sp.MATERIALS:
+            h = sp.generate(mid, sp.default_seed(mid), self.N)
+            self.assertLessEqual(sp.seam_ratio(h), 1.25, mid)
+            self.assertGreater(float(h.std()), 0.08, mid)  # real relief, not a flat field
+
+    def test_seam_check_catches_a_cut_tile(self):
+        ramp = np.tile(np.linspace(0.0, 1.0, self.N, dtype=np.float32), (self.N, 1))  # not periodic: wraps with a jump
+        cut = 0.8 * ramp + 0.2 * sp.generate("slate", 5, self.N)
+        self.assertGreater(sp.seam_ratio(cut), 1.5)
+
+    def test_materials_are_distinct(self):
+        # different matter must not be near-duplicates: compare normalised spectra of every pair
+        specs = {}
+        for mid in sp.MATERIALS:
+            h = sp.generate(mid, sp.default_seed(mid), self.N)
+            f = np.abs(np.fft.fft2(h - h.mean()))
+            specs[mid] = (f / np.linalg.norm(f)).ravel()
+        ids = sorted(specs)
+        for i, a in enumerate(ids):
+            for b in ids[i + 1:]:
+                self.assertLess(float(specs[a] @ specs[b]), 0.995, (a, b))
+
+    def test_process_procedural_ledger_record(self):
+        tmp = Path(tempfile.mkdtemp(prefix="veasy_proc_"))
+        try:
+            rec1 = process_procedural("wax", tmp / "a", tmp / "pa", size=self.N)
+            rec2 = process_procedural("wax", tmp / "b", None, size=self.N)
+            self.assertEqual(rec1["license"], "procedural")
+            self.assertEqual(rec1["seed"], sp.default_seed("wax"))
+            self.assertIn("surface_procedural", rec1["generator"])
+            self.assertNotIn("model", rec1)
+            self.assertEqual(rec1["sha256"], rec2["sha256"])  # byte-identical files
+            self.assertTrue((tmp / "pa" / "wax" / "normal.png").exists())
+            self.assertTrue(rec1["n13_label_required"])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_procedural_entry_cannot_be_marked_ai(self):
+        good = {"id": "x", "license": "procedural", "generator": "g", "seed": 1}
+        validate_record(good)
+        with self.assertRaises(ValueError):
+            validate_record({**good, "license": "ai"})
+        with self.assertRaises(ValueError):
+            validate_record({**good, "model": "imagen-3.0"})
+        with self.assertRaises(ValueError):
+            validate_record({"id": "y", "license": "procedural"})  # no generator or seed
+        with self.assertRaises(ValueError):
+            validate_record({"id": "z", "license": "stock"})
+
+    def test_shipped_ledger_is_valid_and_complete(self):
+        root = Path(__file__).resolve().parent.parent
+        data = json.loads((root / "assets" / "surfaces" / "LEDGER.json").read_text(encoding="utf-8"))
+        for mid, rec in data["materials"].items():
+            validate_record(rec)
+            self.assertTrue(rec["n13_label_required"], mid)
+            if rec["license"] == "procedural":
+                self.assertIn(mid, sp.MATERIALS)
+                self.assertTrue((root / "plates" / "surface" / "textures" / mid / "normal.png").exists(), mid)
 
 
 if __name__ == "__main__":

@@ -21,8 +21,11 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 from PIL import Image
 
+from tools import surface_procedural
+
 MAX_GIT_MB = 15.0
 DEFAULT_SIZE = 512
+PROCEDURAL_SIZE = 384  # keeps 20 noisy normal maps inside the 15 MB budget
 
 # Material definitions and catalog metadata
 MATERIALS_CATALOG = {
@@ -328,6 +331,108 @@ def process_material(
     }
 
 
+def validate_record(record: Dict[str, Any]) -> None:
+    """Ledger rules: a code-drawn material is `procedural` and never `ai`; an `ai` entry has no generator."""
+    lic = record.get("license")
+    if record.get("generator") is not None or record.get("seed") is not None:
+        if lic != "procedural":
+            raise ValueError(f"{record.get('id')}: a procedural material must have license 'procedural', not {lic!r}")
+        if record.get("model") or record.get("prompt"):
+            raise ValueError(f"{record.get('id')}: a procedural material has no model or prompt")
+    if lic == "procedural" and (record.get("generator") is None or record.get("seed") is None):
+        raise ValueError(f"{record.get('id')}: license 'procedural' needs a generator and a seed")
+    if lic not in ("ai", "procedural"):
+        raise ValueError(f"{record.get('id')}: unknown license {lic!r}")
+
+
+def process_procedural(
+    material_id: str,
+    out_dir: Path,
+    plates_dir: Path | None,
+    size: int = DEFAULT_SIZE,
+    seed: int | None = None,
+) -> Dict[str, Any]:
+    """Draw one procedural material by code and write height.png, normal.png, meta.json (+ plates mirror)."""
+    spec = surface_procedural.MATERIALS[material_id]
+    seed = surface_procedural.default_seed(material_id) if seed is None else int(seed)
+    height = surface_procedural.generate(material_id, seed, size)  # seamless by construction
+    normal_arr = compute_scharr_normals(height, depth_scale=spec["depth"])
+
+    mat_dir = out_dir / material_id
+    mat_dir.mkdir(parents=True, exist_ok=True)
+    height_path = mat_dir / "height.png"
+    normal_path = mat_dir / "normal.png"
+    Image.fromarray(np.round(height * 255.0).astype(np.uint8), mode="L").save(height_path, optimize=True)
+    Image.fromarray(normal_arr, mode="RGB").save(normal_path, optimize=True)
+
+    generator = f"tools/surface_procedural.py:{spec['fn'].__name__}@v{surface_procedural.GENERATOR_VERSION}"
+    mat_meta = {
+        "id": material_id,
+        "name": spec["name"],
+        "category": spec["category"],
+        "description": spec["description"],
+        "dimensions": [size, size],
+        "depth": spec["depth"],
+        "roughness": spec["roughness"],
+        "height_sha256": compute_sha256(height_path),
+        "normal_sha256": compute_sha256(normal_path),
+        "bytes": height_path.stat().st_size + normal_path.stat().st_size,
+    }
+    with open(mat_dir / "meta.json", "w", encoding="utf-8") as f:
+        json.dump(mat_meta, f, indent=2)
+    if plates_dir:
+        dest = plates_dir / material_id
+        dest.mkdir(parents=True, exist_ok=True)
+        for name in ("height.png", "normal.png", "meta.json"):
+            shutil.copy2(mat_dir / name, dest / name)
+
+    record = {
+        "id": material_id,
+        "name": spec["name"],
+        "category": spec["category"],
+        "description": spec["description"],
+        "generator": generator,
+        "seed": seed,
+        "date": date.today().isoformat(),
+        "license": "procedural",
+        "commercial": True,
+        "n13_label_required": True,
+        "files": {
+            "height": f"assets/surfaces/{material_id}/height.png",
+            "normal": f"assets/surfaces/{material_id}/normal.png",
+            "meta": f"assets/surfaces/{material_id}/meta.json",
+        },
+        "dimensions": [size, size],
+        "depth": spec["depth"],
+        "roughness": spec["roughness"],
+        "bytes": mat_meta["bytes"],
+        "sha256": {"height": mat_meta["height_sha256"], "normal": mat_meta["normal_sha256"]},
+    }
+    validate_record(record)
+    return record
+
+
+def build_procedural(ids: List[str], out_dir: Path, plates_dir: Path | None, size: int = DEFAULT_SIZE) -> Dict[str, Any]:
+    """Draw the given procedural materials (all when empty) and merge them into LEDGER.json."""
+    ledger_path = out_dir / "LEDGER.json"
+    ledger: Dict[str, Any] = {"schema_version": 1, "max_git_mb": MAX_GIT_MB, "materials": {}}
+    if ledger_path.exists():
+        with open(ledger_path, "r", encoding="utf-8") as f:
+            ledger = json.load(f)
+    for mid in ids or sorted(surface_procedural.MATERIALS):
+        print(f"Drawing procedural material: {mid}")
+        ledger["materials"][mid] = process_procedural(mid, out_dir, plates_dir, size)
+    total_mb = calculate_dir_mb(out_dir)
+    ledger["updated_at"] = date.today().isoformat()
+    ledger["material_count"] = len(ledger["materials"])
+    ledger["total_disk_mb"] = round(total_mb, 3)
+    ledger["budget_pass"] = total_mb <= MAX_GIT_MB
+    with open(ledger_path, "w", encoding="utf-8") as f:
+        json.dump(ledger, f, indent=2)
+    print(f"LEDGER updated: {ledger['material_count']} materials, {total_mb:.2f} MB")
+    return ledger
+
+
 def calculate_dir_mb(path: Path) -> float:
     """Calculate total size in megabytes of all files in directory."""
     total = 0
@@ -401,7 +506,8 @@ def main() -> int:
     parser.add_argument("--manifest", help="JSON manifest mapping material_id -> {path, prompt, model}")
     parser.add_argument("--out-dir", default="assets/surfaces", help="Output directory")
     parser.add_argument("--plates-dir", default="plates/surface/textures", help="Plates textures mirror directory")
-    parser.add_argument("--size", type=int, default=DEFAULT_SIZE, help="Texture dimension (square)")
+    parser.add_argument("--size", type=int, default=None, help="Texture dimension (square); default 512, 384 for procedural (budget)")
+    parser.add_argument("--procedural", nargs="*", metavar="ID", help="Draw procedural materials by code (all when no id given)")
     parser.add_argument("--check", action="store_true", help="Validate existing assets and budget")
 
     args = parser.parse_args()
@@ -417,7 +523,14 @@ def main() -> int:
         with open(ledger_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         count = len(data.get("materials", {}))
-        print(f"Surfaces audit: {count} materials, {total_mb:.2f} MB (limit {MAX_GIT_MB} MB)")
+        try:
+            for rec in data.get("materials", {}).values():
+                validate_record(rec)
+        except ValueError as e:
+            print(f"FAIL: {e}", file=sys.stderr)
+            return 1
+        n_proc = sum(1 for r in data.get("materials", {}).values() if r.get("license") == "procedural")
+        print(f"Surfaces audit: {count} materials ({n_proc} procedural, {count - n_proc} ai), {total_mb:.2f} MB (limit {MAX_GIT_MB} MB)")
         if count < 4:
             print("FAIL: fewer than 4 materials shipped", file=sys.stderr)
             return 1
@@ -427,10 +540,14 @@ def main() -> int:
         print("OK: assets/surfaces budget and ledger pass")
         return 0
 
+    if args.procedural is not None:
+        build_procedural(args.procedural, out_dir=out_dir, plates_dir=plates_dir, size=args.size or PROCEDURAL_SIZE)
+        return 0
+
     if args.manifest:
         with open(args.manifest, "r", encoding="utf-8") as f:
             manifest = json.load(f)
-        build_all(manifest, out_dir=out_dir, plates_dir=plates_dir, size=args.size)
+        build_all(manifest, out_dir=out_dir, plates_dir=plates_dir, size=args.size or DEFAULT_SIZE)
         return 0
 
     if args.raw_file and args.material:
@@ -439,7 +556,7 @@ def main() -> int:
             raw_path=Path(args.raw_file),
             out_dir=out_dir,
             plates_dir=plates_dir,
-            size=args.size,
+            size=args.size or DEFAULT_SIZE,
             prompt=args.prompt,
             model=args.model,
         )
