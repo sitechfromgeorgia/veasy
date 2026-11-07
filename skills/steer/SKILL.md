@@ -42,3 +42,6 @@ pick the scene, copy the command, add `--dry`. A story with no render yields a s
 `check`, the probe (on the redrawn scenes), flash and QA still apply: `engine qa <file>.mp4`. Both film engines
 work (Remotion and HyperFrames); the story's `engine` decides. The saved story is the new truth: the next steer
 starts from it. Related: `veasy:qa`, `veasy:write-script`, `veasy:compose`.
+
+Whatever changes the film's total length (a timing verb on the last scene, a narration change) moves the progress
+bar and the pan on every frame, so its `--dry` says every scene: that is the true cost, not a bug.
