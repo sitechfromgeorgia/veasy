@@ -76,8 +76,8 @@
   "accent": "."
  },
  "link": {
-  "display": "tbilisi.today",
-  "qr": "https://tbilisi.today/?utm_source={platform}&utm_medium=video&story={id}"
+  "display": "tbilisi.today/stories/{id}",
+  "qr": "https://tbilisi.today/stories/{id}?utm_source={platform}&utm_medium=video"
  },
  "footer": {
   "text": "ყოველდღიური ამბები · ",
