@@ -10,6 +10,7 @@
   "dependencies": {
     "@remotion/cli": "4.0.539",
     "@remotion/fonts": "4.0.539",
+    "@remotion/paths": "4.0.539",
     "@remotion/rough-notation": "4.0.539",
     "react": "19.1.1",
     "react-dom": "19.1.1",

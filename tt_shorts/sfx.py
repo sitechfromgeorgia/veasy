@@ -53,6 +53,7 @@ CUT_SOUND = {
     "push": "whoosh",
     "split": "whoosh",
     "corner": "whoosh",
+    "one-take": "whoosh",
     "fade": None,
 }
 # Scenario beat jobs mapped to canonical sound cues:
