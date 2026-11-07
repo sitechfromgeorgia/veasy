@@ -162,7 +162,7 @@ class Assignment(unittest.TestCase):
         plain = writer._prompt({"headline": "x"}, FIXTURES["24835"])
         self.assertNotIn("Direction for this video", plain)
         # sources, agree and chapter have no example line (code fills them; agree comes with its rubric's brief)
-        self.assertEqual(set(re.findall(r'\{"type": "(\w+)"', plain)), set(engine.SCENES) - {"sources", "agree", "chapter", "plate", "figures"})
+        self.assertEqual(set(re.findall(r'\{"type": "(\w+)"', plain)), set(engine.SCENES) - {"sources", "agree", "chapter", "plate", "figures", "state"})
 
     def test_a_writer_set_director_is_dropped(self):
         answer = json.loads((ROOT / "stories" / "24835.json").read_text(encoding="utf-8"))

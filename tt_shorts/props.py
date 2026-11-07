@@ -21,7 +21,7 @@ import shutil
 import subprocess
 
 from tt_shorts import (art, assets, beats as beat_track, brand, captions, chapters as chapters_of, directors,
-                       geo, icons, meta, music_hits, onetake, plates, rubrics, sfx as effects, speech, store, swipe, variety, voices)
+                       geo, icons, meta, music_hits, onetake, plates, rubrics, sfx as effects, speech, store, swipe, thread, variety, voices)
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -33,7 +33,7 @@ NOTES = {"edge": "preview_edge", "silent": "preview_silent"}  # the pack's words
 CAPTIONS = os.environ.get("SHORTS_CAPTIONS", "page")  # page | roll (captions.py)
 
 
-TRANSITIONS = ("cut", "line", "panel", "wipe", "slide", "push", "dot", "meter", "fade", "shutter", "split", "corner", "iris", "blind", "one-take")
+TRANSITIONS = ("cut", "line", "panel", "wipe", "slide", "push", "dot", "meter", "fade", "shutter", "split", "corner", "iris", "blind", "one-take", "match", "object")
 DEFAULT_TRANSITION = {"editorial": "line", "cards": "line", "kinetic": "panel"}
 
 
@@ -60,6 +60,14 @@ def _scene(s, a, b, mark=None, media=None, plate=None):
     if mark:
         out["mark"] = mark
     return out
+
+
+def cut_for(picked, asked, variant, story):
+    """The film's cut: the pick, unless it needs an object this film doesn't have (a format can ask for "match" in a
+    story with no thread, in news above all: it gets the look's own)."""
+    if picked in variety.THREAD_TRANSITIONS and not thread.has(story):
+        return DEFAULT_TRANSITION[variant]
+    return picked if picked in TRANSITIONS else transition_for(asked, variant)
 
 
 def loops_for(music, family):
@@ -100,7 +108,7 @@ def choose(story, variant, transition="auto", music="family", director=None, sty
     chosen = directors.get(did) if did else None  # an unknown director fails before anything renders
     seq = [s["type"] for s in swipe.shown_scenes(story, outro)]
     picked, novelty = variety.choose(b["name"], story["id"], variant, transition, loops, icon=bool(main),
-                                     director=chosen, scenes=seq, program=program)
+                                     director=chosen, scenes=seq, program=program, thread=thread.has(story))
     st = {**picked, **(style or {})}
     if style:  # a forced style (the goldens): report what is drawn, not what was picked
         novelty = variety.assess(b["name"], story["id"], {**st, "director": chosen["id"] if chosen else None}, seq)
@@ -178,7 +186,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "url": (story.get("url") or "").replace("https://", "").rstrip("/") or link_shown,
         "qrSvg": meta.qr_svg(story.get("url") or opens, *brand.qr_colors(b["colors"])),
         "durationInFrames": marks[-1],
-        "transition": st["transition"] if st["transition"] in TRANSITIONS else transition_for(transition, variant),
+        "transition": cut_for(st["transition"], transition, variant, story),
         "style": {**{k: st[k] for k in variety.OPTIONS}, **(directors.style(chosen) if chosen else {})},
         "novelty": novelty,  # the guard's report (variety.choose): the nearest recent video, re-rolls, a warning
         "outro": outro, "outroFrom": chip,  # the frame the outro chip comes in (None: the end card)
@@ -195,6 +203,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "voiceQa": story.get("qa", {}).get("voice", []),
     }
     geo.attach(props["scenes"], meta.family(category, b))  # a Georgian place: only what its map scene draws
+    props["threadWarnings"] = thread.attach(props, story)  # the film's object, its seats and its state (thread.py)
     props["captions"] = captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"],
                                         keys=captions.candidates(props["scenes"], FPS) if design == "keyword" else None,
                                         style=brand.keyword_style(b))

@@ -45,6 +45,7 @@ rulebook is `tt_shorts/ka_style.md` (K1-K22 Georgian, N1-N12 news); this is the 
 | `pair` | two sides: two parties, before and after, two offers | items [{title, sub}] x2, between |
 | `steps` | 2-4 steps in order (a procedure, a sequence of events) | items ["..."] |
 | `points` | 2-3 separate points | items ["..."] |
+| `state` | the film's object changes (only with an idea, never news) | was, now |
 | `quote` | a verbatim quote with its speaker | text, by, via |
 | `draw` | a drawing of what the story is about: what makes each video look different | svg, label |
 | `ranking` | 3-5 ranked items in order (rank 1, 2, 3...) with labels and values | items [{rank, label, value}], unit |

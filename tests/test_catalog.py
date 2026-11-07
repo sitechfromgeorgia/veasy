@@ -14,7 +14,7 @@ from tt_shorts import catalog, engine, ka_check, news_check, speech, writer
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BEFORE = json.loads((ROOT / "tests" / "fixtures" / "scenes_before.json").read_text(encoding="utf-8"))
 OLD = list(BEFORE["scenes"])
-NEW = ("share", "rail", "compare", "link", "agree", "chapter", "ranking", "versus", "countdown", "calendar", "glossary", "checklist", "impact", "route", "budget", "plate")
+NEW = ("share", "rail", "compare", "link", "agree", "chapter", "ranking", "versus", "countdown", "calendar", "glossary", "checklist", "impact", "route", "budget", "plate", "state")
 # Kit-only types: a brush with no writer line, not on news_check.SCENE_TYPES (an owner decides; ROADMAP C6, docs/research/forms-look-result.md).
 KIT_ONLY = ("figures",)
 # The changes made on purpose: stat takes a style (count, wheel, flap); the draw line's SVG quotes are escaped, so
@@ -77,7 +77,8 @@ class Tables(unittest.TestCase):
         self.assertIn('"em" (optional', some)  # hook and share take a mark
         self.assertNotIn('"em" (optional', catalog.schema(["end"]))
         every = catalog.schema()
-        self.assertTrue(all(f'{{"type": "{t}"' in every for t in catalog.types() if catalog.get(t)["schema"]))
+        self.assertTrue(all(f'{{"type": "{t}"' in every for t in catalog.types() if catalog.get(t)["schema"]
+                            and t not in catalog.NAMED_ONLY))
         self.assertNotIn('{"type": "sources"', every)  # the outlets come from the data: no line to copy
 
 
@@ -178,7 +179,7 @@ class AddingAType(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_news_keeps_its_own_allowlist(self):  # N1: a brush reaches the news only when SCENE_TYPES names it
-        self.assertEqual(set(catalog.types()) - news_check.MADE_PICTURE_TYPES - set(KIT_ONLY), news_check.SCENE_TYPES)
+        self.assertEqual(set(catalog.types()) - news_check.NOT_NEWS_TYPES - set(KIT_ONLY), news_check.SCENE_TYPES)
         for t in KIT_ONLY:  # and the news writer is never offered one
             self.assertIsNone(catalog.load_all()[t]["schema"])
             self.assertNotIn(f'"type": "{t}"', catalog.schema())

@@ -4,6 +4,7 @@ import React from "react";
 import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, FONT, INK, LINE, LINE_STRONG, MUTED, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import { marked } from "../marker";
+import { ObjectArt, threadT } from "../thread";
 import type { ArtNode, Scene } from "../types";
 import { beat, Chip, Dot, fitSize, Frame, In, measure, useIn, useTheme } from "../ui";
 
@@ -39,13 +40,13 @@ const CAMEL: Record<string, string> = {
   "font-size": "fontSize", "font-weight": "fontWeight", "text-anchor": "textAnchor",
 };
 const SHAPES = new Set(["path", "line", "polyline", "polygon", "rect", "circle", "ellipse"]);
-type ArtCtx = { frame: number; fps: number; k: number; colors: Record<string, string> };
+export type ArtCtx = { frame: number; fps: number; k: number; colors: Record<string, string> };
 
 const maxDelay = (ns: ArtNode[]): number => Math.max(0, ...ns.map((n) => Math.max(n.motion ? n.delay : 0, maxDelay(n.children))));
 
 /** One element of the drawing. r rises, p pops, s draws its stroke; a group that draws passes it to its shapes.
  *  The motion sits on a wrapper <g>, so the element's own transform attribute stays as the writer set it. */
-const artNode = (n: ArtNode, key: number, c: ArtCtx, drawing: number | null): React.ReactNode => {
+export const artNode = (n: ArtNode, key: number, c: ArtCtx, drawing: number | null): React.ReactNode => {
   const t = n.motion ? interpolate(c.frame - n.delay * c.k * c.fps, [0, 0.5 * c.fps], [0, 1], { ...clamp, easing: easeOut }) : 1;
   const props: Record<string, unknown> = { key };
   for (const [a, v] of Object.entries(n.attrs)) {
@@ -75,6 +76,7 @@ const artNode = (n: ArtNode, key: number, c: ArtCtx, drawing: number | null): Re
 
 /** A line drawing of what the story is about (tt_shorts/art.py sanitizes the writer's SVG into s.art). */
 export const Draw: React.FC<P> = ({ s, inner = INNER }) => {
+  const { props } = useTheme();
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const ground = useGround();
@@ -86,10 +88,14 @@ export const Draw: React.FC<P> = ({ s, inner = INNER }) => {
   const height = Math.round((inner * 640) / 952);
   return (
     <Frame s={s}>
-      <svg width={inner} height={height} viewBox="0 0 952 640" fill="none" strokeLinecap="round" strokeLinejoin="round"
-        style={{ overflow: "visible", flex: "none" }}>
-        {art.map((n, i) => artNode(n, i, { frame, fps, k, colors }, null))}
-      </svg>
+      {props.thread && s.thread ? (
+        <ObjectArt th={props.thread} art={props.thread.art} t={threadT(s, frame)} drawn={frame} id="own" width={inner} height={height} />
+      ) : (
+        <svg width={inner} height={height} viewBox="0 0 952 640" fill="none" strokeLinecap="round" strokeLinejoin="round"
+          style={{ overflow: "visible", flex: "none" }}>
+          {art.map((n, i) => artNode(n, i, { frame, fps, k, colors }, null))}
+        </svg>
+      )}
       {s.label && (
         <In delay={Math.round(last * k * fps) + 6}>
           <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 52, lineHeight: 1.2, color: INK, marginTop: 24,

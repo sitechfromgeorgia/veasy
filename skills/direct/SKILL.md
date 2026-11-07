@@ -59,8 +59,8 @@ Put the choice in the idea: `"form": "<file name>"`. Code does not judge it; `ve
 
 ```json
 {"rung": 2, "device": "state-change", "idea": "one Georgian sentence: what the viewer SEES happen",
- "object": "1-3 Georgian words: a thing that can be drawn and the narration will say", "verb": "stops",
- "facts": ["6 400"], "p": 0.2}
+ "object": "1-3 Georgian words: a thing that can be drawn and the narration will say", "verb": "drains",
+ "facts": ["6 400"], "p": 0.2, "drawing": "optional: a seed's name in assets/drawings"}
 ```
 
 `device` comes from `options`: only what the kit can draw today, on that rung. `p` is how likely an average writer is
@@ -85,6 +85,12 @@ its repairs keeps its place and loses the idea, with a warning. The step never l
   code-owned like `date`, and `check` asks that the narration says the object and a scene of the device carries it.
 - **A composed film:** run `concept --ideas`, then build `SPEC.md` on the chosen idea. The device, the form and the
   object are the film; `STORYLINES.md` keeps the ideas turned down (`veasy:compose`).
+- **The thread:** a chosen idea's `object` becomes the film's through-line by itself. Code takes a drawing (the story's
+  own `draw`, else a seed you name in the idea's `drawing`, else the object's motif), seats it in the scenes, moves it
+  over the cuts and changes its state by `verb`: drains, fills, breaks, grows, shrinks (`options --section thread`). You
+  pick nothing about layout. A `state` scene does the whole change; `was` and `now` are its two words. A verb outside
+  the list keeps the object as it is. No drawing, or under 3 scenes: the kit's film, with a warning.
+  `engine thread <story>` shows the plan for free.
 - A concept is never on screen, so it can carry no fact. It changes how the film shows the facts, never what it says.
 
 ## Hard limits

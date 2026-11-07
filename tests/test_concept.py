@@ -264,7 +264,7 @@ class StoryProblems(unittest.TestCase):
 
     def test_the_writer_is_told_only_the_programs_scenes(self):
         text = concept.brief_block({**self.CONCEPT, "device": "persistent-object"}, EXPLAINER)
-        self.assertIn("of type draw,", text)  # sign isn't an explainer's scene
+        self.assertIn("of type state or draw,", text)  # sign isn't an explainer's scene
 
 
 class Provider(unittest.TestCase):
@@ -430,7 +430,7 @@ class Options(unittest.TestCase):
 
     def test_news_check_scene_types_cover_the_devices(self):
         for d in concept.devices().values():
-            self.assertTrue(set(d["scenes"]) <= set(news_check.SCENE_TYPES) | set(news_check.MADE_PICTURE_TYPES))
+            self.assertTrue(set(d["scenes"]) <= set(news_check.SCENE_TYPES) | news_check.NOT_NEWS_TYPES)
 
 
 if __name__ == "__main__":

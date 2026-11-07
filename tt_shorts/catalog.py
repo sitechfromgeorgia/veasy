@@ -54,6 +54,7 @@ KINDS = ("text", "num", "enum", "list", "obj", "icon", "verb", "svg", "area")
 MARKS = ("underline", "box", "circle", "highlight", "bracket")  # @remotion/rough-notation's, as code picks them
 UNIVERSAL = ("type", "at", "em", "show")
 NO_MEDIA = ("where", "end", "chapter", "plate")  # assets.py: these types never carry a picture
+NAMED_ONLY = ("state",)  # a program must name these: "all" (news) never means them, its writer never hears of them
 MIN_SECONDS_DEFAULT = 2.5
 MIN_WORDS_DEFAULT = 6
 
@@ -348,9 +349,9 @@ def _rules(b):
 
 def schema(types=None):
     """The writer's JSON shape and rules. types: only these scene types (a director's or a program's menu, in any
-    order; shown in the catalog's order); None: every type."""
+    order; shown in the catalog's order); None: every type a program need not name (NAMED_ONLY)."""
     every = load_all()
-    menu = [b for t, b in every.items() if types is None or t in types]
+    menu = [b for t, b in every.items() if (t not in NAMED_ONLY if types is None else t in types)]
     lines = ",\n".join(_line(b) for b in menu if b["schema"] is not None)
     rules = [r for b in menu for r in _rules(b)]
     if any(b["em"]["fields"] for b in menu):

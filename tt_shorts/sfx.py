@@ -63,6 +63,8 @@ CUT_SOUND = {
     "corner": "whoosh",
     "one-take": "whoosh",
     "fade": None,
+    "match": None,  # the shape carries it: continuity hides a cut, it needs no sound of its own
+    "object": None,
 }
 # Scenario beat jobs mapped to canonical sound cues:
 #   promise (hook)               -> whoosh (alternate: pop)

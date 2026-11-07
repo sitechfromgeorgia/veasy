@@ -12,6 +12,7 @@ import { motifCell, motifMark } from "./motif";
 import { SCENES } from "./scenes";
 import type { Scene, ShortProps, Transition } from "./types";
 import { Probe } from "./Probe";
+import { sweepOf, ThreadLayer } from "./thread";
 import { Chip, Dot, flowOf, Logo, measure, Theme, useStyle, useTheme } from "./ui";
 
 const EXIT = 7; // frames a scene takes to leave
@@ -279,6 +280,17 @@ const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, la
     opacity = Math.min(enter, out);
     dy = 0;
   }
+  if (tr === "object") { // the object's body carries the cut (thread.tsx): the old scene goes behind it, the new one comes
+    const sweep = sweepOf(frame, s, last);
+    const [ox] = flowOf(p.style, [1, 0]);
+    if (sweep !== null) {
+      const k = Math.abs(sweep - 0.5) * 200; // how much of the band the scene shows on its side of the object
+      if (sweep < 0.5) style.clipPath = ox >= 0 ? `inset(0 0 0 ${100 - k}%)` : `inset(0 ${100 - k}% 0 0)`;
+      else if (!first) style.clipPath = ox >= 0 ? `inset(0 ${100 - k}% 0 0)` : `inset(0 0 0 ${100 - k}%)`;
+    }
+    opacity = 1;
+    dy = 0;
+  }
   const along = (d: number) => -(1 - enter) * d + (1 - out) * d; // comes in from behind, leaves ahead
   if (tr === "slide") { dx = along(160) * mx; dy = along(160) * my; opacity = Math.min(enter, out); }
   if (tr === "push") { dx = along(W) * mx; dy = along(SCENE_BOTTOM - SCENE_TOP) * my; opacity = 1; }
@@ -306,7 +318,7 @@ const SceneBody: React.FC<{ i: number }> = ({ i }) => {
   if (v === "cards" && s.type !== "end") {
     const left = SIDE - 16;
     const m = sceneMotion(tr, frame, s, first, last, durationInFrames, left, props);
-    const own = tr === "line" || tr === "cut" || tr === "panel" || tr === "meter" || tr === "fade" || tr === "shutter" || tr === "blind"; // the card's own entrance: it rises and settles
+    const own = tr === "line" || tr === "cut" || tr === "panel" || tr === "meter" || tr === "fade" || tr === "shutter" || tr === "blind" || tr === "match"; // the card's own entrance: it rises and settles
     const enter = own && !first ? interpolate(frame, [0, enterFrames(props)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
       easing: (t) => 1 - Math.pow(1 - t, 3) }) : 1; // the first card is there at frame 0 (outro.tsx: the opening)
     const shown = Math.min(enter, m.opacity);
@@ -405,6 +417,7 @@ export const NewsShort: React.FC<ShortProps> = (props) => {
             {props.transition === "meter" && i < props.scenes.length - 1 && <MeterRise duration={s.duration} />}
           </Sequence>
         ))}
+        <ThreadLayer />
         <OutroChip />
         <LoopBack background={<><Background />{oneTake && <FrozenParallax />}</>} hook={<SwipeSlot i={0}><SceneSlot i={0} /></SwipeSlot>} />
         <Captions cap={props.captions} />

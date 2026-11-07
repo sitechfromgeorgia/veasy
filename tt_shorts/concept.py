@@ -42,7 +42,7 @@ import pathlib
 import re
 import zlib
 
-from tt_shorts import news_check
+from tt_shorts import drawings, news_check
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIR = ROOT / "concepts"
@@ -143,6 +143,8 @@ def _shape(idea, p, rungs):
         return f"device {idea['device']!r} can't be drawn on rung {idea['rung']} here"
     if not _words(idea["object"]) or len(idea["object"].split()) > MAX_OBJECT_WORDS or re.search(r"\d", idea["object"]):
         return f"the object is 1-{MAX_OBJECT_WORDS} words, no digits"
+    if idea.get("drawing") is not None and idea["drawing"] not in {s["name"] for s in drawings.seeds()}:
+        return f"no drawing {idea['drawing']!r} in assets/drawings"
     return None
 
 
@@ -229,7 +231,7 @@ def _seed(story, idea):
 
 def stamp(chosen, judged, story, kind="assigned"):
     """The story's `concept`: code-owned, what was chosen and, on the record, what was turned down and why."""
-    keep = ("idea", "object", "verb", "rung", "device", "facts")
+    keep = ("idea", "object", "verb", "rung", "device", "facts", "drawing")
     return {**{k: chosen[k] for k in keep if k in chosen},
             "rejected": [{"idea": x.get("idea", ""), "why": x.get("rule") or x.get("why")} for x in judged if x is not chosen],
             "roll": {"seed": _seed(story, chosen), "kind": kind}}
@@ -262,6 +264,8 @@ def prompt(p, cluster, articles, family, past=(), reasons=()):
             "- A fact is copied from the source, never made up, summed or rounded.\n"
             "- The object is a thing in this story's world, never the film's own tool: not a quote, list, map, sign, "
             "number, document or screen.\n"
+            "- The film can draw these verbs as a change of its object: drains, fills, breaks, grows, shrinks. Use one "
+            "only if the source says it happens.\n"
             "- The idea could not be used for another story: it names what only this source has.\n"
             "- No opinion, no blame, nothing the source does not say.\n"
             f"- Not these first pictures: {corny or '-'}.\n"

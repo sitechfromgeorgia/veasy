@@ -1,0 +1,64 @@
+{
+ "type": "state",
+ "order": 95,
+ "what": "the film's object changes state before the viewer's eyes (full to empty, whole to broken, small to huge); two short words say from what to what; the object, its drawing and its motion are code's",
+ "use_when": "the film has an idea (concept) and its object really does change: the before and after are the story",
+ "avoid_when": "news, crime, incidents or deaths (refused); a film with no idea; two values of a number (change)",
+ "pairs_with": [
+  "hook",
+  "stat",
+  "change"
+ ],
+ "slots": {
+  "was": {
+   "kind": "text",
+   "max": 24,
+   "required": true
+  },
+  "now": {
+   "kind": "text",
+   "max": 24,
+   "required": true
+  },
+  "kicker": {
+   "kind": "text",
+   "max": 24
+  },
+  "headline": {
+   "kind": "text",
+   "max": 40
+  }
+ },
+ "families_deny": [
+  "crime"
+ ],
+ "min_seconds": 4.0,
+ "min_words": 8,
+ "em": {
+  "fields": [
+   "headline"
+  ],
+  "kinds": [
+   "underline"
+  ]
+ },
+ "schema": {
+  "type": "state",
+  "at": "...",
+  "kicker": "...",
+  "headline": "...",
+  "was": "...",
+  "now": "..."
+ },
+ "rules": [
+  "\"state\": at most one, only with THE FILM'S IDEA above: was and now are the object before and after, the source's own words, a number only if the articles have it; never name a cause the source doesn't;"
+ ],
+ "example": {
+  "type": "state",
+  "at": "პირველი ნახატია",
+  "kicker": "რა შეიცვალა",
+  "headline": "რეზერვუარი დაცარიელდა",
+  "was": "სავსე რეზერვუარი",
+  "now": "ცარიელი რეზერვუარი"
+ }
+}

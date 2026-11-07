@@ -473,7 +473,9 @@ export const group = (n: number) => n.toLocaleString("en-US").replace(/,/g, " ")
 export const Frame: React.FC<{ s: Scene; children: React.ReactNode; head?: boolean }> = ({ s, children, head = true }) => (
   <>
     {s.media && <SceneMedia s={s} />}
-    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
+    {/* a scene that seats the film's object keeps the room free (tt_shorts/thread.py) */}
+    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", boxSizing: "border-box",
+      paddingBottom: s.thread?.reserve ?? 0 }}>
       {head && (
         <div>
           <Kicker text={s.kicker} />

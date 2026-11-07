@@ -38,6 +38,10 @@ SCENE_TYPES = {"hook", "stat", "timeline", "where", "who", "points", "quote", "s
 # Scene types that are not news types: never in SCENE_TYPES (so N1 refuses them in news), allowed in a program that
 # says so. A plate is a made picture (plates.py): it decorates an idea, it never depicts an event.
 MADE_PICTURE_TYPES = {"plate"}
+# Scene types that are never news types: outside SCENE_TYPES, so N1 refuses them in news; a program that has the idea
+# step may use them. state changes the film's object (thread.py): an idea, and news has no idea step.
+IDEA_TYPES = {"state"}
+NOT_NEWS_TYPES = MADE_PICTURE_TYPES | IDEA_TYPES
 RELATIVE_DAYS = ("დღეს", "გუშინ", "ხვალ", "ზეგ", "გუშინწინ")
 # Words that judge instead of report (stems: Georgian adds case endings). Extend from the edits log.
 EVALUATIVE = ("სკანდალურ", "შოკისმომგვრელ", "სამარცხვინო", "საოცარ", "გასაოცარ", "უპრეცედენტო", "საშინელ",
