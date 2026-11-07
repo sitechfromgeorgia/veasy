@@ -1,57 +1,76 @@
-# The Paper Stage (Diorama Engine)
+# The paper stage
 
-The **Paper Stage** (`plates/diorama/`) is Veasy's theatrical cut-paper diorama plate engine. It translates 2D SVG motifs and architectural cutouts into tactile, multi-layered 3D paper dioramas rendered on software GL via Three.js.
+A set is a tunnel book filmed in one take: parallel cut sheets a short way apart, seen on a long lens, lit by one lamp
+whose shadow is baked once. The camera moves, nothing else does. It gives a film one place for its steps, in place of a
+row of cards.
 
 ```bash
-# Bake a diorama plate:
-node plates/run.mjs diorama --spec plates/diorama/sets/museum-hall.json --seconds 6 --seed 1 --out out/plates/museum-hall
+node plates/run.mjs diorama --spec plates/diorama/sets/market.json --seconds 6 --seed 1 --out out/plates/market
 ```
 
-## Core Design Principles
+You get `plate.mp4`, `poster.png`, `plate.json` and `anchors.json`. To look before you bake (three frames, seconds):
 
-1. **Generic Archetypes**: A diorama set NEVER depicts or claims to represent a real-world building, city, or proprietary location. Sets are archetypal physical theatre stages (Museum Hall, Layered Street, Bazaar Market, Lecture Classroom, Stone Arch River Crossing).
-2. **Tone Only**: Rendered strictly in shades of paper white (`#ffffff` / `#f5f5f0`), light card (`#dcdcd7`), mid-tone kraft grey (`#8a8a86`), slate/charcoal (`#383838`), and deep ink black (`#050505`). No colors, logos, or typography can leak into the baked plate; DOM overlays bind brand palette at render time.
-3. **Physical Pop-Up Cutout Physics**: All geometry behaves like die-cut, folded cardstock sheets with laminated edges (`sheets`: 1–4), bevels, slotted tabs, and fold brackets.
-4. **Cinematic Parallax Layering**: Every scene is partitioned into three discrete depth tiers (`foreground`, `midground`, `background`) along the Z-axis, creating high-relief stereoscopic parallax during camera movement.
-5. **DOM Anchor Telemetry**: Every set exports precise 3D anchor points (`dot`, `headline_label`, `stat_callout`, `vanishing_point`) that project to 2D viewport coordinates for Remotion and HyperFrames DOM element attachment.
-
----
-
-## The 5 Standard Sets (`plates/diorama/sets/`)
-
-| Set ID | Name | Camera Move | Standee Motifs | Key Architectural Features |
-| :--- | :--- | :--- | :--- | :--- |
-| `museum-hall.json` | The Grand Museum Colonnade Hall | `push-through` | `wine-qvevri`, `court`, `money`, `graduation` | Monumental fluted columns, vaulted groin arches, clerestory grilles, multi-tier exhibit plinths. |
-| `street.json` | The Layered Urban Streetscape | `reveal-behind` | `bus`, `car`, `phone`, `electric-charger` | Townhouse facades, accordion awnings, cobblestone pavement, Victorian streetlamp, tree canopy. |
-| `market.json` | The Old Quarter Bazaar | `push-through` | `supermarket-cart`, `price-tag`, `wheat-harvest`, `wine-qvevri`, `tap` | Timber canopy stalls, sloped textile awnings, crate pyramids, banded barrels, layered stone gate arches. |
-| `classroom.json` | The Tiered Academy Lecture Hall | `crane` | `graduation`, `laptop-code`, `database-server`, `school` | Semicircular tiered desks, scholar's lectern, sliding slate chalkboard, library book bays, arched side windows. |
-| `river-bridge.json` | The Stone Arch River Crossing | `wipe-cut` | `bridge`, `cargo-ship`, `drone-flight`, `forest-nature` | 3-span stone arch bridge with cutwaters, terraced contour riverbed, masonry steps, willow tree, 4-tier hills. |
-
----
-
-## Spec Format & Schema
-
-Sets are declarative JSON specifications adhering to `plates/diorama/sets/schema.json`.
-
-### Top-Level Structure
-```json
-{
-  "$schema": "./schema.json",
-  "id": "museum-hall",
-  "name": "The Grand Museum Colonnade Hall",
-  "description": "...",
-  "duration": 6.0,
-  "tone": "greys-blacks-paper-whites",
-  "environment": { "background_color": "...", "fog": { ... }, "lighting": { ... } },
-  "camera": { "move": "push-through", "duration": 6.0, "easing": "...", "path": { "start": { ... }, "end": { ... } } },
-  "depth_layers": { "foreground": { ... }, "midground": { ... }, "background": { ... } },
-  "anchors": [ { "id": "dot", "position": [x, y, z], "description": "..." } ],
-  "standees": [ { "id": "...", "motif": "...", "drawing_path": "...", "position": [x, y, z], "base_bracket": { ... } } ],
-  "components": [ { "id": "...", "type": "...", "layer": "...", "position": [x, y, z], "paper_properties": { ... }, "geometry_params": { ... } } ]
-}
+```bash
+node plates/diorama/tools/stills.mjs plates/diorama/sets/market.json --at 0.1,0.5,0.95 --scale 0.5 --out out/stills
 ```
 
-### Depth Tier Standards
-- **Foreground ($z \in [2.5, 6.0]$)**: Framing prosceniums, streetlamps, archways, and foliage that wipe past the lens during moves to emphasize spatial depth and execute camera cuts.
-- **Midground ($z \in [-2.0, 2.5]$)**: The theatrical stage plane containing main structural platforms, plinths, desks, stalls, bridges, and standing paper figures (`standees`).
-- **Background ($z \in [-15.0, -2.0]$)**: Wall flats, clerestory windows, chalkboard partitions, and contour hill ridges receding into atmospheric paper fog.
+## The sets
+
+| Set | A stranger names it by | Move |
+|---|---|---|
+| `museum-hall` | arches, columns, framed pictures, a jar and two busts on pedestals, a rope | `push-through`, through two sheets |
+| `street` | house fronts, a road with a crossing, lamps, a bus, a car | `reveal-behind`, out from behind a lamp post |
+| `market` | striped stalls, heaped fruit, a hanging scale, bunting, shoppers | `dolly` |
+| `classroom` | a blackboard of chalk shapes, a clock, a globe, rows of desks | `crane`, down to eye level |
+| `river-bridge` | a stone bridge, cut water, hills, a low sun, a paper boat | `wipe-pass` |
+
+## Spec keys
+
+| Key | What it does |
+|---|---|
+| `id`, `about` | the file's name, one line on what it shows |
+| `move` | `dolly`, `crane`, `push-through`, `reveal-behind`, `wipe-pass`, or `spline` with `waypoints` |
+| `easing` | `smoothstep`, `smootherstep`, `linear`, `cinematic`, or a `cubic-bezier(...)` string |
+| `camera.vFov` | degrees, 30 for the long lens. Wider starts to read as a modelled room |
+| `fromEye`, `toEye`, `fromTarget`, `toTarget` | `dolly` and `push-through`: the run |
+| `startY`, `endY`, `startPitch`, `endPitch`, `baseZ`, `targetY` | `crane` |
+| `occluder`, `orbitRadius`, `startAngleDeg`, `sweepAngleDeg`, `subject` | `reveal-behind` |
+| `travelX`, `baseZ`, `baseY`, `nearDip`, `targetY` | `wipe-pass`, with a `wipe` part near the lens |
+| `stage.key`, `aim`, `angle`, `power`, `fill`, `pool`, `soft`, `map` | the one lamp: where, how wide, how strong, the ambient, the pool's soft edge, shadow softness and map size |
+| `stage.fog`, `fogTone` | `[near, far]` and the tone it falls to |
+| `anchors` | `{name: [x, y, z]}`: the film's DOM follows these in `anchors.json`; `dot` is always there |
+| `antialias` | `false` to save a little on a slow machine |
+| `parts` | the list below, back to front, each with `part` and `at: [x, y, z]` |
+
+**Parts.** Shapes: `sheet`, `glow`, `window-set`, `ground-row`, `column`, `painting`, `amphora`, `bust`, `pedestal`, `rope`,
+`standee` (`drawing`: any of the 44 in `assets/drawings`). Places: `house`, `lamp`, `tree`, `traffic-light`, `road-row`,
+`sky`, `stall`, `bunting`, `figure`, `blackboard`, `clock`, `desk-row`, `teacher-desk`, `bookcase`, `pendant`, `plank-floor`,
+`hill`, `bridge`, `water-row`, `bank`, `paper-boat`, `wipe`.
+
+A new set is a new JSON file; a new thing in one is one function in `lib/parts.mjs` or `lib/props.mjs`. `tests`:
+`node plates/diorama/test_sets.mjs`, `test_camera.mjs`, `test_extruder.mjs`. When `assets/drawings` changes, run
+`node plates/diorama/tools/bundle_drawings.mjs`: `run.mjs` serves `plates/` only, so a page reads a copy.
+
+## What keeps it paper
+
+Seven rounds with a critic taught these, and modelling a room undoes all of them (`docs/research/paper-stage.md` §5):
+
+- **No room.** No floor plane, no solids, no perspective walls. Ground rows hide each other's feet. A jar is a contour cut.
+- **A long lens** (30°). Parallax between sheets does the depth.
+- **Every card is hand-cut:** a wavering edge, a slow warp, a small spin, a pale cut edge that takes the light on one side.
+- **Every sheet has its own tooth,** and it shows where the light rakes, far less in the shade.
+- **The lamp stands above the open top,** so each sheet is lit and shadows fall sheet to sheet. Keep sheets low enough
+  for it, and keep front sheets dark: value separates the layers.
+
+## What it costs
+
+A frame is one draw call and a small tone shader: one grain fetch and four shadow fetches. The shadow map is rendered once
+at setup, which is why a cast shadow is affordable here (redrawn every frame, it cost 903 ms). Three's own Lambert, spot and
+PCF chunks cost 820 ms a frame on the same set. Bake times are in `docs/research/paper-stage-result.md`.
+
+## What it refuses
+
+A plate is grey, holds no text and no accent, and never goes to `news`, crime, incidents or deaths. A set is generic: it
+never claims to be a real place, so no landmark, no skyline of a named city, no flag. No word or digit anywhere, chalk
+included: `test_sets.mjs` fails a set that names a real place or carries a text key. A missing `part` or `drawing` fails the
+bake with its name. It does not draw people's faces: `figure` is a silhouette from behind.
