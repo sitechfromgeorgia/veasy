@@ -176,7 +176,7 @@ const MATERIALS = {
       for (let x = 0; x < W; x++, p++) {
         const nx = ((x - bx) / bw - 0.5) * 2, ny = ((y - by) / bh - 0.56) * 2;
         const shape = nx * nx * 0.9 + ny * ny * 1.5 + (noise.fbm(x / (150 * S) + m.salt, y / (120 * S) + m.salt * 0.37, 4) - 0.5) * 2.1;
-        reach[p] = shape > 0.86 ? 1 : 0;
+        reach[p] = shape > 0.56 ? 1 : 0;
       }
     }
     const shore = distance(reach, W, H);
@@ -188,7 +188,7 @@ const MATERIALS = {
     for (let i = 0; i < 5; i++) {
       const y = by + (0.1 + 0.2 * i) * bh, pts = [];
       for (let k = 0; k <= 6; k++) pts.push((i % 2 ? bx + bw + 60 * S - ((bw + 120 * S) * k) / 6 : bx - 60 * S + ((bw + 120 * S) * k) / 6), y + Math.sin(k * 0.9 + i) * 22 * S);
-      m.mark(air, BACK, Float32Array.from(pts), { w: () => bh * 0.34, n: 0, body: 0.17, edge: 0.3, bleed: 0.25 }, pool, { hand: 6, lap: 1.3 });
+      m.mark(air, BACK, Float32Array.from(pts), { w: () => bh * 0.3, n: 0, body: 0.11, edge: 0.3, bleed: 0.25 }, pool, { hand: 6, lap: 1.3 });
     }
 
     // washes: a flat brush filling each shape, the pigment gathering along the wet edge, a backrun where it stayed wet
@@ -229,8 +229,10 @@ const MATERIALS = {
         const key = m.marks.length * 1.7, base = s.w * (0.9 + 1.5 * keep), L = length(pts), span = L / (280 * S);
         m.mark(ink, LINE, pts, {
           w: pressure(noise, key, base, 1.2 + L / (190 * S)), n: Math.max(6, Math.round(base * 1.2)), dry: 1.35, skip: 0.22, wander: 0.2, bleed: 0.2, body: 0.9, edge: 0.05,
-          flow: (u) => keep * 1.05 * smooth(0.28, 0.52, noise.at(u * span + key, key + 5)), // the edge is lost, then found again
+          flow: (u) => keep * (0.34 + 0.76 * smooth(0.24, 0.5, noise.at(u * span + key, key + 5))), // the edge is lost, then found again
         }, wet, { lap: 1.2, hand: 5 });
+        // where the brush was wet the line creeps out along the fibres, after it lands
+        m.mark(ink, SOFT, pts, { w: pressure(noise, key, base * 2.3, 1.2 + L / (190 * S)), n: 0, body: 0.34 * keep, bleed: 0.5 }, (v, p) => v * smooth(0.36, 0.74, F[p] * 0.7 + T[p] * 0.3), { hand: 5, lap: 1.6 });
       }
     }
     // a few drops off the loaded brush
@@ -443,7 +445,7 @@ const MATERIALS = {
       const keep = KEEP[s.line] ?? 1, base = s.w * (0.5 + 0.75 * keep);
       for (const pts of pieces(s, 0.8)) {
         const k = rnd() * 50;
-        m.mark(key, LINE, pts, { w: (u) => base * (0.55 + 0.9 * noise.at(u * 9 + k, k)), n: 1, flow: (u) => 0.58 + 0.5 * noise.at(u * 14 + k, k + 2) }, printed);
+        m.mark(key, LINE, pts, { w: (u) => base * (0.4 + 1.25 * noise.at(u * 7 + k, k)), n: 1, flow: (u) => 0.5 + 0.62 * noise.at(u * 14 + k, k + 2) }, printed);
       }
     }
     // the tint plate, cut by hand and off register: its shapes miss the line, and a graded panel stands behind them,
@@ -465,13 +467,15 @@ const MATERIALS = {
           q = 0.02 + 0.3 * smooth(py0, py1, y) ** 2;
         }
         const r = pitch * Math.sqrt(Math.pow(clamp(q), 1 / 1.35) / Math.PI) * 1.05;
-        const load = 0.5 + 0.5 * rnd() + 0.2 * noise.at(x / (40 * S), y / (40 * S)), wx = (rnd() - 0.5) * 1.6 * S, wy = (rnd() - 0.5) * 1.6 * S;
-        dots.push({ x: x + wx, y: y + wy, r: r * (0.86 + 0.28 * rnd()), load, order: inside ? pl.regions[pl.id[p]].order : 1e4, back: !inside });
+        const load = 0.5 + 0.5 * rnd() + 0.2 * noise.at(x / (40 * S), y / (40 * S));
+        const wx = (noise.at(x / (240 * S), y / (240 * S)) - 0.5) * 22 * S + (rnd() - 0.5) * 2.2 * S;
+        const wy = (noise.at(y / (240 * S) + 7, x / (240 * S)) - 0.5) * 22 * S + (rnd() - 0.5) * 2.2 * S;
+        dots.push({ x: x + wx, y: y + wy, r: r * (0.84 + 0.3 * rnd()) * (1 + 0.3 * clamp(q)), load, order: inside ? pl.regions[pl.id[p]].order : 1e4, back: !inside });
       }
     }
     dots.sort((a, b) => a.order - b.order || a.y - b.y);
     for (const d of dots) {
-      const lean = noise.at(d.x / 3 + 5, d.y / 3) * 0.7 * S;
+      const lean = (noise.at(d.x / 3 + 5, d.y / 3) - 0.3) * 2.6 * S; // slurred a little along the press
       m.custom(d.back ? tint : screen, d.back ? BACK : TONE, 5 + d.r * 0.2, (dep, time) => {
         dep.dab(d.x, d.y, d.r * 0.5, d.load, time.t0, 1.2 * S);
         dep.dab(d.x + lean * 2, d.y - lean, d.r * 0.78, d.load, time.t0 + 0.09, 1.4 * S);
