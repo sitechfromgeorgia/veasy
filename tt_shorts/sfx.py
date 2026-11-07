@@ -180,6 +180,12 @@ def scenario_beats(props):
     sc = props.get("scenario")
     if isinstance(sc, dict) and "beats" in sc and isinstance(sc["beats"], list):
         return sc["beats"]
+    if isinstance(sc, list) and sc:  # chapters: one plot each (scenarios.chapter_beats)
+        try:
+            from tt_shorts import scenarios
+            return [b for _, _, beats in scenarios.chapter_beats(sc) for b in beats]
+        except Exception:
+            return []
     if isinstance(sc, str) and sc:
         loaded = _load_scenario(sc)
         if loaded and "beats" in loaded and isinstance(loaded["beats"], list):

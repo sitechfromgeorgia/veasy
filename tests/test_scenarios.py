@@ -305,5 +305,63 @@ class TestSoundCues(unittest.TestCase):
         self.assertIn('"scenario": story.get("scenario")', inspect.getsource(props))
 
 
+def chapters_story(ids=("guess-the-number", "before-and-after")):
+    """A long film of two chapters: the first demo without its end card, the second without its hook."""
+    a, b = demo(ids[0]), demo(ids[1])
+    cta = "მეტი განმარტებისთვის"
+    first = a["narration"][:a["narration"].index(cta)].strip()
+    second = b["narration"].split(". ", 1)[1] if False else b["narration"]
+    start = b["scenes"][1]["at"].split()[0]
+    second = b["narration"][b["narration"].index(start):]
+    return {**a, "id": "scenario-chapters", "scenario": list(ids),
+            "narration": first + " " + second, "scenes": a["scenes"][:-1] + b["scenes"][1:]}
+
+
+class TestChapters(unittest.TestCase):
+    def test_a_long_film_takes_a_plot_per_chapter(self):
+        story = chapters_story()
+        self.assertEqual(scenarios.story_problems(story), [])
+        # the explainer program's own 25-45 s window is the only thing a two-chapter film trips: a long film needs a
+        # longer program or format (owner decision in the result file), never a scenario problem
+        self.assertTrue(all(p.startswith("timing:") for p in engine.check_story(story)))
+
+    def test_each_chapter_is_held_to_its_own_plot(self):
+        story = chapters_story()
+        story["scenes"][5] = {**story["scenes"][5], "type": "quote", "text": "„ა“", "by": "ბ"}  # chapter 2, beat 2
+        problems = scenarios.story_problems(story)
+        self.assertTrue(any(p.startswith("chapter 2 (before-and-after)") for p in problems), problems)
+        self.assertFalse(any(p.startswith("chapter 1") for p in problems), problems)
+
+    def test_scene_count_and_ids_are_checked(self):
+        story = chapters_story()
+        del story["scenes"][2]
+        self.assertTrue(any("chapters' beats need" in p for p in scenarios.story_problems(story)))
+        story = chapters_story()
+        story["scenario"] = ["guess-the-number"]
+        self.assertTrue(any("2 or more" in p for p in scenarios.story_problems(story)))
+        story["scenario"] = ["guess-the-number", "nope"]
+        self.assertTrue(any("unknown scenario" in p for p in scenarios.story_problems(story)))
+
+    def test_news_refuses_chapters(self):
+        story = chapters_story()
+        del story["program"]
+        self.assertTrue(any("refuses scenarios" in p for p in scenarios.story_problems(story)))
+        with self.assertRaises(scenarios.ScenarioError):
+            scenarios.stamp(story, ["guess-the-number", "before-and-after"])
+
+    def test_stamp_takes_comma_separated_ids(self):
+        story = chapters_story()
+        story["scenario"] = "x"
+        scenarios.stamp(story, "guess-the-number,before-and-after")
+        self.assertEqual(story["scenario"], ["guess-the-number", "before-and-after"])
+
+    def test_sound_cues_follow_the_chapters(self):
+        from tt_shorts import sfx
+        story = chapters_story()
+        scenes = [{"type": s["type"], "from": i * 150, "duration": 150} for i, s in enumerate(story["scenes"])]
+        cues = sfx.cues({"scenes": scenes, "transition": "line", "scenario": story["scenario"]})
+        self.assertTrue({c["name"] for c in cues} <= set(sfx.NAMES))
+
+
 if __name__ == "__main__":
     unittest.main()

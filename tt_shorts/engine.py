@@ -995,7 +995,7 @@ def scenario_cmd(a):
             if not ranked:
                 return out({"problems": ["no scenario fits this story"]}, 1)
             want = ranked[0]["scenario"]
-        scenarios.stamp(story, want)
+        scenarios.stamp(story, want)  # an id, or ids joined by commas for the chapters of a long film
         problems = scenarios.story_problems(story)
         path.write_text(json.dumps(story, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         return out({"story": str(path), "scenario": want, "problems": problems}, 1 if problems else 0)

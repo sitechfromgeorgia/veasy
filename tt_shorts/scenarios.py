@@ -554,40 +554,75 @@ def check_plan_beats(story, scenario=None):
 
     Returns a list of error strings (empty if valid).
     """
-    problems = []
-
     program = programs.name_of(story)
     if refusal(program):
         return [refusal(program)]
 
     if scenario is None:
-        sc_id = story.get("scenario")
-        if not sc_id:
+        scenario = story.get("scenario")
+        if not scenario:
             return []
-        try:
-            scenario = get(sc_id)
-        except ScenarioError as e:
-            return [str(e)]
-    elif isinstance(scenario, str):
-        try:
-            scenario = get(scenario)
-        except ScenarioError as e:
-            return [str(e)]
+    if isinstance(scenario, list):  # chapters: one plot per chapter of a long film
+        return _check_chapters(story, scenario)
+    try:
+        scenario = get(scenario) if isinstance(scenario, str) else scenario
+    except ScenarioError as e:
+        return [str(e)]
 
     beats = scenario.get("beats") or []
     scenes = story.get("scenes") or []
-
-    # Scene count check
     if len(scenes) != len(beats):
-        problems.append(
-            f"scenario {scenario['id']!r}: story has {len(scenes)} scenes but scenario requires {len(beats)} beats"
-        )
-        return problems
-
+        return [f"scenario {scenario['id']!r}: story has {len(scenes)} scenes but scenario requires {len(beats)} beats"]
     try:
         swc = scene_word_counts(story)
     except ValueError as e:
-        return problems + [f"scenario {scenario['id']!r}: {e}"]
+        return [f"scenario {scenario['id']!r}: {e}"]
+    return _check_slice(story, scenario, beats, scenes, swc)
+
+
+def chapter_beats(ids):
+    """The beats of a film of chapters, flat: [(chapter index, scenario, [beats])]. A chapter after the first has no
+    promise hook of its own (the film's hook opened it) and one before the last has no end card (the last one's closes it)."""
+    out = []
+    for k, sid in enumerate(ids):
+        sc = get(sid)
+        beats = list(sc["beats"])
+        if k > 0 and beats[0]["job"] == "promise":
+            beats = beats[1:]
+        if k < len(ids) - 1 and beats[-1]["scene_types"] == ["end"]:
+            beats = beats[:-1]
+        out.append((k, sc, beats))
+    return out
+
+
+def _check_chapters(story, ids):
+    """story["scenario"] as a list of ids: each chapter's slice of scenes is held to its own plot's beats."""
+    if len(ids) < 2 or not all(isinstance(i, str) for i in ids):
+        return ["scenario: chapters are a list of 2 or more scenario ids, one per chapter"]
+    try:
+        plan = chapter_beats(ids)
+    except ScenarioError as e:
+        return [str(e)]
+    scenes = story.get("scenes") or []
+    need = sum(len(b) for _, _, b in plan)
+    if len(scenes) != need:
+        return [f"scenario chapters {ids}: story has {len(scenes)} scenes but the chapters' beats need {need}"]
+    try:
+        swc = scene_word_counts(story)
+    except ValueError as e:
+        return [f"scenario chapters: {e}"]
+    problems, at = [], 0
+    for k, sc, beats in plan:
+        n = len(beats)
+        got = _check_slice(story, sc, beats, scenes[at:at + n], swc[at:at + n])
+        problems += [f"chapter {k + 1} ({sc['id']}): {x}" for x in got]
+        at += n
+    return problems
+
+
+def _check_slice(story, scenario, beats, scenes, swc):
+    """The beat checks of one plot over one run of scenes (a whole film, or a chapter)."""
+    problems = []
     prior_narration = ""
 
     # Payoff index
@@ -681,6 +716,8 @@ def story_problems(story):
     if "scenario" not in story:
         return []
     sc_id = story["scenario"]
+    if isinstance(sc_id, list):  # chapters
+        return check_plan_beats(story, sc_id)
     try:
         sc = get(sc_id)
     except ScenarioError as e:
@@ -725,10 +762,18 @@ def brief_block(sc):
 
 def stamp(story, scenario_id):
     """Set the story's scenario (code-owned, like rubric). The scenario must exist and the program take one."""
-    sc = get(scenario_id)
+    if isinstance(scenario_id, str) and "," in scenario_id:
+        scenario_id = [x.strip() for x in scenario_id.split(",")]
     if refusal(programs.name_of(story)):
         raise ScenarioError(refusal(programs.name_of(story)))
-    story["scenario"] = sc["id"]
+    if isinstance(scenario_id, list):  # chapters: one plot each, in order (a long film)
+        for x in scenario_id:
+            get(x)
+        if len(scenario_id) < 2:
+            raise ScenarioError("chapters are 2 or more scenario ids")
+        story["scenario"] = list(scenario_id)
+        return story
+    story["scenario"] = get(scenario_id)["id"]
     return story
 
 
