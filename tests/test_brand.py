@@ -34,6 +34,12 @@ class Packs(unittest.TestCase):
             self.assertEqual(brand.load(n)["strings"]["at_least"], "მინიმუმ {n}")
         self.assertEqual(brand.for_remotion(brand.load())["strings"]["at_least"], "მინიმუმ {n}")
 
+    def test_the_occupied_label_is_the_packs_word(self):  # geo.py: the where scene's map marks the territories
+        for n in brand.names():
+            b = brand.load(n)
+            self.assertEqual(b["strings"]["occupied"], "დროებით ოკუპირებული")  # the Georgian base's word
+            self.assertEqual(brand.for_remotion(b)["strings"]["occupied"], b["strings"]["occupied"])
+
     def test_media_words_and_allow_list_come_from_the_base_and_the_pack(self):  # assets.py, news rule N13
         for n, own in (("tbilisi-today", "tbilisi.today"), ("sitech", "sitech.ge")):
             b = brand.load(n)
@@ -146,6 +152,7 @@ class Packs(unittest.TestCase):
             "badmediakey": {**good, "media": {"stock": True}},
             "nolabel": {**good, "strings": {"illustrative": " "}},
             "nocredit": {**good, "strings": {"media_credit": "{source}"}},
+            "nooccupied": {**good, "strings": {"occupied": " "}},  # the map's label on the occupied territories
             # the keyword captions' highlight: a known style, and never the accent as text where the pack forbids it
             "badkeyword": {**good, "design": {**good["design"], "keyword": "glow"}},
             "tintedtext": {**good, "design": {**good["design"], "keyword": "tint"}},

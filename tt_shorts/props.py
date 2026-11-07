@@ -202,7 +202,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         # words the aligner barely heard: the voice may have skipped or changed them (speech.voice_qa; Gemini only)
         "voiceQa": story.get("qa", {}).get("voice", []),
     }
-    geo.attach(props["scenes"], meta.family(category, b))  # a Georgian place: only what its map scene draws
+    geo.attach(props["scenes"], meta.family(category, b), b["strings"])  # a Georgian place: only what its map scene draws
     props["threadWarnings"] = thread.attach(props, story)  # the film's object, its seats and its state (thread.py)
     props["captions"] = captions.layout(words, design, end=marks[-1] / FPS, font=b["_fonts"]["700"],
                                         keys=captions.candidates(props["scenes"], FPS) if design == "keyword" else None,

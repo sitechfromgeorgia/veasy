@@ -6,6 +6,12 @@ The data (built once by tools/build_georgia_map.py): Georgia's outline, its 12 r
 calls attach(), which puts into a where scene only what that scene draws (the outline, the region lines, the
 highlighted regions, the camera's start and end, the pins).
 
+Two more files hold OpenStreetMap's layers (ODbL): georgia-detail.json (lakes, rivers, main roads, rail for the whole
+country) and tbilisi.json (the city's districts, streets, metro, water). view() ships a scene only its level's part,
+clipped to the camera's window and fitted to BUDGET characters of path data (assets/maps/README.md, "What a scene
+gets"); the crime family never gets a district outline or a street. The occupied territories (Abkhazia, the Tskhinvali
+region) come as an `occupied` overlay with the brand pack's label (strings.occupied).
+
   locate("ბათუმიდან")                    -> {"region": "adjara", "point": [x, y], "name": "ბათუმი", ...}
   locate("ვაკეში")                       -> Vake, a Tbilisi district
   locate("ახალდაბა", context="ბორჯომი")  -> the Akhaldaba of Samtskhe-Javakheti, not Tbilisi's
@@ -22,6 +28,14 @@ import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DATA = ROOT / "assets" / "maps" / "georgia.json"
+DETAIL = ROOT / "assets" / "maps" / "georgia-detail.json"  # OpenStreetMap: lakes, rivers, main roads, rail (ODbL)
+CITY = ROOT / "assets" / "maps" / "tbilisi.json"  # OpenStreetMap: Tbilisi's districts, streets, metro, water (ODbL)
+BUDGET = 80_000  # characters of path data a scene's map may carry (weight())
+DETAIL_PAD = 0.05  # a region's detail layers reach this far (of the window's larger side) past the camera's last view
+# What a view's layers give up first when the budget is short (the first entries stay longest).
+REGION_TIERS = (("lakes", None), ("rivers", "major"), ("roads", "motorway"), ("roads", "trunk"), ("rivers", "minor"),
+                ("roads", "primary"), ("rail", None))
+CITY_TIERS = ("rivers", "trunk", "primary", "metro", "secondary", "lakes", "streams", "rail")
 COUNTRY = ("საქართველო",)  # the whole country: the outline, no zoom, no pin
 PRIVATE = ("crime",)  # families whose map stops at the region and drops no pin on a district (privacy)
 MAX_PINS = 3
@@ -38,6 +52,18 @@ PARTICLES = ("ც", "ვე")  # ბათუმშიც, ბათუმში
 @functools.lru_cache(maxsize=1)
 def data():
     return json.loads(DATA.read_text(encoding="utf-8"))
+
+
+@functools.lru_cache(maxsize=1)
+def detail():
+    """The country's OpenStreetMap layers, or None when the file is not there (the map then has the outline only)."""
+    return json.loads(DETAIL.read_text(encoding="utf-8")) if DETAIL.exists() else None
+
+
+@functools.lru_cache(maxsize=1)
+def city():
+    """Tbilisi's OpenStreetMap layers, or None."""
+    return json.loads(CITY.read_text(encoding="utf-8")) if CITY.exists() else None
 
 
 def tokens(text):
@@ -197,9 +223,103 @@ def _district_window(points, city):
     return [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]
 
 
-def view(loc, family=None):
+def _hit(box, b):
+    return b[0] <= box[2] and b[2] >= box[0] and b[1] <= box[3] and b[3] >= box[1]
+
+
+def _join(chunks, box):
+    """The pieces of a layer that touch `box`, as one path (every piece starts with an absolute M)."""
+    return "".join(c[4] for c in chunks if _hit(box, c))
+
+
+def weight(m):
+    """The characters of path data a map carries (its budget: BUDGET): the outline, the lines, the regions, the
+    occupied territories and every layer."""
+    def size(v):
+        if isinstance(v, str):
+            return len(v)
+        if isinstance(v, dict):
+            return sum(size(x) for k, x in v.items() if k not in ("id", "name", "label", "box", "decimals"))
+        if isinstance(v, list):
+            return sum(size(x) for x in v)
+        return 0
+    return sum(size(m.get(k)) for k in ("land", "borders", "rivers", "regions", "occupied", "layers"))
+
+
+def _occupied(focus, label):
+    """The territories Georgian law calls occupied (Abkhazia, the Tskhinvali region), drawn as an overlay on the
+    regions: both always (the camera starts on the whole country), `in_focus` when the camera's last view meets
+    them. The label is the pack's word (brand strings.occupied), not the engine's."""
+    return [{"id": oid, "name": o["name"], "path": o["path"], "bbox": o["bbox"], "at": o["at"], "r": o["r"],
+             "label": label, "in_focus": _hit(focus, o["bbox"])} for oid, o in data()["occupied"].items()]
+
+
+def _region_layers(box, room):
+    """The detail layers a region view draws, clipped to `box`: whole classes, the least important dropped first
+    when they would not fit in `room` characters."""
+    det, out, used = detail(), {"box": [round(v) for v in box]}, 0
+    for key, cls in REGION_TIERS:
+        layer = det[key][cls] if cls else det[key]
+        path = _join(layer, box)
+        if not path or used + len(path) > room:
+            continue
+        used += len(path)
+        if cls:
+            out.setdefault(key, {})[cls] = path
+        else:
+            out[key] = path
+    return out
+
+
+def _city_layers(box, room, named):
+    """Tbilisi's layers for a district view, clipped to `box` and fitted to `room` like _region_layers; the
+    districts come first and always (their outlines are the city's drawing)."""
+    c = city()
+    districts = [{"id": x["id"], "name": x["name"], "path": x["path"], "at": x["at"], "r": x["r"],
+                  "named": x["id"] in named} for x in c["districts"] if _hit(box, x["bbox"])]
+    out, used = {"box": [round(v) for v in box], "decimals": c["decimals"], "districts": districts,
+                 "streets": {}}, sum(len(x["path"]) for x in districts)
+    for tier in CITY_TIERS:
+        if tier in c["streets"]:
+            path, put = _join(c["streets"][tier], box), out["streets"]
+        else:
+            path, put = _join(c[tier], box), out
+        if not path or used + len(path) > room:
+            continue
+        used += len(path)
+        put[tier] = path
+    stations = [p for p in c["stations"] if box[0] <= p[0] <= box[2] and box[1] <= p[1] <= box[3]]
+    if "metro" in out and stations:
+        out["stations"] = stations
+    return out
+
+
+def _layers(m, level, focus, private, named):
+    """The OpenStreetMap layers of a map (None when the files are not built): `overview`, the whole country coarse,
+    always; `detail`, a region view's layers clipped to its window; `city`, Tbilisi's streets, districts and metro for
+    a district view (never for the crime family: the privacy rule). Rivers (m["rivers"]) become OSM's major rivers."""
+    det = detail()
+    if not det:
+        return None
+    ov = det["overview"]
+    layers = {"overview": {"lakes": ov["lakes"], "roads": ov["roads"]}}
+    m["rivers"] = ov["rivers"]
+    room = BUDGET - weight({**m, "layers": layers})
+    box = _pad(focus, DETAIL_PAD)
+    tbilisi_only = m["regions"] == [data()["regions"]["tbilisi"]["path"]]
+    if level == "region" and city() and tbilisi_only and not private:
+        layers["city"] = _city_layers(box, room, named)
+    elif level == "district" and city() and not private:
+        layers["city"] = _city_layers(box, room, named)
+    elif level in ("region", "district"):
+        layers["detail"] = _region_layers(box, room)
+    return layers
+
+
+def view(loc, family=None, strings=None):
     """A located place -> what the scene draws. The privacy rule: for the crime family (crime, incidents) the
-    camera stops at the region and no pin marks a district (a part of a city where people live)."""
+    camera stops at the region and no pin marks a district (a part of a city where people live), and no district
+    outline or street is shipped. `strings` is the brand pack's strings: the occupied territories' label."""
     d = data()
     private = family in PRIVATE
     pins = [p for p in loc["places"] if not (private and p["kind"] == "district")][:MAX_PINS]
@@ -211,27 +331,32 @@ def view(loc, family=None):
         level, focus = "district", _district_window([p["point"] for p in pins], d["regions"][regions[0]]["bbox"])
     else:
         level, focus = "region", _pad(_union([d["regions"][r]["bbox"] for r in regions]), PAD)
-    return {"viewBox": d["viewBox"], "land": d["land"], "borders": d["borders"], "rivers": d["rivers"],
-            "regions": [d["regions"][r]["path"] for r in regions], "start": land,
-            "focus": [round(v) for v in focus], "pins": [p["point"] for p in pins], "level": level,
-            "credit": d["credit"]}
+    m = {"viewBox": d["viewBox"], "land": d["land"], "borders": d["borders"], "rivers": d["rivers"],
+         "regions": [d["regions"][r]["path"] for r in regions], "start": land,
+         "focus": [round(v) for v in focus], "pins": [p["point"] for p in pins], "level": level,
+         "credit": d["credit"], "occupied": _occupied(focus, str((strings or {}).get("occupied") or ""))}
+    layers = _layers(m, level, focus, private, {p["id"] for p in pins})
+    if layers:
+        m["layers"] = layers
+        m["credit"] = " · ".join(c for c in (d["credit"], detail()["credit"]) if c)
+    return m
 
 
-def scene_map(scene, family=None):
+def scene_map(scene, family=None, strings=None):
     """The map a where scene draws, or None (an unknown place keeps the grid scene)."""
     context = " ".join(str(scene.get(k) or "") for k in ("sub", "headline", "kicker"))
     try:
         loc = locate(scene.get("place", ""), context, scene.get("area"))
     except ValueError:
         return None  # engine check reports a bad area; a render never fails on it
-    return view(loc, family) if loc else None
+    return view(loc, family, strings) if loc else None
 
 
-def attach(scenes, family=None):
+def attach(scenes, family=None, strings=None):
     """props.py: every where scene whose place is in Georgia gets its map (in place); returns the scenes."""
     for s in scenes:
         if s.get("type") == "where":
-            m = scene_map(s, family)
+            m = scene_map(s, family, strings)
             if m:
                 s["map"] = m
     return scenes

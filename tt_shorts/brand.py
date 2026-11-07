@@ -20,6 +20,9 @@ media: the media layer's data (assets.py): "providers", the order a scene's pict
   strings.illustrative is the label every illustrative picture carries (news rule N13), strings.media_credit the
   credit line's template ({author}, {licence}, {source}).
 
+map: strings.occupied is the label the where scene's map draws on the territories Georgian law calls occupied
+  (tt_shorts/geo.py puts it in the map's `occupied` overlays; the tint is the pack's accent at low opacity).
+
 themes: the pack's palettes (owner, 2026-11-03: "not only on a night background; a white one and others too").
   "themes": {<name>: {"colors": {...}, "logo"?: {...}, "allowed"?: bool, "about"?: "..."}} and "default_theme":
   <name>. Each theme has the full color set (COLORS; onAccent and markInk have defaults) and passes the contrast
@@ -72,7 +75,7 @@ THEME_KEYS = ("colors", "logo", "allowed", "about", "label")
 CONTRAST = {"ink": 7.0, "muted": 4.5, "accent": 2.0, "onAccent": 3.0, "captions": 4.5, "waiting": 3.0, "mark": 3.0}
 CAPTION_BOX = 0.8  # remotion/src/Captions.tsx: the page box is the canvas at this alpha
 STRINGS = ("outlets", "source_one", "source_many", "covered_by", "today", "preview_edge", "preview_silent",
-           "card_meta", "category_default", "at_least", "illustrative", "media_credit")
+           "card_meta", "category_default", "at_least", "illustrative", "media_credit", "occupied")
 # media (assets.py): providers, the order a picture is searched in (assets.PROVIDERS, never screenshot or ai);
 # official and own, the domains a screenshot may come from (a base's official sites, the pack's own site)
 MEDIA_KEYS = ("providers", "official", "own")
@@ -329,6 +332,9 @@ def validate(b, dirs):
         if not isinstance(styles, list) or not all(isinstance(s, str) and re.match(r"^[a-z0-9][a-z0-9-]*$", s) for s in styles):
             raise BrandError(f"brand {name}: styles is a list of style slug strings (lowercase, digits, hyphens)")
     media_problems(b)
+    if not str(b["strings"]["occupied"]).strip():  # the where scene's label on the occupied territories (geo.py)
+        raise BrandError(f"brand {name}: strings.occupied is the label the map draws on the territories Georgian law "
+                         "calls occupied (Abkhazia, the Tskhinvali region); it is never empty")
     if "engine" in b:  # the pack's film engine, when neither the director, the program nor the format sets one
         from tt_shorts import formats
         formats.engine_value(b["engine"], f"brand {name}", BrandError)
