@@ -7,6 +7,7 @@ import sys
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.dont_write_bytecode = True  # run.mjs hashes every file in plates/ink
 sys.path.insert(0, str(ROOT / "plates" / "ink"))
 
 import bake  # noqa: E402
