@@ -1,6 +1,6 @@
 # Thread object: research
 
-**The line:** `python -m tt_shorts.engine render stories/veasy-thread.json --voice silent` gives a film whose object
+**The line:** `python -m tt_shorts.engine render stories/veasy-thread.json --engine silent` gives a film whose object
 (from the story's chosen idea) sits in at least 3 scenes, travels across the cuts and changes state.
 `python -m tt_shorts.engine thread <story>` shows the same plan for free: drawing, state, which scenes carry it, seats.
 
