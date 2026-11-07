@@ -34,7 +34,7 @@ def _story_file(token):
     for cand in (pathlib.Path(token), root / token, root / f"{token}.json"):
         try:
             if cand.suffix == ".json" and cand.is_file():
-                return cand
+                return cand.resolve()  # one form however it was named: a path, or a name in stories/
         except (OSError, ValueError):
             pass
     return None

@@ -32,7 +32,7 @@ class Look(unittest.TestCase):
         self.assertTrue(any("motion" in m for m in r["missing"]))  # no props yet: named, never rendered
         self.assertEqual(r["sheets"], {})
         by_name = look.look(story="24835")  # a name in stories/
-        self.assertEqual(by_name["story"], r["story"].replace("\\", "/") if "stories/" in by_name["story"] else by_name["story"])
+        self.assertEqual(by_name["story"], r["story"])  # the same file, the same path, on every OS
 
     def test_a_real_job_lists_its_cached_files(self):
         job, created = queue.add(story=str(STORY))
