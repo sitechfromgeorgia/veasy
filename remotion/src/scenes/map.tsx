@@ -8,7 +8,7 @@
 // Motion is a function of the frame; strokes keep their width on screen at any zoom.
 import React, { useMemo } from "react";
 import { Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { CANVAS, FONT, INK, LINE_STRONG, MUTED, RAIL_X, RED, SIDE, W } from "../brand";
+import { CANVAS, FONT, INK, LINE_STRONG, MUTED, PANEL, RAIL_X, RED, SIDE, W } from "../brand";
 import { marked } from "../marker";
 import type { Scene } from "../types";
 import { beat, fitSize, Frame, In, measure, stepped, useTheme } from "../ui";
@@ -173,9 +173,13 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number }> = ({ s, inner = IN
             {m.regions.map((r, i) => (
               <path key={i} d={r} fill={INK} fillOpacity={0.14 * tint} stroke="none" />
             ))}
-            {/* the occupied territories: a low accent tint and a fine hatch, part of Georgia (no thick border) */}
+            {/* the occupied territories: a low accent tint and a fine hatch, part of Georgia (no thick border). A base
+                of the scene's own ground and the plain land tint first, so a territory reads the same inside a
+                highlighted region (Gori: Shida Kartli) and outside it, never as two areas */}
             {(m.occupied ?? []).map((o) => (
               <g key={o.id} opacity={occT}>
+                <path d={o.path} fill={v === "cards" ? PANEL : CANVAS} stroke="none" />
+                <path d={o.path} fill={INK} fillOpacity={0.05} stroke="none" />
                 <path d={o.path} fill={RED} fillOpacity={0.16} stroke="none" />
                 <path d={o.path} fill={`url(#${hatch})`} fillOpacity={0.5} stroke="none" />
               </g>
