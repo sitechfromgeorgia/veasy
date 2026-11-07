@@ -120,12 +120,16 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   - Below y=1100, no text goes right of x=940.
   - The band below the captions carries motion only.
 - **Maps:**
-  - `assets/maps/georgia.json` is built only by `tools/build_georgia_map.py` (sources and licences in
-    `assets/maps/README.md`).
+  - `assets/maps/georgia.json`, `georgia-detail.json` and `tbilisi.json` are built only by
+    `tools/build_georgia_map.py` (sources and licences in `assets/maps/README.md`). The OpenStreetMap layers are
+    ODbL: a map that draws them carries "© OpenStreetMap contributors" in its `credit`.
   - Georgia has its 12 regions of Georgian law: Abkhazia and the Tskhinvali region are part of Georgia, drawn as
     no separate entity.
-  - For the crime family the map stops at the region and marks no district (`geo.PRIVATE`,
-    `tests/test_geo.py`).
+  - Occupied areas (owner, 2026-11-07): they are marked with the pack's label (`strings.occupied`) and a light
+    accent tint, and stay inside Georgia's outline, drawn as no separate entity (an overlay in `georgia.json`,
+    never a 13th region or a border line).
+  - For the crime family the map stops at the region and marks no district, and ships no district outline or
+    street (`geo.PRIVATE`, `tests/test_geo.py`).
 - **No publisher photos:** tbilisi.today has no reuse grant (tbilisi.today repo: `ingest/src/story-cover-assets/README.md`).
 - **Music** is composed by `tools/compose_music.py`; the m4a files are not in git. One constant level: no build-ups,
   no ducking (the owner heard the ducked bed pump). The mix happens in ffmpeg (`props.mix_audio`), not in Remotion.
