@@ -114,8 +114,9 @@ const pushCtrl = createCameraSystem(pushSpec, ctx);
 const pStart = pushCtrl.evaluate(0);
 const pMid = pushCtrl.evaluate(3);
 const pEnd = pushCtrl.evaluate(6);
+const pEndIsPast = (m) => m.eye.z < pStart.eye.z - 1;
 assert(pStart.eye.z > 3.0, "Push start is outside portal");
-assertClose(pMid.eye.z, 3.0, 1e-2, "Push midpoint crosses exact portal threshold z = 3.0");
+assert(pEndIsPast(pMid), "Push midpoint is still running, never parked in the doorway");
 assert(pEnd.eye.z < 3.0, "Push end is inside inner chamber");
 assert(pMid.isInside === false || pEnd.isInside === true, "Push detects inner chamber entry");
 

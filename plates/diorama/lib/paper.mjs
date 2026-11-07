@@ -60,7 +60,7 @@ function paint(geometry, tone, edge, glow, edgeGlow) { // attribute ink: linear 
 function warp(geometry, amount) {
   const fx = 0.5 + random() * 0.9, fy = 0.5 + random() * 0.9, px = random() * 6.3, py = random() * 6.3;
   const pos = geometry.attributes.position, normal = geometry.attributes.normal;
-  const gain = 14 * amount;
+  const gain = 6 * amount;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i), nz = normal.getZ(i);
     pos.setZ(i, pos.getZ(i) + amount * Math.sin(x * fx + px) * Math.sin(y * fy + py));
@@ -107,27 +107,6 @@ export function strip(points, width, o = {}) {
     right.unshift([x - nx, y - ny]);
   });
   return card([...right, ...left], { wobble: 0, bevel: 0, ...o });
-}
-
-// A round thing as a stack of a few thick discs of board, glued by hand: none quite over the last, each with its pale
-// cut edge. profile: [[y, radius], ...], or [y, rx, rz].
-export function rings(profile, o = {}) {
-  const { step = 0.085, squash = 1, sides = 26, tone = 0.7, stripes = [] } = o;
-  const top = profile[profile.length - 1][0], out = [];
-  for (let y = profile[0][0]; y < top; y += step) {
-    let i = 0;
-    while (i < profile.length - 2 && profile[i + 1][0] <= y) i++;
-    const [y0, a0, b0 = a0 * squash] = profile[i], [y1, a1, b1 = a1 * squash] = profile[i + 1];
-    const f = (y + step / 2 - y0) / (y1 - y0), ease = Math.min(1, f), rx = a0 + (a1 - a0) * ease, rz = b0 + (b1 - b0) * ease;
-    const painted = stripes.some(([from, to]) => y + step / 2 >= from && y + step / 2 < to);
-    const face = painted ? 0.18 : tone + (random() - 0.5) * 0.06;
-    const ring = card(arc(0, 0, rx, 0, 360, sides, rz).slice(0, -1), { tone: face, edge: painted ? 0.42 : Math.min(0.96, face + 0.26),
-      edgeGlow: painted ? 0.04 : 0.14, depth: step * 0.8, bevel: 0.005, wobble: 0.012, warp: 0, spin: 0 });
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.set((random() - 0.5) * 0.016, y, (random() - 0.5) * 0.016);
-    out.push(ring);
-  }
-  return out;
 }
 
 export function group(parts, { at, turn, scale } = {}) {

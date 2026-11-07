@@ -274,28 +274,13 @@ export function evalPushThrough(p, spec = {}) {
     height: spec.portalHeight ?? 2.8,
   };
 
-  // Trajectory waypoints:
-  // p0: Exterior approach
-  // p1: Aligning with portal entry threshold
-  // p2: Exact portal transit (clear of jambs)
-  // p3: Interior landing in inner room
-  const startEye = toVec3(spec.startEye, [portal.x, portal.y + 0.2, portal.z + 5.5]);
-  const transitEye = new THREE.Vector3(portal.x, portal.y, portal.z);
-  const endEye = toVec3(spec.endEye, [portal.x, portal.y - 0.2, portal.z - 4.5]);
+  // One straight run through the opening, never a stop in the doorway: a one-take camera doesn't pause.
+  const startEye = toVec3(spec.fromEye || spec.startEye, [portal.x, portal.y + 0.2, portal.z + 5.5]);
+  const endEye = toVec3(spec.toEye || spec.endEye, [portal.x, portal.y - 0.2, portal.z - 4.5]);
+  const eye = new THREE.Vector3().lerpVectors(startEye, endEye, factor);
 
-  // Quadratic / Quintic blend passing through transitEye at p = 0.5
-  let eye = new THREE.Vector3();
-  if (factor < 0.5) {
-    const subFactor = smootherstep(factor * 2);
-    eye.lerpVectors(startEye, transitEye, subFactor);
-  } else {
-    const subFactor = smootherstep((factor - 0.5) * 2);
-    eye.lerpVectors(transitEye, endEye, subFactor);
-  }
-
-  // LookAt target: Initially fixed on the inner chamber subject through the opening
-  const innerTarget = toVec3(spec.target, [portal.x, portal.y * 0.7, portal.z - 7.0]);
-  const target = innerTarget.clone();
+  const innerTarget = toVec3(spec.target || spec.fromTarget, [portal.x, portal.y * 0.7, portal.z - 7.0]);
+  const target = spec.toTarget ? innerTarget.lerp(toVec3(spec.toTarget), factor) : innerTarget;
 
   // Subtle interior reveal tone/fog signal (p > 0.5 indicates interior stage)
   const isInside = eye.z < portal.z;

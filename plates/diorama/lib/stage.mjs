@@ -22,7 +22,7 @@ void main() {
   vKey = max(dot(normal, toKey), 0.0) * keyPower;
   vAmbient = fill * (0.6 + 0.4 * dot(normal, fillFrom));
   vLight = lightMatrix * vec4(position + normal * 0.012, 1.0);
-  vRough = 0.5 + 0.9 * fract(ink.z * 7.0);
+  vRough = 0.18 + 0.6 * fract(ink.z * 7.0);
   vPaper = vec2(position.x + position.z * 0.61, position.y + position.z * 0.83) * (0.3 + 0.24 * ink.z) + ink.z * vec2(13.0, 7.0);
   vec4 view = modelViewMatrix * vec4(position, 1.0);
   vFog = 1.0 - clamp((-view.z - fogNear) / (fogFar - fogNear), 0.0, 1.0);
@@ -80,7 +80,7 @@ function grainTexture(random) { // the tooth of a rough board: soft blobs at thr
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) { // embossed from one side, as a raking light sees it, over a slow mottle
       const relief = field[at(x, y)] - field[at(x + 2, y + 2)];
-      data[y * size + x] = Math.min(255, Math.max(0, 128 + relief * 120 + field[at(x, y)] * 34));
+      data[y * size + x] = Math.min(255, Math.max(0, 128 + relief * 70 + field[at(x, y)] * 26));
     }
   }
   const texture = new THREE.DataTexture(data, size, size, THREE.RedFormat);
