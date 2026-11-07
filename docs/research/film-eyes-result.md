@@ -58,10 +58,8 @@ line), `.claude/skills/review` (symlink). `tt_shorts/critique.py` untouched. CLA
 
 ## 6. Full suite
 
-`python -m unittest discover -s tests`: 819 tests, 2 skipped, 1 failure: `test_compose.Blocks.test_scaffold_with_blocks`
-(`r["built"]` false). It is in the compose lane, touches no file of this lane, and was not run against main to confirm it
-fails there too: likely this machine's HyperFrames/node setup, unverified. `tsc` and `selftest` were not run (no
-Remotion source changed).
+After `npm ci` in `compose/` and the metrics unit: `python -m unittest discover -s tests` 828 tests, OK, 2 skipped.
+The earlier compose failure was the missing packages. `tsc` and `selftest` not run (no Remotion source changed).
 
 ## 7. Owner decisions
 
