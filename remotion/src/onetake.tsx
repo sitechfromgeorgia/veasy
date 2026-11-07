@@ -70,12 +70,13 @@ export const OneTakeBand: React.FC<{ i: number; children: React.ReactNode }> = (
 };
 
 const bezier = (c: Camera["cuts"][number]) =>
-  `M${c.from[0]} ${c.from[1]}C${c.c1[0]} ${c.c1[1]} ${c.c2[0]} ${c.c2[1]} ${c.to[0]} ${c.to[1]}`;
+  `M${c.a[0]} ${c.a[1]}C${c.c1[0]} ${c.c1[1]} ${c.c2[0]} ${c.c2[1]} ${c.b[0]} ${c.b[1]}`;
 
 /** The thread and the dot that runs it, over the cut into scene `i` (inside that scene's Sequence, drawn only while
- *  the camera moves). The thread is a bezier between the two scenes' centres in world space, seen through the camera;
- *  the dot leads the camera along it and has arrived a little before it does, then is gone: nothing of it stays at
- *  rest. The accent is only the dot. */
+ *  the camera moves). The thread is a bezier from the old scene's edge to the new scene's edge, in the margins where no text is, in world
+ *  space, seen through the camera;
+ *  the dot runs it ahead of the camera, has arrived a little before the camera does, then is gone: nothing of it stays
+ *  at rest. The accent is only the dot. */
 export const Thread: React.FC<{ i: number }> = ({ i }) => {
   const { props } = useTheme();
   const f = useCurrentFrame();
@@ -87,7 +88,7 @@ export const Thread: React.FC<{ i: number }> = ({ i }) => {
   const d = bezier(cut);
   const len = getLength(d);
   const dotAt = ease(Math.min(1, c.u * 1.35)); // the dot leads: it reaches the new scene at about 0.74 of the window
-  const p = getPointAtLength(d, dotAt * len) ?? { x: cut.to[0], y: cut.to[1] };
+  const p = getPointAtLength(d, dotAt * len) ?? { x: cut.b[0], y: cut.b[1] };
   const shown = interpolate(c.u, [0, 0.12, 0.78, 1], [0, 1, 1, 0]);
   const ev = evolvePath(dotAt, d);
   const to = `translate(${W / 2} ${CY}) scale(${c.zoom}) translate(${-c.x} ${-c.y})`;

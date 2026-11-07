@@ -243,3 +243,27 @@ class Rules(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Thread(unittest.TestCase):
+    """The thread lives in the margins between two scenes: it never crosses what is read."""
+
+    def test_the_thread_starts_and_ends_in_the_margin_of_a_scene(self):
+        for seed in range(30):
+            cam = onetake.layout(TYPES, f"th|{seed}")
+            for c in cam["cuts"]:
+                for end, scene in ((c["a"], c["from"]), (c["b"], c["to"])):
+                    dx, dy = abs(end[0] - scene[0]), abs(end[1] - scene[1])
+                    self.assertGreaterEqual(onetake.W / 2 - dx, onetake.INSET[0] - 0.2)  # at least the text margin in
+                    self.assertGreaterEqual(onetake.BAND / 2 - dy, onetake.INSET[1] - 0.2)  # inside the scene band
+                    self.assertTrue(dx >= onetake.W / 2 - onetake.INSET[0] - 0.2 or dy >= onetake.BAND / 2 - onetake.INSET[1] - 0.2
+                                    or (dx == 0 and dy == 0))
+
+    def test_the_bend_is_gentle(self):
+        for seed in range(30):
+            for c in onetake.layout(TYPES, f"bd|{seed}")["cuts"]:
+                chord = ((c["b"][0] - c["a"][0]) ** 2 + (c["b"][1] - c["a"][1]) ** 2) ** 0.5
+                off = max(abs(c["c1"][0] - c["a"][0] - (c["b"][0] - c["a"][0]) * .33),
+                          abs(c["c1"][1] - c["a"][1] - (c["b"][1] - c["a"][1]) * .33))
+                self.assertLessEqual(off, chord * 0.31)
+                self.assertIn("c.a[0]", TSX)

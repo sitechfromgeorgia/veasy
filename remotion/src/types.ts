@@ -69,7 +69,7 @@ export type Camera = {
   cut: number;
   zoomCap: number;
   points: [number, number][];
-  cuts: { into: number; from: [number, number]; to: [number, number]; c1: [number, number]; c2: [number, number]; zoom: number }[];
+  cuts: { into: number; from: [number, number]; to: [number, number]; a: [number, number]; b: [number, number]; c1: [number, number]; c2: [number, number]; zoom: number }[];
 };
 
 // the ending (tt_shorts/swipe.py OUTROS): the end card, a QR/link/CTA chip over the last scene, or a seamless loop

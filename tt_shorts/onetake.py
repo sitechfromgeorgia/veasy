@@ -36,6 +36,7 @@ ZOOM_CAP = 1.15  # the camera never zooms in past this (the ROADMAP's hard-news 
 ZOOM_MAX = 0.10  # a seeded move's depth is 0.04..ZOOM_MAX, a pull-back or a push-in
 ZOOM_MIN = 0.04
 BOX = 3  # cells each way from the first scene
+INSET = (72, 40)  # px: the thread leaves a scene this far inside its edge (x: the text margin, y: the band's)
 CELL = (W + GUTTER, BAND + GUTTER)
 DIRECTIONS = ((1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1))
 # a scene's shape decides which way it likes to be reached: v: down the page (rows of things read in order),
@@ -106,20 +107,26 @@ def route(types, seed):
 def layout(types, seed):
     """The camera of one video: {cut, zoomCap, points [[x, y] px per scene], cuts [{into, from, to, c1, c2, zoom}]}.
     types: the shown scenes' types in order. seed: any string or number (the story's id with its brand).
-    Each cut's thread is a cubic bezier between the two scenes' centres, bent sideways by a seeded amount, the bend
-    alternating its side so a run of cuts weaves; zoom is that cut's seeded depth (negative: a pull-back)."""
+    Each cut's thread is a cubic bezier from the old scene's edge facing the move to the new scene's edge facing it
+    (INSET px inside each, in the margin where no text is, so the thread never crosses what is read), bent sideways by
+    a seeded amount, the bend alternating its side so a run of cuts weaves; zoom is that cut's seeded depth
+    (negative: a pull-back)."""
     cells = route(list(types), seed)
     pts = [[c[0] * CELL[0], c[1] * CELL[1]] for c in cells]
     cuts = []
     for i in range(1, len(pts)):
-        a, b = pts[i - 1], pts[i]
+        p0, p1 = pts[i - 1], pts[i]
+        sx, sy = (p1[0] > p0[0]) - (p1[0] < p0[0]), (p1[1] > p0[1]) - (p1[1] < p0[1])
+        reach = (sx * (W / 2 - INSET[0]), sy * (BAND / 2 - INSET[1]))
+        a = [p0[0] + reach[0], p0[1] + reach[1]]  # the old scene's edge facing the move
+        b = [p1[0] - reach[0], p1[1] - reach[1]]  # the new scene's edge facing it
         dx, dy = b[0] - a[0], b[1] - a[1]
         n = math.hypot(dx, dy) or 1.0
         nx, ny = -dy / n, dx / n  # the sideways unit
-        bend = n * (0.18 + 0.22 * (_crc(seed, "bend", i) % 1000) / 1000) * (1 if i % 2 else -1)
+        bend = n * (0.15 + 0.15 * (_crc(seed, "bend", i) % 1000) / 1000) * (1 if i % 2 else -1)
         z = ZOOM_MIN + (ZOOM_MAX - ZOOM_MIN) * (_crc(seed, "zoom", i) % 1000) / 1000
         z = z if _crc(seed, "sign", i) % 2 else -z
-        cuts.append({"into": i, "from": a, "to": b,
+        cuts.append({"into": i, "from": p0, "to": p1, "a": [round(a[0], 1), round(a[1], 1)], "b": [round(b[0], 1), round(b[1], 1)],
                      "c1": [round(a[0] + dx * 0.33 + nx * bend, 1), round(a[1] + dy * 0.33 + ny * bend, 1)],
                      "c2": [round(a[0] + dx * 0.67 - nx * bend, 1), round(a[1] + dy * 0.67 - ny * bend, 1)],
                      "zoom": round(max(-(ZOOM_CAP - 1), min(ZOOM_CAP - 1, z)), 3)})
