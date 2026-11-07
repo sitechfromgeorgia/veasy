@@ -37,6 +37,8 @@ const easeInOutCubic = (p) => {
 
 let stepImpl = () => {};
 let anchorsImpl = () => ({});
+let lastPose = null;
+window.pose = (t) => { anchorsImpl(t); return lastPose; }; // camera of frame t, for tests/relief_projection (no render)
 
 window.step = (t) => stepImpl(t);
 window.anchors = (t) => anchorsImpl(t);
@@ -646,6 +648,7 @@ window.setup = async (spec = {}, ctx = {}) => {
     );
     camera.lookAt(lookPos[0], lookPos[1], lookPos[2]);
     camera.updateMatrixWorld(true);
+    lastPose = { pos: [...camPos], look: [...lookPos], fov, roll, vEx: vExScale, dot: [...activeDotWorld], aspect: ctx.width / ctx.height };
   }
 
   function projectWorldPoint(worldPt) {

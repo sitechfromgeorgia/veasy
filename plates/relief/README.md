@@ -68,7 +68,7 @@ python tools/build_relief.py
 #### 12 Regions of Georgian Law
 1. `region-tbilisi.json` — თბილისი (`tbilisi`, `move: "descend"`, `mtatsminda` → `old-tbilisi`)
 2. `region-abkhazia.json` — აფხაზეთი (`abkhazia`, `move: "ridge"`, `gagra` → `sokhumi`)
-3. `region-adjara.json` — აჭარა (`adjara`, `move: "ridge"`, `khulo` → `batumi`)
+3. `region-adjara.json` — აჭარა (`adjara`, `move: "ridge"`, `batumi` → `batumi`, the camera sweeps along the coast so the sea stays in view; was `khulo` → `batumi`, which kept Batumi off screen until the last second)
 4. `region-guria.json` — გურია (`guria`, `move: "descend"`, `bakhmaro` → `ozurgeti`)
 5. `region-imereti.json` — იმერეთი (`imereti`, `move: "reveal"`, `chiatura` → `kutaisi`)
 6. `region-kakheti.json` — კახეთი (`kakheti`, `move: "reveal"`, `telavi` → `sighnaghi`)

@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import csv
 import json
+import math
+import os
 import pathlib
+import shutil
+import subprocess
 import unittest
 
 import numpy as np
@@ -17,6 +22,53 @@ PLATE_DIR = ROOT / "plates" / "relief"
 PLATE_DATA_DIR = PLATE_DIR / "data"
 SPECS_DIR = PLATE_DIR / "specs"
 MAP_JSON = ROOT / "assets" / "maps" / "georgia.json"
+
+
+# Real heights (m, public sources) with a margin wide enough for the 800x418 grid (one cell is about 8 km wide, so a
+# valley town reads as its surroundings) and for the zeroing outside Georgia.
+HEIGHTS = {  # id: (lowest, highest) the grid may read at the place
+    "batumi": (0, 60), "sokhumi": (0, 60), "kutaisi": (80, 300), "mtskheta": (350, 650),
+    "sighnaghi": (500, 900), "telavi": (500, 900), "mestia": (1350, 1800), "ushguli": (1900, 2500),
+    "stepantsminda": (1500, 2100),  # Kazbegi, about 1,740 m
+}
+SAMPLES = (0, 45, 90, 135, 179)
+
+
+def _viewbox(meta, lon, lat):
+    pr = meta["projection"]
+    return (lon - pr["lon"][0]) * pr["cos"] * pr["k"], (pr["lat"][1] - lat) * pr["k"]
+
+
+def _world(meta, dem, lon, lat):
+    """Three.js world [x, y, z] of a lat/lon by its own arithmetic: projection, bilinear DEM, exaggeration."""
+    vx, vy = _viewbox(meta, lon, lat)
+    fx, fy = vx / 10000.0 * (dem.shape[1] - 1), vy / 5233.0 * (dem.shape[0] - 1)
+    x0, y0 = int(math.floor(fx)), int(math.floor(fy))
+    x1, y1 = min(x0 + 1, dem.shape[1] - 1), min(y0 + 1, dem.shape[0] - 1)
+    ax, ay = fx - x0, fy - y0
+    z = (dem[y0, x0] * (1 - ax) * (1 - ay) + dem[y0, x1] * ax * (1 - ay)
+         + dem[y1, x0] * (1 - ax) * ay + dem[y1, x1] * ax * ay) / 10.0
+    return [(vx - 5000.0) / 100.0, float(z) / 1000.0 * meta["projection"]["vert_exag"], (vy - 5233.0 * 0.5) / 100.0]
+
+
+def _project(pose, w, width=1080, height=1920):
+    """Pixel of world point w seen by the pose's camera (pinhole, three.js lookAt with the roll applied to up)."""
+    pos, look = np.array(pose["pos"]), np.array(pose["look"])
+    f = look - pos
+    fn = f / np.linalg.norm(f)
+    rl = math.hypot(fn[2], fn[0]) or 1.0
+    rn = np.array([-fn[2] / rl, 0.0, fn[0] / rl])
+    up0 = np.cross(rn, fn)
+    up = up0 * math.cos(pose["roll"]) + rn * math.sin(pose["roll"])
+    zc = (pos - look) / np.linalg.norm(pos - look)
+    xc = np.cross(up, zc)
+    xc /= np.linalg.norm(xc)
+    yc = np.cross(zc, xc)
+    d = np.array(w) - pos
+    cx, cy, cz = xc @ d, yc @ d, zc @ d
+    t = math.tan(math.radians(pose["fov"]) / 2.0)
+    nx, ny = cx / (-cz) / (t * width / height), cy / (-cz) / t
+    return (nx + 1) * 0.5 * width, (1 - ny) * 0.5 * height
 
 
 class TestGeorgiaRelief(unittest.TestCase):
@@ -188,6 +240,87 @@ class TestGeorgiaRelief(unittest.TestCase):
             # Top header band (y < 60) is pure dark sky (#000000) and middle terrain has rich relief contrast
             self.assertLess(float(arr[:60, :, 0].mean()), 5.0)
             self.assertGreater(float(arr[400:1300, :, 0].std()), 15.0)
+
+    def test_known_places_stand_at_their_real_height_in_the_grid(self) -> None:
+        with (ROOT / "assets" / "maps" / "georgia-places.csv").open(encoding="utf-8") as fh:
+            rows = {r["id"]: r for r in csv.DictReader(fh)}
+        for pid, (lo, hi) in HEIGHTS.items():
+            lon, lat = float(rows[pid]["lon"]), float(rows[pid]["lat"])
+            vx, vy = _viewbox(self.meta, lon, lat)
+            ix, iy = int(round(vx / 10000.0 * 799)), int(round(vy / 5233.0 * 417))
+            near = self.dem[max(0, iy - 1): iy + 2, max(0, ix - 1): ix + 2] / 10.0  # decimeters -> m
+            here = float(self.dem[iy, ix]) / 10.0
+            if hi <= 60:  # the coast: sea level at the place, and some cell around it
+                self.assertLessEqual(here, hi, pid)
+                self.assertLessEqual(float(near.min()), 30.0, pid)
+            else:
+                self.assertTrue(lo <= here <= hi, f"{pid}: {here} m not in {lo}..{hi}")
+            self.assertAlmostEqual(self.meta["places"][pid]["world"][1],
+                                   _world(self.meta, self.dem, lon, lat)[1], delta=0.02, msg=pid)
+
+    def test_every_gazetteer_place_has_the_world_point_of_its_lat_lon(self) -> None:
+        for pid, p in self.meta["places"].items():
+            w = _world(self.meta, self.dem, p["lon"], p["lat"])
+            for a, b in zip(w, p["world"]):
+                self.assertAlmostEqual(a, b, delta=0.02, msg=pid)
+
+    def test_anchors_are_the_projection_of_the_places_lat_lon(self) -> None:
+        """Six plates by default (about 50 s); RELIEF_ALL_PLATES=1 checks all 51 (about 6 min)."""
+        node = shutil.which("node")
+        chrome_ok = (pathlib.Path.home() / ".cache" / "puppeteer" / "chrome-headless-shell").exists() or os.environ.get("VEASY_CHROME")
+        if not (node and chrome_ok and (ROOT / "plates" / "node_modules" / "puppeteer-core").exists()
+                and (PLATE_DATA_DIR / "relief_meta.json").exists()):
+            self.skipTest("needs node, plates/ npm ci, a headless Chrome and the built relief data")
+        names = sorted(f.stem for f in SPECS_DIR.glob("*.json"))
+        self.assertEqual(len(names), 51)
+        if not os.environ.get("RELIEF_ALL_PLATES"):
+            names = [n for n in names if n in ("kazbegi-jvari", "svaneti", "kakheti", "region-adjara", "region-abkhazia", "region-imereti")]
+        done = subprocess.run([node, str(PLATE_DIR / "pose_dump.mjs"), *[str(SPECS_DIR / f"{n}.json") for n in names]],
+                              capture_output=True, text=True, timeout=900, encoding="utf-8", cwd=str(ROOT))
+        self.assertEqual(done.returncode, 0, done.stderr[-800:])
+        dump = json.loads(done.stdout)
+        self.assertEqual(sorted(dump), names)
+        out = ROOT / "out" / "plates"
+
+        def place_world(key, vex=1.0):
+            p = self.meta["places"][key]
+            w = _world(self.meta, self.dem, p["lon"], p["lat"])
+            w[1] *= vex
+            return w
+
+        for name, rows in dump.items():
+            spec = json.loads((SPECS_DIR / f"{name}.json").read_text(encoding="utf-8"))
+            baked = out / name / "anchors.json"
+            tracks = json.loads(baked.read_text(encoding="utf-8"))["tracks"] if baked.exists() else None
+            self.assertEqual(len(rows), len(SAMPLES))
+            for row in rows:
+                pose = row["pose"]
+                for key, px in row["anchors"].items():
+                    if key == "dot":
+                        w = pose["dot"]
+                    elif key in self.meta["places"]:
+                        w = place_world(key, pose["vEx"])
+                    else:
+                        continue  # a landmark or a region centre: not a gazetteer place
+                    ex, ey = _project(pose, w)
+                    if px[0] in (0, 1080) or px[1] in (0, 1920):
+                        # the page clamps what is off screen to the edge: it must really be off screen
+                        self.assertFalse(0 <= ex <= 1080 and 0 <= ey <= 1920, f"{name}/{key}@{row['frame']}: clamped but projects inside")
+                    else:
+                        self.assertAlmostEqual(ex, px[0], delta=1.0, msg=f"{name}/{key}@{row['frame']} x")
+                        self.assertAlmostEqual(ey, px[1], delta=1.0, msg=f"{name}/{key}@{row['frame']} y")
+                    if tracks and key in tracks:  # the baked file is the same projection
+                        bx, by = tracks[key][row["frame"]]
+                        self.assertAlmostEqual(bx, px[0], delta=1.0, msg=f"{name}/{key}@{row['frame']} baked x")
+                        self.assertAlmostEqual(by, px[1], delta=1.0, msg=f"{name}/{key}@{row['frame']} baked y")
+            # the flight ends on its place, in frame: the dot is the target's projection at the last frame
+            target = spec.get("to") or spec.get("anchor") or spec.get("place")
+            if target in self.meta["places"] and spec.get("preset") != "kazbegi-jvari":
+                last = rows[-1]
+                ex, ey = _project(last["pose"], place_world(target, last["pose"]["vEx"]))
+                self.assertTrue(0 < ex < 1080 and 0 < ey < 1920, f"{name}: {target} ends off screen at {ex:.0f},{ey:.0f}")
+                self.assertAlmostEqual(last["anchors"]["dot"][0], ex, delta=1.5, msg=name)
+                self.assertAlmostEqual(last["anchors"]["dot"][1], ey, delta=1.5, msg=name)
 
 
 if __name__ == "__main__":

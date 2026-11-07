@@ -1,7 +1,8 @@
 {
   "move": "ridge",
   "region": "adjara",
-  "from": "khulo",
+  "from": "batumi",
   "to": "batumi",
-  "anchor": "batumi"
+  "anchor": "batumi",
+  "anchors": ["kobuleti"]
 }

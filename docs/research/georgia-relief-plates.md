@@ -5,7 +5,7 @@ Baked at 6 s, seed 1, full scale (`out/plates/`, git-ignored; ~85 s each on a sh
 | plate | move | frames | hash |
 |---|---|---|---|
 | `region-abkhazia` | ridge | 180 | `81c72d10f3f14a82` |
-| `region-adjara` | ridge | 180 | `8afe33dc5e0e6cbd` |
+| `region-adjara` | ridge | 180 | `0a82216c63d2c8d8` |
 | `region-guria` | descend | 180 | `601b0a390013ea2f` |
 | `region-imereti` | reveal | 180 | `8e08c8736ae9f036` |
 | `region-kakheti` | reveal | 180 | `375b1a947accc19c` |
