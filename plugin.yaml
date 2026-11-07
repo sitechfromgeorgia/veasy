@@ -23,6 +23,7 @@ provides_tools:
   - veasy_brand
   - veasy_plate
   - veasy_review
+  - veasy_steer
 provides_hooks:
   - pre_llm_call
 requires_env: []

@@ -154,6 +154,9 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     trim = swipe.lead_trim(words, swipe.leading_silence(audio)) if audio else 0.0  # the voice starts at once
     words = swipe.shift(words, trim)  # mix_audio cuts the same seconds from the track
     shown, marks, chip = swipe.plan(story, words, outro)
+    if story.get("steer"):
+        from tt_shorts import steer as _steer
+        marks = _steer.apply_story_steer(story, shown, marks)
     bed = next((f for f in loops if f.name == st["music"]), loops[0] if loops else None)
     for f in (audio, bed):
         if f:
@@ -262,8 +265,12 @@ def mix_audio(work, props, video, out):
     return out
 
 
-def render_video(work, props, out):
+def render_video(work, props, out, segmented=None):
     out = pathlib.Path(out).resolve()
+    use_segments = (os.environ.get("SHORTS_SEGMENTS", "1") != "0") if segmented is None else bool(segmented)
+    if use_segments and props.get("scenes"):
+        from tt_shorts import segments
+        return segments.render_remotion(work, props, out)
     raw = work / "raw.mp4"
     _remotion(["render", "src/index.ts", "NewsShort", str(raw), "--muted", f"--concurrency={speech.workers()}"], work)
     out.parent.mkdir(parents=True, exist_ok=True)

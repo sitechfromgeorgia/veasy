@@ -1222,6 +1222,20 @@ def dry_run_cmd(a):
     return out(res, 1 if res.get("problems") else 0)
 
 
+def steer_cmd(a):
+    from tt_shorts import steer as st
+    res = st.steer(a.story, scene=a.scene, set_kv=a.set, tighter=a.tighter, breathe=a.breathe, land=a.land,
+                   dry=a.dry, out_path=a.out, engine=a.engine, format_name=a.format, look=a.look,
+                   director=a.director)
+    return out(res, 1 if res.get("problems") else 0)
+
+
+def room_cmd(a):
+    from tt_shorts import room as rm
+    model = rm.write_room(a.target, engine_override=a.renderer)
+    return out({"room": model["room_html"], "scenes": model["scene_count"], "film_engine": model["film_engine"]})
+
+
 # ---------------------------------------------------------------- cli
 
 
@@ -1465,6 +1479,22 @@ def main(argv=None):
     mk.add_argument("--music", help="override music")
     mk.add_argument("--transition", choices=formats.TRANSITIONS, help="override transition")
     mk.add_argument("--outro", choices=formats.OUTROS, help="override outro")
+    sr = sub.add_parser("steer", help="change one scene of a film and redraw only it; --dry says the cost first")
+    sr.add_argument("story", help="a story .json or a rendered .mp4")
+    sr.add_argument("--scene", help="scene number (3) or s3")
+    sr.add_argument("--set", action="append", help="slot=value (repeatable); narration changes cost a full render with a new voice")
+    sr.add_argument("--tighter", action="store_true", help="pull the cut earlier (-0.4 s)")
+    sr.add_argument("--breathe", action="store_true", help="add room after the scene settles (+0.5 s)")
+    sr.add_argument("--land", action="store_true", help="hold the payoff (+0.3 s) and mark the key phrase")
+    sr.add_argument("--dry", action="store_true", help="say what the change will cost and render nothing")
+    sr.add_argument("--out", help="output .mp4 (default: the film's own)")
+    sr.add_argument("--engine", default="silent", choices=["gemini", "edge", "silent"], help="voice engine (default silent preview)")
+    sr.add_argument("--format")
+    sr.add_argument("--look", choices=formats.LOOKS)
+    sr.add_argument("--director")
+    rmp = sub.add_parser("room", help="write <render>.room.html: every scene, its words, timing, cost and a steer command")
+    rmp.add_argument("target", help="a story .json or a rendered .mp4")
+    rmp.add_argument("--renderer", choices=["remotion", "hyperframes"])
     gy = sub.add_parser("gallery", help="generate static HTML visual catalogue of all styles, looks, scenes and directors")
     gy.add_argument("--out", help="target HTML file (default out/gallery.html)")
     a = ap.parse_args(argv)
@@ -1503,7 +1533,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "concept": concept_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd, "plate": plate_cmd, "scenario": scenario_cmd, "review": review_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "concept": concept_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd, "plate": plate_cmd, "scenario": scenario_cmd, "review": review_cmd, "steer": steer_cmd, "room": room_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
     except FileNotFoundError as e:

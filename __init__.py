@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 SKILLS_DIR = ROOT / "skills"
 TIMEOUTS = {"render": 1500, "write": 900, "still": 600, "queue": 3600, "package": 900, "probe": 600, "plan": 600,
-            "compose": 2400, "plate": 1800}
+            "compose": 2400, "plate": 1800, "steer": 3600, "room": 300}
 
 HINT = (
     "[veasy] If this turn involves making, checking or fixing a video (a Short, a reel, a story video), first load "
@@ -401,6 +401,28 @@ TOOLS = {
                     "or website URL (engine brand new <name> --from <source>), validate WCAG contrast and schema, "
                     "and render preview contact sheets in dark and light themes.",
                     lambda a: _engine("brand", [a["action"], a["name"], "--from", a["from"]] + (["--no-sheets"] if a.get("no_sheets") else []))),
+    "veasy_steer": ({"type": "object", "properties": {
+                        "story": {"type": "string", "description": "A story JSON, or a rendered .mp4 to change."},
+                        "scene": {"type": "string", "description": "The scene to change: 3 or s3 (see veasy_room)."},
+                        "set": {"type": "array", "items": {"type": "string"},
+                                "description": "slot=value, e.g. label=\"...\" (repeatable)."},
+                        "verb": {"type": "string", "enum": ["tighter", "breathe", "land"],
+                                 "description": "A plain timing change on the scene: -0.4 s, +0.5 s, +0.3 s and mark the payoff."},
+                        "dry": {"type": "boolean", "description": "Say the cost and render nothing (do this first)."},
+                        "engine": {"type": "string", "enum": ["silent", "edge", "gemini"],
+                                   "description": "The voice (default silent; a narration change needs a new one)."},
+                        "write_room": {"type": "boolean", "description": "Only write <render>.room.html, change nothing."}},
+                     "required": ["story"]},
+                    "Change one scene of a film and redraw only that scene (skill veasy:steer). dry=true first: it "
+                    "says the cost, e.g. \"4.8 s of picture (scene 1 of 11, frames 297-440), $0\" or \"new voice, "
+                    "every frame\" when the narration changes. Without dry the scene is redrawn, the cut is spliced "
+                    "and the voice mixed once; check, probe, QA and flash still pass. Also writes <render>.room.html, "
+                    "a page of every scene with its words, timing and a command to copy.",
+                    lambda a: _engine("room", [a["story"]]) if a.get("write_room") else _engine("steer", [a["story"]] + (
+                        ["--scene", str(a["scene"])] if a.get("scene") not in (None, "") else []) + sum(
+                        [["--set", x] for x in (a.get("set") or [])], []) + (
+                        [f"--{a['verb']}"] if a.get("verb") else []) + (["--dry"] if a.get("dry") else []) + _flags(
+                        a, ("engine",)))),
 }
 
 
