@@ -317,7 +317,10 @@ voice is made, and an engine (Remotion today, HyperFrames next) only draws local
   use into `assets/sfx/`, not in git). `sfx.cues(props)` places them from the timeline: a whoosh on every cut (a
   click on a plain `cut`), a pop when a mark or the outro chip lands, ticks while a stat counts and a thud as it
   settles, a blip as each bar grows. `props.mix_audio` lays them as one track under the voice at one constant
-  level (no ducking). `stories/24835-media.json` is the demo (four pictures from Openverse and Commons).
+  level (no ducking). `sfx: meaning` is the other way: one `impact` on the film's main moment, 2-4 small sounds, the
+  story's object's own (`obj-wood|glass|metal|paper|water|soft`, by code), nothing on a cut, and the music loop
+  starts where a bar's heavy hit lands on that moment (`music_hits.py`, level unchanged).
+  `stories/24835-media.json` is the demo (four pictures from Openverse and Commons).
 
 ## Icons and pictograms (`tt_shorts/icons.py`)
 

@@ -59,6 +59,110 @@ class Cues(unittest.TestCase):
         self.assertNotIn("whoosh", [x["name"] for x in sfx.cues(timeline("fade"))])
 
 
+def story(kind):
+    """30 seconds, three ways: a big number, an idea's turn (the object said), a hook's mark and nothing else."""
+    t = timeline(outroFrom=780)
+    t["durationInFrames"] = 900
+    t["scenes"] = [{"type": "hook", "from": 0, "duration": 150}, {"type": "text", "from": 150, "duration": 150},
+                   {"type": "text", "from": 300, "duration": 150, "mark": {"at": 50}},
+                   {"type": "bars", "from": 450, "duration": 150, "items": [{}, {}]},
+                   {"type": "text", "from": 600, "duration": 150}, {"type": "end", "from": 750, "duration": 150}]
+    if kind == "number":
+        t["scenes"][1] = {"type": "stat", "from": 150, "duration": 150}
+    if kind == "idea":
+        t["words"] = [{"text": "აქ", "start": 2.0, "end": 2.2}, {"text": "გასაღებმა", "start": 11.0, "end": 11.5}]
+    if kind == "hook":
+        t["scenes"][0]["mark"] = {"at": 40}
+    return t
+
+
+OBJECT = {"object": "გასაღები", "device": "d"}
+CUT_SOUNDS = ("whoosh", "click", "tick", "thud")
+
+
+class Meaning(unittest.TestCase):
+    def test_one_main_and_two_to_four_small_in_thirty_seconds_on_three_stories(self):
+        for kind in ("number", "idea", "hook"):
+            c = sfx.cues(story(kind), OBJECT, "meaning")
+            names = [x["name"] for x in c]
+            self.assertEqual(names.count("impact"), 1, kind)
+            self.assertIn(len(c) - 1, (2, 3, 4), kind)
+            self.assertEqual(len(c) - 1, sfx.small_count(30.0), kind)  # three in 30 s
+            self.assertEqual([x["t"] for x in c], sorted(x["t"] for x in c))
+            main = next(x for x in c if x["name"] == "impact")
+            self.assertEqual(main["t"], sfx.moment(story(kind), OBJECT)["t"])
+            self.assertTrue(all(0 <= x["t"] < 30 for x in c))
+
+    def test_the_main_moment_is_found_by_code_in_a_fixed_order_with_a_fallback(self):
+        self.assertEqual(sfx.moment(story("number"), OBJECT), {"t": round((150 + 36) / 30, 3), "why": "number"})
+        self.assertEqual(sfx.moment(story("idea"), OBJECT), {"t": 11.0, "why": "idea"})
+        self.assertEqual(sfx.moment(story("hook"), None), {"t": round(40 / 30, 3), "why": "hook"})
+        plain = sfx.moment(story("none"), None)
+        self.assertEqual(plain, {"t": 13.5, "why": "fallback"})  # 45 % of the film
+        self.assertEqual(sfx.moment({"durationInFrames": 90, "scenes": []}, None)["t"], 1.35)  # 45 % of a 3 s film, inside the margins
+
+    def test_a_transition_gets_no_sound_of_its_own(self):
+        for kind in ("number", "idea", "hook", "none"):
+            p = story(kind)
+            cuts = [s["from"] / 30 for s in p["scenes"][1:]]
+            c = sfx.cues(p, OBJECT, "meaning")
+            self.assertFalse([x for x in c if x["name"] in CUT_SOUNDS], kind)  # not the cut sounds
+            self.assertFalse([x for x in c if any(abs(x["t"] - k) < sfx.NEAR_CUT for k in cuts)], kind)  # none on a cut
+        for tr in ("line", "cut", "iris", "fade"):  # whatever the transition is
+            self.assertEqual(sfx.cues({**story("idea"), "transition": tr}, OBJECT, "meaning"),
+                             sfx.cues(story("idea"), OBJECT, "meaning"))
+
+    def test_a_word_at_a_cut_still_gets_the_objects_sound_just_after_it(self):
+        p = story("idea")
+        p["words"][1]["start"] = 10.0  # scene 4 starts at 10 s: the object is the first word of a scene
+        c = sfx.cues(p, OBJECT, "meaning")
+        self.assertIn({"t": round(10.0 + sfx.NEAR_CUT, 3), "name": "obj-metal"}, c)
+        self.assertIn({"t": round(10.0 + sfx.NEAR_CUT, 3), "name": "impact"}, c)  # and so does the main sound
+
+    def test_the_object_has_one_sound_of_its_own_chosen_by_code(self):
+        self.assertEqual(sfx.object_sound(OBJECT), "obj-metal")  # a key
+        self.assertEqual(sfx.object_sound({"object": "ძველი ბოთლი"}), "obj-glass")  # by the last word
+        self.assertEqual(sfx.object_sound({"object": "ყუთი"}), "obj-wood")
+        self.assertEqual(sfx.object_sound({"object": "წყალი"}), "obj-water")
+        odd = {"object": "მზესუმზირა"}  # no material known: a hash, the same every time
+        self.assertEqual(sfx.object_sound(odd), sfx.object_sound(odd))
+        self.assertTrue(sfx.object_sound(odd).startswith("obj-"))
+        self.assertIsNone(sfx.object_sound(None))
+        own = [x for x in sfx.cues(story("idea"), OBJECT, "meaning") if x["name"].startswith("obj-")]
+        self.assertEqual(len(own), 1)
+        self.assertEqual(own[0]["t"], 11.0)
+        self.assertEqual([x for x in sfx.cues(story("idea"), None, "meaning") if x["name"].startswith("obj-")], [])
+        self.assertIn("obj-metal", sfx.NAMES)
+
+    def test_one_constant_level_no_ducking(self):
+        with tempfile.TemporaryDirectory() as d:
+            work = pathlib.Path(d)
+            (work / "public").mkdir()
+            p = {"durationInFrames": 900, "voice": "v.wav", "voiceTrim": 0, "music": "politics-1.m4a", "outro": "card",
+                 "sfx": sfx.cues(story("idea"), OBJECT, "meaning"), "sfxMoment": sfx.moment(story("idea"), OBJECT)}
+            with mock.patch.object(subprocess, "run") as run:
+                props.mix_audio(work, p, work / "raw.mp4", work / "out.mp4")
+            graph = run.call_args[0][0][run.call_args[0][0].index("-filter_complex") + 1]
+            self.assertEqual(graph.count(f"volume={sfx.LEVEL_DB}dB[sfx]"), 1)  # the whole track, one static level
+            self.assertNotIn("sidechain", graph)
+            self.assertNotIn("eval=frame", graph)
+            self.assertNotIn("compand", graph)
+            self.assertEqual([m for m in __import__("re").findall(r"volume=([^,\[]+)", graph)],
+                             ["-13.0dB", f"{sfx.LEVEL_DB}dB"])  # bed and effects: one number each, never an envelope
+        # every meaning sound is levelled to the same loudness (Sounds.test_compose_...), and none is a riser
+        for n in ("impact", "obj-wood", "obj-glass", "obj-metal", "obj-paper", "obj-water", "obj-soft"):
+            self.assertIn(n, sfx.NAMES)
+
+    def test_off_and_on_are_as_before_and_meaning_is_a_format_value(self):
+        self.assertEqual(sfx.cues(timeline()), sfx.cues(timeline(), None, "on"))
+        self.assertEqual(formats.get("news", sfx="meaning")["sfx"], "meaning")
+        self.assertIn("meaning", sfx.OPTIONS)
+        self.assertTrue(set(sfx.OPTIONS) == set(formats.SFX))
+        from tt_shorts import compose
+        t = {"duration": 20.0, "wipes": [2.0], "beats": [{"id": "a", "t": 5.0, "sfx": "pop"}]}
+        self.assertEqual(compose.sfx_cues(t, "meaning"), [{"t": 5.0, "name": "pop"}])  # a wipe is a cut: no whoosh
+
+
 class Sounds(unittest.TestCase):
     def test_compose_is_deterministic_short_and_level(self):
         compose = __import__("runpy").run_path(str(ROOT / "tools" / "compose_sfx.py"), run_name="t")

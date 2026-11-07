@@ -67,4 +67,7 @@ the timeline (`tt_shorts/sfx.py`): a whoosh on each cut (a click on a plain `cut
 chip lands, ticks while a stat counts and a thud as it settles, a blip as each bar grows. One track at one constant
 level under the voice, mixed by ffmpeg: no ducking, no risers.
 
+`--sfx meaning` (`veasy:formats`): one `impact` on the main moment, 2-4 small sounds (the object's own sound, a pop on a
+mark, the outro chip), nothing on a transition; the music starts where a heavy hit lands on the main moment.
+
 Demo: `stories/24835-media.json` (four pictures from Openverse and Commons, credits on screen).
