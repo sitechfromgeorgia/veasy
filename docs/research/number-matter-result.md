@@ -62,4 +62,4 @@ None outside `plates/matter/`, `tests/test_matter.py` and `docs/research/number-
 
 ## Gates
 
-(filled in after the final run)
+Full suite `python -m unittest discover -s tests` on the commit before this note: exit 0 (see the Ran/OK line in `out/full-suite.log`). `tsc` and `selftest` not run: no Remotion or scene code was touched.
