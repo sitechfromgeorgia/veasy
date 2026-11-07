@@ -5,7 +5,7 @@ whose shadow is baked once. The camera moves, nothing else does. It gives a film
 row of cards.
 
 ```bash
-node plates/run.mjs diorama --spec plates/diorama/sets/market.json --seconds 6 --seed 1 --out out/plates/market
+node plates/run.mjs diorama --spec plates/diorama/sets/market.json --seconds 6 --seed 1 --scale 0.75 --out out/plates/market
 ```
 
 You get `plate.mp4`, `poster.png`, `plate.json` and `anchors.json`. To look before you bake (three frames, seconds):
