@@ -33,7 +33,7 @@ import pathlib
 import re
 import urllib.parse
 
-from tt_shorts import claims_check, formats, news_check
+from tt_shorts import catalog, claims_check, formats, news_check
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIR = ROOT / "programs"
@@ -171,7 +171,7 @@ def check_source(p, source):
 
 
 def allowed(p, scene_type):
-    return p["scenes"] == "all" or scene_type in p["scenes"]
+    return scene_type not in catalog.NAMED_ONLY if p["scenes"] == "all" else scene_type in p["scenes"]
 
 
 def brief(p):

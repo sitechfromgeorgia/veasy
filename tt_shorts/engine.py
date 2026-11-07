@@ -902,7 +902,7 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
 def thread_cmd(a):
     """The film's thread, free: the drawing, the state, which scenes carry the object and where."""
     story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
-    return {"story": str(a.story), **thread.summary(story, None if a.look in (None, "auto") else a.look)}
+    return out({"story": str(a.story), **thread.summary(story, None if a.look in (None, "auto") else a.look)})
 
 
 def concept_cmd(a):
@@ -1201,9 +1201,6 @@ def main(argv=None):
     cn.add_argument("--batch", help="a JSON file: [{\"source\": ..., \"ref\": ...}, ...]")
     cn.add_argument("--brand", default=packs.DEFAULT)
     cn.add_argument("--ideas", help="a JSON file of an agent's own ideas: judged the same way, no model call")
-    th = sub.add_parser("thread", help="the film's object, free: drawing, state, which scenes carry it, their seats")
-    th.add_argument("story")
-    th.add_argument("--look", choices=("auto",) + packs.LOOKS, default="auto")
     th = sub.add_parser("thread", help="the film's object, free: drawing, state, which scenes carry it, their seats")
     th.add_argument("story")
     th.add_argument("--look", choices=("auto",) + packs.LOOKS, default="auto")

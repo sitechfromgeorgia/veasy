@@ -75,7 +75,8 @@ class Tables(unittest.TestCase):
         self.assertIn('"em" (optional', some)  # hook and share take a mark
         self.assertNotIn('"em" (optional', catalog.schema(["end"]))
         every = catalog.schema()
-        self.assertTrue(all(f'{{"type": "{t}"' in every for t in catalog.types() if catalog.get(t)["schema"]))
+        self.assertTrue(all(f'{{"type": "{t}"' in every for t in catalog.types() if catalog.get(t)["schema"]
+                            and t not in catalog.NAMED_ONLY))
         self.assertNotIn('{"type": "sources"', every)  # the outlets come from the data: no line to copy
 
 
