@@ -151,17 +151,17 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number }> = ({ s, inner = IN
               return (
                 <React.Fragment key={id as string}>
                   <linearGradient id={`${id}-x-${s.from}`} gradientUnits="userSpaceOnUse" x1={bb[0]} y1={0} x2={bb[2]} y2={0}>
-                    <stop offset={0} stopColor="#000" /><stop offset={fx / (bb[2] - bb[0])} stopColor="#fff" />
-                    <stop offset={1 - fx / (bb[2] - bb[0])} stopColor="#fff" /><stop offset={1} stopColor="#000" />
+                    <stop offset={0} stopColor={INK} stopOpacity={0} /><stop offset={fx / (bb[2] - bb[0])} stopColor={INK} stopOpacity={1} />
+                    <stop offset={1 - fx / (bb[2] - bb[0])} stopColor={INK} stopOpacity={1} /><stop offset={1} stopColor={INK} stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id={`${id}-y-${s.from}`} gradientUnits="userSpaceOnUse" x1={0} y1={bb[1]} x2={0} y2={bb[3]}>
-                    <stop offset={0} stopColor="#000" /><stop offset={fy / (bb[3] - bb[1])} stopColor="#fff" />
-                    <stop offset={1 - fy / (bb[3] - bb[1])} stopColor="#fff" /><stop offset={1} stopColor="#000" />
+                    <stop offset={0} stopColor={INK} stopOpacity={0} /><stop offset={fy / (bb[3] - bb[1])} stopColor={INK} stopOpacity={1} />
+                    <stop offset={1 - fy / (bb[3] - bb[1])} stopColor={INK} stopOpacity={1} /><stop offset={1} stopColor={INK} stopOpacity={0} />
                   </linearGradient>
-                  <mask id={`${id}-mx-${s.from}`} maskUnits="userSpaceOnUse" x={bb[0]} y={bb[1]} width={bb[2] - bb[0]} height={bb[3] - bb[1]}>
+                  <mask id={`${id}-mx-${s.from}`} style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x={bb[0]} y={bb[1]} width={bb[2] - bb[0]} height={bb[3] - bb[1]}>
                     <rect x={bb[0]} y={bb[1]} width={bb[2] - bb[0]} height={bb[3] - bb[1]} fill={`url(#${id}-x-${s.from})`} />
                   </mask>
-                  <mask id={`${id}-my-${s.from}`} maskUnits="userSpaceOnUse" x={bb[0]} y={bb[1]} width={bb[2] - bb[0]} height={bb[3] - bb[1]}>
+                  <mask id={`${id}-my-${s.from}`} style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x={bb[0]} y={bb[1]} width={bb[2] - bb[0]} height={bb[3] - bb[1]}>
                     <rect x={bb[0]} y={bb[1]} width={bb[2] - bb[0]} height={bb[3] - bb[1]} fill={`url(#${id}-y-${s.from})`} />
                   </mask>
                 </React.Fragment>
