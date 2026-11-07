@@ -1,0 +1,279 @@
+<!doctype html>
+<!-- plates/surface/index.html: Relit material surfaces with moving raking light. Tone only, deterministic. -->
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; width: 100%; height: 100%; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+<script type="importmap">{"imports": {"three": "/node_modules/three/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from "three";
+import { seeded } from "/lib/seeded.mjs";
+
+let renderer, scene, camera, material, mesh, ctx, currentSpec;
+let lightPos = new THREE.Vector3();
+
+const VERTEX_SHADER = `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position, 1.0);
+}
+`;
+
+const FRAGMENT_SHADER = `
+precision highp float;
+varying vec2 vUv;
+
+uniform sampler2D u_height;
+uniform sampler2D u_normal;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform float u_seconds;
+uniform int u_light_type; // 0 = rake, 1 = sweep, 2 = dawn
+uniform float u_scale;
+uniform float u_rotation;
+uniform vec4 u_crop;
+uniform float u_depth;
+uniform float u_intensity;
+uniform float u_ambient;
+uniform float u_roughness;
+uniform float u_dither;
+
+// Periodic seamless UV transform with aspect ratio correction
+vec2 transformUv(vec2 uv) {
+  // Center coordinates
+  vec2 p = uv - 0.5;
+  // Aspect ratio correction (1080x1920 is 9:16)
+  float aspect = u_resolution.x / u_resolution.y;
+  p.y /= aspect;
+
+  // Rotation
+  float c = cos(u_rotation);
+  float s = sin(u_rotation);
+  p = mat2(c, -s, s, c) * p;
+
+  // Scale
+  p *= u_scale * 2.0;
+
+  // Sub-crop mapping
+  vec2 tiledUv = fract(p + 0.5);
+  return u_crop.xy + tiledUv * u_crop.zw;
+}
+
+// Triangular high-pass noise dither to eliminate 8-bit quantization banding
+float tpdfDither(vec2 coord) {
+  float r1 = fract(sin(dot(coord, vec2(12.9898, 78.233))) * 43758.5453);
+  float r2 = fract(sin(dot(coord + vec2(0.31, 0.77), vec2(26.1721, 63.819))) * 29482.1931);
+  return (r1 + r2 - 1.0) / 255.0;
+}
+
+void main() {
+  vec2 uv = transformUv(vUv);
+  
+  // Sample normal map and unpack tangent space [-1, 1]
+  vec4 normSample = texture2D(u_normal, uv);
+  vec3 N = normSample.rgb * 2.0 - 1.0;
+  N.xy *= u_depth;
+  N = normalize(N);
+
+  // Sample height
+  float H = texture2D(u_height, uv).r;
+
+  // View vector V (orthographic camera looking down +Z)
+  vec3 V = vec3(0.0, 0.0, 1.0);
+
+  // Mathematical Periodic Time (Guarantees C1 seamless loop)
+  float tau = 6.28318530718;
+  float phi = (u_time / u_seconds) * tau;
+
+  vec3 L;
+  float atten = 1.0;
+
+  if (u_light_type == 0) {
+    // 0: RAKE - Grazing directional light sweeping in elliptical orbit
+    float azimuth = phi + 0.5;
+    float elevation = radians(12.0 + 6.0 * sin(phi)); // 6 to 18 degrees grazing angle
+    L = normalize(vec3(cos(azimuth) * cos(elevation), sin(azimuth) * cos(elevation), sin(elevation)));
+  } else if (u_light_type == 1) {
+    // 1: SWEEP - Moving spotlight roving across the vertical frame
+    vec2 lightCenter = vec2(0.5 + 0.32 * cos(phi), 0.5 + 0.30 * sin(phi));
+    vec2 fragPos = vUv;
+    float dist = distance(fragPos, lightCenter);
+    // Spot cone and distance falloff
+    atten = 1.0 / (1.0 + 9.0 * dist * dist);
+    float spot = smoothstep(0.75, 0.05, dist);
+    atten *= spot;
+    vec3 lightPos3 = vec3(lightCenter, 0.42);
+    L = normalize(lightPos3 - vec3(fragPos, H * 0.08));
+  } else {
+    // 2: DAWN - Rising angular illumination (low to high to low with C1 seam)
+    float azimuth = radians(-35.0 + 20.0 * sin(phi));
+    float sinHalf = sin(phi * 0.5);
+    float elevDeg = 8.0 + 32.0 * (sinHalf * sinHalf); // 8 deg up to 40 deg
+    float elevation = radians(elevDeg);
+    L = normalize(vec3(cos(azimuth) * cos(elevation), sin(azimuth) * cos(elevation), sin(elevation)));
+  }
+
+  // Oren-Nayar rough surface diffuse approximation
+  float NdotL = max(0.0, dot(N, L));
+  float NdotV = max(0.0, dot(N, V));
+
+  float sigma2 = u_roughness * u_roughness;
+  float A = 1.0 - 0.5 * (sigma2 / (sigma2 + 0.33));
+  float B = 0.45 * (sigma2 / (sigma2 + 0.09));
+
+  // Angle difference between L and V projections
+  vec3 Lproj = normalize(L - N * NdotL);
+  vec3 Vproj = normalize(V - N * NdotV);
+  float cosDiff = max(0.0, dot(Lproj, Vproj));
+
+  float sinAlpha, tanBeta;
+  if (NdotL > NdotV) {
+    sinAlpha = sqrt(max(0.0, 1.0 - NdotV * NdotV));
+    tanBeta = sqrt(max(0.0, 1.0 - NdotL * NdotL)) / max(0.01, NdotL);
+  } else {
+    sinAlpha = sqrt(max(0.0, 1.0 - NdotL * NdotL));
+    tanBeta = sqrt(max(0.0, 1.0 - NdotV * NdotV)) / max(0.01, NdotV);
+  }
+
+  float orenNayar = NdotL * (A + B * cosDiff * sinAlpha * tanBeta);
+
+  // Subtle Blinn-Phong specular highlight for tactile glint
+  vec3 Half = normalize(L + V);
+  float NdotH = max(0.0, dot(N, Half));
+  float specPower = mix(16.0, 64.0, 1.0 - u_roughness);
+  float spec = pow(NdotH, specPower) * (1.0 - u_roughness) * 0.15;
+
+  // Base ambient illumination (prevents pitch-black clipping)
+  float ambient = u_ambient * (0.8 + 0.2 * H);
+
+  // Final luma composition (strictly tone only)
+  float luma = ambient + (orenNayar * 0.72 + spec) * u_intensity * atten;
+
+  // Soft mobile contrast knee: compress highlights so text always stays readable
+  luma = luma / (1.0 + luma * 0.5);
+
+  // Anti-banding dither
+  luma += tpdfDither(gl_FragCoord.xy) * u_dither;
+
+  // Clamp to valid range
+  luma = clamp(luma, 0.0, 1.0);
+
+  // Monochrome grey on black output
+  gl_FragColor = vec4(vec3(luma), 1.0);
+}
+`;
+
+function loadTexture(url) {
+  return new Promise((resolve, reject) => {
+    new THREE.TextureLoader().load(
+      url,
+      (tex) => {
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        resolve(tex);
+      },
+      undefined,
+      (err) => reject(new Error(`Failed to load texture ${url}: ${err.message || err}`))
+    );
+  });
+}
+
+window.setup = async (spec, c) => {
+  ctx = c;
+  currentSpec = spec || {};
+
+  // Validate spec material
+  const materialId = spec.material || "limestone";
+  const lightTypeStr = (spec.light || "rake").toLowerCase();
+  let lightType = 0;
+  if (lightTypeStr === "sweep") lightType = 1;
+  else if (lightTypeStr === "dawn") lightType = 2;
+
+  // Load height and normal textures
+  const heightUrl = `/surface/textures/${materialId}/height.png`;
+  const normalUrl = `/surface/textures/${materialId}/normal.png`;
+
+  const [heightTex, normalTex] = await Promise.all([
+    loadTexture(heightUrl),
+    loadTexture(normalUrl)
+  ]);
+
+  // Load optional material meta
+  let meta = {};
+  try {
+    const res = await fetch(`/surface/textures/${materialId}/meta.json`);
+    if (res.ok) meta = await res.json();
+  } catch (e) {}
+
+  renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true, powerPreference: "high-performance" });
+  renderer.setPixelRatio(1);
+  renderer.setSize(c.width, c.height);
+  document.body.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+  // Crop uniform [x, y, w, h]
+  const crop = Array.isArray(spec.crop) && spec.crop.length === 4 ? spec.crop : [0, 0, 1, 1];
+
+  material = new THREE.ShaderMaterial({
+    vertexShader: VERTEX_SHADER,
+    fragmentShader: FRAGMENT_SHADER,
+    uniforms: {
+      u_height: { value: heightTex },
+      u_normal: { value: normalTex },
+      u_resolution: { value: new THREE.Vector2(c.width, c.height) },
+      u_time: { value: 0.0 },
+      u_seconds: { value: c.seconds || 6.0 },
+      u_light_type: { value: lightType },
+      u_scale: { value: Number(spec.scale || 1.0) },
+      u_rotation: { value: Number(spec.rotation || 0.0) * (Math.PI / 180.0) },
+      u_crop: { value: new THREE.Vector4(...crop) },
+      u_depth: { value: Number(spec.depth || meta.depth || 1.0) },
+      u_intensity: { value: Number(spec.intensity || 1.0) },
+      u_ambient: { value: Number(spec.ambient || 0.14) },
+      u_roughness: { value: Number(spec.roughness || meta.roughness || 0.65) },
+      u_dither: { value: Number(spec.dither !== undefined ? spec.dither : 1.0) },
+    },
+    depthTest: false,
+    depthWrite: false,
+  });
+
+  // Fullscreen quad [-1, 1]
+  const geom = new THREE.PlaneGeometry(2, 2);
+  mesh = new THREE.Mesh(geom, material);
+  scene.add(mesh);
+};
+
+window.step = (t) => {
+  if (!material) return;
+  material.uniforms.u_time.value = t;
+
+  // Track light position for anchors
+  const tau = Math.PI * 2.0;
+  const phi = (t / ctx.seconds) * tau;
+  if (material.uniforms.u_light_type.value === 1) {
+    // Sweep spotlight position
+    lightPos.set(
+      (0.5 + 0.32 * Math.cos(phi)) * ctx.width,
+      (0.5 + 0.30 * Math.sin(phi)) * ctx.height,
+      0
+    );
+  } else {
+    // Center focal point
+    lightPos.set(ctx.width * 0.5, ctx.height * 0.5, 0);
+  }
+
+  renderer.render(scene, camera);
+};
+
+window.anchors = (t) => {
+  return {
+    dot: [Math.round(lightPos.x), Math.round(lightPos.y)],
+  };
+};
+</script>

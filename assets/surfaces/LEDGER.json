@@ -1,0 +1,262 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-11-06",
+  "max_git_mb": 15.0,
+  "materials": {
+    "limestone": {
+      "id": "limestone",
+      "name": "Sedimentary Limestone",
+      "category": "stone",
+      "description": "Fine-grained natural limestone slab with subtle porous pitting and delicate sedimentary bedding.",
+      "prompt": "Top-down flat-lay macro texture of raw natural fine-grained limestone slab with delicate sedimentary strata and porous mineral pitting.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/limestone/height.png",
+        "normal": "assets/surfaces/limestone/normal.png",
+        "meta": "assets/surfaces/limestone/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.2,
+      "roughness": 0.75,
+      "bytes": 754713,
+      "sha256": {
+        "height": "c9adc0dbd69f01581b41fd05c8ca8292150956b55906d619369c49f1d1157530",
+        "normal": "89eb6e2e07083a43accef8ca2af369d2df8997940b216bcfba8e6c1ba75bc83f"
+      }
+    },
+    "worn_plaster": {
+      "id": "worn_plaster",
+      "name": "Worn Lime Plaster",
+      "category": "mineral",
+      "description": "Aged historical lime stucco with delicate hairline drying fissures and soft matte powdery tooth.",
+      "prompt": "Top-down flat-lay macro texture of aged worn historical lime stucco wall featuring subtle hairline drying fissures and matte powdery finish.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/worn_plaster/height.png",
+        "normal": "assets/surfaces/worn_plaster/normal.png",
+        "meta": "assets/surfaces/worn_plaster/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.1,
+      "roughness": 0.85,
+      "bytes": 823666,
+      "sha256": {
+        "height": "c51add27e303fb65eb276183d1a1c0533cf661c827eb179d5c0849dc7424b3ba",
+        "normal": "d2468e97bcbdbb76b38342d5ba0032aa0a026cf538381477c7a83582bddfeb08"
+      }
+    },
+    "handmade_paper": {
+      "id": "handmade_paper",
+      "name": "Handmade Rag Paper",
+      "category": "paper",
+      "description": "Heavyweight cotton rag paper with organic cellulose fibers, deckle pulp clumps, and micro-creases.",
+      "prompt": "Top-down flat-lay macro texture of vintage handmade cotton rag paper with visible cellulose fibers, organic deckle pulp clumps, and micro-creases.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/handmade_paper/height.png",
+        "normal": "assets/surfaces/handmade_paper/normal.png",
+        "meta": "assets/surfaces/handmade_paper/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.1,
+      "roughness": 0.9,
+      "bytes": 810098,
+      "sha256": {
+        "height": "be15b4b9e85f2a536e8ad00125089ef458191e05d353046e5457a96421e3201a",
+        "normal": "f7134bbb33bf88c55d69b57ef1c31849a4f7df399a70aca2e977581c2372cb89"
+      }
+    },
+    "raw_wood": {
+      "id": "raw_wood",
+      "name": "Raw Hardwood Timber",
+      "category": "wood",
+      "description": "Planed unvarnished hardwood slab with fine longitudinal grain lines and delicate vascular pores.",
+      "prompt": "Top-down flat-lay macro texture of fine-grained raw planed hardwood timber slab with natural longitudinal grain lines and delicate vascular pores.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/raw_wood/height.png",
+        "normal": "assets/surfaces/raw_wood/normal.png",
+        "meta": "assets/surfaces/raw_wood/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.0,
+      "roughness": 0.7,
+      "bytes": 754119,
+      "sha256": {
+        "height": "ba0bcb661fed412ddf9596d16646f26c8507c237da7603caef91043352f12291",
+        "normal": "632826392d550668de3e54f8be1be02055280278d78c6a27d02575c968882e27"
+      }
+    },
+    "hammered_metal": {
+      "id": "hammered_metal",
+      "name": "Hammered Patinated Iron",
+      "category": "metal",
+      "description": "Wrought antique metal plate with rhythmic planishing hammer dimples and dark oxidized patina.",
+      "prompt": "Top-down flat-lay macro texture of antique hand-hammered wrought metal plate with rhythmic planishing dimples and dark oxidized bronze-iron patina.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/hammered_metal/height.png",
+        "normal": "assets/surfaces/hammered_metal/normal.png",
+        "meta": "assets/surfaces/hammered_metal/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.4,
+      "roughness": 0.45,
+      "bytes": 773133,
+      "sha256": {
+        "height": "d563e3e88bd45e89d2a954e436bc41a8a66691aab29143e8b080ffca391455c9",
+        "normal": "fa3703a93034883b793c67b73202d4d75df8d56784dfa4cb040056015e0a7c08"
+      }
+    },
+    "woven_cloth": {
+      "id": "woven_cloth",
+      "name": "Raw Woven Linen",
+      "category": "textile",
+      "description": "Coarse unbleached natural linen fabric with interlocking orthogonal warp and weft weave.",
+      "prompt": "Top-down flat-lay macro texture of coarse raw natural unbleached linen fabric with interlocking orthogonal warp and weft weave and subtle slub texture.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/woven_cloth/height.png",
+        "normal": "assets/surfaces/woven_cloth/normal.png",
+        "meta": "assets/surfaces/woven_cloth/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.1,
+      "roughness": 0.8,
+      "bytes": 828109,
+      "sha256": {
+        "height": "ac174ea8210f2b680135ba3b2031c52bd64960ee9eb019ea233f76dc70c5c368",
+        "normal": "7feed5678df89af7357525843b21d1e6d1ece0f615de74e9cccd4c01c6d43b4d"
+      }
+    },
+    "ornament_rosette": {
+      "id": "ornament_rosette",
+      "name": "Radial Fluted Rosette Relief",
+      "category": "ornament",
+      "description": "Original 12-fold symmetrical carved rosette medallion with concentric fluted petals in stone.",
+      "prompt": "Top-down flat-lay architectural bas-relief carving of an original 12-fold radial fluted geometric rosette medallion with concentric layered petals.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/ornament_rosette/height.png",
+        "normal": "assets/surfaces/ornament_rosette/normal.png",
+        "meta": "assets/surfaces/ornament_rosette/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.5,
+      "roughness": 0.65,
+      "bytes": 764488,
+      "sha256": {
+        "height": "f68be5a4016bdea2958e27614145171e22f36ac709b4bd17aacae05f74fb4145",
+        "normal": "4c52fccc201238ba7aa089a764de698a0c39c3d6855240a8bd9441751fc19d9d"
+      }
+    },
+    "ornament_palmette": {
+      "id": "ornament_palmette",
+      "name": "Anthemion Palmette Fan Relief",
+      "category": "ornament",
+      "description": "Original stylized architectural anthemion palmette fan flanked by acanthus volutes in low stone relief.",
+      "prompt": "Top-down orthogonal flat-lay bas-relief stone carving featuring an original symmetrical anthemion palmette fan flanked by acanthus scrollwork.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/ornament_palmette/height.png",
+        "normal": "assets/surfaces/ornament_palmette/normal.png",
+        "meta": "assets/surfaces/ornament_palmette/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.5,
+      "roughness": 0.65,
+      "bytes": 777387,
+      "sha256": {
+        "height": "ef53a02551990b71c32c6c7199e775bf353b915a928600805272741cc54c8dd0",
+        "normal": "620209776f9815fe119c820631456e07d07b9a08441a3e378c7d17359d533fee"
+      }
+    },
+    "ornament_meander": {
+      "id": "ornament_meander",
+      "name": "Stepped Key Meander Relief",
+      "category": "ornament",
+      "description": "Original classical Greek orthogonal key meander fret carved in porous weathered limestone.",
+      "prompt": "Top-down flat-lay bas-relief carving of an authentic classical Greek geometric fret meander pattern sculpted in weathered porous limestone.",
+      "model": "imagen-3.0",
+      "date": "2026-11-06",
+      "license": "ai",
+      "commercial": true,
+      "n13_label_required": true,
+      "files": {
+        "height": "assets/surfaces/ornament_meander/height.png",
+        "normal": "assets/surfaces/ornament_meander/normal.png",
+        "meta": "assets/surfaces/ornament_meander/meta.json"
+      },
+      "dimensions": [
+        512,
+        512
+      ],
+      "depth": 1.4,
+      "roughness": 0.7,
+      "bytes": 721569,
+      "sha256": {
+        "height": "252ef94ba5d6dd8c7aa3d19544832774aecf6d89114cc1500b2410e2f85a5763",
+        "normal": "d2f1d3c37d875d39fdffaddc01e5df7fa30724729350af6605898a2c1f97e5c3"
+      }
+    }
+  },
+  "material_count": 9,
+  "total_disk_mb": 6.697,
+  "budget_pass": true
+}

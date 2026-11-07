@@ -1,0 +1,15 @@
+{
+  "id": "raw_wood",
+  "name": "Raw Hardwood Timber",
+  "category": "wood",
+  "description": "Planed unvarnished hardwood slab with fine longitudinal grain lines and delicate vascular pores.",
+  "dimensions": [
+    512,
+    512
+  ],
+  "depth": 1.0,
+  "roughness": 0.7,
+  "height_sha256": "ba0bcb661fed412ddf9596d16646f26c8507c237da7603caef91043352f12291",
+  "normal_sha256": "632826392d550668de3e54f8be1be02055280278d78c6a27d02575c968882e27",
+  "bytes": 754119
+}

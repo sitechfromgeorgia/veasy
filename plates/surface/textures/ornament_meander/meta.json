@@ -1,0 +1,15 @@
+{
+  "id": "ornament_meander",
+  "name": "Stepped Key Meander Relief",
+  "category": "ornament",
+  "description": "Original classical Greek orthogonal key meander fret carved in porous weathered limestone.",
+  "dimensions": [
+    512,
+    512
+  ],
+  "depth": 1.4,
+  "roughness": 0.7,
+  "height_sha256": "252ef94ba5d6dd8c7aa3d19544832774aecf6d89114cc1500b2410e2f85a5763",
+  "normal_sha256": "d2f1d3c37d875d39fdffaddc01e5df7fa30724729350af6605898a2c1f97e5c3",
+  "bytes": 721569
+}

@@ -1,0 +1,15 @@
+{
+  "id": "hammered_metal",
+  "name": "Hammered Patinated Iron",
+  "category": "metal",
+  "description": "Wrought antique metal plate with rhythmic planishing hammer dimples and dark oxidized patina.",
+  "dimensions": [
+    512,
+    512
+  ],
+  "depth": 1.4,
+  "roughness": 0.45,
+  "height_sha256": "d563e3e88bd45e89d2a954e436bc41a8a66691aab29143e8b080ffca391455c9",
+  "normal_sha256": "fa3703a93034883b793c67b73202d4d75df8d56784dfa4cb040056015e0a7c08",
+  "bytes": 773133
+}

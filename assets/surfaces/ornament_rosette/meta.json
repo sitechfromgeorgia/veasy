@@ -1,0 +1,15 @@
+{
+  "id": "ornament_rosette",
+  "name": "Radial Fluted Rosette Relief",
+  "category": "ornament",
+  "description": "Original 12-fold symmetrical carved rosette medallion with concentric fluted petals in stone.",
+  "dimensions": [
+    512,
+    512
+  ],
+  "depth": 1.5,
+  "roughness": 0.65,
+  "height_sha256": "f68be5a4016bdea2958e27614145171e22f36ac709b4bd17aacae05f74fb4145",
+  "normal_sha256": "4c52fccc201238ba7aa089a764de698a0c39c3d6855240a8bd9441751fc19d9d",
+  "bytes": 764488
+}

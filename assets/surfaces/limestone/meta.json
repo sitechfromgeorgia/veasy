@@ -1,0 +1,15 @@
+{
+  "id": "limestone",
+  "name": "Sedimentary Limestone",
+  "category": "stone",
+  "description": "Fine-grained natural limestone slab with subtle porous pitting and delicate sedimentary bedding.",
+  "dimensions": [
+    512,
+    512
+  ],
+  "depth": 1.2,
+  "roughness": 0.75,
+  "height_sha256": "c9adc0dbd69f01581b41fd05c8ca8292150956b55906d619369c49f1d1157530",
+  "normal_sha256": "89eb6e2e07083a43accef8ca2af369d2df8997940b216bcfba8e6c1ba75bc83f",
+  "bytes": 754713
+}
