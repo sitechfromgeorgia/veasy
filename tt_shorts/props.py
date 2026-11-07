@@ -21,7 +21,7 @@ import shutil
 import subprocess
 
 from tt_shorts import (art, assets, beats as beat_track, brand, captions, chapters as chapters_of, directors,
-                       geo, icons, meta, rubrics, sfx as effects, speech, store, swipe, variety, voices)
+                       geo, icons, meta, music_hits, rubrics, sfx as effects, speech, store, swipe, variety, voices)
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -112,7 +112,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     outro: card | overlay | loop (swipe.py: the end card, a chip over the last scene, or a seamless loop).
     director: a directors.py id to use instead of the story's own "director" (render --director); with one, the
     variety picks stay inside its subsets and props.style carries its motion numbers and current.
-    sfx: off | on (format key): the sound effects' cues from the timeline (sfx.py), mixed by mix_audio.
+    sfx: off | on | meaning (format key): the sound effects' cues from the timeline (sfx.py), mixed by mix_audio;
+    meaning also sets props "sfxMoment" (the main moment), where mix_audio puts the music's heavy hit.
     theme: "default" (the pack's), "auto" (variety picks among the pack's allowed themes) or a theme's name
     (theme_for); props.brand carries that theme's colors, props.theme its name, and its logo files are copied.
     beats: on | off (beats.py: a change inside each scene every 1.5-3 s, on the words); chapters: auto | on | off
@@ -190,7 +191,8 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     if beats != "off":  # a visible change every 1.5-3 s inside each scene, landed on the words (beats.py)
         beat_track.attach(props["scenes"], words)
     props["chapters"] = chapters_of.split(props["scenes"], marks[-1], chapters)  # "01 / 03" (chapters.py), or None
-    props["sfx"] = effects.cues(props) if sfx == "on" else []  # the accents' times (sfx.py); ffmpeg mixes them
+    props["sfx"] = effects.cues(props, story.get("concept"), sfx) if sfx in ("on", "meaning") else []  # sfx.py; ffmpeg mixes
+    props["sfxMoment"] = effects.moment(props, story.get("concept")) if sfx == "meaning" else None
     (work / "props.json").write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
     return work, props
 
@@ -237,8 +239,12 @@ def mix_audio(work, props, video, out):
         k = len(inputs) // 2
         inputs += ["-stream_loop", "-1", "-i", str(public / props["music"])]
         db = MUSIC_DB if props["voice"] else MUSIC_DB_SILENT
+        # a heavy hit of the loop on the main moment: the start moves inside the (infinite) looped stream, so the
+        # loop's own seam stays where the composer made it and the level is the loop's, unchanged
+        shift = music_hits.offset(props["music"], (props.get("sfxMoment") or {}).get("t"))
+        skip = f"atrim=start={shift:.3f},asetpts=PTS-STARTPTS," if shift else ""
         fade_in, fade_out = swipe.music_fades(props.get("outro"))
-        graph.append(f"[{k}:a]aresample=48000,atrim=0:{dur:.3f},volume={db}dB,afade=t=in:d={fade_in},"
+        graph.append(f"[{k}:a]aresample=48000,{skip}atrim=0:{dur:.3f},volume={db}dB,afade=t=in:d={fade_in},"
                      f"afade=t=out:st={max(0, dur - fade_out):.3f}:d={fade_out}[bed]")
         mix.append("[bed]")
     if props.get("sfx"):

@@ -15,6 +15,13 @@ risers, nothing that rises and falls under the speech (the owner's music rule). 
 is ffmpeg's, so a HyperFrames film gets the same sound from the same props.
 
     cues(props) -> [{"t": seconds, "name": "whoosh"}, ...]   sorted, at least MIN_GAP apart
+
+`meaning` (cues(props, concept, "meaning")) is the other way round: sound follows what the film says, not what its
+machinery does. One main sound (`impact`) on the film's main moment, and 2-4 small ones (small_count) on its turns:
+the object's own sound when the narration says the story's object, a pop where a mark lands, the outro chip, a
+chart's first bar. Nothing on a cut: no whoosh, no click, no tick, no thud. The main moment (moment()) is found by code,
+in this order: the big number settling, the idea's turn (the narration saying the object), the hook's mark, else
+45 % of the film. props.mix_audio shifts the music loop so a heavy hit lands on it (music_hits.py).
 """
 import contextlib
 import pathlib
@@ -26,7 +33,8 @@ import numpy as np
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIR = ROOT / "assets" / "sfx"
-NAMES = ("click", "pop", "whoosh", "tick", "thud", "blip")
+NAMES = ("click", "pop", "whoosh", "tick", "thud", "blip", "impact",
+         "obj-wood", "obj-glass", "obj-metal", "obj-paper", "obj-water", "obj-soft")  # the last seven: `meaning`
 SR = 48000
 FPS = 30
 LEVEL_DB = -6.0  # the whole track, under the -16 LUFS voice: accents a little above the music bed, never louder
@@ -51,7 +59,23 @@ CUT_SOUND = {
     "corner": "whoosh",
     "fade": None,
 }
+MOMENT_MARGIN = (1.0, 1.5)  # seconds: the main moment stays this far from the start and from the end
+NEAR_CUT = 0.12  # a small sound closer than this to a cut is dropped: a transition gets no sound of its own
+SPACING = 0.9  # seconds between any two meaning sounds
+# the material of an object's own sound, by Georgian stem (the object is code-chosen: concept.py); else by a hash
+MATERIALS = {
+    "wood": ("ხე", "ხის", "მაგიდ", "სკამ", "კარ", "ყუთ", "ტაფჩ", "ძელ", "ღობ", "ბეღელ"),
+    "glass": ("მინა", "მინის", "ფანჯარ", "ბოთლ", "ჭიქა", "სათვალ", "ეკრან", "სარკე", "ვიტრინ"),
+    "metal": ("გასაღებ", "ბერკეტ", "ჯაჭვ", "ფოლად", "რკინ", "ბორბალ", "კლიტე", "ბრჯე", "მონეტ", "ზარ", "ლიფტ"),
+    "paper": ("ქაღალდ", "წიგნ", "საბუთ", "ბარათ", "ფურცელ", "ბილეთ", "დოკუმენტ", "კონვერტ", "ქვითა", "პასპორტ"),
+    "water": ("წყალ", "წვეთ", "მდინარ", "ონკან", "წვიმ", "ტბა", "ზღვა", "მილი", "ნაკადულ"),
+    "soft": ("ტანსაცმ", "ხელთათმან", "ქუდ", "ჩანთ", "ბალიშ", "ფეხსაცმ", "შარფ", "საბან", "ტომარ", "ჩექმ"),
+}
 OPTIONS = {"off": "no sound effects (the default: renders are as before)",
+           "meaning": "sound follows meaning: one main sound on the film's main moment (the big number, the idea's "
+                      "turn, the hook), 2-4 small ones in 30 s (the story's object gets a sound of its own, a mark "
+                      "lands, the outro chip), nothing on a transition; the music loop is shifted so a heavy hit "
+                      "lands on the main moment, at the same level; one constant level, no ducking",
            "on": "short accents on the timeline: a whoosh on a cut, a pop when a mark lands, ticks while a number "
                  "counts, blips as bars grow; one constant level under the voice, no ducking"}
 
@@ -68,8 +92,102 @@ def ensure():
     return DIR
 
 
-def cues(props):
-    """The accents of one video, from its props' timeline -> [{t, name}] (seconds)."""
+def object_sound(concept):
+    """The sound of a story's object, chosen by code: its material by the object's last word's stem, else a hash of
+    the word (the same object always sounds the same). None without an object."""
+    import zlib
+    word = ((concept or {}).get("object") or "").split()[-1:] or [""]
+    word = word[0].strip()
+    if not word:
+        return None
+    for material, stems in MATERIALS.items():
+        if any(word.startswith(st) for st in stems):
+            return f"obj-{material}"
+    return f"obj-{list(MATERIALS)[zlib.crc32(word.encode()) % len(MATERIALS)]}"
+
+
+def small_count(seconds):
+    """How many small sounds a film of this length gets: 2-4, three in 30 seconds."""
+    return max(2, min(4, round(seconds / 10)))
+
+
+def _spoken(props, concept):
+    """When the narration says the story's object (seconds), or None."""
+    from tt_shorts import concept as ideas
+    obj = ((concept or {}).get("object") or "").split()[-1:]
+    if not obj:
+        return None
+    stem = ideas.root(obj[0])
+    return next((w["start"] for w in props.get("words") or [] if str(w.get("text", "")).startswith(stem)), None)
+
+
+def moment(props, concept=None):
+    """The film's main moment, by code -> {"t": seconds, "why": "number" | "idea" | "hook" | "fallback"}."""
+    end = props.get("durationInFrames", 0) / FPS
+    scenes = props.get("scenes") or []
+    found = None
+    stat = next((s for s in scenes if s.get("type") == "stat" and not s.get("isotype")), None)
+    if stat:  # the big number: when it has counted up and settles
+        found = ((stat["from"] + min(stat.get("duration", 0), COUNT_DELAY + COUNT_FRAMES)) / FPS, "number")
+    if not found:
+        said = _spoken(props, concept)
+        if said is not None:
+            found = (said, "idea")
+    if not found and scenes:
+        m = scenes[0].get("mark")
+        if m and isinstance(m.get("at"), (int, float)):
+            found = ((scenes[0]["from"] + m["at"]) / FPS, "hook")
+    t, why = found or (0.45 * end, "fallback")
+    cut = next((s["from"] / FPS for s in scenes[1:] if abs(t - s["from"] / FPS) < NEAR_CUT), None)
+    t = t if cut is None else cut + NEAR_CUT  # the main sound is not a transition's either
+    lo, hi = MOMENT_MARGIN[0], max(MOMENT_MARGIN[0], end - MOMENT_MARGIN[1])
+    return {"t": round(min(max(t, lo), hi), 3), "why": why}
+
+
+def meaning(props, concept=None, main=None):
+    """The `meaning` cues: one `impact` on the main moment and small ones on the film's turns."""
+    end = props.get("durationInFrames", 0) / FPS
+    scenes = props.get("scenes") or []
+    main = main or moment(props, concept)
+    cuts = [s["from"] / FPS for s in scenes[1:]]
+    cand = []  # (priority, t, name)
+    own, said = object_sound(concept), _spoken(props, concept)
+    if own and said is not None:
+        cand.append((0, said, own))
+    for s in scenes:
+        m = s.get("mark")
+        if m and isinstance(m.get("at"), (int, float)):
+            cand.append((1, (s["from"] + m["at"]) / FPS, "pop"))
+    if props.get("outroFrom"):
+        cand.append((2, props["outroFrom"] / FPS, "pop"))
+    chart = next((s for s in scenes if s.get("type") in ("bars", "compare", "share")), None)
+    if chart:
+        cand.append((3, (chart["from"] + 6) / FPS, "blip"))
+    if scenes:
+        cand.append((4, scenes[0]["from"] / FPS + 0.15, "pop"))  # the hook opening
+    chosen = [(main["t"], "impact")]
+    for _, t, name in sorted(cand, key=lambda c: (c[0], c[1])):
+        if len([c for c in chosen if c[1] != "impact"]) >= small_count(end):
+            break
+        if name == own:  # the object's sound is never dropped: it may sit on the main sound, and a word that starts
+            c = next((c for c in cuts if abs(t - c) < NEAR_CUT), None)  # at a cut sounds a moment into the word
+            t = t if c is None else c + NEAR_CUT
+            if t >= end - 0.1 or any(abs(t - u) < SPACING for u, n in chosen if n != "impact"):
+                continue
+            chosen.append((t, name))
+            continue
+        if t >= end - 0.5 or any(abs(t - c) < NEAR_CUT for c in cuts):
+            continue
+        if any(abs(t - u) < SPACING for u, _ in chosen):
+            continue
+        chosen.append((t, name))
+    return [{"t": round(t, 3), "name": n} for t, n in sorted(chosen)]
+
+
+def cues(props, concept=None, mode="on"):
+    """The accents of one video, from its props' timeline -> [{t, name}] (seconds). mode "meaning": see the top."""
+    if mode == "meaning":
+        return meaning(props, concept)
     out = []
     scenes = props.get("scenes") or []
     for i, s in enumerate(scenes):

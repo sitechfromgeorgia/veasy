@@ -1147,9 +1147,9 @@ def sfx_cues(t, setting="off"):
     """The sound effects of a composed film (format key sfx, sfx.py's sounds; the mix is props.mix_audio's): a whoosh
     on every meter wipe, and every beat that names one ("sfx": "pop"). [] when the format says off."""
     from tt_shorts import sfx
-    if setting != "on":
+    if setting not in ("on", "meaning"):
         return []
-    out = [{"t": max(0.0, w - sfx.WHOOSH_LEAD), "name": "whoosh"} for w in t["wipes"]]
+    out = [] if setting == "meaning" else [{"t": max(0.0, w - sfx.WHOOSH_LEAD), "name": "whoosh"} for w in t["wipes"]]  # a wipe is a cut: meaning gives it no sound
     out += [{"t": b["t"], "name": b["sfx"]} for b in t["beats"] if b.get("sfx") in sfx.NAMES]
     kept = []
     for c in sorted(out, key=lambda c: c["t"]):

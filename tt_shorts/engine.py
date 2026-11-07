@@ -163,7 +163,9 @@ def options(brand_name=None, section=None):
                   "screenshots": "only from the pack's media.official and media.own and a program's screenshots",
                   "rule": "N13: labelled „" + b["strings"]["illustrative"] + "“, never for crime, incidents or deaths, "
                           "never presented as the event; no AI imagery until the owner decides"},
-        "sfx": {"about": "format key sfx: sound effects on the timeline's events, mixed by ffmpeg (sfx.py)",
+        "sfx": {"about": "format key sfx: sound effects on the timeline's events, mixed by ffmpeg (sfx.py); `meaning`: "
+                         "one main sound on the main moment, 2-4 small ones, the object's own, none on a cut, and the "
+                         "music loop shifted so a heavy hit lands on that moment (music_hits.py)",
                 **sfx.OPTIONS, "sounds": list(sfx.NAMES), "level_db": sfx.LEVEL_DB},
         "self_checks": {"plan": "engine plan <story> [--look]: a free storyboard before the voice is paid for: scene "
                                 "times, words and reading load, the variety picks (not recorded), the motion rules, "
