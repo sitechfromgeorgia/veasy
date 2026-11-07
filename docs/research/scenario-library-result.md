@@ -63,7 +63,9 @@ the plots a film follows, each beat with a job, a word budget, scene types and a
 code-owned like `rubric`; news, digest and story refuse one. The beat checks run in `check` and `plan`; a new scenario
 needs a demo `stories/scenario-<id>.json` (the demo test covers it)."
 
-## Tests
+## Tests (on the last code commit, 9d65d1e)
 
-Lane: `python -m unittest tests.test_scenarios tests.test_sfx` green. Full suite (`unittest discover -s tests`): exit 0 (counts below). `npx tsc --noEmit` in remotion: no output (clean).
-Ran 814 tests in 675.893s OK (skipped=2) 
+`python -m unittest discover -s tests`: 820 tests OK (2 skipped). `(cd remotion && npx tsc --noEmit)`: exit 0.
+`engine selftest`: first run 94 unchanged with one `probe error ... ERR_SOCKET_NOT_CONNECTED` on localhost:3000 (a port
+clash with another process, not a layout finding); the rerun alone: 102 unchanged, no layout problems, exit 0. Writer compliance on real calls:
+not measured (no model calls).
