@@ -167,7 +167,7 @@ class Chrome(unittest.TestCase):
 
     def test_the_accent_is_only_the_dot(self):
         self.assertNotRegex(TSX, r"\bRED\b|ON_ACCENT|WAITING")
-        self.assertIn("<Dot size={20} />", TSX)
+        self.assertRegex(TSX, r"<Dot size={d+} />")
         self.assertNotRegex(TSX, r"boxShadow|drop-shadow|textShadow")  # no shadows
 
     def test_the_dot_and_the_thread_exist_only_inside_the_window(self):

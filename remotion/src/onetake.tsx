@@ -98,12 +98,12 @@ export const Thread: React.FC<{ i: number }> = ({ i }) => {
       pointerEvents: "none", opacity: shown }}>
       <svg width={W} height={H} style={{ position: "absolute", left: 0, top: -CLIP_TOP }}>
         <g transform={to} fill="none" strokeLinecap="round">
-          <path d={d} stroke={LINE_STRONG} strokeWidth={4} />
-          <path d={d} stroke={INK} strokeWidth={4} strokeDasharray={ev.strokeDasharray} strokeDashoffset={ev.strokeDashoffset} />
+          <path d={d} stroke={LINE_STRONG} strokeWidth={6} />
+          <path d={d} stroke={INK} strokeWidth={6} strokeDasharray={ev.strokeDasharray} strokeDashoffset={ev.strokeDashoffset} />
         </g>
       </svg>
-      <div style={{ position: "absolute", left: sx - 10, top: sy - 10 - CLIP_TOP, transform: `scale(${interpolate(c.u, [0.74, 1], [1, 0.4], { extrapolateLeft: "clamp" })})` }}>
-        <Dot size={20} />
+      <div style={{ position: "absolute", left: sx - 13, top: sy - 13 - CLIP_TOP, transform: `scale(${interpolate(c.u, [0.74, 1], [1, 0.4], { extrapolateLeft: "clamp" })})` }}>
+        <Dot size={26} />
       </div>
     </div>
   );
@@ -113,7 +113,8 @@ export const Thread: React.FC<{ i: number }> = ({ i }) => {
  *  and moving less of the camera's move, nearer ones larger and moving more (all less than the scenes themselves).
  *  `frozen` draws them at the first frame's camera (the loop's cross-fade covers the last scene with them). A plain
  *  motif has no marks to tile, so its layers use dots. Colours are the pack's tokens; flat, no shadows. */
-const LAYERS = [{ depth: 0.2, size: 0.8, opacity: 0.4 }, { depth: 0.4, size: 1.35, opacity: 0.55 }, { depth: 0.65, size: 2.1, opacity: 0.75 }];
+const LAYERS = [{ depth: 0.2, size: 0.8, opacity: 0.6, strong: false }, { depth: 0.4, size: 1.35, opacity: 0.8, strong: false },
+  { depth: 0.65, size: 2.1, opacity: 1, strong: true }];
 
 export const Parallax: React.FC<{ frozen?: boolean }> = ({ frozen = false }) => {
   const { motif } = useStyle();
@@ -133,7 +134,7 @@ export const Parallax: React.FC<{ frozen?: boolean }> = ({ frozen = false }) => 
             <defs>
               <pattern id={`parallax-${k}${frozen ? "f" : ""}`} width={cell} height={cell} patternUnits="userSpaceOnUse"
                 patternTransform={`translate(${ox} ${oy}) scale(${z})`}>
-                <g transform={`scale(${l.size})`}>{motifMark(kind, base, tile, LINE)}</g>
+                <g transform={`scale(${l.size})`}>{motifMark(kind, base, tile, l.strong ? LINE_STRONG : LINE)}</g>
               </pattern>
             </defs>
             <rect width={W} height={H} fill={`url(#parallax-${k}${frozen ? "f" : ""})`} />
