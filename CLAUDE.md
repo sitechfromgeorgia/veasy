@@ -158,7 +158,8 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
 - **Plates** (`tt_shorts/plates.py`, `plates/run.mjs`, `plates/README.md`, skill `veasy:plates`, tool `veasy_plate`): grey
   clips baked once in the browser on software GL and played behind a scene as local files, so neither engine changes and
   text stays in the DOM. `engine plate <kind>` caches by content under `$VEASY_HOME/cache/plates` and tones the clip onto
-  every pack's canvas-to-ink line. A new kind is `plates/<kind>/` and passes `engine plate check`.
+  every pack's canvas-to-ink line. A new kind is `plates/<kind>/` and passes `engine plate check`. A kind that makes files
+  before its page runs bakes through its own `bake.mjs` (with `--hash` too); a kind's `cache/` is never in a plate's hash.
   - Refused for `news`, the crime family and words of deaths or incidents, at the command, the brush and the checks.
   - Deterministic, no text, no accent. A queue job never bakes: it picks a baked plate, and a missing one is a warning.
   - The shelf hands a film only kinds that say nothing (`plates.GROUND_KINDS`: `example`, `surface`). `matter` (a count

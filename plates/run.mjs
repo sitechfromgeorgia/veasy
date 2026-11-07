@@ -16,6 +16,9 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const WIDTH = 1080, HEIGHT = 1920, FPS = 30;
 const GL = ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist",
   "--enable-webgl", "--force-color-profile=srgb", "--font-render-hinting=none", "--no-sandbox"]; // as HyperFrames' --no-browser-gpu
+// a kind's per-bake output, never part of what the plate is a function of: matter's cache/ is solved by its own bake.mjs
+// from the spec and the seed, which the hash already covers (tt_shorts/plates.py GENERATED says the same)
+const GENERATED = new Set(["cache"]);
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json",
   ".bin": "application/octet-stream", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml" };
 
@@ -48,15 +51,19 @@ function chrome() {
 }
 
 function serve() { // plates/ on a local port: a kind may read its own files, nothing else
+  const missing = []; // what a page asked for and did not get: named when the page then fails
   const server = http.createServer((req, res) => {
-    const file = path.normalize(path.join(ROOT, decodeURIComponent(new URL(req.url, "http://x").pathname)));
+    const name = decodeURIComponent(new URL(req.url, "http://x").pathname);
+    const file = path.normalize(path.join(ROOT, name));
     if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
-      res.writeHead(404).end();
+      if (!missing.includes(name)) missing.push(name);
+      res.writeHead(404, { "content-type": "application/json" }).end(JSON.stringify({ missing: name }));
       return;
     }
     res.writeHead(200, { "content-type": TYPES[path.extname(file)] || "application/octet-stream" });
     fs.createReadStream(file).pipe(res);
   });
+  server.missing = missing;
   return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server)));
 }
 
@@ -79,16 +86,24 @@ function hashOf(job, spec) { // what the plate is a function of: the kind's own 
   const walk = (dir) => {
     for (const name of fs.readdirSync(dir).sort()) {
       const file = path.join(dir, name);
-      if (fs.statSync(file).isDirectory()) walk(file);
+      if (fs.statSync(file).isDirectory()) {
+        if (!(dir === kindDir && GENERATED.has(name))) walk(file);
+      }
       else hash.update(name).update(fs.readFileSync(file));
     }
   };
-  walk(path.join(ROOT, job.kind));
+  const kindDir = path.join(ROOT, job.kind);
+  walk(kindDir);
   hash.update(JSON.stringify([spec ?? {}, job.seed, job.seconds, job.scale]));
   return hash.digest("hex").slice(0, 16);
 }
 
 async function bake(job) {
+  // a kind with its own bake.mjs makes files its page reads (matter solves cache/sim.bin) and calls this runner itself
+  if (fs.existsSync(path.join(ROOT, job.kind, "bake.mjs")) && !fs.existsSync(path.join(ROOT, job.kind, "cache"))) {
+    throw new Error(`${job.kind} is baked by plates/${job.kind}/bake.mjs, which makes its cache/ first: ` +
+      `run that, or python -m tt_shorts.engine plate ${job.kind} --spec <spec.json>`);
+  }
   const puppeteer = createRequire(path.join(ROOT, "package.json"))("puppeteer-core");
   const spec = job.spec ? JSON.parse(fs.readFileSync(job.spec, "utf8")) : {};
   const width = Math.round(WIDTH * job.scale), height = Math.round(HEIGHT * job.scale);
@@ -112,7 +127,12 @@ async function bake(job) {
     });
     await page.goto(`${origin}/${job.kind}/index.html`, { waitUntil: "load" });
     await page.waitForFunction("window.setup && window.step", { timeout: 60000 });
-    await page.evaluate((s, c) => window.setup(s, c), spec, { width, height, fps: FPS, seed: job.seed, seconds: job.seconds });
+    try {
+      await page.evaluate((s, c) => window.setup(s, c), spec, { width, height, fps: FPS, seed: job.seed, seconds: job.seconds });
+    } catch (e) { // name a missing file rather than what the page said about the empty answer it got
+      const lost = server.missing.length ? ` (the page asked for missing files: ${server.missing.join(", ")})` : "";
+      throw new Error(`page setup failed: ${e.message}${lost}`);
+    }
 
     const { child, done } = encoder(path.join(job.out, "plate.mp4"), job.scale);
     const tracks = {};
@@ -136,7 +156,10 @@ async function bake(job) {
     child.stdin.end();
     await done;
     if (offsite.length) throw new Error(`a plate reads local files only, it asked for ${offsite[0]}`);
-    if (errors.length) throw new Error(`page error: ${errors[0]}`);
+    if (errors.length) {
+      const lost = server.missing.length ? ` (the page asked for missing files: ${server.missing.join(", ")})` : "";
+      throw new Error(`page error: ${errors[0]}${lost}`);
+    }
 
     if (Object.keys(tracks).length) {
       fs.writeFileSync(path.join(job.out, "anchors.json"), JSON.stringify({ fps: FPS, width: WIDTH, height: HEIGHT, tracks }));
