@@ -117,7 +117,11 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number }> = ({ s, inner = IN
     const R = { ...R0, x: Math.max(4, Math.min(R0.x, boxW - 4 - R0.w)), y: Math.max(4, Math.min(R0.y, boxH - 4 - R0.h)) };
     // the area's own on-screen window: a label for a territory the camera has left does not hang in the air
     const seen = Math.max(0, Math.min(1, Math.min(A[0], boxW - A[0], A[1], boxH - A[1]) / 40));
-    const vis = (m.level === "country" || o.in_focus ? 1 : 1 - Math.min(1, t * 3)) * seen;
+    // and a territory the camera passes over, big on screen, is never shown without its label, inside it or beside it
+    // (the owner: the tint always comes with „დროებით ოკუპირებული"; the camera starts before the labels come in, so
+    // without this a zooming film never labels a territory it only passes)
+    const big = Math.max(0, Math.min(1, (rpx - 36) / 18));
+    const vis = Math.max(m.level === "country" || o.in_focus ? 1 : 1 - Math.min(1, t * 3), inside, big) * seen;
     return { o, lines, A, rpx, inside, size, R, u, vis: vis * labelT };
   });
 
