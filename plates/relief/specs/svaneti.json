@@ -1,0 +1,12 @@
+{
+  "preset": "svaneti",
+  "move": "ridge",
+  "region": "samegrelo-zemo-svaneti",
+  "from": "mestia",
+  "to": "ushguli",
+  "anchor": "mestia",
+  "anchors": [
+    "mestia",
+    "ushguli"
+  ]
+}

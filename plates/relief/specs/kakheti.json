@@ -1,0 +1,12 @@
+{
+  "preset": "kakheti",
+  "move": "reveal",
+  "region": "kakheti",
+  "from": "telavi",
+  "to": "sighnaghi",
+  "anchor": "telavi",
+  "anchors": [
+    "telavi",
+    "sighnaghi"
+  ]
+}

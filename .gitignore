@@ -8,6 +8,9 @@ assets/music/*.m4a
 assets/music/*.wav
 # synthesized by tools/compose_sfx.py (deterministic, composed on first use): not in git
 assets/sfx/*.wav
+# baked by tools/build_relief.py: not in git
+assets/relief/
+plates/relief/data/
 remotion/node_modules
 compose/node_modules
 plates/node_modules
