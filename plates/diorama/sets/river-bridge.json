@@ -1,6 +1,6 @@
 {
  "id": "river-bridge",
- "about": "a river as a tunnel book: a stone bridge of three arches over cut water, hills and a low sun beyond, a paper boat, reeds and trees on the banks",
+ "about": "a river as a tunnel book: a humpbacked stone bridge of three arches landing on both banks, cut water, hills and a low sun beyond, a walker, a paper boat, reeds and trees",
  "move": "wipe-pass",
  "easing": "smoothstep",
  "camera": { "vFov": 30
@@ -22,7 +22,7 @@
   "fog": [40, 80]
  },
  "anchors": {
-  "bridge": [0, 3, -1]
+  "bridge": [0, 2.6, -1.4]
  },
  "parts": [
   {"part": "sky", "at": [0,0,-9], "tone": 0.52, "power": 0.75, "sun": [0.8,5.7,0.75], "clouds": [[-2.3,6.2,1.1],[2.2,5.6,0.8],[0,7.4,0.7]]},
@@ -32,7 +32,10 @@
   {"part": "water-row", "at": [0,0,-3.8], "height": 0.56, "tone": 0.6},
   {"part": "water-row", "at": [0,0,-3.1], "height": 0.46, "tone": 0.52},
   {"part": "water-row", "at": [0,0,-2.4], "height": 0.38, "tone": 0.46},
-  {"part": "bridge", "at": [0,0,-1.4], "width": 13, "height": 2.9, "arches": 3, "span": 1.9, "pier": 0.7, "water": 0.2},
+  {"part": "hill", "at": [-5.2,0,-1.9], "width": 5, "height": 1.5, "tone": 0.34, "roll": 0.1, "wave": 1},
+  {"part": "hill", "at": [5.2,0,-1.9], "width": 5, "height": 1.5, "tone": 0.3, "roll": 0.1, "wave": 1, "phase": 2},
+  {"part": "bridge", "at": [0,0,-1.4], "width": 6.2, "height": 2.5, "hump": 0.9, "arches": 3, "span": 1.25, "pier": 0.42},
+  {"part": "figure", "at": [-0.5,2.56,-1.5], "height": 0.62, "tone": 0.14, "bag": false},
   {"part": "water-row", "at": [0,0,-0.9], "height": 0.3, "tone": 0.42},
   {"part": "water-row", "at": [0,0,0], "height": 0.3, "tone": 0.38, "glints": 7},
   {"part": "paper-boat", "at": [0.8,0.14,0.45], "size": 0.95},

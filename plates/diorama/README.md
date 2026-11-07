@@ -30,7 +30,7 @@ node plates/diorama/tools/stills.mjs plates/diorama/sets/market.json --at 0.1,0.
 |---|---|
 | `id`, `about` | the file's name, one line on what it shows |
 | `move` | `dolly`, `crane`, `push-through`, `reveal-behind`, `wipe-pass`, or `spline` with `waypoints` |
-| `easing` | `smoothstep`, `smootherstep`, `linear`, `cinematic`, or a `cubic-bezier(...)` string |
+| `easing` | a name in `EASING_PRESETS` (`lib/camera.mjs`): `smoothstep`, `smootherstep`, `linear`, `cinematic` |
 | `camera.vFov` | degrees, 30 for the long lens. Wider starts to read as a modelled room |
 | `fromEye`, `toEye`, `fromTarget`, `toTarget` | `dolly` and `push-through`: the run |
 | `startY`, `endY`, `startPitch`, `endPitch`, `baseZ`, `targetY` | `crane` |

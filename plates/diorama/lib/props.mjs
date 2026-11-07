@@ -271,35 +271,40 @@ function hill({ at, width = 18, height = 2, tone = 0.3, roll = 0.5, wave = 0.5, 
   return group([card([[-width / 2, 0], [width / 2, 0], ...top], { tone, depth: 0.04 })], { at });
 }
 
-// A stone bridge: a sheet with arches cut through, ring stones, courses scored across it, a parapet of balusters.
-function bridge({ at, width = 12, height = 2.5, arches = 3, span = 1.9, pier = 0.6, tone = 0.46, water = 0.3 }, { random }) {
-  const parts = [], holes = [], total = arches * span + (arches - 1) * pier, spring = height * 0.42;
-  const X = (i) => -total / 2 + span / 2 + i * (span + pier);
+// A humpbacked stone bridge: it has to read as a thing that crosses, so its back rises, it lands on both banks and sky shows
+// over it. A sheet with arches cut through, ring stones, loose stones, a parapet of balusters that follows the rise.
+function bridge({ at, width = 6.4, height = 2.3, hump = 0.8, arches = 3, span = 1.2, pier = 0.4, tone = 0.46, water = 0.2 }, { random }) {
+  const parts = [], holes = [], total = arches * span + (arches - 1) * pier, spring = height * 0.34;
+  const X = (i) => -total / 2 + span / 2 + i * (span + pier), roof = (x) => height - hump * (2 * x / width) ** 2;
   for (let i = 0; i < arches; i++) {
     const x = X(i), r = span / 2;
     holes.push([[x - r, water], [x + r, water], ...arc(x, spring, r, 0, 180, 14)]);
   }
-  parts.push(card(rect(-width / 2, 0, width / 2, height), { holes, tone, depth: 0.05, wobble: 0.012 }));
+  const top = [];
+  for (let i = 16; i >= 0; i--) top.push([-width / 2 + width * i / 16, roof(-width / 2 + width * i / 16)]);
+  parts.push(card([[-width / 2, 0], [width / 2, 0], ...top], { holes, tone, depth: 0.05, wobble: 0.01 }));
   for (let i = 0; i < arches; i++) { // ring stones
     const x = X(i), r = span / 2, stones = 11;
-    for (let s = 0; s < stones; s++) {
-      const a0 = s / stones * 180 + 1.5, a1 = (s + 1) / stones * 180 - 1.5, out = r + 0.2 + (s % 2) * 0.05;
+    for (let t = 0; t < stones; t++) {
+      const a0 = t / stones * 180 + 1.5, a1 = (t + 1) / stones * 180 - 1.5, out = r + 0.15 + (t % 2) * 0.04;
       parts.push(card([...arc(x, spring, r, a0, a1, 2), ...arc(x, spring, out, a1, a0, 2)], { tone: tone + 0.14 + (random() - 0.5) * 0.1, z: 0.09, depth: 0.03, wobble: 0.006, warp: 0, bevel: 0.008 }));
     }
     if (i < arches - 1) { // a cutwater at the foot of the pier
       const c = x + r + pier / 2;
-      parts.push(card([[c - pier / 2 - 0.06, 0], [c + pier / 2 + 0.06, 0], [c, spring * 0.78]], { tone: tone - 0.12, z: 0.1, wobble: 0.01 }));
+      parts.push(card([[c - pier / 2 - 0.04, 0], [c + pier / 2 + 0.04, 0], [c, spring * 0.8]], { tone: tone - 0.12, z: 0.1, wobble: 0.01 }));
     }
   }
-  for (let c = 0; c < 26; c++) { // loose stones scored into the spandrels
-    const x = (random() - 0.5) * width * 0.9, y = height * (0.45 + random() * 0.45);
-    parts.push(card(rect(x - 0.14, y, x + 0.14, y + 0.1), { tone: tone + (random() - 0.5) * 0.14, z: 0.06, depth: 0.012, wobble: 0.006, warp: 0, bevel: 0.006 }));
+  for (let c = 0; c < 22; c++) { // loose stones in the spandrels
+    const x = (random() - 0.5) * width * 0.9, y = roof(x) - 0.14 - random() * 0.34;
+    if (y > spring + 0.74) parts.push(card(rect(x - 0.11, y, x + 0.11, y + 0.08), { tone: tone + (random() - 0.5) * 0.14, z: 0.06, depth: 0.012, wobble: 0.006, warp: 0, bevel: 0.006 }));
   }
-  parts.push(card(rect(-width / 2, height - 0.04, width / 2, height + 0.08), { tone: tone + 0.2, z: 0.1, depth: 0.05 }));
-  for (let x = -width / 2 + 0.15; x < width / 2; x += 0.34) { // balusters
-    parts.push(card([[x - 0.05, height + 0.08], [x + 0.05, height + 0.08], [x + 0.032, height + 0.26], [x + 0.05, height + 0.4], [x - 0.05, height + 0.4], [x - 0.032, height + 0.26]], { tone: tone + 0.06, z: 0.03, depth: 0.03, wobble: 0.004, warp: 0, bevel: 0.006 }));
+  const curve = (lift) => top.map(([x, y]) => [x, y + lift]);
+  parts.push(strip(curve(0), 0.09, { tone: tone + 0.22, z: 0.1, depth: 0.05 }));
+  for (let x = -width / 2 + 0.12; x < width / 2; x += 0.26) { // balusters
+    const y = roof(x) + 0.03;
+    parts.push(card([[x - 0.04, y], [x + 0.04, y], [x + 0.024, y + 0.14], [x + 0.04, y + 0.27], [x - 0.04, y + 0.27], [x - 0.024, y + 0.14]], { tone: tone + 0.06, z: 0.03, depth: 0.03, wobble: 0.003, warp: 0, bevel: 0.005 }));
   }
-  parts.push(card(rect(-width / 2, height + 0.4, width / 2, height + 0.5), { tone: tone + 0.22, z: 0.05 }));
+  parts.push(strip(curve(0.31), 0.08, { tone: tone + 0.24, z: 0.05, depth: 0.04 }));
   return group(parts, { at });
 }
 
