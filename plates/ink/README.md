@@ -19,7 +19,7 @@ Every key is optional. An unknown key stops the bake.
 
 | Key | Value | Default | What it does |
 |---|---|---|---|
-| `material` | `woodcut`, `ink_wash`, `blueprint`, `halftone`, `chalk`, `pencil_hatch` | `ink_wash` | The hand that paints it |
+| `material` | `chalk`, `pencil_hatch` | `chalk` | The hand that paints it |
 | `drawing` | a name from `assets/drawings` (`bus`, `bridge`, `factory`...) | `bridge` | One of the 44 library drawings |
 | `strokes` | written by `bake.py --svg` | | A writer's own drawing, in place of `drawing` |
 | `reveal` | `stroke`, `scrape`, `print_through`, `flood` | `stroke` | How it arrives (below) |
@@ -39,13 +39,11 @@ python plates/ink/bake.py --svg drawing.svg --spec s.json
 ## The materials
 
 Light pigment on a dark sheet. Black becomes the pack's canvas and white its ink, so one master serves every pack.
+Woodcut, ink wash, blueprint and halftone were built and cut: a fresh-eye critic never gave them 4 of 5
+(`docs/research/ink-brush-result.md`).
 
 | Material | The sheet | The marks |
 |---|---|---|
-| `woodcut` | a plank with grain and knots | knife wedges, cuts along the form, rings cleared around the object, grain through every mass |
-| `ink_wash` | rag paper | a pool that dried with a hard edge, flat washes with backruns, a pointed brush going dry |
-| `blueprint` | coated linen, folded | a ruled grid, pencil construction lines, three pen weights, section lines by set square, dimensions with no figures |
-| `halftone` | newsprint | a key plate and a hand-cut tint plate off register, uneven ink, a graded panel |
 | `chalk` | a slate wiped many times | side-of-the-stick tone, a pressed line that skips, dust |
 | `pencil_hatch` | toned paper | searching lines, overlapping pulls, nested hatch sets |
 
@@ -53,7 +51,7 @@ Light pigment on a dark sheet. Black becomes the pack's canvas and white its ink
 
 | Reveal | What happens |
 |---|---|
-| `stroke` | The drawing's own order (its `--d` delays), mark by mark, pigment bleeding into the paper as the square root of time |
+| `stroke` | The drawing's own order (its `--d` delays), mark by mark |
 | `scrape` | A cover dragged off in streaks: the picture was there all along |
 | `print_through` | A blurred picture rises through the sheet, then comes sharp in patches, as under a baren |
 | `flood` | No drawing: ink poured on, running in fingers, filling the frame and draining away. This is a cut |
@@ -75,7 +73,7 @@ COST_TABLE
 The cost of a frame barely depends on the drawing: every mark is laid once in setup, then a frame only asks which
 pigment has landed by `t`. Setup adds 2 to 5 seconds at full size. A clip is baked once and reused, never on the queue.
 
-For a sheet of everything: `python plates/ink/sheet.py` (264 stills, about 90 seconds at a third of full size).
+For a sheet of everything: `python plates/ink/sheet.py` (88 stills, about 30 seconds at a third of full size).
 
 ## What it refuses
 
@@ -93,6 +91,6 @@ drawing different.
 ## Files
 
 `bake.py` turns drawings into ordered strokes (`drawings.json`, regenerate it when `assets/drawings` changes).
-`core.mjs` holds the noise, distance fields, regions, the tone plan and the brush. `materials.mjs` holds the six
-materials, the reveals and the flood. `index.html` is the page `run.mjs` steps. `stills.mjs` and `sheet.py` make stills
+`core.mjs` holds the noise, distance fields, regions, the tone plan and the brush. `materials.mjs` holds the materials,
+the reveals and the flood. `index.html` is the page `run.mjs` steps. `stills.mjs` and `sheet.py` make stills
 without a clip. A new material is one function in `MATERIALS`, plus a case in `tests/test_ink_plate.py`.

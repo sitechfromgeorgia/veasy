@@ -12,7 +12,7 @@ import tempfile
 from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-MATERIALS = ("woodcut", "ink_wash", "blueprint", "halftone", "chalk", "pencil_hatch")
+MATERIALS = ("chalk", "pencil_hatch")
 
 
 def main():

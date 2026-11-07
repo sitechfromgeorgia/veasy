@@ -43,7 +43,7 @@ function refuse(spec) {
   if (spec.program === "news") throw new Error("ink: a plate never goes to news");
   if (REFUSED_FAMILIES.includes(spec.family)) throw new Error(`ink: a plate never goes to ${spec.family}`);
   if (!REVEALS.includes(spec.reveal || "stroke")) throw new Error(`ink: no reveal "${spec.reveal}", one of ${REVEALS.join(", ")}`);
-  if (!NAMES.includes(spec.material || "ink_wash")) throw new Error(`ink: no material "${spec.material}", one of ${NAMES.join(", ")}`);
+  if (!NAMES.includes(spec.material || "chalk")) throw new Error(`ink: no material "${spec.material}", one of ${NAMES.join(", ")}`);
 }
 
 function texture(unit, internal, format, type, width, height, data, old) {
@@ -89,7 +89,7 @@ window.setup = async (spec, c) => {
     drawing = library[spec.drawing || "bridge"];
     if (!drawing) throw new Error(`ink: no drawing "${spec.drawing}"`);
   }
-  look = paint(spec.material || "ink_wash", spec, c, drawing);
+  look = paint(spec.material || "chalk", spec, c, drawing);
   textures = { ground: texture(2, gl.RGBA32F, gl.RGBA, gl.FLOAT, c.width, c.height, look.ground, textures?.ground), variants: [], slots: textures?.variants };
   look.variants.forEach((v, i) => {
     const old = textures.slots?.[i];

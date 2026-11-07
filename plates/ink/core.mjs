@@ -196,10 +196,10 @@ export class Deposit {
 }
 
 // A brush: `n` bristles across the width, each with its own load, wandering a little along the stroke.
-// st: {w(u) full width, flow(u), n, r?, dry, skip, wander, rim, bleed, body (the mass under the bristles), edge (how soft that mass ends)}; time: {t0, dur}. Bleed is written into the
-// moment a pixel is touched: pigment reaches the edge of a stroke later than its middle, as the square root of time.
+// st: {w(u) full width, flow(u), n, r?, dry, skip, wander, body (the mass under the bristles), edge (how soft that mass
+// ends)}; time: {t0, dur}.
 export function brush(dep, p, st, time, key, noise) {
-  const { n = 1, dry = 0, skip = 0, wander = 0, rim = 0, bleed = 0, body = 0, edge = 0.8 } = st;
+  const { n = 1, dry = 0, skip = 0, wander = 0, body = 0, edge = 0.8 } = st;
   const flowAt = st.flow || (() => 1);
   const nv = new Float32Array(n), thirst = new Float32Array(n), id = new Float32Array(n);
   for (let b = 0; b < n; b++) {
@@ -212,16 +212,15 @@ export function brush(dep, p, st, time, key, noise) {
     const u = i / (p.n - 1), s = u * p.L, w = st.w(u) / 2, f = flowAt(u);
     const r = st.r ?? (n === 1 ? Math.max(0.5, w) : Math.max(0.7, (2 * w) / n * 0.8));
     const a = time.t0 + time.dur * u;
-    if (body && i % Math.max(1, Math.round(w / 3)) === 0) dep.dab(p.x[i], p.y[i], w, f * body, a + bleed * 0.3, Math.max(1, w * edge));
+    if (body && i % Math.max(1, Math.round(w / 3)) === 0) dep.dab(p.x[i], p.y[i], w, f * body, a, Math.max(1, w * edge));
     for (let b = 0; b < n; b++) {
       const v = nv[b];
       let ink = f;
       if (dry) ink *= clamp(1.25 - dry * u * thirst[b]);
       if (skip) ink *= clamp(0.5 + (noise.at(s * 0.035 + id[b], id[b]) - 0.5) * skip * 4);
-      if (rim) ink *= 1 + rim * smooth(0.62, 1, Math.abs(v));
       if (ink <= 0.015) continue;
       const off = wander ? (v + (noise.at(s * 0.012, id[b]) - 0.5) * wander) * w : v * w;
-      dep.dab(p.x[i] + p.nx[i] * off, p.y[i] + p.ny[i] * off, r, ink, a + bleed * v * v);
+      dep.dab(p.x[i] + p.nx[i] * off, p.y[i] + p.ny[i] * off, r, ink, a);
     }
   }
 }
@@ -234,7 +233,7 @@ export function plan(drawing, { W, H, S, box, seed }) {
   const strokes = drawing.strokes.map((s, order) => {
     const pts = new Float32Array(s.pts.length);
     for (let i = 0; i < pts.length; i += 2) { pts[i] = s.pts[i] * scale + ox; pts[i + 1] = s.pts[i + 1] * scale + oy; }
-    return { ...s, pts, w: s.w * scale, order, box: s.box && s.box.map((v, i) => v * scale + (i % 2 ? oy : ox)) };
+    return { ...s, pts, w: s.w * scale, order };
   });
   const id = new Int16Array(W * H), elements = new Map();
   for (const s of [...strokes].sort((a, b) => a.paint - b.paint)) {

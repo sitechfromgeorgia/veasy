@@ -26,15 +26,12 @@ from tt_shorts import art  # noqa: E402
 OUT = ROOT / "plates" / "ink" / "drawings.json"
 CURVE_STEP = 6.0  # px between the points of a flattened curve
 
-
 def _matmul(a, b):
     return (a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1], a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3],
             a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5])
 
-
 def _apply(m, p):
     return (m[0] * p[0] + m[2] * p[1] + m[4], m[1] * p[0] + m[3] * p[1] + m[5])
-
 
 def transform(text, base):
     """art.TRANSFORM's language (translate, rotate, scale) as a matrix on top of `base`."""
@@ -53,7 +50,6 @@ def transform(text, base):
         m = _matmul(m, step)
     return m
 
-
 def _bezier(points, out):
     """Flatten one cubic or quadratic, from out[-1], into out."""
     length = sum(math.dist(a, b) for a, b in zip(points, points[1:]))
@@ -64,7 +60,6 @@ def _bezier(points, out):
         while len(pts) > 1:
             pts = [(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t) for a, b in zip(pts, pts[1:])]
         out.append(pts[0])
-
 
 def _arc(p0, rx, ry, phi, large, sweep, p1, out):
     """SVG's endpoint arc, flattened (SVG 1.1 F.6.5)."""
@@ -98,10 +93,8 @@ def _arc(p0, rx, ry, phi, large, sweep, p1, out):
         x, y = rx * math.cos(a), ry * math.sin(a)
         out.append((cos * x - sin * y + cx, sin * x + cos * y + cy))
 
-
 _TOKEN = re.compile(r"[MmLlHhVvCcSsQqTtAaZz]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
 _ARITY = {"m": 2, "l": 2, "h": 1, "v": 1, "c": 6, "s": 4, "q": 4, "t": 2, "a": 7, "z": 0}
-
 
 def subpaths(d):
     """A path's d into [(points, closed)]."""
@@ -179,15 +172,12 @@ def subpaths(d):
     finish(False)
     return out
 
-
 def _nums(attrs, *names):
     return [float(attrs.get(n, 0) or 0) for n in names]
-
 
 def _ellipse(cx, cy, rx, ry):
     steps = max(16, min(96, math.ceil(2 * math.pi * max(rx, ry) / CURVE_STEP)))
     return [(cx + rx * math.cos(2 * math.pi * i / steps), cy + ry * math.sin(2 * math.pi * i / steps)) for i in range(steps)]
-
 
 def _rect(x, y, w, h, rx, ry):
     if not rx and not ry:
@@ -199,7 +189,6 @@ def _rect(x, y, w, h, rx, ry):
             a = math.radians(a0 + i * 15)
             out.append((cx + rx * math.cos(a), cy + ry * math.sin(a)))
     return out
-
 
 def shape(tag, a):
     """A sanitized element into [(points, closed)], or [] for one that draws no line."""
@@ -225,13 +214,11 @@ def shape(tag, a):
         return []
     return []
 
-
 def _width(attrs):
     try:
         return float(attrs.get("stroke-width", 4))
     except ValueError:
         return 4.0
-
 
 def flatten(tree):
     """Sanitized tree -> {"strokes": [...], "dots": [[x, y]...]}: paint order, then stable-sorted by delay."""
@@ -260,21 +247,14 @@ def flatten(tree):
                 found.append({"e": element, "paint": len(found), "d": round(d, 2), "line": style.get("stroke", "none"),
                               "fill": style.get("fill", "none"), "w": round(_width(style) * scale, 1), "closed": bool(closed),
                               "pts": [round(v, 1) for p in pts for v in p]})
-                if node["tag"] == "rect" and m[1] == 0 and m[2] == 0:  # a draughtsman rules a box square
-                    x, y, w, h = _nums(own, "x", "y", "width", "height")
-                    a, b = _apply(m, (x, y)), _apply(m, (x + w, y + h))
-                    found[-1]["box"] = [round(v, 1) for v in (*a, *b)]
-
     walk(tree, (1, 0, 0, 1, 0, 0), 0.0, {})
     return {"strokes": sorted(found, key=lambda s: s["d"]), "dots": dots}  # sorted() keeps paint order inside a delay
-
 
 def bake(svg):
     tree, problems = art.sanitize(svg)
     drawing = flatten(tree)
     drawing["problems"] = problems
     return drawing
-
 
 def library():
     out = {}
@@ -285,7 +265,6 @@ def library():
             raise SystemExit(f"{f.name}: does not pass art.sanitize")
         out[f.stem] = {"about": seed.get("about", ""), **d}
     return out
-
 
 def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -309,7 +288,6 @@ def main():
         raise SystemExit(0 if OUT.exists() and OUT.read_text(encoding="utf-8") == text else "drawings.json is stale")
     OUT.write_text(text, encoding="utf-8", newline="\n")
     print(OUT, len(text))
-
 
 if __name__ == "__main__":
     main()
