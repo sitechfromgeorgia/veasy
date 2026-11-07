@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 from tt_shorts import compose, flash, golden, probe, props, segments, speech, store
 
@@ -85,6 +86,15 @@ class TestSegments(unittest.TestCase):
         for i in range(len(p1["scenes"])):
             if i != 1:
                 self.assertEqual(keys_before[i], keys_after[i], f"scene {i} hash should not change")
+
+    def test_the_camera_and_the_thread_reach_every_scene(self):
+        p1 = _sample_props()
+        was = [segments.segment_key(p1, i) for i in range(len(p1["scenes"]))]
+        for key in ("camera", "thread"):
+            p2 = copy.deepcopy(p1)
+            p2[key] = {"changed": True}
+            now = [segments.segment_key(p2, i) for i in range(len(p2["scenes"]))]
+            self.assertFalse(set(was) & set(now), key)
 
     def test_audio_only_fields_do_not_invalidate_visual_segment_hashes(self):
         p1 = _sample_props()
@@ -293,6 +303,76 @@ class TestSteerDry(unittest.TestCase):
                     os.environ.pop("VEASY_HOME", None)
                 else:
                     os.environ["VEASY_HOME"] = old
+
+
+class TestSteerGuards(unittest.TestCase):
+    """A steer passes what a new film passes, and a failed one changes nothing."""
+    STORY = ROOT / "demo" / "film-partia.json"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.env = mock.patch.dict(os.environ, {"VEASY_HOME": self.tmp.name})
+        self.env.start()
+        self.addCleanup(self.env.stop)
+        self.story = json.loads(self.STORY.read_text(encoding="utf-8"))
+        self.story.pop("program", None)  # a story with no program is news
+        self.path = pathlib.Path(self.tmp.name) / "film.json"
+        self.path.write_text(json.dumps(self.story, ensure_ascii=False), encoding="utf-8")
+
+    def test_code_owned_fields_can_not_be_set(self):
+        from tt_shorts import steer
+        for key in ("type", "date", "sources", "media", "plate", "thread", "category", "url", "program", "link"):
+            with self.assertRaises(ValueError, msg=key):
+                steer.apply_slot_edits(self.story, 1, [(key, "x")])
+
+    def test_a_news_storys_words_need_the_articles(self):
+        from tt_shorts import steer
+        got = steer.steer(self.path, scene=1, set_kv=["label=ახალი"], dry=True)
+        self.assertTrue(any(p.startswith("news:") for p in got["problems"]), got["problems"])
+        src = pathlib.Path(self.tmp.name) / "film.sources.json"  # beside the story: read by itself
+        src.write_text(json.dumps(["ახალი სტატია"]), encoding="utf-8")
+        got = steer.steer(self.path, scene=1, set_kv=["label=ახალი"], dry=True)
+        self.assertFalse(any(p.startswith("news:") for p in got["problems"]), got["problems"])
+
+    def test_a_news_storys_rhythm_needs_no_articles(self):
+        from tt_shorts import steer
+        got = steer.steer(self.path, scene=3, tighter=True, dry=True)
+        self.assertFalse(any(p.startswith("news:") for p in got["problems"]), got["problems"])
+
+    def _run(self, flashes):
+        from tt_shorts import steer
+        film = pathlib.Path(self.tmp.name) / "film.mp4"
+        film.write_bytes(b"old")
+
+        def render(work, p, out, segmented=False):
+            pathlib.Path(out).write_bytes(b"new")
+            segments.manifest_path(out).write_text("{}", encoding="utf-8")
+
+        with mock.patch.object(steer.props, "render_video", render), \
+                mock.patch.object(steer.probe, "enabled", lambda: False), \
+                mock.patch.object(steer.flash, "measure", lambda p: {}), \
+                mock.patch.object(steer.flash, "problems", lambda m: flashes), \
+                mock.patch.object(steer.room, "write_room", lambda *a, **k: {"room_html": "room"}):
+            return steer.steer(self.path, scene=3, tighter=True, out_path=film), film
+
+    def test_a_failed_steer_leaves_the_film_and_the_story(self):
+        before = self.path.read_text(encoding="utf-8")
+        got, film = self._run(["flash: too much"])
+        self.assertEqual(got["problems"], ["flash: too much"])
+        self.assertEqual(got["kept"], str(film))
+        self.assertEqual(film.read_bytes(), b"old")
+        self.assertEqual(self.path.read_text(encoding="utf-8"), before)
+        self.assertEqual(sorted(x.name for x in film.parent.glob("film.steer*")), [])
+
+    def test_a_good_steer_replaces_the_film_and_saves_the_story(self):
+        before = self.path.read_text(encoding="utf-8")
+        got, film = self._run([])
+        self.assertEqual(got["problems"], [])
+        self.assertEqual(film.read_bytes(), b"new")
+        self.assertNotEqual(self.path.read_text(encoding="utf-8"), before)
+        self.assertTrue(segments.manifest_path(film).exists())
+        self.assertEqual(sorted(x.name for x in film.parent.glob("film.steer*")), [])
 
 
 if __name__ == "__main__":

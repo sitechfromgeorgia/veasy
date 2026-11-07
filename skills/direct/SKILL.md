@@ -52,6 +52,7 @@ whether `news` allows it, what it demands and what to avoid.
 | a proof, a rule, a timeline | [evidence-board](references/forms/evidence-board.md) |
 | how a thing works | [drawn-explainer](references/forms/drawn-explainer.md) |
 | a statement, a quote, a message | [voice-on-record](references/forms/voice-on-record.md) |
+| an idea or a system whose subject has a material | [material-ground](references/forms/material-ground.md) |
 
 Put the choice in the idea: `"form": "<file name>"`. Code does not judge it; `veasy:compose` builds the composed ones.
 

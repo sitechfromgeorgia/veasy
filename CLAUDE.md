@@ -77,6 +77,9 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
   correction. A new scenario needs a case in `tests/test_scenarios.py` and a demo story that passes `check` and `plan`.
 - **The brush book** (`tt_shorts/gallery.py`, `examples/`, `engine gallery`, skill `veasy:brush-book`): a searchable page of
   real renders, read from data, so what merges later appears by itself. `out/gallery/` isn't in git.
+- **The film's thread** (`tt_shorts/thread.py`, brush `state`, `engine thread`): one object from the chosen idea runs through a film's
+  scenes, changes state, and can carry a cut (`match`, `object`). Only for a story with a `concept`; never in `news`. Code seats
+  it and gives a seat up before it collides with text.
 - **One take** (`tt_shorts/onetake.py`): a transition option that lays scenes on a seeded 2D path. The camera moves only during
   cuts; chrome, captions and the safe zone never ride it; zoom stays at or under 1.15. Not for `news`.
 - **Motion rules** (`tt_shorts/motion_rules.py`): warnings in `engine plan`; only unreadable text (0.5 s + 0.3 s a

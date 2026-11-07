@@ -11,13 +11,15 @@ Usage:
 from __future__ import annotations
 
 import copy
+import glob
 import json
+import os
 import pathlib
 import re
 import shutil
 import time
 
-from tt_shorts import (brand as packs, catalog, costs, directors, flash, formats, motion_rules,
+from tt_shorts import (brand as packs, catalog, costs, directors, flash, formats, motion_rules, programs,
                        news_check, normalize_ka, probe, props, room, segments, speech, store, swipe)
 
 FPS = speech.FPS
@@ -25,6 +27,8 @@ TIGHTER_FRAMES = -12   # -0.40s: pulls the cut earlier while preserving reading 
 BREATHE_FRAMES = 15    # +0.50s: adds breathing room after the scene settles
 LAND_FRAMES = 9        # +0.30s: holds the payoff before the cut and marks the key phrase if unspoken
 
+STORY_KEYS = ("narration", "cta", "motif")  # what --set may change on the story itself; the rest is the data's or code's
+SCENE_KEYS = ("at", "em")  # beside a brush's slots, the only scene keys a person sets (type, media, plate... are code's)
 _INDEXED_KEY = re.compile(r"^([a-zA-Z_]\w*)(?:\[(\d+)\])?(?:\.([a-zA-Z_]\w*))?$")
 
 
@@ -166,7 +170,7 @@ def apply_slot_edits(story: dict, scene_idx: int | None, pairs: list[tuple[str, 
     brushes = catalog.load_all()
 
     for raw_key, raw_val in pairs:
-        if raw_key in ("narration", "cta", "category", "motif", "url") or raw_key.startswith("say."):
+        if raw_key in STORY_KEYS or raw_key.startswith("say."):
             if raw_key.startswith("say."):
                 sub = raw_key.split(".", 1)[1]
                 updated.setdefault("say", {})[sub] = _coerce_value(str(raw_val))
@@ -191,6 +195,8 @@ def apply_slot_edits(story: dict, scene_idx: int | None, pairs: list[tuple[str, 
             raise ValueError(f"unsupported slot syntax {raw_key!r} (use slot, list[0], or items[0].field)")
         field, idx_str, subfield = m.group(1), m.group(2), m.group(3)
         spec = brush_slots.get(field)
+        if field not in brush_slots and field not in SCENE_KEYS:
+            raise ValueError(f"{field!r} is not a slot of {stype or 'this scene'}: code owns it")
 
         if idx_str is None and subfield is None:
             val = _coerce_value(raw_val, scene.get(field), spec)
@@ -387,6 +393,25 @@ def _build_preview_props(story: dict, fmt: dict, engine: str = "silent",
     return work, built
 
 
+def _source_texts(sources, story_path) -> list:
+    """The member articles' texts: the given file, or <story>.sources.json beside the story; [] when there are none."""
+    f = pathlib.Path(sources) if sources else pathlib.Path(story_path).with_suffix(".sources.json")
+    if not f.is_file():
+        if sources:
+            raise FileNotFoundError(f"sources file not found: {sources}")
+        return []
+    return json.loads(f.read_text(encoding="utf-8"))
+
+
+def _settle(draft: pathlib.Path, target: pathlib.Path, keep: bool) -> None:
+    """A steer's draft and its side files either take the film's names or go."""
+    for f in list(draft.parent.glob(glob.escape(draft.stem) + ".*")):
+        if keep:
+            os.replace(f, target.with_name(target.stem + f.name[len(draft.stem):]))
+        else:
+            f.unlink(missing_ok=True)
+
+
 def steer(target: str | pathlib.Path, scene: int | str | None = None,
           set_kv: list[str] | dict | str | None = None,
           tighter: bool = False, breathe: bool = False, land: bool = False,
@@ -394,8 +419,12 @@ def steer(target: str | pathlib.Path, scene: int | str | None = None,
           engine: str = "silent", format_name: str | None = None,
           look: str | None = None, director: str | None = None,
           project: str | pathlib.Path | None = None,
-          renderer: str | None = None, write_story: bool = False) -> dict:
-    """Steer one scene (or narration) of a film, or report the exact pre-run cost when `dry=True`."""
+          renderer: str | None = None, write_story: bool = False,
+          sources: str | pathlib.Path | None = None) -> dict:
+    """Steer one scene (or narration) of a film, or report the exact pre-run cost when `dry=True`. A change of words
+    passes the same checks as a new film: the articles (`sources`, or <story>.sources.json) are read when they exist,
+    and a news story's words never change without them. The film and the story are replaced only after the new render
+    has passed; a failed steer leaves both as they were."""
     t0 = time.perf_counter()
     resolved = _resolve_target(target)
     story_path = resolved["story_path"]
@@ -435,7 +464,10 @@ def steer(target: str | pathlib.Path, scene: int | str | None = None,
     )
 
     # Only what this change introduced stops it: a film's older problems are `check`'s to report, not steer's.
-    story_problems = [x for x in eng_mod.check_story(after_story) if x not in set(eng_mod.check_story(before_story))]
+    texts = _source_texts(sources, story_path)
+    story_problems = [x for x in eng_mod.check_story(after_story, texts) if x not in set(eng_mod.check_story(before_story, texts))]
+    if slot_res["edits"] and not texts and programs.name_of(before_story) == programs.DEFAULT:
+        story_problems.append("news: a change of words needs the member articles (--sources), so N1-N5 can check it")
     motion_after = motion_rules.check(after_props)
     motion_before = set(motion_rules.check(before_props)["holds"])
     problems = list(story_problems) + [h for h in motion_after["holds"] if h not in motion_before]
@@ -529,9 +561,6 @@ def steer(target: str | pathlib.Path, scene: int | str | None = None,
     if dry or problems:
         return summary
 
-    if True:  # a steer is saved: the next one starts from this story
-        story_path.write_text(json.dumps(after_story, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-
     target_mp4 = (
         pathlib.Path(out_path).resolve()
         if out_path
@@ -548,6 +577,9 @@ def steer(target: str | pathlib.Path, scene: int | str | None = None,
         )
     )
 
+    draft = target_mp4.with_name(f"{target_mp4.stem}.steer{target_mp4.suffix}")  # the film stands until this one passes
+    old_story = story_path.read_text(encoding="utf-8")
+
     if film_engine == "hyperframes":
         from tt_shorts import compose
         proj_dir = (
@@ -559,19 +591,27 @@ def steer(target: str | pathlib.Path, scene: int | str | None = None,
             compose.scaffold(story_path, brand=packs.of(after_story)["name"], project=proj_dir, force=True)
         # If a slot in slots.json maps to the edited scene text directly, keep story.json updated in project
         (proj_dir / "story.json").write_text(json.dumps(after_story, ensure_ascii=False, indent=1), encoding="utf-8")
+        story_path.write_text(json.dumps(after_story, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         hf_res = compose.render(
             story_path, fmt, brand=packs.of(after_story)["name"], project=proj_dir, engine=engine,
-            out_path=target_mp4,
+            out_path=draft,
         )  # segmented unless SHORTS_SEGMENTS=0: the cached scenes are reused
-        summary["file"] = hf_res.get("file", str(target_mp4))
         summary["problems"] = hf_res.get("problems", [])
+        if summary["problems"]:
+            story_path.write_text(old_story, encoding="utf-8")
+            (proj_dir / "story.json").write_text(old_story, encoding="utf-8")
+            _settle(draft, target_mp4, keep=False)
+            summary["kept"] = str(target_mp4)
+            return summary
+        _settle(draft, target_mp4, keep=True)
+        summary["file"] = str(target_mp4)
         summary["elapsed_seconds"] = round(time.perf_counter() - t0, 3)
         target_mp4.with_suffix(".json").write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
         summary["room"] = room.write_room(target_mp4, story_path=story_path, engine_override="hyperframes")["room_html"]
         return summary
 
     # Remotion lane: ensure cached segments exist for clean scenes if steering an already-rendered video
-    props.render_video(work_after, after_props, target_mp4, segmented=True)
+    props.render_video(work_after, after_props, draft, segmented=True)
 
     # Probe only the dirty scenes (or all if full_render) + flash safety check
     all_settled = probe.settled(after_props["scenes"])
@@ -592,11 +632,20 @@ def steer(target: str | pathlib.Path, scene: int | str | None = None,
             probe_res = {"problems": [f"probe error: {str(e)[:240]}"], "frames": probe_frames}
     else:
         probe_res = {"problems": []}
-    flash_probs = flash.problems(flash.measure(target_mp4))
+    flash_probs = flash.problems(flash.measure(draft))
     post_problems = list(probe_res.get("problems") or []) + list(flash_probs or [])
+    if engine != "silent":  # a preview has no voice to measure; only what this change introduced stops it
+        older = set(eng_mod.qa_file(target_mp4, fmt)["problems"]) if target_mp4.exists() else set()
+        post_problems += [p for p in eng_mod.qa_file(draft, fmt)["problems"] if p not in older and p not in post_problems]
     summary["probe"] = probe_res
     summary["flash_problems"] = flash_probs
     summary["problems"] = problems + post_problems
+    if post_problems:
+        _settle(draft, target_mp4, keep=False)
+        summary["kept"] = str(target_mp4)
+        return summary
+    _settle(draft, target_mp4, keep=True)
+    story_path.write_text(json.dumps(after_story, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")  # the next steer starts here
 
     side_props = store.props_path(target_mp4)
     side_props.write_text(json.dumps(after_props, ensure_ascii=False), encoding="utf-8")

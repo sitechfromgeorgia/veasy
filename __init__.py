@@ -416,6 +416,7 @@ TOOLS = {
                         "verb": {"type": "string", "enum": ["tighter", "breathe", "land"],
                                  "description": "A plain timing change on the scene: -0.4 s, +0.5 s, +0.3 s and mark the payoff."},
                         "dry": {"type": "boolean", "description": "Say the cost and render nothing (do this first)."},
+                        "sources": {"type": "string", "description": "A JSON list of the member articles' texts: a news story's words need them."},
                         "engine": {"type": "string", "enum": ["silent", "edge", "gemini"],
                                    "description": "The voice (default silent; a narration change needs a new one)."},
                         "write_room": {"type": "boolean", "description": "Only write <render>.room.html, change nothing."}},
@@ -429,7 +430,7 @@ TOOLS = {
                         ["--scene", str(a["scene"])] if a.get("scene") not in (None, "") else []) + sum(
                         [["--set", x] for x in (a.get("set") or [])], []) + (
                         [f"--{a['verb']}"] if a.get("verb") else []) + (["--dry"] if a.get("dry") else []) + _flags(
-                        a, ("engine",)))),
+                        a, ("engine", "sources")))),
     "veasy_brush_book": ({"type": "object", "properties": {
                              "find": {"type": "string", "description": "What the story needs, in a few words: a number, a place, a process, a quote."},
                              "examples": {"type": "boolean", "description": "Annotated example films and a bad-to-fixed pair instead."},

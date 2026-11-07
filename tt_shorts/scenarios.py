@@ -395,7 +395,7 @@ def story_facts(story, brand_pack=None):
         "had_video": False,
         "verified_correction": doc_corr,
         "family": fam,
-        "program": story.get("program", "explainer"),
+        "program": programs.name_of(story),
     }
     return facts
 
@@ -451,7 +451,7 @@ def fit(story_or_data, facts=None, seconds=None):
     A story that already has the scenario's exact scene sequence gets +3. Returns [{"scenario", "title", "label",
     "score", "why", "beats"}], best first; news gets [] (it takes no scenario).
     """
-    program = programs.name_of(story_or_data) if isinstance(story_or_data, dict) and "narration" in story_or_data         else (story_or_data.get("program", "explainer") if isinstance(story_or_data, dict) else "explainer")
+    program = programs.name_of(story_or_data) if isinstance(story_or_data, dict) and "narration" in story_or_data         else (story_or_data.get("program", "news") if isinstance(story_or_data, dict) else "explainer")
     if refusal(program):
         return []
 
@@ -731,7 +731,7 @@ STEP_CUES = re.compile(r"(?:ჯერ|შემდეგ|ბოლოს|ნა�
 VERSUS_CUES = re.compile(r"(?:ვიდრე|შედარებით|ნაცვლად|მაშინ,? როცა|ერთი მხრივ|მეორე მხრივ)")
 
 
-def facts_of_text(texts, category="", program="explainer"):
+def facts_of_text(texts, category="", program="news"):
     """The facts of a source document's text (before any story exists): the same keys as story_facts, from the
     text alone. A scene-based fact (steps, comparisons, speakers, places) is counted from cue words instead."""
     text = " ".join(texts)

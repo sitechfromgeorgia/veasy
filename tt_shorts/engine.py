@@ -1254,7 +1254,7 @@ def steer_cmd(a):
     from tt_shorts import steer as st
     res = st.steer(a.story, scene=a.scene, set_kv=a.set, tighter=a.tighter, breathe=a.breathe, land=a.land,
                    dry=a.dry, out_path=a.out, engine=a.engine, format_name=a.format, look=a.look,
-                   director=a.director)
+                   director=a.director, sources=a.sources)
     return out(res, 1 if res.get("problems") else 0)
 
 
@@ -1521,6 +1521,7 @@ def main(argv=None):
     sr.add_argument("--breathe", action="store_true", help="add room after the scene settles (+0.5 s)")
     sr.add_argument("--land", action="store_true", help="hold the payoff (+0.3 s) and mark the key phrase")
     sr.add_argument("--dry", action="store_true", help="say what the change will cost and render nothing")
+    sr.add_argument("--sources", help="the member articles (JSON list; default <story>.sources.json): a news story's words need them")
     sr.add_argument("--out", help="output .mp4 (default: the film's own)")
     sr.add_argument("--engine", default="silent", choices=["gemini", "edge", "silent"], help="voice engine (default silent preview)")
     sr.add_argument("--format")

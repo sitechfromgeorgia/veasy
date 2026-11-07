@@ -363,5 +363,11 @@ class TestChapters(unittest.TestCase):
         self.assertTrue({c["name"] for c in cues} <= set(sfx.NAMES))
 
 
+class NoProgramIsNews(unittest.TestCase):
+    def test_a_bare_cluster_is_news_and_is_offered_nothing(self):
+        self.assertEqual(scenarios.facts_of_text(["ტექსტი"])["program"], "news")
+        self.assertEqual(scenarios.fit({"scenes": []}), [])
+
+
 if __name__ == "__main__":
     unittest.main()

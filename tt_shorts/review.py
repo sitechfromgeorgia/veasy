@@ -1545,6 +1545,24 @@ def facts_diff(story_before: dict[str, Any], story_after: dict[str, Any]) -> lis
     return diffs
 
 
+def words_lost(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
+    """Words a repair took out of the narration or off the screen. A hedge or an attribution ("reportedly", "according
+    to") is a fact too, and `facts_diff` can't see one: a repair may move a word, never drop it."""
+    def words(story):
+        scenes = [{k: v for k, v in s.items() if k not in ("transition", "flow")} for s in story.get("scenes") or []]
+        return Counter(re.findall(r"\w+", f"{story.get('narration', '')} {news_check.screen_text({'scenes': scenes})}"))
+    return sorted((words(before) - words(after)).elements())
+
+
+def new_problems(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
+    """What a repair broke: the story's checks and N11 (a figure said in its own part of the narration), which needs no
+    articles. A problem it cured pays for one it moved; anything beyond that is refused."""
+    from tt_shorts import engine
+    was = set(engine.check_story(before)) | set(news_check.spoken(before))
+    now = set(engine.check_story(after)) | set(news_check.spoken(after))
+    return sorted(now - was)[len(was - now):]
+
+
 def audit_story(story: dict[str, Any], fmt_name: str = "news", look: str | None = None,
                 director: str | None = None, with_probe: bool = False,
                 style_override: dict[str, str] | None = None) -> dict[str, Any]:
@@ -1915,19 +1933,22 @@ class ReviewLoop:
             # Phase 3: Invariant Guard Check
             if transformed and action_desc:
                 diff = facts_diff(self.story_initial, candidate_story)
-                if diff:
+                lost = words_lost(self.story_initial, candidate_story)
+                refused = diff + ([f"words removed: {' '.join(lost)}"] if lost else [])
+                refused = refused or new_problems(self.story_current, candidate_story)
+                if refused:
                     return {
                         "status": "held",
                         "rounds_executed": current_round,
                         "machine_rounds": self.machine_round,
                         "look_rounds": self.look_round,
-                        "holds": holds + [f"invariant violation: {'; '.join(diff)}"],
+                        "holds": holds + [f"invariant violation: {'; '.join(refused)}"],
                         "warnings": warnings,
                         "applied_transforms": self.applied_transforms,
                         "facts_diff": diff,
                         "story": self.story_current,
                         "style": self.style_state,
-                        "reasons": [f"Transform rejected because it altered facts: {'; '.join(diff)}"],
+                        "reasons": [f"Transform rejected: {'; '.join(refused)}"],
                     }
 
                 new_key = self._state_hash(candidate_story, candidate_style)

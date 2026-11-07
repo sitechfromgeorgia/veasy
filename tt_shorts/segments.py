@@ -313,6 +313,8 @@ def segment_key(props: dict, scene_index: int, work: pathlib.Path | None = None)
         "outro": outro_state,
         "captions": caption_slice(props.get("captions"), start_frame, end_frame, FPS),
         "chrome": _remotion_global_chrome(props),
+        "camera": props.get("camera"),  # one take: a change of one scene moves the path of every cut after it
+        "thread": props.get("thread"),  # the film's object runs through every scene
     }
     return _sha16(payload)
 

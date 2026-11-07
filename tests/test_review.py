@@ -351,6 +351,14 @@ class ReviewFactsDiffTest(unittest.TestCase):
     def setUp(self):
         self.story = json.loads((ROOT / "stories" / "24835.json").read_text(encoding="utf-8"))
 
+    def test_words_lost_sees_a_dropped_hedge_and_lets_a_word_move(self):
+        from tt_shorts import review
+        before = {"narration": "სავარაუდოდ გაიზარდა", "scenes": [{"type": "hook", "lines": ["ერთი ორი", "სამი"]}]}
+        moved = {"narration": "სავარაუდოდ გაიზარდა", "scenes": [{"type": "hook", "lines": ["ერთი", "ორი სამი"]}]}
+        cut = {"narration": "გაიზარდა", "scenes": [{"type": "hook", "lines": ["ერთი ორი", "სამი"]}]}
+        self.assertEqual(review.words_lost(before, moved), [])
+        self.assertEqual(review.words_lost(before, cut), ["სავარაუდოდ"])
+
     def test_facts_diff_identical(self):
         diff = review.facts_diff(self.story, self.story)
         self.assertEqual(diff, [])

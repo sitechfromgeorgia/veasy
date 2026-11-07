@@ -147,6 +147,12 @@ class States(unittest.TestCase):
         self.assertTrue(any("no idea" in p for p in thread.story_problems(s)))
 
 
+class NeverInNews(unittest.TestCase):
+    def test_a_state_scene_is_refused_even_without_the_articles(self):
+        got = thread.story_problems({"narration": "x", "scenes": [{"type": "state"}]})  # no program: news
+        self.assertTrue(got and "news" in got[0], got)
+
+
 class Seats(unittest.TestCase):
     def test_at_least_three_scenes_carry_it(self):
         for look in thread.BOXES:

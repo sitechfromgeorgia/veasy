@@ -575,7 +575,7 @@ def story_problems(story):
     if not any(s.get("type") in HERO for s in story.get("scenes") or []):
         return []
     if programs.name_of(story) == programs.DEFAULT:
-        return []  # N1 refuses the type itself
+        return ["state: never in news: it changes the film's object, an idea, and news has no idea step"]
     ok, why = eligible(story)
     if not story.get("concept"):
         return ["state: no idea, no object: a state scene needs the story's `concept`"]
