@@ -20,8 +20,8 @@ finished it. Not rebased onto main (the integrating session does that). Nothing 
 3. Free checks at plan: word budgets, fact gates, payoff not said early, scene order and brushes, anchors: done
    (`check_plan_beats`; runs in `check` and so in `plan`).
 4. `engine scenario fit`, `make "<url>" --scenario auto --preview-storyboard`: done (the preview fetches the source
-   and never calls the writer, tested with a mock that fails if it does). **Chapters with a different plot each: not
-   done** (`chapters.py` is code-split by scene count and one `scenario` field per story is the model here).
+   and never calls the writer, tested with a mock that fails if it does). Chapters with a different plot each: **done**
+   (`story["scenario"]` as a list of ids; `chapter_beats`, `_check_chapters`; `TestChapters`).
 5. myth-vs-fact only when the document corrects: done; the check is marker words in the text or a `doc_correction`
    field, which is weaker than comparing with the source (owner decision below).
 6. Sound cues synthesized, constant level, no risers or ducking: done (`sfx.py` reads the scenario's beats; a beat
@@ -41,17 +41,16 @@ sheet · `fdc8f2b` fit weighting · `59f3233` research · `1502093` skill notes 
 
 ## Not done, and why
 
-- Chapters with a different scenario each (needs a design with `chapters.py`).
 - Writer compliance measured on real calls (no paid or model calls here).
 - Remotion renders of the demos: only `plan` stills (the rule was stills, not full films).
-- Research: nine recalled works and one folk-craft row, none fetched; the 30-source target was cut by instruction.
+- Research: 7 sources, each looked up on 2026-11-07 (see the file); the 30-source target was cut by instruction.
 
 ## Owner decisions
 
 1. Should `digest` and `story` (fiction) refuse scenarios as `news` does? Done so for now (code-built, own plot).
 2. myth-vs-fact's gate is textual (correction words or `doc_correction`). A stricter gate would compare the correction
    with the source document (`engine check --sources`); say if the news standard should apply.
-3. Plots are a fixed scene count each (3-7 beats). Say if a long film should take several plots as chapters.
+3. Chapters are built (a list of plot ids). The explainer program caps a film at 45 s, so a real long film needs a longer program or format: yours to decide.
 4. The demos' facts are an invented library report and bus notice, not real news; keep them as demos only.
 
 ## Shared files touched (additive)

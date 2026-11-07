@@ -51,6 +51,14 @@ A story with a scenario has **exactly one scene per beat**, in order. Each scene
 6. **myth-vs-fact** only when the document itself corrects (a `doc_correction`, or the correction's own words in the
    text). Otherwise it is an opinion scene: refused. Never use it to correct something the document does not.
 
+## A long film: a plot per chapter
+
+`story["scenario"]` may be a list of ids, one per chapter (`engine scenario stamp <story> --scenario a,b`). Chapter 1
+keeps its hook, a later chapter has none (the film's hook opened it); a chapter before the last has no end card. The
+story's scenes are the chapters' beats in order, and `check`/`plan` hold each chapter to its own plot
+(`chapter 2 (before-and-after): ...`). `news`, `digest` and `story` refuse chapters too. The explainer program's own
+25-45 s window still applies: a long film needs a longer program or format.
+
 ## Choosing by hand
 
 `fit` ranks by what the facts allow (declarative `eligible`/`never`, same grammar as rubrics), then by what each plot
