@@ -140,6 +140,7 @@ export type GeoLayers = {
     districts: { id: string; name: string; path: string; at: number[]; r: number; named: boolean }[];
     streets: { trunk?: string; primary?: string; secondary?: string };
     metro?: string;
+    streams?: string;
     stations?: number[][];
     rivers?: string;
     lakes?: string;
