@@ -134,7 +134,7 @@ const Carrier: React.FC<{ th: Thread; art: ArtNode[]; sweep: number; fx: number;
   const x = fx >= 0 ? -w + run * sweep : W - run * sweep;
   return (
     <At th={th} r={{ x, y: SCENE_TOP + (band - h) / 2, w, h }}>
-      <path d={th.outline} fill={ground} stroke={INK} strokeWidth={5} />
+      <path d={th.outline} fill={ground} />
       <Stateful th={th} art={art} t={t} drawn={1e6} id="carry" />
     </At>
   );

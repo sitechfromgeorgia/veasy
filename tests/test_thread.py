@@ -208,7 +208,7 @@ class Cuts(unittest.TestCase):
 
     def test_a_film_with_a_thread_moves_through_every_cut_evenly(self):
         for look in variety.TRANSITIONS:
-            options = variety.TRANSITIONS[look] + variety.THREAD_TRANSITIONS
+            options = variety.TRANSITIONS[look] + variety.THREAD_PICKS
             got = self.run_of(look, True, len(options))
             self.assertEqual(sorted(set(got)), sorted(options), look)
             self.assertEqual({got.count(o) for o in options}, {1}, look)

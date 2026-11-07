@@ -32,6 +32,7 @@ def threaded(pair):
     """The object's side of a pair: the story with its concept, its one sentence and its state scene."""
     s = json.loads((ROOT / "stories" / f"{pair['story']}.json").read_text(encoding="utf-8"))
     s["id"] = f"{pair['story']}-thread"
+    s["url"] = f"https://tbilisi.today/stories/{pair['story']}"  # the footer must not give the side away
     s["program"] = "explainer"
     s["concept"] = {**pair["concept"], "rejected": [], "roll": {"seed": "pair", "kind": "agent"}}
     if pair.get("scenes"):
@@ -49,6 +50,7 @@ def threaded(pair):
 def kit(pair):
     s = json.loads((ROOT / "stories" / f"{pair['story']}.json").read_text(encoding="utf-8"))
     s["id"] = f"{pair['story']}-kit"
+    s["url"] = f"https://tbilisi.today/stories/{pair['story']}"
     return s
 
 

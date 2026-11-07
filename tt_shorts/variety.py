@@ -75,6 +75,7 @@ TRANSITIONS = {
 }
 # one more option each, only for a film with an object (thread.py): a story without one never sees them, so news can't
 THREAD_TRANSITIONS = ("match", "object")
+THREAD_PICKS = ("object",)  # what "auto" picks: match crashes the render tab today (docs/research/thread-object-result.md)
 RECENT = 20
 
 # the novelty guard: the fingerprint's fields, their weights in similarity(), the threshold and the bound
@@ -324,7 +325,7 @@ def choose(brand, story, look, transition="auto", loops=(), icon=False, director
         options["transition"] = TRANSITIONS[look] if not director else \
             tuple(t for t in TRANSITIONS[look] if t in director["transitions"]) or tuple(director["transitions"])
         if thread:
-            options["transition"] += tuple(t for t in THREAD_TRANSITIONS if t not in options["transition"])
+            options["transition"] += tuple(t for t in THREAD_PICKS if t not in options["transition"])
     names = [getattr(p, "name", str(p)) for p in loops]
     if names:
         options["music"] = tuple(names)

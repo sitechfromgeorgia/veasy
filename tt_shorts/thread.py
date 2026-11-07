@@ -312,14 +312,16 @@ def _circle(box):
 
 
 def _bars(box):
+    """Three bars on one foot, one closed path: interpolatePath refuses a path of several parts."""
     x0, y0, x1, y1 = box
     w = (x1 - x0) / 7
-    out = []
+    pts = [(x0 + w, y1)]
     for i, k in enumerate((0.45, 1.0, 0.7)):
         x = x0 + w * (1 + 2 * i)
         top = y1 - (y1 - y0) * k
-        out.append(f"M{x:.1f} {y1:.1f} L{x:.1f} {top:.1f} L{x + w:.1f} {top:.1f} L{x + w:.1f} {y1:.1f} Z")
-    return " ".join(out)
+        pts += [(x, top), (x + w, top), (x + w, y1 - 6), (x + 2 * w, y1 - 6)]
+    pts[-1] = (pts[-2][0], y1)
+    return "M" + " L".join(f"{x:.1f} {y:.1f}" for x, y in pts) + " Z"
 
 
 def _line(box):
