@@ -61,7 +61,7 @@ Light pigment on a dark sheet. Black becomes the pack's canvas and white its ink
 ### The flood as a cut
 
 `{"reveal": "flood"}` for about 1.5 seconds. Play it over the scene, full frame, `mix-blend-mode: screen`: it covers the
-old scene in the pack's ink, and the frame is fully covered from 42% to 52% of the clip. Change scene in that gap. Each
+old scene in the pack's ink, and in a 1.5-second clip the frame is fully covered from 0.75 to 0.88 seconds. Change scene in that gap. Each
 part of the frame changes once on the way in and once on the way out, so it passes the flash check
 (`tt_shorts/flash.py`). Don't play it shorter than 1 second, and run `flash.measure` on the film.
 
