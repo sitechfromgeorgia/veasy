@@ -52,7 +52,7 @@ import subprocess
 import sys
 
 from tt_shorts import brand as packs
-from tt_shorts import (assets, captions, catalog, chapters, concept, directors, flash, formats, geo, icons, ka_check,
+from tt_shorts import (assets, captions, catalog, chapters, concept, directors, flash, formats, geo, icons, ka_check, thread,
                        kaeasy, meta, motion_rules, news_check, programs, props, rubrics, sfx, speech, store, styles, swipe,
                        variety, voices)
 
@@ -108,7 +108,9 @@ def options(brand_name=None, section=None):
                         "split": "an ink split wipe reveals the new scene outward from the center",
                         "corner": "a diagonal geometric wipe sweeps across from the corner",
                         "iris": "a circular ink iris opens from the center of the scene band",
-                        "blind": "vertical ink louver blinds rotate and wipe across the scene"},
+                        "blind": "vertical ink louver blinds rotate and wipe across the scene",
+                        "match": "only with a thread: the object's shape becomes the shape the next scene opens on",
+                        "object": "only with a thread: the object crosses the frame and carries the cut"},
         "outros": dict(swipe.ABOUT),
         "themes": {"about": "a pack's palettes (brand.json themes; brands.<pack>.themes lists them): a format's or "
                             "--theme's default (the pack's default theme: nothing changes), auto (variety: the least "
@@ -140,6 +142,7 @@ def options(brand_name=None, section=None):
         "formats": every,
         "directors": directors.options(),
         "concepts": concept.options(),
+        "thread": thread.options(),
         "rubrics": rubrics.options(),
         "programs": {n: programs.summary(p) for n, p in programs.load_all().items()},
         "sources": _sources_about(),
@@ -283,6 +286,7 @@ def structure_problems(story):
     if "program" in story:  # a story without one is news, exactly as before programs
         p += programs.story_problems(story)
     p += concept.story_problems(story)
+    p += thread.story_problems(story)
     return p + icons.motif_problems(story) + directors.structure_problems(story) + rubrics.story_problems(story) + \
         assets.problems(story)
 
@@ -895,6 +899,12 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
     return result
 
 
+def thread_cmd(a):
+    """The film's thread, free: the drawing, the state, which scenes carry the object and where."""
+    story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
+    return {"story": str(a.story), **thread.summary(story, None if a.look in (None, "auto") else a.look)}
+
+
 def concept_cmd(a):
     """`engine concept`: the idea step alone, for one source or a batch: no script, no voice, nothing recorded."""
     prog = programs.get(a.program or "explainer")
@@ -1191,6 +1201,12 @@ def main(argv=None):
     cn.add_argument("--batch", help="a JSON file: [{\"source\": ..., \"ref\": ...}, ...]")
     cn.add_argument("--brand", default=packs.DEFAULT)
     cn.add_argument("--ideas", help="a JSON file of an agent's own ideas: judged the same way, no model call")
+    th = sub.add_parser("thread", help="the film's object, free: drawing, state, which scenes carry it, their seats")
+    th.add_argument("story")
+    th.add_argument("--look", choices=("auto",) + packs.LOOKS, default="auto")
+    th = sub.add_parser("thread", help="the film's object, free: drawing, state, which scenes carry it, their seats")
+    th.add_argument("story")
+    th.add_argument("--look", choices=("auto",) + packs.LOOKS, default="auto")
     w = sub.add_parser("write")
     w.add_argument("--program", help="news (default), explainer, law, blog... (see options: programs)")
     w.add_argument("--style", help="a named film style to set on the story")
@@ -1379,7 +1395,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "concept": concept_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "concept": concept_cmd, "thread": thread_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
     except FileNotFoundError as e:

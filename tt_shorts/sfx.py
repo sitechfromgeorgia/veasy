@@ -50,6 +50,8 @@ CUT_SOUND = {
     "split": "whoosh",
     "corner": "whoosh",
     "fade": None,
+    "match": None,  # the shape carries it: continuity hides a cut, it needs no sound of its own
+    "object": None,
 }
 OPTIONS = {"off": "no sound effects (the default: renders are as before)",
            "on": "short accents on the timeline: a whoosh on a cut, a pop when a mark lands, ticks while a number "

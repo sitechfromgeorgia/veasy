@@ -14,6 +14,8 @@ bundle built once per version of remotion/src. rules() then checks the boxes aga
               against the cmap of the very woff2 the render uses
     font      the text is set in the pack's family, that weight loaded, and the frame was laid out after the font
               was in (text sized by measuring it would otherwise keep a fallback font's sizes)
+    seat      no scene text over the seat of the film's object (thread.py): the composition reports the seat, a seat is
+              computed from a text load, so this is where a wrong estimate is caught
     size      no text shrunk below the region's minimum (a long line squeezed by fitSize, a drawing's tiny label)
     contrast  every text readable on what is really under it (a theme can put dark on dark or light on light): the
               text's color (its alpha times its opacity) against its ground, every element the page paints under the
@@ -60,7 +62,7 @@ RAIL_Y = 1100  # below this, nothing right of RAIL_X (CLAUDE.md: the safe zone)
 MIN_PX = {"scene": 24, "card": 26, "captions": 40, "header": 26, "footer": 22, "other": 24}
 CHROME = ("header", "footer")
 WEIGHTS = ("400", "500", "600", "700")  # brand.FONT_WEIGHTS: every pack ships the four
-RULES = ("band", "rail", "captions", "frame", "overflow", "glyph", "font", "size", "contrast")
+RULES = ("band", "rail", "captions", "frame", "overflow", "glyph", "font", "size", "contrast", "seat")
 CONTRAST = {"text": 3.0, "small": 4.5}  # WCAG ratios: large/bold text, and small regular text
 SMALL_PX = 32
 
@@ -163,6 +165,9 @@ def rules(report, cmaps=None, c=None):
         if region not in CHROME and bottom > c["RAIL_Y"] + TOL and right > c["RAIL_X"] + TOL:
             bad("rail", t, f"{q} reaches x={right:.0f} below y={c['RAIL_Y']} (the like/share rail starts at "
                            f"x={c['RAIL_X']})")
+        seat = report.get("seat")
+        if seat and region in ("scene", "card") and x < seat["x"] + seat["w"] and right > seat["x"] and                 y < seat["y"] + seat["h"] and bottom > seat["y"] + TOL:
+            bad("seat", t, f"{q} ends at y={bottom:.0f}, over the object's seat, which starts at y={seat['y']}")
         if region == "captions" and bottom > c["CAPTION_BOTTOM"] + TOL:
             bad("captions", t, f"{q} ends at y={bottom:.0f}, below the captions' band ({c['CAPTION_BOTTOM']})")
         if x < -TOL or y < -TOL or right > W + TOL or bottom > H + TOL:

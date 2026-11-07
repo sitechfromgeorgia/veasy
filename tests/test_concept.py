@@ -430,7 +430,7 @@ class Options(unittest.TestCase):
 
     def test_news_check_scene_types_cover_the_devices(self):
         for d in concept.devices().values():
-            self.assertTrue(set(d["scenes"]) <= set(news_check.SCENE_TYPES))
+            self.assertTrue(set(d["scenes"]) <= set(news_check.SCENE_TYPES) | news_check.IDEA_TYPES)
 
 
 if __name__ == "__main__":

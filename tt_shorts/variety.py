@@ -73,6 +73,8 @@ TRANSITIONS = {
     "kinetic": ("panel", "push", "wipe", "cut", "meter", "split", "corner", "shutter", "blind"),
     "cards": ("line", "slide", "dot", "wipe", "fade", "split", "iris"),
 }
+# one more option each, only for a film with an object (thread.py): a story without one never sees them, so news can't
+THREAD_TRANSITIONS = ("match", "object")
 RECENT = 20
 
 # the novelty guard: the fingerprint's fields, their weights in similarity(), the threshold and the bound
@@ -304,10 +306,11 @@ def _rerolls(first, options, used, story, n=None):
     return [{**first, **c} for c in combos[:REROLLS if n is None else n]]
 
 
-def choose(brand, story, look, transition="auto", loops=(), icon=False, director=None, scenes=None):
+def choose(brand, story, look, transition="auto", loops=(), icon=False, director=None, scenes=None, thread=False):
     """-> (style, novelty). style is pick()'s dict. novelty is the guard's report: assess()'s keys, with rerolls (how
     many were tried), kept (a re-render's stored picks) and warning (no re-roll was far enough; the farthest was taken).
-    scenes: the scene types the video shows (part of the fingerprint)."""
+    scenes: the scene types the video shows (part of the fingerprint). thread: the film has an object, so
+    THREAD_TRANSITIONS are among its cuts."""
     past = history(brand)
     did = director["id"] if director else None
     same = next((r for r in past if r["story"] == str(story) and r["look"] == look and r["director"] == did), None)
@@ -320,6 +323,8 @@ def choose(brand, story, look, transition="auto", loops=(), icon=False, director
     if transition in (None, "auto"):
         options["transition"] = TRANSITIONS[look] if not director else \
             tuple(t for t in TRANSITIONS[look] if t in director["transitions"]) or tuple(director["transitions"])
+        if thread:
+            options["transition"] += tuple(t for t in THREAD_TRANSITIONS if t not in options["transition"])
     names = [getattr(p, "name", str(p)) for p in loops]
     if names:
         options["music"] = tuple(names)

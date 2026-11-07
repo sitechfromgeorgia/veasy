@@ -35,6 +35,9 @@ import re
 # (brushes/<type>.json) is allowed in news only once it is named here too.
 SCENE_TYPES = {"hook", "stat", "timeline", "where", "who", "points", "quote", "sources", "draw", "pair", "steps", "bars",
                "trend", "change", "sign", "end", "share", "rail", "compare", "link", "agree", "chapter", "ranking", "versus", "countdown", "calendar", "glossary", "checklist", "impact", "route", "budget"}
+# Scene types that are never news types: outside SCENE_TYPES, so N1 refuses them in news; a program that has the idea
+# step may use them. state changes the film's object (thread.py): an idea, and news has no idea step.
+IDEA_TYPES = {"state"}
 RELATIVE_DAYS = ("დღეს", "გუშინ", "ხვალ", "ზეგ", "გუშინწინ")
 # Words that judge instead of report (stems: Georgian adds case endings). Extend from the edits log.
 EVALUATIVE = ("სკანდალურ", "შოკისმომგვრელ", "სამარცხვინო", "საოცარ", "გასაოცარ", "უპრეცედენტო", "საშინელ",

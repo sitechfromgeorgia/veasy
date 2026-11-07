@@ -87,7 +87,7 @@ def validate(name, p):
     if scenes != "all":
         if not isinstance(scenes, list):
             bad('scenes must be "all" or a list of scene types')
-        wrong = [t for t in scenes if t not in news_check.SCENE_TYPES]
+        wrong = [t for t in scenes if t not in news_check.SCENE_TYPES | news_check.IDEA_TYPES]
         if wrong:
             bad(f"unknown scene types {wrong}")
         if "hook" not in scenes or "end" not in scenes:

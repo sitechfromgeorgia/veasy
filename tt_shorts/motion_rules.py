@@ -50,7 +50,7 @@ PACING_MIN = 1.5  # seconds: minimum scene duration to allow voice & reader comp
 # sweeps go right, slide and push go left); a plain cut, the dot's iris and the loop's cross-fade have none.
 DIRECTION = {
     "line": (1, 0), "panel": (1, 0), "wipe": (1, 0), "slide": (-1, 0), "push": (-1, 0),
-    "shutter": (1, 0), "blind": (1, 0), "corner": (1, 0),
+    "shutter": (1, 0), "blind": (1, 0), "corner": (1, 0), "object": (1, 0),
 }
 RULES = {
     "read": f"a text on screen too briefly: each needs {READ_BASE} s + {READ_PER_WORD} s per word (holds a render)",

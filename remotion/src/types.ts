@@ -61,7 +61,8 @@ export type Verb = "rises" | "falls" | "stops" | "opens" | "closes" | "moves" | 
 export type IconMotion = "draw" | "pop" | "pulse" | "count" | "morph" | "sketch";
 
 // the cut between scenes (tt_shorts/props.py TRANSITIONS); "auto" is resolved in Python
-export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter" | "fade" | "shutter" | "split" | "corner" | "iris" | "blind";
+// match and object exist only in a film with a thread (variety.THREAD_TRANSITIONS)
+export type Transition = "cut" | "line" | "panel" | "wipe" | "slide" | "push" | "dot" | "meter" | "fade" | "shutter" | "split" | "corner" | "iris" | "blind" | "match" | "object";
 
 // the ending (tt_shorts/swipe.py OUTROS): the end card, a QR/link/CTA chip over the last scene, or a seamless loop
 export type Outro = "card" | "overlay" | "loop";
@@ -111,6 +112,21 @@ export type MediaProps = {
 export type Beats = {
   frames: number[]; reveal: Record<string, number>; lit: Record<string, number[]>; steps: number[];
   texts: [string, number][];
+};
+
+// tt_shorts/thread.py: the film's object, code's from end to end. art: the drawing without words; outline: its
+// silhouette, main: the largest part of it; box: the drawing's bounds; forms: the shapes a match cut can land on;
+// surface: the level's two ends (drain, fill); crack: its two ends and the two sides (break)
+export type Thread = {
+  object: string; state: "drain" | "fill" | "break" | "grow" | "shrink" | null; seed: number; art: ArtNode[]; outline: string;
+  main: string; box: number[]; forms: Record<string, string>; surface?: [string, string];
+  crack?: { straight: string; jag: string; left: string; right: string };
+};
+// a scene's seat, in frame px: role seat (it stands in the scene's free room), hero (a state scene) or own (a draw
+// scene draws it); reserve: the room the scene leaves free; from, to: the state's progress here; form: its opening shape
+export type SceneThread = {
+  role: "seat" | "hero" | "own"; x: number; y: number; w: number; h: number; reserve: number; from?: number; to?: number;
+  form?: string | null;
 };
 
 export type SceneBase = {
@@ -166,6 +182,9 @@ export type Scene = SceneBase & {
   of?: number; // chapter: how many stories the digest has
   total?: number; // agree: the member articles code counted across
   media?: MediaProps; // set by tt_shorts/props.py from the story's assets ledger (never the writer's)
+  was?: string; // state: the words for the object before
+  now?: string; // state: and after
+  thread?: SceneThread; // set by tt_shorts/thread.py
 };
 
 // tt_shorts/brand.py for_remotion(): the brand pack, without file paths
@@ -199,6 +218,7 @@ export type ShortProps = {
   style?: Style; // absent: the look's own (stack; grid or diagonal; rise or slide)
   outro?: Outro; // absent: the end card
   outroFrom?: number | null; // overlay and loop: the frame the chip comes in
+  thread?: Thread | null; // the film's object (tt_shorts/thread.py); absent: the kit's film
   motifIcon?: IconNode[] | null; // the story's main icon, when the style's motif is "icons"
   id: number;
   category: string; // Georgian label
