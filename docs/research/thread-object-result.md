@@ -6,12 +6,12 @@ Branch `claude/thread-object-ef75d6`. Research: `docs/research/thread-object.md`
 
 | Line | State | Evidence |
 |---|---|---|
-| One line gives a film: object in 3+ scenes, changes state | done | `python -m tt_shorts.engine render stories/veasy-thread.json --engine silent`: 35.4 s, object in 5 scenes, state `grow`. `engine thread stories/veasy-thread.json` shows the plan for free. Frames: `docs/research/thread-object-evidence/` (pairs 1 to 10), and FILMS below |
+| One line gives a film: object in 3+ scenes, changes state | done | `python -m tt_shorts.engine render stories/veasy-thread.json --engine silent`: 35.4 s, object in 5 scenes, state `grow`. `engine thread stories/veasy-thread.json` shows the plan for free. Frames: `docs/research/thread-object-evidence/` |
 | catalog, scenes, engine, variety tests; options even; `news` refused | done | `tests/test_thread.py` and the four files. Each cut comes up once in a run of its look (`Cuts`). `state` is refused by N1, kept out of the news writer's menu, `match`/`object` need a thread |
-| flash, motion rules, layout probe in every look | done | FLASH below. Motion rules: no holds. Layout probe: 0 problems, 10 films, 3 looks (`tools/thread_pairs.py --check`) |
-| One whole film rendered, passes `qa` | FILMS | FILMS below |
+| flash, motion rules, layout probe in every look | done | `qa` flash: area 0.0 of the 0.25 limit on the match film, 0.001 on the worst case (a full `fill` body carrying the `object` cut, `veasy-new-02`; that film is a research pair, silent and 46.7 s, so `qa` also names its length and its missing audio). Motion rules: no holds. Layout probe: 0 problems, 10 films, 3 looks (`tools/thread_pairs.py --check`) |
+| One whole film rendered, passes `qa` | done | `stories/veasy-thread.json`, `--engine edge --transition match`, 31.5 s, cards look: `qa` problems: none. The mp4 stays local (out of git) |
 | Fresh-eye critic judged the ten pairs | done | "The critic" below: the object side won 4 of 10 |
-| Full suite, tsc, selftest after the last fix | GATES | GATES below |
+| Full suite, tsc, selftest after the last fix | done | on `3a3ff01`: full suite 810 tests OK, 2 skipped; `tsc` 0 errors; `selftest` 102 unchanged, 0 problems, no `--update` |
 
 ## Built
 
