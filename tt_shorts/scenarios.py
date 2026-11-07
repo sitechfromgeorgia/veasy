@@ -1,0 +1,810 @@
+"""Scenarios: declarative plots and narrative arcs for Veasy videos (ROADMAP Goal 6).
+
+A director (directors.py) gives visual and motion personality; a rubric (rubrics.py) defines a recurring show
+in a brand's daily schedule. A scenario governs how a story unfolds dramaturgically:
+  - what it promises to the audience (the hook/setup),
+  - what obstacles, false leads, or context it establishes,
+  - where the narrative turns,
+  - when the payoff or core revelation is delivered (held until the reveal beat),
+  - and how it resolves into actionable understanding.
+
+Scenarios are pure data, `scenarios/<id>.json`, validated here:
+  id, title, label  id is the filename; title is English; label is Georgian for on-screen chips or UI
+  about             English explanation of the narrative arc for the agent
+  eligible          declarative condition list (OR of ANDs, matching rubrics.holds; no code strings)
+  never             declarative exclusions (e.g. news program is refused; deaths; unverified corrections)
+  beats             ordered list of 3-7 beats, each with:
+                    - id: string identifier (e.g. "hook", "setup", "turn", "payoff", "resolution")
+                    - job: promise | setup | context | complication | false_lead | evidence | turn | payoff | resolution
+                    - scene_types: list of brush names from catalog (brushes/) or "any"
+                    - word_budget: [min_words, max_words] (e.g. [12, 20])
+                    - sound: sound cue name ("click", "pop", "whoosh", "tick", "thud", "blip") or null
+                    - fact_gates: optional dict of required facts for this beat (e.g. {"numbers": 1})
+                    - payoff_held: bool - if true, the core reveal/payoff must not appear before this beat
+  pacing            target_words (int or [lo, hi]), min_seconds, max_seconds
+  brief             optional lines added to the writer prompt
+  prefers           optional {fact: weight 1-3}: what makes this plot the better pick when it is eligible (fit)
+  requires_correction optional bool: true for myth-vs-fact scenarios requiring verified source correction
+
+News programs (program "news") strictly refuse scenarios (news follows direct factual reporting,
+not plotted dramaturgy). myth-vs-fact is refused unless the source document itself makes the correction.
+"""
+import functools
+import json
+import pathlib
+import re
+
+from tt_shorts import brand, catalog, ka_check, news_check, normalize_ka, programs
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+DIR = ROOT / "scenarios"
+
+KEYS = ("id", "title", "label", "about", "eligible", "never", "beats", "pacing", "brief", "requires_correction", "prefers")
+REQUIRED = ("id", "title", "label", "about", "eligible", "never", "beats", "pacing")
+
+BEAT_KEYS = ("id", "job", "scene_types", "word_budget", "sound", "fact_gates", "payoff_held")
+BEAT_REQUIRED = ("id", "job", "scene_types", "word_budget")
+
+JOBS = (
+    "promise",
+    "setup",
+    "context",
+    "complication",
+    "false_lead",
+    "evidence",
+    "turn",
+    "payoff",
+    "resolution",
+)
+
+SOUNDS = ("click", "pop", "whoosh", "tick", "thud", "blip")
+
+FACTS = (
+    "numbers", "quantities", "percents", "dates", "times", "places", "regions", "quotes", "speakers",
+    "icons", "facts", "outlets", "members", "big_numbers", "prices", "rules", "agreed", "new_outlets",
+    "new_facts", "stories", "steps", "comparisons"
+)
+FLAGS = ("deaths", "had_video", "verified_correction")
+
+CORRECTION_MARKERS = (
+    "სინამდვილეში",
+    "არ შეესაბამება სიმართლეს",
+    "არ შეესაბამება რეალობას",
+    "არასწორია",
+    "მცდარია",
+    "უარყო",
+    "უარყოფს",
+    "დააზუსტა",
+    "დეზინფორმაცია",
+    "ფაქტია",
+    "ტყუილია",
+    "მითია",
+    "actually",
+    "in reality",
+    "debunk",
+    "false",
+    "misleading",
+    "fact check",
+    "correction",
+)
+
+
+# Programs that take no scenario: news (no plot of its own: hard rule), digest (built by code from checked stories,
+# never by a model) and story (fiction: its plot is the writer's, not drawn from a document's facts).
+REFUSED_PROGRAMS = ("news", "digest", "story")
+
+
+def refusal(program):
+    """The reason a program takes no scenario, or None."""
+    if program in REFUSED_PROGRAMS:
+        why = {"news": "a news story has no plot of its own (news follows the facts as the articles give them)",
+               "digest": "a digest is built by code from checked stories",
+               "story": "a fiction story's plot is its own"}[program]
+        return f"program {program!r} refuses scenarios: {why}"
+    return None
+
+
+class ScenarioError(ValueError):
+    """Raised when a scenario file or scenario evaluation fails validation."""
+    pass
+
+
+# ---------------------------------------------------------------- validation
+
+
+def _scene_types():
+    return set(catalog.types())
+
+
+def _condition(name, where, cond):
+    if not isinstance(cond, dict) or not cond:
+        raise ScenarioError(f"scenario {name!r}: {where}: each condition is a non-empty object")
+    for k, v in cond.items():
+        if k == "families":
+            if not isinstance(v, list) or not set(v) <= set(brand.FAMILIES):
+                raise ScenarioError(f"scenario {name!r}: {where}: families must be a list of {', '.join(brand.FAMILIES)}")
+        elif k in ("programs", "program"):
+            programs_list = v if isinstance(v, list) else [v]
+            if not all(isinstance(p, str) for p in programs_list):
+                raise ScenarioError(f"scenario {name!r}: {where}: programs must be string or list of strings")
+        elif k in FLAGS:
+            if not isinstance(v, bool):
+                raise ScenarioError(f"scenario {name!r}: {where}: {k} is true or false")
+        elif k in FACTS:
+            ok = isinstance(v, int) and not isinstance(v, bool) and v >= 0
+            ok = ok or (isinstance(v, dict) and set(v) == {"max"} and isinstance(v["max"], int))
+            if not ok:
+                raise ScenarioError(f"scenario {name!r}: {where}: {k} is a minimum count or {{\"max\": n}}")
+        else:
+            raise ScenarioError(f"scenario {name!r}: {where}: unknown fact {k!r} (facts: {', '.join(FACTS + FLAGS)}, "
+                                "families, programs)")
+
+
+def validate(name, s):
+    """Raise ScenarioError when a scenario definition is invalid; returns it resolved."""
+    def need(cond, msg):
+        if not cond:
+            raise ScenarioError(f"scenario {name!r}: {msg}")
+
+    need(isinstance(s, dict), "not an object")
+    missing = [k for k in REQUIRED if k not in s]
+    need(not missing, f"missing {missing}")
+    unknown = sorted(set(s) - set(KEYS))
+    need(not unknown, f"unknown keys {unknown}")
+
+    need(s["id"] == name and re.fullmatch(r"[a-z0-9-]+", name), "id is its file name (lowercase letters and hyphens)")
+    need(isinstance(s["title"], str) and s["title"].strip(), "title is a non-empty string")
+    need(isinstance(s["label"], str) and s["label"].strip(), "label is a non-empty string")
+    need(isinstance(s["about"], str) and s["about"].strip(), "about is a non-empty string")
+
+    need(isinstance(s["eligible"], list) and s["eligible"], "eligible is a non-empty list of alternatives")
+    for c in s["eligible"]:
+        _condition(name, "eligible", c)
+
+    need(isinstance(s["never"], list), "never is a list of exclusion conditions")
+    for c in s["never"]:
+        _condition(name, "never", c)
+
+    known_scenes = _scene_types()
+    beats = s["beats"]
+    need(isinstance(beats, list) and 3 <= len(beats) <= 7, "beats is a list of 3-7 beat objects")
+
+    has_payoff = False
+    for i, b in enumerate(beats):
+        need(isinstance(b, dict), f"beat[{i}] is not an object")
+        b_missing = [k for k in BEAT_REQUIRED if k not in b]
+        need(not b_missing, f"beat[{i}] missing {b_missing}")
+        b_unknown = sorted(set(b) - set(BEAT_KEYS))
+        need(not b_unknown, f"beat[{i}] unknown keys {b_unknown}")
+
+        need(isinstance(b["id"], str) and re.fullmatch(r"[a-z0-9_-]+", b["id"]),
+             f"beat[{i}].id must be lowercase letters, digits, underscores, or hyphens")
+        need(b["job"] in JOBS, f"beat[{i}].job {b['job']!r} is not one of {', '.join(JOBS)}")
+        if b["job"] == "payoff":
+            has_payoff = True
+
+        st = b["scene_types"]
+        need(st == "any" or (isinstance(st, list) and st and set(st) <= known_scenes),
+             f"beat[{i}].scene_types must be 'any' or a non-empty list of catalog brush types")
+
+        wb = b["word_budget"]
+        need(isinstance(wb, list) and len(wb) == 2 and all(isinstance(x, int) and not isinstance(x, bool) for x in wb)
+             and 0 <= wb[0] <= wb[1] <= 50,
+             f"beat[{i}].word_budget must be [min_words, max_words] with 0 <= min <= max <= 50")
+
+        snd = b.get("sound")
+        need(snd is None or snd in SOUNDS, f"beat[{i}].sound must be null or one of {', '.join(SOUNDS)}")
+
+        fg = b.get("fact_gates")
+        if fg is not None:
+            need(isinstance(fg, dict), f"beat[{i}].fact_gates must be an object")
+            for fk, fv in fg.items():
+                need(fk in FACTS, f"beat[{i}].fact_gates unknown fact {fk!r}")
+                need(isinstance(fv, int) and not isinstance(fv, bool) and fv >= 1,
+                     f"beat[{i}].fact_gates[{fk!r}] must be integer >= 1")
+
+        if "payoff_held" in b:
+            need(isinstance(b["payoff_held"], bool), f"beat[{i}].payoff_held must be true or false")
+
+    pacing = s["pacing"]
+    need(isinstance(pacing, dict), "pacing must be an object")
+    for pk in ("target_words", "min_seconds", "max_seconds"):
+        need(pk in pacing, f"pacing missing {pk!r}")
+    tw = pacing["target_words"]
+    tw_ok = (isinstance(tw, int) and not isinstance(tw, bool) and tw >= 10) or (
+        isinstance(tw, list) and len(tw) == 2 and all(isinstance(x, int) and not isinstance(x, bool) for x in tw)
+        and 10 <= tw[0] <= tw[1]
+    )
+    need(tw_ok, "pacing.target_words must be integer >= 10 or [min_words, max_words]")
+    min_s, max_s = pacing["min_seconds"], pacing["max_seconds"]
+    need(isinstance(min_s, (int, float)) and not isinstance(min_s, bool) and min_s >= 10.0,
+         "pacing.min_seconds must be number >= 10.0")
+    need(isinstance(max_s, (int, float)) and not isinstance(max_s, bool) and max_s >= min_s,
+         "pacing.max_seconds must be number >= min_seconds")
+
+    brief = s.get("brief")
+    if brief is not None:
+        need(isinstance(brief, list) and all(isinstance(x, str) and x.strip() for x in brief),
+             "brief must be a list of non-empty strings")
+
+    prefers = s.get("prefers") or {}
+    need(isinstance(prefers, dict) and all(
+        k in FACTS and isinstance(v, int) and not isinstance(v, bool) and 1 <= v <= 3 for k, v in prefers.items()),
+        "prefers is {fact: weight 1-3} over known facts")
+
+    req_corr = s.get("requires_correction", False)
+    if name == "myth-vs-fact":
+        req_corr = True
+    need(isinstance(req_corr, bool), "requires_correction must be true or false")
+
+    resolved = {
+        **s,
+        "requires_correction": req_corr,
+        "brief": list(brief or []),
+        "prefers": dict(prefers),
+        "beats": [
+            {
+                **b,
+                "fact_gates": dict(b.get("fact_gates") or {}),
+                "payoff_held": bool(b.get("payoff_held", False)),
+            }
+            for b in beats
+        ],
+    }
+    return resolved
+
+
+# ---------------------------------------------------------------- loading
+
+
+@functools.lru_cache(maxsize=4)
+def _load(path_str):
+    out = {}
+    for path in sorted(pathlib.Path(path_str).glob("*.json")):
+        if path.name == "schema.json":
+            continue
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise ScenarioError(f"scenario {path.stem!r}: not JSON ({e})") from e
+        out[path.stem] = validate(path.stem, raw)
+    return out
+
+
+def load_all():
+    """Load and validate all scenarios from the scenarios/ directory."""
+    return dict(_load(str(DIR)))
+
+
+def load(name):
+    """Load a single validated scenario by id."""
+    return get(name)
+
+
+def get(name):
+    """Get a validated scenario by id or raise ScenarioError."""
+    every = load_all()
+    if name not in every:
+        raise ScenarioError(f"unknown scenario {name!r}; known: {', '.join(sorted(every))}")
+    return every[name]
+
+
+def names():
+    """List of all available scenario ids, sorted."""
+    return sorted(load_all())
+
+
+# ---------------------------------------------------------------- eligibility and conditions
+
+
+def _holds(cond, f):
+    """True when a single condition dictionary holds for the given facts."""
+    for k, v in cond.items():
+        if k == "families":
+            if f.get("family") not in v:
+                return False
+        elif k in ("programs", "program"):
+            programs_list = v if isinstance(v, list) else [v]
+            if f.get("program") not in programs_list:
+                return False
+        elif k in FLAGS:
+            if bool(f.get(k)) != v:
+                return False
+        elif isinstance(v, dict):
+            if f.get(k, 0) > v["max"]:
+                return False
+        elif f.get(k, 0) < v:
+            return False
+    return True
+
+
+def holds(scenario, facts, program="explainer"):
+    """Check whether a scenario is eligible for given facts and program.
+
+    Hard rule: 'news' program universally refuses scenarios.
+    Returns True when at least one eligible condition holds and no never-condition holds.
+    """
+    if refusal(program) or refusal(facts.get("program")):
+        return False
+
+    sc = get(scenario) if isinstance(scenario, str) else scenario
+    augmented_facts = {**facts, "program": program or facts.get("program", "explainer")}
+
+    if sc.get("requires_correction") and not augmented_facts.get("verified_correction"):
+        return False
+
+    if any(_holds(c, augmented_facts) for c in sc.get("never", [])):
+        return False
+    return any(_holds(c, augmented_facts) for c in sc.get("eligible", []))
+
+
+def eligible(facts, program="explainer"):
+    """List of scenario IDs that hold for these facts and program."""
+    if refusal(program) or refusal(facts.get("program")):
+        return []
+    return [sc_id for sc_id, sc in load_all().items() if holds(sc, facts, program=program)]
+
+
+# ---------------------------------------------------------------- facts extraction
+
+
+def story_facts(story, brand_pack=None):
+    """Extract factual metrics from a story dict for scenario eligibility."""
+    from tt_shorts import rubrics
+
+    narration = story.get("narration", "")
+    screen = news_check.screen_text(story)
+    combined = f"{narration} {screen}"
+
+    numbers_found = news_check.numbers(combined)
+    quantities = [n for n in numbers_found if not re.match(r"^\d{4}$", n)]
+    big_nums = [n for n in quantities if re.search(r"^\d{3,}", n) or "%" in n]
+
+    quotes_found = re.findall(r"„([^“]+)“", combined)
+    places = [s.get("place") for s in story.get("scenes", []) if s.get("place")] +         [x for s in story.get("scenes", []) for x in (s.get("stops") or [])]  # a where scene's place, a route's stops
+
+    doc_corr = bool(story.get("doc_correction") or any(m in combined.lower() for m in CORRECTION_MARKERS))
+
+    category = story.get("category", "general")
+    fam = meta_family = brand.family_of(category) if hasattr(brand, "family_of") else category
+
+    facts = {
+        "numbers": len(numbers_found),
+        "quantities": len(quantities),
+        "percents": len(re.findall(r"\d+(?:[.,]\d+)?\s*%", combined)),
+        "dates": len(news_check._DAY_MONTH.findall(combined)),
+        "times": len(news_check._TIME.findall(combined)),
+        "places": len(places),
+        "regions": 0,
+        "quotes": len(quotes_found),
+        "speakers": len([s for s in story.get("scenes", []) if s.get("type") == "who"]),
+        "icons": len([s for s in story.get("scenes", []) if s.get("type") == "sign"]),
+        "facts": len(quantities) + len(quotes_found) + len(places),
+        "outlets": len(story.get("sources", [])),
+        "members": len(story.get("sources", [])),
+        "big_numbers": len(big_nums),
+        "prices": len(rubrics.PRICE.findall(combined)),
+        "rules": len(rubrics.RULE_WORDS.findall(combined)),
+        "agreed": 0,
+        "new_outlets": 0,
+        "new_facts": 0,
+        "stories": 1,
+        "steps": len([s for s in story.get("scenes", []) if s.get("type") in ("steps", "timeline", "route")]),
+        "comparisons": len([s for s in story.get("scenes", []) if s.get("type") in ("versus", "compare", "pair")]),
+        "deaths": any(w in combined for w in ("დაიღუპა", "გარდაიცვალა", "მკვლელობ")),
+        "had_video": False,
+        "verified_correction": doc_corr,
+        "family": fam,
+        "program": story.get("program", "explainer"),
+    }
+    return facts
+
+
+def scene_word_counts(story):
+    """[(scene_index, scene_type, word_count, narration_slice)]: each scene's words are the narration from its `at`
+    anchor (the engine's own speech.anchor, so "at" with a number works as it does in a render) to the next scene's.
+    Raises ValueError when an anchor is not in the narration."""
+    from tt_shorts import speech
+    words = speech.estimate_words(story.get("narration", ""))
+    scenes = story.get("scenes") or []
+    if not scenes or not words:
+        return []
+    starts, after = [], 0
+    for s in scenes:
+        t, nxt = speech.anchor(words, s.get("at", ""), after)
+        i = next(k for k, w in enumerate(words) if w["start"] == t)
+        starts.append(i)
+        after = i + 1
+    starts.append(len(words))
+    return [(i, s.get("type"), starts[i + 1] - starts[i], " ".join(w["text"] for w in words[starts[i]:starts[i + 1]]))
+            for i, s in enumerate(scenes)]
+
+
+# ---------------------------------------------------------------- ranking and fit
+
+
+GENERIC_FACTS = ("numbers", "quantities", "big_numbers", "facts", "percents")
+
+
+def seconds_of(narration):
+    """Spoken seconds of a narration at the silent engine's pace (speech.estimate_words), as `plan` times it."""
+    from tt_shorts import speech
+    ws = speech.estimate_words(narration)
+    return ws[-1]["end"] if ws else 0.0
+
+
+def length_fit(sc, seconds):
+    """1.0 when the requested length is inside the scenario's own window, falling to 0 at 50% away from it."""
+    lo, hi = sc["pacing"]["min_seconds"], sc["pacing"]["max_seconds"]
+    if seconds is None or lo <= seconds <= hi:
+        return 1.0
+    gap = (lo - seconds) / lo if seconds < lo else (seconds - hi) / hi
+    return max(0.0, 1.0 - gap * 2)
+
+
+def fit(story_or_data, facts=None, seconds=None):
+    """Rank the scenarios that fit a story (or a source cluster's facts), and say why.
+
+    A scenario is a candidate when its eligibility holds (declarative, `holds`). Its score is then
+      1 + its `prefers` weights for the facts present (the data says what it likes) + 2 for each beat whose
+      brush the story already uses + a length term (the requested seconds against its own window).
+    A story that already has the scenario's exact scene sequence gets +3. Returns [{"scenario", "title", "label",
+    "score", "why", "beats"}], best first; news gets [] (it takes no scenario).
+    """
+    program = programs.name_of(story_or_data) if isinstance(story_or_data, dict) and "narration" in story_or_data         else (story_or_data.get("program", "explainer") if isinstance(story_or_data, dict) else "explainer")
+    if refusal(program):
+        return []
+
+    if facts is None:
+        if isinstance(story_or_data, dict) and "narration" in story_or_data:
+            facts = story_facts(story_or_data)
+        elif isinstance(story_or_data, dict) and ("articles" in story_or_data or "cluster" in story_or_data):
+            from tt_shorts import rubrics
+            facts = rubrics.facts(story_or_data)
+        else:
+            facts = {}
+
+    scenes = story_or_data.get("scenes", []) if isinstance(story_or_data, dict) else []
+    used = [s.get("type") for s in scenes if isinstance(s, dict)]
+    spoken = len(story_or_data["narration"].split()) if isinstance(story_or_data, dict) and         story_or_data.get("narration") else None
+    results = []
+    for sc_id, sc in load_all().items():
+        if not holds(sc, facts, program=program):
+            continue
+        score, reasons = 1.0, []
+        for k, w in sc["prefers"].items():
+            have = facts.get(k, 0)
+            if have:  # a rare, telling fact (a rule, a step, a quote) outweighs plain figures every story has
+                n = 1 if isinstance(have, bool) else min(have, 3)
+                score += w * n / (6 if k in GENERIC_FACTS else 1.5)
+                reasons.append(f"{have} {k}" if not isinstance(have, bool) else k)
+        if used:
+            usable = sum(1 for b in sc["beats"] if b["scene_types"] == "any" or set(b["scene_types"]) & set(used))
+            score += 2.0 * usable / len(sc["beats"])
+            if usable == len(sc["beats"]):
+                reasons.append("the story's scenes can carry every beat")
+            exact = len(used) == len(sc["beats"]) and all(
+                b["scene_types"] == "any" or t in b["scene_types"] for b, t in zip(sc["beats"], used))
+            if exact:
+                score += 3.0
+                reasons.append("its scenes already follow this plot's order")
+        lf = length_fit(sc, seconds)
+        tw = sc["pacing"]["target_words"]
+        lo_w, hi_w = tw if isinstance(tw, list) else (tw, tw)
+        if spoken is not None and not lo_w <= spoken <= hi_w:  # a written story: its words against the plot's
+            gap = (lo_w - spoken) / lo_w if spoken < lo_w else (spoken - hi_w) / hi_w
+            lf = min(lf, max(0.0, 1.0 - gap * 2))
+            reasons.append(f"{spoken} narration words, the plot wants {lo_w}-{hi_w}")
+        score += lf
+        if seconds and length_fit(sc, seconds) < 1.0:
+            reasons.append(f"{round(seconds)} s is outside its {sc['pacing']['min_seconds']:g}-{sc['pacing']['max_seconds']:g} s window")
+        results.append({"scenario": sc_id, "title": sc["title"], "label": sc["label"], "score": round(score, 2),
+                        "why": ("; ".join(reasons) if reasons else "eligible on the story's facts"),
+                        "beats": [b["job"] for b in sc["beats"]]})
+    results.sort(key=lambda r: (-r["score"], r["scenario"]))
+    return results
+
+
+# ---------------------------------------------------------------- free checks at engine plan
+
+
+NUMBER_TOKEN = re.compile(r"(?<![\d.,])(\d{1,3}(?:[  ]\d{3})+|\d+(?:[.,]\d+)?)(?![\d])")
+
+
+def _number_tokens(text):
+    """The figures a text says, as comparable strings: "18 600" and "18600" are one figure, "3,8" is "3.8"."""
+    return {re.sub(r"[  ]", "", m).replace(",", ".") for m in NUMBER_TOKEN.findall(str(text))}
+
+
+def _extract_payoff_facts(scene):
+    """Extract numbers or prominent values from a scene to detect early payoff leaks."""
+    facts = set()
+    if not isinstance(scene, dict):
+        return facts
+
+    val = scene.get("value")
+    if val is not None:
+        facts.add(str(val).strip())
+
+    em = scene.get("em")
+    if em:
+        facts.add(em.strip())
+
+    name = scene.get("name")
+    if name:
+        facts.add(name.strip())
+
+    for it in scene.get("items") or []:  # a pair's sub is a figure; plain strings are context, not the payoff
+        if isinstance(it, dict) and it.get("sub"):
+            facts.add(str(it["sub"]).strip())
+
+    return facts
+
+
+def check_plan_beats(story, scenario=None):
+    """Perform free structural and dramaturgy checks during engine plan.
+
+    Verifies:
+      a) Scene types match beat scene_types
+      b) Word budget per beat is respected
+      c) Fact gates for each beat are satisfied
+      d) Early payoff check: core payoff fact is NOT spoken before the payoff beat
+      e) myth-vs-fact gate: document itself provides the correction
+      f) program refusal: news program stories cannot take a scenario
+
+    Returns a list of error strings (empty if valid).
+    """
+    program = programs.name_of(story)
+    if refusal(program):
+        return [refusal(program)]
+
+    if scenario is None:
+        scenario = story.get("scenario")
+        if not scenario:
+            return []
+    if isinstance(scenario, list):  # chapters: one plot per chapter of a long film
+        return _check_chapters(story, scenario)
+    try:
+        scenario = get(scenario) if isinstance(scenario, str) else scenario
+    except ScenarioError as e:
+        return [str(e)]
+
+    beats = scenario.get("beats") or []
+    scenes = story.get("scenes") or []
+    if len(scenes) != len(beats):
+        return [f"scenario {scenario['id']!r}: story has {len(scenes)} scenes but scenario requires {len(beats)} beats"]
+    try:
+        swc = scene_word_counts(story)
+    except ValueError as e:
+        return [f"scenario {scenario['id']!r}: {e}"]
+    return _check_slice(story, scenario, beats, scenes, swc)
+
+
+def chapter_beats(ids):
+    """The beats of a film of chapters, flat: [(chapter index, scenario, [beats])]. A chapter after the first has no
+    promise hook of its own (the film's hook opened it) and one before the last has no end card (the last one's closes it)."""
+    out = []
+    for k, sid in enumerate(ids):
+        sc = get(sid)
+        beats = list(sc["beats"])
+        if k > 0 and beats[0]["job"] == "promise":
+            beats = beats[1:]
+        if k < len(ids) - 1 and beats[-1]["scene_types"] == ["end"]:
+            beats = beats[:-1]
+        out.append((k, sc, beats))
+    return out
+
+
+def _check_chapters(story, ids):
+    """story["scenario"] as a list of ids: each chapter's slice of scenes is held to its own plot's beats."""
+    if len(ids) < 2 or not all(isinstance(i, str) for i in ids):
+        return ["scenario: chapters are a list of 2 or more scenario ids, one per chapter"]
+    try:
+        plan = chapter_beats(ids)
+    except ScenarioError as e:
+        return [str(e)]
+    scenes = story.get("scenes") or []
+    need = sum(len(b) for _, _, b in plan)
+    if len(scenes) != need:
+        return [f"scenario chapters {ids}: story has {len(scenes)} scenes but the chapters' beats need {need}"]
+    try:
+        swc = scene_word_counts(story)
+    except ValueError as e:
+        return [f"scenario chapters: {e}"]
+    problems, at = [], 0
+    for k, sc, beats in plan:
+        n = len(beats)
+        got = _check_slice(story, sc, beats, scenes[at:at + n], swc[at:at + n])
+        problems += [f"chapter {k + 1} ({sc['id']}): {x}" for x in got]
+        at += n
+    return problems
+
+
+def _check_slice(story, scenario, beats, scenes, swc):
+    """The beat checks of one plot over one run of scenes (a whole film, or a chapter)."""
+    problems = []
+    prior_narration = ""
+
+    # Payoff index
+    payoff_idx = None
+    for idx, b in enumerate(beats):
+        if b["job"] == "payoff":
+            payoff_idx = idx
+            break
+
+    # e) myth-vs-fact gate
+    if scenario.get("requires_correction") or scenario.get("id") == "myth-vs-fact":
+        combined_text = f"{story.get('narration', '')} {news_check.screen_text(story)}".lower()
+        has_corr = bool(story.get("doc_correction") or any(m in combined_text for m in CORRECTION_MARKERS))
+        if not has_corr:
+            problems.append(
+                f"scenario {scenario['id']!r}: document itself does not state a correction "
+                "(N1 opinion gate: refusing unverified myth-vs-fact)"
+            )
+
+    for i, beat in enumerate(beats):
+        sc = scenes[i]
+        sc_type = sc.get("type")
+        beat_id = beat["id"]
+
+        # a) Scene types match beat scene_types
+        allowed = beat["scene_types"]
+        if allowed != "any" and sc_type not in allowed:
+            problems.append(
+                f"beat {i} ({beat_id!r}): scene type {sc_type!r} not in allowed types {allowed}"
+            )
+
+        # b) Word budget per beat is respected
+        if i < len(swc):
+            _, _, w_count, slice_text = swc[i]
+            lo, hi = beat["word_budget"]
+            if w_count < lo or w_count > hi:
+                problems.append(
+                    f"beat {i} ({beat_id!r}): narration has {w_count} words, outside budget [{lo}, {hi}]"
+                )
+        else:
+            slice_text = ""
+
+        # c) Fact gates for each beat are satisfied
+        fg = beat.get("fact_gates") or {}
+        if fg:
+            combined_scene = f"{slice_text} {news_check.screen_text({'scenes': [sc]})}"
+            nums = news_check.numbers(combined_scene)
+            qts = re.findall(r"„([^“]+)“", combined_scene)
+            for fk, req in fg.items():
+                found = 0
+                if fk == "numbers":
+                    found = len(nums)
+                elif fk == "quotes":
+                    found = len(qts)
+                elif fk == "percents":
+                    found = len(re.findall(r"\d+(?:[.,]\d+)?\s*%", combined_scene))
+                elif fk == "dates":
+                    found = len(news_check._DAY_MONTH.findall(combined_scene))
+                elif fk == "prices":
+                    from tt_shorts import rubrics
+                    found = len(rubrics.PRICE.findall(combined_scene))
+                if found < req:
+                    problems.append(
+                        f"beat {i} ({beat_id!r}): requires at least {req} {fk}, found {found}"
+                    )
+
+        # Track prior narration for early payoff check
+        if payoff_idx is not None and i < payoff_idx:
+            prior_narration += f" {slice_text}"
+
+    # d) Early payoff check: the payoff scene's own figure or name is NOT said before the payoff beat
+    if payoff_idx is not None and payoff_idx < len(scenes):
+        spoken_early = _number_tokens(prior_narration)
+        prior_lower = prior_narration.lower()
+        for pf in sorted(_extract_payoff_facts(scenes[payoff_idx])):
+            figures = _number_tokens(pf)
+            if figures:
+                if any(len(f) > 1 and f in spoken_early for f in figures):
+                    problems.append(f"early payoff: fact {pf!r} is spoken before payoff beat "
+                                    f"{beats[payoff_idx]['id']!r}")
+                    break
+            elif len(pf) >= 4 and pf.lower() in prior_lower:
+                problems.append(f"early payoff: fact {pf!r} is spoken before payoff beat {beats[payoff_idx]['id']!r}")
+                break
+
+    return problems
+
+
+def story_problems(story):
+    """Check code-owned scenario problems on a story. Stories without a scenario return []."""
+    if "scenario" not in story:
+        return []
+    sc_id = story["scenario"]
+    if isinstance(sc_id, list):  # chapters
+        return check_plan_beats(story, sc_id)
+    try:
+        sc = get(sc_id)
+    except ScenarioError as e:
+        return [str(e)]
+    return check_plan_beats(story, sc)
+
+
+# ---------------------------------------------------------------- facts of a source text, the writer's brief, stamping
+
+STEP_CUES = re.compile(r"(?:ჯერ|შემდეგ|ბოლოს|ნაბიჯ|ეტაპ|პირველ[იკ]|მეორე|მესამე)(?![ა-ჰ])")
+VERSUS_CUES = re.compile(r"(?:ვიდრე|შედარებით|ნაცვლად|მაშინ,? როცა|ერთი მხრივ|მეორე მხრივ)")
+
+
+def facts_of_text(texts, category="", program="explainer"):
+    """The facts of a source document's text (before any story exists): the same keys as story_facts, from the
+    text alone. A scene-based fact (steps, comparisons, speakers, places) is counted from cue words instead."""
+    text = " ".join(texts)
+    f = story_facts({"narration": text, "scenes": [], "sources": list(range(len(texts))), "category": category,
+                     "program": program})
+    f["steps"] = len(STEP_CUES.findall(text))
+    f["comparisons"] = len(VERSUS_CUES.findall(text))
+    f["speakers"] = len(re.findall(r"(?:განაცხადა|თქვა|აღნიშნა|ამბობს)(?![ა-ჰ])", text))
+    return f
+
+
+def brief_block(sc):
+    """The writer's lines for a scenario: its beats in order (a scene each), with jobs, brushes and word budgets."""
+    lo, hi = (sc["pacing"]["target_words"] if isinstance(sc["pacing"]["target_words"], list)
+              else (sc["pacing"]["target_words"],) * 2)
+    rows = []
+    for i, b in enumerate(sc["beats"], 1):
+        types = "any scene" if b["scene_types"] == "any" else "/".join(b["scene_types"])
+        gate = ("; needs " + ", ".join(f"{v} {k}" for k, v in b["fact_gates"].items())) if b["fact_gates"] else ""
+        held = "; the payoff figure is NOT said here" if b["payoff_held"] else ""
+        rows.append(f"  {i}. {b['id']} ({b['job']}): scene {types}, {b['word_budget'][0]}-{b['word_budget'][1]} "
+                    f"narration words{gate}{held}")
+    return ("SCENARIO " + sc["id"] + f" ({sc['title']}): {sc['about']}\n"
+            f"The story has exactly {len(sc['beats'])} scenes, one per beat, in this order, "
+            f"{lo}-{hi} narration words in all:\n" + "\n".join(rows) + "\n"
+            + "".join(f"- {line}\n" for line in sc["brief"]))
+
+
+def stamp(story, scenario_id):
+    """Set the story's scenario (code-owned, like rubric). The scenario must exist and the program take one."""
+    if isinstance(scenario_id, str) and "," in scenario_id:
+        scenario_id = [x.strip() for x in scenario_id.split(",")]
+    if refusal(programs.name_of(story)):
+        raise ScenarioError(refusal(programs.name_of(story)))
+    if isinstance(scenario_id, list):  # chapters: one plot each, in order (a long film)
+        for x in scenario_id:
+            get(x)
+        if len(scenario_id) < 2:
+            raise ScenarioError("chapters are 2 or more scenario ids")
+        story["scenario"] = list(scenario_id)
+        return story
+    story["scenario"] = get(scenario_id)["id"]
+    return story
+
+
+def storyboard(sc):
+    """A scenario's storyboard as data, before any cost: beat, job, brushes, words, sound."""
+    return [{"beat": i, "id": b["id"], "job": b["job"], "scenes": b["scene_types"], "words": b["word_budget"],
+             "sound": b["sound"], "payoff_held": b["payoff_held"], "gates": b["fact_gates"]}
+            for i, b in enumerate(sc["beats"])]
+
+
+def parse_length(length):
+    """`--length` -> seconds: 45, "45", "45s", "45 წმ", short (22: 15-30 s), standard (38: 30-45 s), long (52:
+    45-60 s); None when not given."""
+    if length in (None, ""):
+        return None
+    if isinstance(length, (int, float)):
+        return float(length)
+    t = str(length).strip().lower()
+    named = {"short": 22.0, "standard": 38.0, "long": 52.0, "მოკლე": 22.0, "ჩვეულებრივი": 38.0, "გრძელი": 52.0}
+    if t in named:
+        return named[t]
+    m = re.fullmatch(r"(\d+(?:[.,]\d+)?)\s*(?:s|sec|წმ|წამი)?", t)
+    if not m:
+        raise ScenarioError(f"length {length!r}: give seconds (45, 45s) or short|standard|long")
+    return float(m.group(1).replace(",", "."))
+
+
+def options():
+    """The scenarios for `engine options`: id -> label, beats' jobs, word window, what it needs."""
+    return {n: {"title": s["title"], "label": s["label"], "about": s["about"],
+                "beats": [f"{b['id']}:{b['job']}" for b in s["beats"]], "scenes": len(s["beats"]),
+                "words": s["pacing"]["target_words"], "eligible": s["eligible"], "never": s["never"],
+                "needs_verified_correction": s["requires_correction"]}
+            for n, s in load_all().items()}

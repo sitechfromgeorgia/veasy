@@ -1,0 +1,107 @@
+{
+  "id": "myth-vs-fact",
+  "title": "Myth vs Fact",
+  "label": "მითი და ფაქტი",
+  "about": "Only when the document itself corrects a claim: the claim, the correction, the proof.",
+  "eligible": [
+    {
+      "verified_correction": true,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "verified_correction": false
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh",
+      "payoff_held": true
+    },
+    {
+      "id": "myth_lead",
+      "job": "false_lead",
+      "scene_types": [
+        "points",
+        "pair",
+        "quote"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "blip",
+      "payoff_held": true
+    },
+    {
+      "id": "turn_reveal",
+      "job": "turn",
+      "scene_types": [
+        "change",
+        "versus",
+        "stat"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "pop"
+    },
+    {
+      "id": "proof",
+      "job": "evidence",
+      "scene_types": [
+        "points",
+        "bars",
+        "quote"
+      ],
+      "word_budget": [
+        6,
+        18
+      ],
+      "sound": "tick",
+      "fact_gates": {
+        "numbers": 1
+      }
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "quotes": 1,
+    "numbers": 1
+  },
+  "brief": [
+    "The false lead is a claim the document names and corrects, never your own assumption.",
+    "Refused when the document does not correct anything: that would be an opinion scene."
+  ],
+  "requires_correction": true
+}

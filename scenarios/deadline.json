@@ -1,0 +1,100 @@
+{
+  "id": "deadline",
+  "title": "Deadline",
+  "label": "ვადა",
+  "about": "A date, how much time is left on it, and what happens at the end of it.",
+  "eligible": [
+    {
+      "dates": 1,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh"
+    },
+    {
+      "id": "the_date",
+      "job": "setup",
+      "scene_types": [
+        "calendar",
+        "timeline"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click"
+    },
+    {
+      "id": "the_window",
+      "job": "complication",
+      "scene_types": [
+        "countdown",
+        "timeline",
+        "points"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "tick"
+    },
+    {
+      "id": "at_the_end",
+      "job": "payoff",
+      "scene_types": [
+        "impact",
+        "stat",
+        "points"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud"
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "dates": 3,
+    "rules": 1
+  },
+  "brief": [
+    "Name the date exactly as the document writes it; no relative days.",
+    "What happens at the end must be stated in the document."
+  ]
+}

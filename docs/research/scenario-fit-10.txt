@@ -1,0 +1,60 @@
+STORY narration: ბიბლიოთეკის ორი ფილიალი ერთმანეთს შეადარა ანგარიშმა. რა ჩანს? ცენტრალურ ფილიალს ანგარიშის მიხედვით 9 000 მკითხველი ჰყავს. ჩრდილოეთის ფილიალს კი, იმავე ანგარიშის თანახმად, 5 600 მკითხველი ჰყავს. ორივე ფილიალის შედარებით ცენტრალურ ფილიალს მეტი მკითხველი ჰყავს. მეტი განმარტებისთვის გამოიწერე ჩვენი არხი.
+scene types: ['hook', 'stat', 'stat', 'versus', 'end']
+  pick: head-to-head 9.23 - 1 comparisons; 6 numbers; the story's scenes can carry every beat; its scenes already follow this plot's order; 39 narration words, the plot wants 45-58
+  pick: false-lead 5.57 - 1 comparisons; 6 numbers; the story's scenes can carry every beat; 39 narration words, the plot wants 45-58
+  pick: three-clues 5.4 - 4 quantities; 4 facts; 39 narration words, the plot wants 45-58
+
+STORY narration: ბიბლიოთეკის ანგარიში ფილიალებს მკითხველთა რიცხვით ალაგებს. რომელია პირველი? მესამე ადგილზე აღმოსავლეთის ფილიალია, სადაც 4 000 მკითხველი ჰყავთ. მეორეა ჩრდილოეთის ფილიალი, მკითხველთა რიცხვი 5 600 არის. პირველ ადგილზე ცენტრალური ფილიალია: მას 9 000 მკითხველი ჰყავს. მეტი განმარტებისთვის გამოიწერე ჩვენი არხი.
+scene types: ['hook', 'points', 'points', 'stat', 'end']
+  pick: guess-the-number 8.23 - 2 big_numbers; 5 quantities; the story's scenes can carry every beat; its scenes already follow this plot's order; 39 narration words, the plot wants 45-58
+  pick: countdown 7.73 - 5 quantities; the story's scenes can carry every beat; its scenes already follow this plot's order; 39 narration words, the plot wants 45-58
+  pick: cold-open 7.4 - 2 big_numbers; the story's scenes can carry every beat; its scenes already follow this plot's order; 39 narration words, the plot wants 45-58
+
+STORY narration: ქალაქის ბარათის რეგისტრაციას ვადა აქვს. რა ვადაა მითითებული? შეტყობინების მიხედვით, განაცხადები მხოლოდ 15 დეკემბრამდე მიიღება. გამოცხადებიდან განაცხადის ვადის ამოწურვამდე 40 დღე რჩება. ვადის შემდეგ განაცხადები აღარ მიიღება და ბარათი ვეღარ გაიცემა. მეტი განმარტებისთვის გამოიწერე ჩვენი არხი.
+scene types: ['hook', 'calendar', 'countdown', 'impact', 'end']
+  pick: deadline 12.6 - 4 dates; the story's scenes can carry every beat; its scenes already follow this plot's order; 36 narration words, the plot wants 45-58
+  pick: reverse-chronology 8.4 - 4 dates; 36 narration words, the plot wants 45-58
+  pick: what-changes-for-you 7.6 - 4 dates; the story's scenes can carry every beat; 36 narration words, the plot wants 45-58
+
+STORY narration: ავტობუსის 14-ე ხაზის შესახებ ხმები ვრცელდებოდა. რას წერს შეტყობინება? ხმების მიხედვით, 14-ე ხაზი უქმდება და მგზავრები მარშრუტის გარეშე რჩებიან. შეტყობინებაში წერია: ეს ინფორმაცია არ შეესაბამება სიმართლეს, ხაზი ნარჩუნდება. დოკუმენტი ამატებს, რომ ხაზზე ინტერვალი 12 წუთია და გაჩერება 22. მეტი განმარტებისთვის გამოიწერე ჩვენი არხი.
+scene types: ['hook', 'points', 'versus', 'bars', 'end']
+  pick: myth-vs-fact 7.41 - 3 numbers; the story's scenes can carry every beat; its scenes already follow this plot's order; 43 narration words, the plot wants 45-58
+  pick: head-to-head 5.61 - 1 comparisons; 3 numbers; 43 narration words, the plot wants 45-58
+  pick: three-clues 5.58 - 3 quantities; 3 facts; 43 narration words, the plot wants 45-58
+
+STORY narration: ქალაქის ცენტრალური ბიბლიოთეკა ანგარიშში საკუთარ თავს ასე აღწერს. ბიბლიოთეკა სამი ფილიალისგან შედგება და ქალაქის მკითხველებს ემსახურება. ანგარიშში წერია: „ჩვენი ფონდი ყველა მკითხველისთვის ღიაა“. ფონდში 240 000 წიგნია და მკითხველი 18 600 ჰყავს. მეტი განმარტებისთვის გამოიწერე ჩვენი არხი.
+scene types: ['hook', 'who', 'quote', 'stat', 'end']
+  pick: profile 9.31 - 1 speakers; 1 quotes; the story's scenes can carry every beat; its scenes already follow this plot's order; 37 narration words, the plot wants 45-58
+  pick: says-and-shows 6.14 - 1 quotes; 6 numbers; the story's scenes can carry every beat; 37 narration words, the plot wants 45-58
+  pick: chase-through-document 5.48 - 1 quotes; 6 numbers; the story's scenes can carry every beat; 37 narration words, the plot wants 45-58
+
+STORY narration: 14-ე ავტობუსის ხაზი ქალაქს გადაკვეთს. სად გადის ის? მარშრუტი ახალი უბნიდან იწყება, სადაც პირველი გაჩერებაა. შემდეგ ხაზი ცენტრალურ ბიბლიოთეკას გადის და ძველ ბაზარს აღწევს. სულ ხაზზე 22 გაჩერებაა, ამბობს ქალაქის ტრანსპორტის შეტყობინება. მეტი განმარტებისთვის გამოიწერე ჩვენი არხი.
+scene types: ['hook', 'where', 'route', 'stat', 'end']
+  pick: map-tour 12.64 - 4 places; the story's scenes can carry every beat; its scenes already follow this plot's order; 37 narration words, the plot wants 45-58
+  pick: object-biography 10.64 - 4 places; the story's scenes can carry every beat; its scenes already follow this plot's order; 37 narration words, the plot wants 45-58
+  pick: cause-and-effect 4.91 - 1 steps; 2 numbers; 37 narration words, the plot wants 45-58
+
+STORY narration: შეტყობინებაში ახალი ტერმინია: ქალაქის ბარათი. რას ნიშნავს ის? შეტყობინების განმარტებით, ეს ერთიანი ბარათია, რომლითაც ხაზზე მგზავრობაა შესაძლებელი. მაგალითად, 14-ე ხაზზე ბარათი ყველა გაჩერებაზე მუშაობს. შეტყობინების მიხედვით, ხაზზე დღეში 8 000 მგზავრი გადაჰყავთ. მეტი განმარტებისთვის გამოიწერე ჩვენი არხი.
+scene types: ['hook', 'glossary', 'pair', 'stat', 'end']
+  pick: chase-through-document 7.14 - 5 numbers; the story's scenes can carry every beat; its scenes already follow this plot's order; 37 narration words, the plot wants 45-58
+  pick: what-is-it 6.64 - the story's scenes can carry every beat; its scenes already follow this plot's order; 37 narration words, the plot wants 45-58
+  pick: head-to-head 5.74 - 1 comparisons; 5 numbers; 37 narration words, the plot wants 45-58
+
+STORY narration: ბიბლიოთეკის წესები ამბობს, რომ წიგნი გარკვეული ვადით გაიცემა. წესის მიხედვით, წიგნი მკითხველს 21 დღით გაეცემა. გამონაკლისი ბავშვთა განყოფილებაა: იქ წიგნი ათი დღით მეტი ხნით გაიცემა. ბავშვთა განყოფილებას 4 200 მკითხველი ჰყავს, ანგარიშის მიხედვით. მეტი განმარტებისთვის გამოიწერე ჩვენი არხი.
+scene types: ['hook', 'points', 'pair', 'stat', 'end']
+  pick: rule-and-exception 12.69 - 4 rules; the story's scenes can carry every beat; its scenes already follow this plot's order; 38 narration words, the plot wants 45-58
+  pick: what-is-it 8.69 - 4 rules; the story's scenes can carry every beat; its scenes already follow this plot's order; 38 narration words, the plot wants 45-58
+  pick: countdown 8.36 - 4 quantities; 1 comparisons; the story's scenes can carry every beat; its scenes already follow this plot's order; 38 narration words, the plot wants 45-58
+
+STORY narration: ბიბლიოთეკის ბიუჯეტი ანგარიშში განაწილებულია. სად მიდის თანხა? ანგარიშის მიხედვით, წლის ბიუჯეტი 1 200 000 ლარია. თანხა ისე იყოფა: წიგნებზე 600 000, ხელფასებზე 400 000 ლარი. დანარჩენი 200 000 ლარი შენობის ხარჯებზე მიდის. მეტი განმარტებისთვის გამოიწერე ჩვენი არხი.
+scene types: ['hook', 'stat', 'budget', 'stat', 'end']
+  pick: money-trail 13.64 - 5 prices; 8 big_numbers; the story's scenes can carry every beat; its scenes already follow this plot's order; 37 narration words, the plot wants 45-58
+  pick: three-clues 5.31 - 11 quantities; 11 facts; 37 narration words, the plot wants 45-58
+  pick: guess-the-number 4.84 - 8 big_numbers; 11 quantities; 37 narration words, the plot wants 45-58
+
+STORY narration: ბიბლიოთეკის ანგარიშში ორი ხმა ისმის. რას ამბობს თითოეული? ბიბლიოთეკის დირექცია წერს: „სამკითხველო დარბაზი გვიან ღიაა“. მკითხველთა საბჭო წერს: „ბავშვთა განყოფილებას მეტი წიგნი სჭირდება“. ორივე ტექსტი ერთ რიცხვს ასახელებს: 18 600 მკითხველი. მეტი განმარტებისთვის გამოიწერე ჩვენი არხი.
+scene types: ['hook', 'quote', 'quote', 'stat', 'end']
+  pick: two-voices 10.6 - 2 quotes; the story's scenes can carry every beat; its scenes already follow this plot's order; 36 narration words, the plot wants 45-58
+  pick: chase-through-document 9.77 - 2 quotes; 3 numbers; the story's scenes can carry every beat; its scenes already follow this plot's order; 36 narration words, the plot wants 45-58
+  pick: says-and-shows 8.1 - 2 quotes; 3 numbers; the story's scenes can carry every beat; 36 narration words, the plot wants 45-58
+

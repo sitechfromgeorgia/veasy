@@ -1,0 +1,108 @@
+{
+  "id": "guess-the-number",
+  "title": "Guess the Number",
+  "label": "გამოიცანი რიცხვი",
+  "about": "The viewer is asked for a figure, shown the context and clues, and the number lands last.",
+  "eligible": [
+    {
+      "big_numbers": 1,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh",
+      "payoff_held": true
+    },
+    {
+      "id": "context",
+      "job": "context",
+      "scene_types": [
+        "points",
+        "pair"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click",
+      "payoff_held": true
+    },
+    {
+      "id": "clues",
+      "job": "evidence",
+      "scene_types": [
+        "bars",
+        "change",
+        "points",
+        "pair"
+      ],
+      "word_budget": [
+        6,
+        18
+      ],
+      "sound": "tick",
+      "payoff_held": true
+    },
+    {
+      "id": "reveal",
+      "job": "payoff",
+      "scene_types": [
+        "stat"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud",
+      "fact_gates": {
+        "numbers": 1
+      }
+    },
+    {
+      "id": "resolution",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "big_numbers": 3,
+    "percents": 1,
+    "quantities": 1
+  },
+  "brief": [
+    "The hook asks how much or how many, without saying the figure.",
+    "Context and clues never speak the payoff figure.",
+    "The reveal says the document's own number once.",
+    "Close with the brand's call to action."
+  ]
+}

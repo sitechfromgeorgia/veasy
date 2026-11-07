@@ -1,0 +1,112 @@
+{
+  "id": "before-and-after",
+  "title": "Before and After",
+  "label": "მანამდე და მერე",
+  "about": "A past state, the thing that changed it, and the present state.",
+  "eligible": [
+    {
+      "comparisons": 1,
+      "facts": 2
+    },
+    {
+      "dates": 1,
+      "facts": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh",
+      "payoff_held": true
+    },
+    {
+      "id": "before_state",
+      "job": "setup",
+      "scene_types": [
+        "points",
+        "pair",
+        "stat",
+        "trend"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click",
+      "payoff_held": true
+    },
+    {
+      "id": "the_catalyst",
+      "job": "complication",
+      "scene_types": [
+        "change",
+        "timeline",
+        "points"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "tick",
+      "payoff_held": true
+    },
+    {
+      "id": "after_payoff",
+      "job": "payoff",
+      "scene_types": [
+        "pair",
+        "versus",
+        "change",
+        "stat"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud"
+    },
+    {
+      "id": "takeaway",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "dates": 2,
+    "comparisons": 2,
+    "percents": 1
+  },
+  "brief": [
+    "Say the earlier state from the document, not your memory.",
+    "Name what changed, with the document's date.",
+    "The after state is the payoff."
+  ]
+}

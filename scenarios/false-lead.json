@@ -1,0 +1,106 @@
+{
+  "id": "false-lead",
+  "title": "False Lead",
+  "label": "მცდარი კვალი",
+  "about": "A plan, forecast or first figure from the document, then the figure that came out instead.",
+  "eligible": [
+    {
+      "comparisons": 1,
+      "numbers": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh",
+      "payoff_held": true
+    },
+    {
+      "id": "expected",
+      "job": "false_lead",
+      "scene_types": [
+        "points",
+        "pair",
+        "stat"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "blip",
+      "payoff_held": true
+    },
+    {
+      "id": "turn",
+      "job": "turn",
+      "scene_types": [
+        "change",
+        "versus"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "pop",
+      "payoff_held": true
+    },
+    {
+      "id": "actual",
+      "job": "payoff",
+      "scene_types": [
+        "stat",
+        "pair"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud",
+      "fact_gates": {
+        "numbers": 1
+      }
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "comparisons": 2,
+    "numbers": 1,
+    "dates": 1
+  },
+  "brief": [
+    "The false lead is a figure or plan the document states (a forecast, a target), never what people believe.",
+    "The turn names what differed; the actual figure is the payoff."
+  ]
+}

@@ -119,6 +119,7 @@ TOOLS = {
                        "style": CHOICE_PROPS["style"],
                        "source": SOURCE,
                        "length": {"type": "string", "description": "short (15-30s), standard (30-45s), long (45-60s) or seconds."},
+                       "scenario": {"type": "string", "description": "A plot (skill veasy:scenarios) or auto; with preview_storyboard a URL's storyboard comes back before the writer is called."},
                        "yes": {"type": "boolean", "description": "True to accept code decisions and skip question rounds."},
                        "queue": {"type": "boolean", "description": "True to add to queue instead of rendering immediately."},
                        "preview_storyboard": {"type": "boolean", "description": "True to stop after plan and return storyboard stills."},
@@ -132,7 +133,7 @@ TOOLS = {
                    "finished, checked film (a ref is written first). Facts are never guessed from the words: with "
                    "no ref it returns needs_input. Flags like --source, --format or --look override.",
                    lambda a: _engine("make", [a["request"]] + _flags(
-                       a, ("brand", "style", "source", "length", "format", "look", "director", "theme", "engine")) +
+                       a, ("brand", "style", "source", "length", "format", "look", "director", "theme", "engine", "scenario")) +
                        (["--yes"] if a.get("yes") else []) +
                        (["--queue"] if a.get("queue") else []) +
                        (["--preview-storyboard"] if a.get("preview_storyboard") else []))),
@@ -275,6 +276,18 @@ TOOLS = {
                       "alike); stamp: give a hand-written story its rubric and episode (code's, never the writer's).",
                       lambda a: _engine("rubrics", [a["action"]] + ([a["story"]] if a.get("story") else []) + _flags(
                           a, ("rubric", "brand", "source", "ref", "sources", "part")))),
+    "veasy_scenario": ({"type": "object", "properties": {
+                           "action": {"type": "string", "enum": ["list", "fit", "stamp", "board", "check"]},
+                           "story": {"type": "string", "description": "fit, stamp, check: a story file; board: a scenario id."},
+                           "scenario": {"type": "string", "description": "stamp: the plot's id, or auto for the best fit."},
+                           "length": {"type": "string", "description": "fit: short, standard, long or seconds."}},
+                        "required": ["action"]},
+                       "The scenarios (skill veasy:scenarios): the plots a film can follow, each beat with a job, a word "
+                       "budget, scene types and a sound. list them; fit: rank those a story's facts allow, with the "
+                       "reason; board: one plot's storyboard before any cost; stamp: set the plot on a hand-written "
+                       "story (code's, never the writer's); check: the free beat checks. news refuses every scenario.",
+                       lambda a: _engine("scenario", [a["action"]] + ([a["story"]] if a.get("story") else []) +
+                                         _flags(a, ("scenario", "length")))),
     "veasy_queue": ({"type": "object", "properties": {
                         "action": {"type": "string", "enum": ["add", "list", "run", "show", "retry", "cancel", "approve",
                                                              "reject"]},

@@ -479,7 +479,8 @@ def _checks(story: dict, articles: list[str], cluster: dict):
             + icons.story_problems(story) + catalog.story_problems(story, meta.family(story.get("category", ""))))
 
 
-OWNED = ("rubric", "episode", "part", "digest", "concept")  # code sets them (rubrics.py, digest.py, concept.py), like date
+OWNED = ("rubric", "episode", "part", "digest", "concept", "scenario")  # code sets them (rubrics.py, digest.py,
+# concept.py, scenarios.py), like date
 
 
 def _drop_owned(story: dict) -> None:

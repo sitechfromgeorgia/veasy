@@ -1,0 +1,112 @@
+{
+  "id": "cause-and-effect",
+  "title": "Cause and Effect",
+  "label": "მიზეზი და შედეგი",
+  "about": "What the document names as the cause, the chain that follows, the measured effect.",
+  "eligible": [
+    {
+      "steps": 1,
+      "numbers": 2
+    },
+    {
+      "comparisons": 1,
+      "numbers": 2
+    }
+  ],
+  "never": [
+    {
+      "deaths": true
+    }
+  ],
+  "beats": [
+    {
+      "id": "hook",
+      "job": "promise",
+      "scene_types": [
+        "hook"
+      ],
+      "word_budget": [
+        5,
+        14
+      ],
+      "sound": "whoosh",
+      "payoff_held": true
+    },
+    {
+      "id": "cause",
+      "job": "setup",
+      "scene_types": [
+        "points",
+        "glossary",
+        "quote"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "click",
+      "payoff_held": true
+    },
+    {
+      "id": "chain",
+      "job": "complication",
+      "scene_types": [
+        "steps",
+        "route",
+        "timeline"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "tick",
+      "payoff_held": true
+    },
+    {
+      "id": "effect",
+      "job": "payoff",
+      "scene_types": [
+        "stat",
+        "change",
+        "bars"
+      ],
+      "word_budget": [
+        6,
+        16
+      ],
+      "sound": "thud",
+      "fact_gates": {
+        "numbers": 1
+      }
+    },
+    {
+      "id": "closing",
+      "job": "resolution",
+      "scene_types": [
+        "end"
+      ],
+      "word_budget": [
+        4,
+        12
+      ],
+      "sound": null
+    }
+  ],
+  "pacing": {
+    "target_words": [
+      45,
+      58
+    ],
+    "min_seconds": 30.0,
+    "max_seconds": 45.0
+  },
+  "prefers": {
+    "steps": 2,
+    "numbers": 1,
+    "comparisons": 1
+  },
+  "brief": [
+    "The cause is attributed to the document (\"the report names ...\").",
+    "The effect is its measured figure."
+  ]
+}

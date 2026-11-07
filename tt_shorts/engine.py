@@ -59,8 +59,8 @@ if __name__ == "__main__" and sys.argv[1:2] == ["plate"]:  # a plate answer need
 from tt_shorts import brand as packs
 from tt_shorts import plates
 from tt_shorts import (assets, captions, catalog, chapters, concept, directors, flash, formats, geo, icons, ka_check,
-                       kaeasy, meta, motion_rules, news_check, programs, props, rubrics, sfx, speech, store, styles, swipe,
-                       variety, voices)
+                       kaeasy, meta, motion_rules, news_check, programs, props, rubrics, scenarios, sfx, speech, store,
+                       styles, swipe, variety, voices)
 
 ROOT = speech.ROOT
 FPS = speech.FPS
@@ -147,6 +147,7 @@ def options(brand_name=None, section=None):
         "directors": directors.options(),
         "concepts": concept.options(),
         "rubrics": rubrics.options(),
+        "scenarios": scenarios.options(),
         "programs": {n: programs.summary(p) for n, p in programs.load_all().items()},
         "sources": _sources_about(),
         "compose_blocks": _film_engines(b)["compose"]["blocks"],
@@ -223,6 +224,7 @@ def options(brand_name=None, section=None):
             "programs": list(programs.load_all().keys()),
             "directors": list(directors.options().keys()),
             "rubrics": list(rubrics.options().keys()),
+            "scenarios": scenarios.names(),
             "sections": sorted(list(full.keys()) + ["summary"]),
             "hint": "Pass section='<name>' or --section <name> to inspect any section in detail.",
         }
@@ -292,7 +294,7 @@ def structure_problems(story):
     p += concept.story_problems(story)
     p += plates.story_problems(story)
     return p + icons.motif_problems(story) + directors.structure_problems(story) + rubrics.story_problems(story) + \
-        assets.problems(story)
+        scenarios.story_problems(story) + assets.problems(story)
 
 
 def _family(story):
@@ -796,7 +798,8 @@ def package_cmd(a):
 # ---------------------------------------------------------------- write / voices / doctor
 
 
-def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, director=None, rubric=None, style=None):
+def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, director=None, rubric=None, style=None,
+                scenario=None):
     """A source reference -> a written, checked story file (+ its sources beside it). Used by `write` and the queue.
     program: news (default: the news-cluster writer, as before programs) or another program (programs.py), which
     writes from its brief, under its scenes and rule tier. Every failed writer pass is remembered (failures.py).
@@ -804,7 +807,9 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
     code finds in the articles, before the writer runs, and the story keeps it (a code-owned field, like date).
     rubric: a rubric (rubrics.py): its eligibility must hold on the cluster's facts, the writer gets its brief and
     shape, and code stamps the story's rubric and episode (and part) after writing; an agree scene's facts are
-    filled by code from all the member articles."""
+    filled by code from all the member articles.
+    scenario: a scenario id or "auto" (scenarios.py): the writer gets its beats, the repairs hold the story to them,
+    and code stamps `scenario` after writing; news refuses one, and a scenario must fit the source's facts."""
     from tt_shorts import failures, sources as src, writer
     packs.load(brand)  # an unknown pack fails before any model call
     r = rubrics.get(rubric) if rubric else None
@@ -813,6 +818,8 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
             raise ValueError(f"rubric {r['id']} is a {r['program']} rubric, not {program}")
         program = r["program"]
     prog = programs.get(program)
+    if scenario and scenarios.refusal(prog["name"]):  # before any fetch or model call
+        raise ValueError(scenarios.refusal(prog["name"]))
     source = source or prog["sources"][0]
     programs.check_source(prog, source)  # and a source the program doesn't take
     data = src.fetch(source, ref)
@@ -855,6 +862,25 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
         rubric_checks = more
         more = lambda s: rubric_checks(s) + concept.story_problems(  # noqa: E731
             {**s, "program": prog["name"], "concept": idea["concept"]})
+    chosen_sc = None
+    if scenario:
+        sfacts = scenarios.facts_of_text(data["articles"], category, prog["name"])
+        ranked = scenarios.fit({"program": prog["name"]}, facts=sfacts)
+        if scenario == "auto":
+            if not ranked:
+                raise ValueError("no scenario fits this source's facts; write without --scenario")
+            chosen_sc = scenarios.get(ranked[0]["scenario"])
+        else:
+            chosen_sc = scenarios.get(scenario)
+            if not scenarios.holds(chosen_sc, sfacts, prog["name"]):
+                raise ValueError(f"scenario {scenario} does not fit this source's facts (eligible: "
+                                 f"{chosen_sc['eligible']}, never: {chosen_sc['never']})")
+        extra = scenarios.brief_block(chosen_sc) + extra
+        extra_types = tuple(sorted(set(extra_types) | {t for b in chosen_sc["beats"] if b["scene_types"] != "any"
+                                                       for t in b["scene_types"]}))
+        plain = more
+        more = lambda s: plain(s) + [x for x in scenarios.check_plan_beats(  # noqa: E731
+            {**s, "program": prog["name"]}, chosen_sc)]
     try:  # failure memory: the writer reads the brand's recent mistakes; every failed pass is remembered
         if prog["name"] == programs.DEFAULT:
             story = writer.write(data["cluster"], data["articles"], avoid=variety.recent_sequences(brand),
@@ -879,6 +905,8 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
         if unborne:  # the script stands, the idea goes: the idea step never loses a video
             del story["concept"]
             idea = {**idea, "concept": None, "warning": "concept: dropped, the script can't carry it: " + "; ".join(unborne)}
+    if chosen_sc:
+        story["scenario"] = chosen_sc["id"]  # code-owned: the writer never picks one
     if style:
         story["style"] = styles.resolve_for_story(story, style)["slug"]
     programs.stamp(story, prog, data["cluster"])  # program, category, the document's facts and link: data
@@ -913,6 +941,8 @@ def write_story(source, ref, brand=packs.DEFAULT, out_path=None, program=None, d
         result.update(program=prog["name"], rules=prog["rules"], publish=prog["publish"], format=prog["format"])
     if r:
         result.update(rubric=r["id"], episode=story["episode"], chip=rubrics.chip(story), format=r["format"])
+    if chosen_sc:
+        result["scenario"] = chosen_sc["id"]
     return result
 
 
@@ -953,8 +983,45 @@ def write(a):
     ref = a.ref if a.ref is not None else a.cluster
     if ref is None:
         return out({"problems": ["give --ref (or --cluster for tbilisi-today)"]}, 2)
-    result = write_story(a.source, ref, a.brand, a.out, a.program, a.director, a.rubric, style=getattr(a, "style", None))
+    result = write_story(a.source, ref, a.brand, a.out, a.program, a.director, a.rubric, style=getattr(a, "style", None),
+                          scenario=getattr(a, "scenario", None))
     return out(result, 1 if result["problems"] else 0)
+
+
+def scenario_cmd(a):
+    """engine scenario list | fit | stamp | board | check (scenarios.py)."""
+    try:
+        if a.action == "list":
+            return out(scenarios.options())
+        if a.action == "board":
+            sc = scenarios.get(a.story or "")
+            return out({"scenario": sc["id"], "title": sc["title"], "label": sc["label"], "about": sc["about"],
+                        "storyboard": scenarios.storyboard(sc), "brief": sc["brief"], "pacing": sc["pacing"]})
+        if not a.story:
+            return out({"problems": [f"scenario {a.action} needs a story file"]}, 2)
+        path = pathlib.Path(a.story)
+        story = json.loads(path.read_text(encoding="utf-8"))
+        if a.action == "check":
+            problems = scenarios.story_problems(story)
+            return out({"story": str(path), "scenario": story.get("scenario"), "problems": problems}, 1 if problems else 0)
+        ranked = scenarios.fit(story, seconds=scenarios.parse_length(a.length))
+        if a.action == "fit":
+            return out({"story": str(path), "program": programs.name_of(story),
+                        "facts": {k: v for k, v in scenarios.story_facts(story).items() if v},
+                        "ranked": ranked,
+                        **({"refused": scenarios.refusal(programs.name_of(story))} if scenarios.refusal(programs.name_of(story)) else {})},
+                       0 if ranked else 1)
+        want = a.scenario or "auto"  # stamp
+        if want == "auto":
+            if not ranked:
+                return out({"problems": ["no scenario fits this story"]}, 1)
+            want = ranked[0]["scenario"]
+        scenarios.stamp(story, want)  # an id, or ids joined by commas for the chapters of a long film
+        problems = scenarios.story_problems(story)
+        path.write_text(json.dumps(story, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        return out({"story": str(path), "scenario": want, "problems": problems}, 1 if problems else 0)
+    except (scenarios.ScenarioError, ValueError) as e:
+        return out({"problems": [str(e)]}, 2)
 
 
 def rubrics_cmd(a):
@@ -1057,6 +1124,7 @@ def make_cmd(a):
         music=getattr(a, "music", None),
         transition=getattr(a, "transition", None),
         outro=getattr(a, "outro", None),
+        scenario=getattr(a, "scenario", None),
     )
     return out(res, 1 if res.get("status") == "error" else 0)
 
@@ -1222,7 +1290,14 @@ def main(argv=None):
     w.add_argument("--brand", default=packs.DEFAULT, help="the brand pack the story will be rendered with")
     w.add_argument("--director", help="force a director (default: the least used eligible one, variety.direct)")
     w.add_argument("--rubric", help="a rubric (see options: rubrics): number, changes, continues, agree, digest")
+    w.add_argument("--scenario", help="a scenario (see options: scenarios) or auto: the plot the beats follow")
     w.add_argument("--out")
+    sn = sub.add_parser("scenario", help="the plots (scenarios.py): list | fit <story> | stamp <story> --scenario <id> | "
+                                         "board <id> | check <story>")
+    sn.add_argument("action", choices=["list", "fit", "stamp", "board", "check"])
+    sn.add_argument("story", nargs="?", help="a story file (fit, stamp, check) or a scenario id (board)")
+    sn.add_argument("--scenario", help="stamp: the scenario to set (or auto: the best fit)")
+    sn.add_argument("--length", help="fit: the film's seconds (45, 45s, short, long)")
     ru = sub.add_parser("rubrics")
     ru.add_argument("action", choices=["list", "facts", "stamp"])
     ru.add_argument("story", nargs="?", help="stamp: the hand-written story file to stamp (in place)")
@@ -1358,6 +1433,8 @@ def main(argv=None):
     mk.add_argument("--style", help="how it looks and sounds (see options: styles)")
     mk.add_argument("--source", help="where facts come from (tbilisi-today, ordo, sitech, url, pdf, text)")
     mk.add_argument("--length", help="short (15-30s), standard (30-45s), long (45-60s) or target seconds")
+    mk.add_argument("--scenario", help="the plot (see options: scenarios) or auto: the best fit to the facts; with "
+                                       "--preview-storyboard a URL gets its storyboard before the writer is paid")
     mk.add_argument("--yes", "-y", action="store_true", help="accept code's decisions and defaults; ask no interactive questions")
     mk.add_argument("--queue", action="store_true", help="add to the job queue instead of rendering immediately")
     mk.add_argument("--preview-storyboard", action="store_true", help="build contact sheet and stop at plan stage")
@@ -1410,7 +1487,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "concept": concept_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd, "plate": plate_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "concept": concept_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd, "plate": plate_cmd, "scenario": scenario_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
     except FileNotFoundError as e:
