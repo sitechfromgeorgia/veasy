@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 SKILLS_DIR = ROOT / "skills"
 TIMEOUTS = {"render": 1500, "write": 900, "still": 600, "queue": 3600, "package": 900, "probe": 600, "plan": 600,
-            "compose": 2400}
+            "compose": 2400, "plate": 1800}
 
 HINT = (
     "[veasy] If this turn involves making, checking or fixing a video (a Short, a reel, a story video), first load "
@@ -343,6 +343,24 @@ TOOLS = {
     "veasy_doctor": ({"type": "object", "properties": {}},
                      "Is this machine ready to render? ffmpeg, Remotion, fonts, music, keys, kaeasy.",
                      lambda a: _engine("doctor", [])),
+    "veasy_plate": ({"type": "object", "properties": {
+                        "kind": {"type": "string", "description": "A plate kind (veasy_options section plates lists "
+                                 "them), or list (the baked library) or check (lint every kind)."},
+                        "seconds": {"type": "number", "description": "Length in seconds (default 6)."},
+                        "seed": {"type": "integer", "description": "The seed: one seed, one plate (default 1)."},
+                        "scale": {"type": "number", "description": "Bake at this fraction of 1080x1920; 0.5 is a preview."},
+                        "spec": {"type": "string", "description": "A JSON file for the kind's own setup."},
+                        "brand": BRAND,
+                        "program": {"type": "string", "description": "The story's program: news is refused."},
+                        "family": {"type": "string", "description": "The story's family: crime is refused."},
+                        "text": {"type": "string", "description": "The story's words: deaths, crime and incidents are refused."}},
+                     "required": ["kind"]},
+                    "A baked plate for a scene (skill veasy:plates): a slow grey clip drawn once in headless Chrome, toned "
+                    "into every pack's canvas and ink, cached by content. A second call answers from the cache. Returns "
+                    "the hash, the clips per pack and theme, the anchors file and what a frame cost. Refused for news, "
+                    "crime, incidents and deaths. Baking takes minutes: a queue job never bakes, it picks from the shelf.",
+                    lambda a: _engine("plate", [a["kind"]] + _flags(a, ("seconds", "seed", "scale", "spec", "brand", "program",
+                                                                         "family", "text")))),
     "veasy_brand": ({"type": "object", "properties": {
                         "action": {"type": "string", "enum": ["new"]},
                         "name": {"type": "string", "description": "The brand identifier (lowercase, hyphens)."},

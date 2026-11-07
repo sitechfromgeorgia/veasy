@@ -93,6 +93,8 @@ create index if not exists variety_brand on variety(brand, ts);
 create table if not exists concepts(
   ts text, brand text, story text, family text, object text, device text, rung integer, idea text);
 create index if not exists concepts_brand on concepts(brand, ts);
+create table if not exists plate_use(ts text, brand text, story text, scene integer, hash text, layout text);
+create index if not exists plate_use_brand on plate_use(brand, ts);
 """
 MIGRATIONS = {  # columns added since the table was first made; an older veasy.db gets them on first use
     "director": "alter table variety add column director text",  # directors.py, before writing
@@ -156,6 +158,43 @@ def direct(brand, story, facts, program_scenes="all", forced=None):
     past = history(brand)
     same = next((r["director"] for r in past if r["story"] == str(story) and r["director"] in pool), None)
     return same or _least_used(pool, [r["director"] for r in past], story, "director")
+
+
+PLATE_LAYOUTS = ("top", "mid", "low")  # where the plate scene's card sits: one more option, never a replacement
+
+
+def _plate_rows(brand, n=RECENT * 3):
+    with _db() as con:
+        return [dict(r) for r in con.execute("select * from plate_use where brand=? order by ts desc, rowid desc limit ?",
+                                             (brand, n))]
+
+
+def pick_plate(brand, story, hashes):
+    """One baked plate of `hashes` for a story: the one it had before if still there, else the least used lately by the
+    brand (ties by the story id). Reads only: a queue job never bakes, it picks from the shelf. None: an empty shelf."""
+    if not hashes:
+        return None
+    rows = _plate_rows(brand)
+    same = next((r["hash"] for r in rows if r["story"] == str(story) and r["hash"] in hashes), None)
+    return same or _least_used(list(hashes), [r["hash"] for r in rows], story, "plate")
+
+
+def pick_plate_layout(brand, story, scene=0, allowed=None):
+    """Where a plate scene's card sits: the one it had before if still allowed, else the least used lately by the brand
+    among `allowed` (the layouts that leave the plate's anchor uncovered; default all)."""
+    pool = [x for x in PLATE_LAYOUTS if allowed is None or x in allowed] or list(PLATE_LAYOUTS)
+    rows = _plate_rows(brand)
+    same = next((r["layout"] for r in rows if r["story"] == str(story) and r["scene"] == scene and r["layout"] in pool), None)
+    return same or _least_used(pool, [r["layout"] for r in rows], f"{story}|{scene}", "plate-layout")
+
+
+def record_plate(brand, story, scene, hash16, layout):
+    """Remember a plate use (once per story and scene: a re-resolve replaces its row)."""
+    with _db() as con:
+        con.execute("delete from plate_use where brand=? and story=? and scene=?", (brand, str(story), scene))
+        con.execute("insert into plate_use(ts, brand, story, scene, hash, layout) values(?,?,?,?,?,?)",
+                    (dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), brand, str(story), scene, hash16,
+                     layout))
 
 
 def pick_theme(brand, story, themes, subset=None):

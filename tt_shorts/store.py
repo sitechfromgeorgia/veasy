@@ -40,7 +40,7 @@ import shutil
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-KEEP_DAYS = {"work": 2, "bundles": 14, "compose": 30, "renders": 30, "voices": 90, "media": 90, "logs": 90}
+KEEP_DAYS = {"work": 2, "bundles": 14, "compose": 30, "renders": 30, "voices": 90, "media": 90, "logs": 90, "plates": 90}
 
 
 def home():
@@ -111,6 +111,13 @@ def media_dir(key):
     return p
 
 
+def plate_dir(hash16):
+    """The cache folder of one baked plate: identified by its 16-hex content hash."""
+    p = home() / "cache" / "plates" / safe(hash16)
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
 def work_dir(name):
     p = home() / "cache" / "work" / safe(name)
     p.mkdir(parents=True, exist_ok=True)
@@ -159,6 +166,7 @@ def gc(dry_run=False, now=None):
         "media": [p for p in (h / "cache" / "media").glob("*") if p.is_dir()],
         "bundles": [p for p in (h / "cache" / "bundles").glob("*") if p.is_dir()],
         "compose": [p for p in (h / "cache" / "compose").glob("*") if p.is_dir()],
+        "plates": [p for p in (h / "cache" / "plates").glob("*") if p.is_dir()],
         "renders": [p for p in (h / "renders").glob("*/*/*") if p.is_file() or p.name.endswith("-package")],
         "logs": [p for p in (h / "logs").glob("*.jsonl")],
     }

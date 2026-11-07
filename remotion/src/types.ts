@@ -166,6 +166,13 @@ export type Scene = SceneBase & {
   of?: number; // chapter: how many stories the digest has
   total?: number; // agree: the member articles code counted across
   media?: MediaProps; // set by tt_shorts/props.py from the story's assets ledger (never the writer's)
+  plate?: PlateProps; // plate: set by tt_shorts/plates.py for_props (the baked clip, never the writer's)
+};
+
+// tt_shorts/plates.py for_props(): a plate scene's toned clip (public/plates/), where its card sits and what the
+// DOM accent dot follows (plates/<kind>/anchors.json: page pixels per plate frame, 1080x1920)
+export type PlateProps = {
+  src: string; frames: number; layout: "top" | "mid" | "low"; tracks: Record<string, [number, number][]>;
 };
 
 // tt_shorts/brand.py for_remotion(): the brand pack, without file paths

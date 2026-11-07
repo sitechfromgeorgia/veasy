@@ -21,7 +21,7 @@ import shutil
 import subprocess
 
 from tt_shorts import (art, assets, beats as beat_track, brand, captions, chapters as chapters_of, directors,
-                       geo, icons, meta, rubrics, sfx as effects, speech, store, swipe, variety, voices)
+                       geo, icons, meta, plates, rubrics, sfx as effects, speech, store, swipe, variety, voices)
 
 ROOT = speech.ROOT
 REMOTION = ROOT / "remotion"
@@ -42,13 +42,16 @@ def transition_for(name, variant):
     return DEFAULT_TRANSITION[variant] if name in (None, "auto") else name
 
 
-def _scene(s, a, b, mark=None, media=None):
+def _scene(s, a, b, mark=None, media=None, plate=None):
     """One scene's props: its frames, a drawing as a safe tree instead of the writer's SVG, its voice-synced mark
     (speech.mark_frames: where, when and how the "em" phrase is drawn over; marks.py) and its picture (assets.py:
     the local file, the label and the credit, instead of the ledger reference)."""
     out = {**s, "from": a, "duration": b - a}
     out.pop("media", None)
     out.pop("show", None)
+    out.pop("plate", None)
+    if s.get("plate") and plate and s["plate"].get("asset") in plate:  # plates.py for_props: the toned clip
+        out["plate"] = {**plate[s["plate"]["asset"]], "layout": s["plate"].get("layout") or "mid"}
     if s.get("media") and media and s["media"].get("asset") in media:
         out["media"] = media[s["media"]["asset"]]
     if s.get("type") == "draw":
@@ -145,6 +148,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     # first (choose -> variety.choose)
     st, chosen, loops, main, novelty = choose(story, variant, transition, music, director, style, outro)
 
+    plate = plates.for_props(story, b, public)  # a plate scene's toned clip (a missing one: the plain canvas)
     media = assets.for_props(story, b, public, FPS)  # the ledger's files (fetched again, checked, if gc took them)
     audio, words = speech.voice(story, voice_dir, engine, tone, edge_voice)
     trim = swipe.lead_trim(words, swipe.leading_silence(audio)) if audio else 0.0  # the voice starts at once
@@ -171,7 +175,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
         "style": {**{k: st[k] for k in variety.OPTIONS}, **(directors.style(chosen) if chosen else {})},
         "novelty": novelty,  # the guard's report (variety.choose): the nearest recent video, re-rolls, a warning
         "outro": outro, "outroFrom": chip,  # the frame the outro chip comes in (None: the end card)
-        "scenes": icons.attach([_scene(s, a, z, m, media) for s, a, z, m in zip(
+        "scenes": icons.attach([_scene(s, a, z, m, media, plate) for s, a, z, m in zip(
             shown, marks, marks[1:], speech.mark_frames(shown, words, marks, sid, meta.family(category, b)))], story),
         "motifIcon": icons.nodes(main) if st["motif"] == "icons" else None,  # the icon tiled in the background
         "words": words,

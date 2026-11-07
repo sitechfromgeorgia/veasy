@@ -952,6 +952,20 @@ def blocks_summary():
     return blk.options()
 
 
+def _plate_block(text, story, scene):
+    """The plate block's three placeholders from the story's resolved plate for this scene: its ledger id, where its card
+    sits and the dot's track. Without one the clip and the dot are cut out and the card stands on the plain canvas."""
+    p = scene.get("plate") or {}
+    e = next((x for x in story.get("assets") or [] if x.get("id") == p.get("asset")), None)
+    if not e:
+        text = re.sub(r"<!--plate-->.*?<!--/plate-->", "", text, flags=re.S)
+        return text.replace("{plate_layout}", "mid").replace("{plate_dot}", "[]").replace("{plate_id}", "none")
+    from tt_shorts import plates
+    dot = (plates.tracks_of(e["hash"]).get("dot") or [])
+    return (text.replace("{plate_id}", e["id"]).replace("{plate_layout}", p.get("layout") or "mid")
+            .replace("{plate_dot}", json.dumps(dot, separators=(",", ":"))))
+
+
 def assemble_blocks(story, project, block_ids, slot_bindings=None):
     """Assemble a multi-block HyperFrames project from reusable blocks (compose/blocks/<id>/).
     block_ids: list of block ids or comma-separated string (e.g. 'kinetic-headline,number-reveal,end-card').
@@ -977,6 +991,8 @@ def assemble_blocks(story, project, block_ids, slot_bindings=None):
         cid = f"s{i}"
         manifest, _ = blk.get(bid)
         rendered = blk.render_block(bid, cid, slot_bindings or {})
+        if bid == "plate":
+            rendered = _plate_block(rendered, story, scenes[i] if i < len(scenes) else {})
         (project / "compositions" / f"{cid}.html").write_text(rendered, encoding="utf-8")
         scene_at = scenes[i]["at"] if i < len(scenes) else end_at
         beats.append({"id": cid, "at": scene_at, "show": bid})
@@ -1103,6 +1119,7 @@ def build(project, story, engine="silent", music="off", tone=None, theme="defaul
                                             round(focus[2] / country[2] * MAP_W, 1),
                                             round(focus[3] / country[3] * MAP_H, 1)]})
     code += media(story, b, project)
+    code += plate_files(story, b, project)
     (project / "frame.md").write_text(frame_md.render(b), encoding="utf-8")
     (project / "timing.json").write_text(json.dumps(t, ensure_ascii=False, indent=1), encoding="utf-8")
     (project / "facts.json").write_text(json.dumps({
@@ -1141,6 +1158,24 @@ def media(story, b, project):
         "scenes": {i: s["media"]["asset"] for i, s in enumerate(story.get("scenes") or []) if s.get("media")},
         "ledger": story.get("assets") or []}, ensure_ascii=False, indent=1), encoding="utf-8")
     return ["assets/media.json"] + [f"assets/{v['src']}" for v in drawn.values()]
+
+
+def plate_files(story, b, project):
+    """The story's baked plates (plates.py), toned for this theme, as assets/plates/<ledger id>.mp4 and assets/plates.json
+    ({scene: ledger id, plates: {id: {src, frames, tracks}}}). A scene plays one with a plain <video muted playsinline
+    src>; the `plate` block does it all. Veasy's files: hashed in the lock. A plate gc took is left out (the scene's
+    <video> then fails lint: bake it again)."""
+    from tt_shorts import plates
+    drawn = plates.for_props(story, b, project / "assets", flat=True)
+    if not drawn:
+        return []
+    (project / "assets" / "plates.json").write_text(json.dumps({
+        "about": "Baked plates (compose.plate_files): play assets/<src> in a <video muted playsinline>, behind a card on "
+                 "var(--canvas-90); tracks are the plate's anchors, page pixels at 30 fps.",
+        "scenes": {i: s["plate"]["asset"] for i, s in plates.plate_scenes(story) if s.get("plate")},
+        "plates": {k: {**v, "src": f"assets/{v['src']}"} for k, v in drawn.items()}}, ensure_ascii=False, indent=1),
+        encoding="utf-8")
+    return ["assets/plates.json"] + [f"assets/{v['src']}" for v in drawn.values()]
 
 
 def sfx_cues(t, setting="off"):

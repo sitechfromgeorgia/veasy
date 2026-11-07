@@ -20,8 +20,10 @@ const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/ja
   ".bin": "application/octet-stream", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml" };
 
 function args(argv) {
-  const [kind, ...rest] = argv;
-  const out = { kind, seconds: 6, seed: 1, scale: 1, spec: null, out: null };
+  const [kind, ...more] = argv;
+  const hashOnly = more.includes("--hash"); // print the content hash and exit: what `engine plate` asks before it bakes
+  const rest = more.filter((x) => x !== "--hash");
+  const out = { kind, seconds: 6, seed: 1, scale: 1, spec: null, out: hashOnly ? "-" : null, hashOnly };
   for (let i = 0; i < rest.length; i += 2) {
     const key = rest[i].replace(/^--/, "");
     if (!(key in out) || rest[i + 1] === undefined) throw new Error(`unknown or empty option ${rest[i]}`);
@@ -72,7 +74,7 @@ function encoder(file, scale) {
   return { child, done };
 }
 
-function hashOf(job) { // what the plate is a function of: the kind's own files, the spec, the seed, the size
+function hashOf(job, spec) { // what the plate is a function of: the kind's own files, the spec, the seed, the size
   const hash = createHash("sha256");
   const walk = (dir) => {
     for (const name of fs.readdirSync(dir).sort()) {
@@ -82,7 +84,7 @@ function hashOf(job) { // what the plate is a function of: the kind's own files,
     }
   };
   walk(path.join(ROOT, job.kind));
-  hash.update(JSON.stringify([job.spec, job.seed, job.seconds, job.scale]));
+  hash.update(JSON.stringify([spec ?? {}, job.seed, job.seconds, job.scale]));
   return hash.digest("hex").slice(0, 16);
 }
 
@@ -139,17 +141,42 @@ async function bake(job) {
     if (Object.keys(tracks).length) {
       fs.writeFileSync(path.join(job.out, "anchors.json"), JSON.stringify({ fps: FPS, width: WIDTH, height: HEIGHT, tracks }));
     }
-    const manifest = { kind: job.kind, hash: hashOf(job), spec, seed: job.seed, seconds: job.seconds, scale: job.scale, fps: FPS,
+    const manifest = { kind: job.kind, hash: hashOf(job, spec), spec, seed: job.seed, seconds: job.seconds, scale: job.scale, fps: FPS,
       frames, frame_hash: frameHash, ms_per_frame: perFrame, anchors: Object.keys(tracks) };
     fs.writeFileSync(path.join(job.out, "plate.json"), `${JSON.stringify(manifest, null, 1)}\n`);
     return manifest;
   } finally {
-    await browser.close();
-    server.close();
+    try {
+      if (browser) {
+        const proc = browser.process();
+        await Promise.race([
+          browser.close(),
+          new Promise((r) => setTimeout(r, 1500)),
+        ]);
+        if (proc && !proc.killed) {
+          try { proc.kill("SIGKILL"); } catch {}
+        }
+      }
+    } catch {}
+    try {
+      if (server) {
+        if (server.closeAllConnections) server.closeAllConnections();
+        server.close();
+      }
+    } catch {}
   }
 }
 
-bake(args(process.argv.slice(2))).then((m) => console.log(JSON.stringify(m)), (e) => {
+const job = args(process.argv.slice(2));
+if (job.hashOnly) {
+  const spec = job.spec ? JSON.parse(fs.readFileSync(job.spec, "utf8")) : {};
+  console.log(hashOf(job, spec));
+  process.exit(0);
+}
+bake(job).then((m) => {
+  console.log(JSON.stringify(m));
+  process.exit(0);
+}, (e) => {
   console.error(e.message);
   process.exit(1);
 });

@@ -51,7 +51,13 @@ import shutil
 import subprocess
 import sys
 
+if __name__ == "__main__" and sys.argv[1:2] == ["plate"]:  # a plate answer needs none of the engine's imports (a cache hit
+    from tt_shorts import plates as _plates  # is well under a second this way)
+
+    sys.exit(_plates.main(sys.argv[2:]))
+
 from tt_shorts import brand as packs
+from tt_shorts import plates
 from tt_shorts import (assets, captions, catalog, chapters, concept, directors, flash, formats, geo, icons, ka_check,
                        kaeasy, meta, motion_rules, news_check, programs, props, rubrics, sfx, speech, store, styles, swipe,
                        variety, voices)
@@ -199,6 +205,7 @@ def options(brand_name=None, section=None):
         "styles": styles_data,
         "advanced": advanced,
         **advanced,
+        "plates": plates.options(),
     }
     if section is None:
         return full
@@ -283,6 +290,7 @@ def structure_problems(story):
     if "program" in story:  # a story without one is news, exactly as before programs
         p += programs.story_problems(story)
     p += concept.story_problems(story)
+    p += plates.story_problems(story)
     return p + icons.motif_problems(story) + directors.structure_problems(story) + rubrics.story_problems(story) + \
         assets.problems(story)
 
@@ -549,12 +557,20 @@ def _resolve_media(story_path, fetch=True):
     """Resolve a story's show hints into its ledger, in place (assets.resolve_file) -> the report, or None for a
     story with no hints. A provider that fails leaves that scene without a picture: a warning, never a failure."""
     story = json.loads(pathlib.Path(story_path).read_text(encoding="utf-8"))
-    if not any(isinstance(s, dict) and (s.get("show") or s.get("media")) for s in story.get("scenes") or []):
-        return None
-    try:
-        return assets.resolve_file(story_path, fetch=fetch)
-    except Exception as e:  # noqa: BLE001 - no picture is never a failed story
-        return {"errors": [f"media: {type(e).__name__}: {e}"]}
+    made = None
+    if any(isinstance(s, dict) and (s.get("show") or s.get("media")) for s in story.get("scenes") or []):
+        try:
+            made = assets.resolve_file(story_path, fetch=fetch)
+        except Exception as e:  # noqa: BLE001 - no picture is never a failed story
+            made = {"errors": [f"media: {type(e).__name__}: {e}"]}
+    if plates.plate_scenes(story):  # a plate from the shelf (never a bake); none on it is a warning
+        try:
+            rep = plates.resolve_file(story_path)
+        except Exception as e:  # noqa: BLE001
+            rep = {"warnings": [f"plates: {type(e).__name__}: {e}"]}
+        made = {**(made or {"scenes": {}, "errors": []}), "plates": rep.get("plates", {}),
+                "errors": (made or {}).get("errors", []) + rep.get("warnings", []), "changed": True}
+    return made
 
 
 def media_cmd(a):
@@ -562,6 +578,11 @@ def media_cmd(a):
     story = json.loads(pathlib.Path(a.story).read_text(encoding="utf-8"))
     problems = assets.problems(story) + news_check.imagery(story)
     return out({"story": a.story, **report, "problems": problems}, 1 if problems else 0)
+
+
+def plate_cmd(a):
+    """Bake (or answer from the cache) a plate and tone it for every pack; `list` and `check` read only."""
+    return out(*plates.command(a))
 
 
 def selftest_cmd(a):
@@ -1248,6 +1269,16 @@ def main(argv=None):
     md = sub.add_parser("media")
     md.add_argument("story")
     md.add_argument("--offline", action="store_true", help="no network: keep what the ledger has, drop the rest")
+    pt = sub.add_parser("plate", help="a baked plate for a scene: <kind> | list | check (plates.py)")
+    pt.add_argument("kind", help="a plate kind (plates/<kind>/), or list, or check")
+    pt.add_argument("--seconds", type=float, default=6)
+    pt.add_argument("--seed", type=int, default=1)
+    pt.add_argument("--scale", type=float, default=1, help="bake at this fraction of 1080x1920 (0.5 is a preview)")
+    pt.add_argument("--spec", help="a JSON file for the kind's setup")
+    pt.add_argument("--brand", help="tone for this pack only (default: every pack)")
+    pt.add_argument("--program", help="the story's program: news is refused")
+    pt.add_argument("--family", help="the story's family: crime is refused")
+    pt.add_argument("--text", help="the story's words: deaths, crime and incidents are refused")
     st = sub.add_parser("selftest")
     st.add_argument("--update", action="store_true", help="rewrite tests/golden/ after a deliberate visual change")
     st.add_argument("--story", help="comma-separated fixtures (default veasy-scenes,veasy-demo)")
@@ -1379,7 +1410,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "concept": concept_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "concept": concept_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd, "plate": plate_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
     except FileNotFoundError as e:
