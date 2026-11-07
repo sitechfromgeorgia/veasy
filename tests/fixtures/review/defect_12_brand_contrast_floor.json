@@ -1,0 +1,61 @@
+{
+  "id": "defect-12-brand-contrast-floor",
+  "brand": "tbilisi-today",
+  "lang": "ka",
+  "category": "tech",
+  "date": "2026-11-06T12:00:00Z",
+  "sources": [
+    "CERT.GOV.GE"
+  ],
+  "cta": "გააფრთხილე ახლობლები საფრთხეზე",
+  "defect": {
+    "number": 12,
+    "name": "brand_contrast_floor",
+    "gate": "warning",
+    "rule": "wcag_contrast_threshold",
+    "metric": "contrast_ratio(ink, canvas) < 3.0:1 (actual: 1.44:1)",
+    "description": "Contrast ratio failing WCAG thresholds (dark slate #2e3238 on dark canvas #121316)",
+    "catch": "empty_middle"
+  },
+  "narration": "კიბერუსაფრთხოების ეროვნული ცენტრი მოქალაქეებს ფიშინგის საფრთხის შესახებ აფრთხილებს. თავდამსხმელები საბანკო რეკვიზიტების მოტყუებით დაუფლებას ცდილობენ. საეჭვო შეტყობინებების მიღებისას დაუყოვნებლივ მიმართეთ ბანკს. დეტალები tbilisi.today-ზე. გააფრთხილე ახლობლები საფრთხეზე.",
+  "scenes": [
+    {
+      "type": "hook",
+      "at": "კიბერუსაფრთხოების ეროვნული",
+      "kicker": "კიბერუსაფრთხოება",
+      "lines": [
+        "ფიშინგის ახალი",
+        "ტალღა",
+        "გაფრთხილება"
+      ]
+    },
+    {
+      "type": "points",
+      "at": "თავდამსხმელები საბანკო",
+      "kicker": "საფრთხეები",
+      "headline": "როგორ ამოვიცნოთ ყალბი გვერდი",
+      "items": [
+        "საეჭვო ვებმისამართი",
+        "დაუდასტურებელი გამგზავნი",
+        "პირადი მონაცემების მოთხოვნა"
+      ],
+      "style": {
+        "ink": "#2e3238",
+        "canvas": "#121316"
+      }
+    },
+    {
+      "type": "where",
+      "at": "საეჭვო შეტყობინებების",
+      "kicker": "რეაგირება",
+      "headline": "ვის მივმართოთ",
+      "place": "თბილისი",
+      "sub": "კიბერუსაფრთხოების ცენტრი"
+    },
+    {
+      "type": "end",
+      "at": "დეტალები tbilisi.today-ზე"
+    }
+  ],
+  "pixels": "washed_out"
+}

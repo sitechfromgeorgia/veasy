@@ -1,0 +1,45 @@
+{
+  "id": "defect-06-unreadable-text-hold",
+  "brand": "tbilisi-today",
+  "lang": "ka",
+  "category": "politics",
+  "date": "2026-11-06T12:00:00Z",
+  "sources": [
+    "საკანონმდებლო მაცნე"
+  ],
+  "cta": "გაიგე მეტი tbilisi.today-ზე",
+  "defect": {
+    "number": 6,
+    "name": "unreadable_text_hold",
+    "gate": "hold",
+    "rule": "reading_speed_floor",
+    "metric": "shown_time < 0.5s + 0.3s * words",
+    "description": "A 24-word quote needs more reading time than its 4.5 s scene shows it (read rule: must hold)",
+    "catch": "read"
+  },
+  "narration": "საქართველოს პარლამენტმა ახალი კანონპროექტი მესამე მოსმენით დაამტკიცა. კანონი ძალაში ოფიციალურად გამოქვეყნებისთანავე შევა. დეტალები tbilisi.today-ზე. გაიგე მეტი tbilisi.today-ზე.",
+  "scenes": [
+    {
+      "type": "hook",
+      "at": "საქართველოს პარლამენტმა",
+      "kicker": "კანონმდებლობა",
+      "lines": [
+        "პარლამენტმა ახალი",
+        "კანონპროექტი",
+        "დაამტკიცა"
+      ]
+    },
+    {
+      "type": "quote",
+      "at": "კანონი ძალაში",
+      "kicker": "კანონმდებლობა",
+      "headline": "პარლამენტის გადაწყვეტილება",
+      "text": "საქართველოს პარლამენტმა ახალი კანონპროექტი მესამე მოსმენით ერთხმად მიიღო და დაამტკიცა, ხოლო მისი ძალაში შესვლის წესები და ყველა გარდამავალი დებულება დეტალურად განისაზღვრა",
+      "by": "საკანონმდებლო მაცნე"
+    },
+    {
+      "type": "end",
+      "at": "დეტალები tbilisi.today-ზე"
+    }
+  ]
+}

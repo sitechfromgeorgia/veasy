@@ -1209,6 +1209,13 @@ def critique_cmd(a):
     return out(res, 1 if res.get("grade") == "FAIL" else 0)
 
 
+def review_cmd(a):
+    from tt_shorts import review
+    res = review.review_cli(a.story, rounds=a.rounds, format_name=a.format or "news", look=a.look,
+                            director=a.director, stills=a.stills, packet=a.packet, save=a.save)
+    return out(res, 1 if res.get("status") == "held" else 0)
+
+
 def dry_run_cmd(a):
     from tt_shorts import dry_run as dr
     res = dr.dry_run(a.story, fmt_name=a.format, voice_engine=a.engine, director=a.director)
@@ -1418,6 +1425,15 @@ def main(argv=None):
     cr.add_argument("--format", help="a format (default: the story's program's, news for news)")
     cr.add_argument("--look", choices=formats.LOOKS)
     cr.add_argument("--director", help="force a director")
+    rv = sub.add_parser("review", help="the film's eyes: free checks and a capped repair loop that never changes a fact")
+    rv.add_argument("story")
+    rv.add_argument("--rounds", type=int, default=2, help="repair rounds (hard caps: 3 machine, 2 look)")
+    rv.add_argument("--format", help="a format (default news)")
+    rv.add_argument("--look", choices=formats.LOOKS)
+    rv.add_argument("--director", help="force a director")
+    rv.add_argument("--stills", help="a folder of stills (engine still --out): also run the pixel checks on them")
+    rv.add_argument("--packet", action="store_true", help="add the review packet (spec and sheets only, never code)")
+    rv.add_argument("--save", action="store_true", help="write the repaired story back to the file")
     dr = sub.add_parser("dry-run", help="pre-flight cost and timing calculator before rendering")
     dr.add_argument("story")
     dr.add_argument("--format", help="a format (default: the story's program's, news for news)")
@@ -1487,7 +1503,7 @@ def main(argv=None):
         return {"render": render, "still": still, "qa": qa, "write": write, "voices": voice_samples,
                 "doctor": doctor, "queue": queue_cmd, "gc": gc_cmd, "package": package_cmd, "probe": probe_cmd,
                 "plan": plan_cmd, "selftest": selftest_cmd, "media": media_cmd, "learn": learn_cmd,
-                "rubrics": rubrics_cmd, "concept": concept_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd, "plate": plate_cmd, "scenario": scenario_cmd}[a.cmd](a)
+                "rubrics": rubrics_cmd, "concept": concept_cmd, "compose": compose_cmd, "critique": critique_cmd, "dry-run": dry_run_cmd, "brand": brand_cmd, "contact-sheet": contact_sheet_cmd, "make": make_cmd, "gallery": gallery_cmd, "plate": plate_cmd, "scenario": scenario_cmd, "review": review_cmd}[a.cmd](a)
     except (formats.FormatError, directors.DirectorError, ValueError) as e:
         return out({"problems": [str(e)]}, 2)
     except FileNotFoundError as e:

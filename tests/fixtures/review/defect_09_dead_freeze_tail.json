@@ -1,0 +1,54 @@
+{
+  "id": "defect-09-dead-freeze-tail",
+  "brand": "tbilisi-today",
+  "lang": "ka",
+  "category": "society",
+  "date": "2026-11-06T12:00:00Z",
+  "sources": [
+    "ეროვნული მუზეუმი"
+  ],
+  "cta": "გაიგე მეტი tbilisi.today-ზე",
+  "defect": {
+    "number": 9,
+    "name": "dead_freeze_tail",
+    "gate": "warning",
+    "rule": "stillness_after_settle",
+    "metric": "quiet_duration_after_settle > 4.0s (STILL_MAX = 3.0s)",
+    "description": "The quote scene holds for 7.5 s with nothing changing after it settles",
+    "catch": "still"
+  },
+  "narration": "კახეთში არქეოლოგებმა უძველესი ნამოსახლარი აღმოაჩინეს. ექსპედიციის ხელმძღვანელის თქმით ეს ნამდვილად დიდი და ძალიან მნიშვნელოვანი და უნიკალური და ბევრისთვის მოულოდნელი და ყველასთვის საინტერესო ეს აღმოჩენა რეგიონის ისტორიას ახლებურად წარმოაჩენს. კვლევები სიღნაღის მუნიციპალიტეტში აქტიურად გრძელდება. დეტალები tbilisi.today-ზე. გაიგე მეტი tbilisi.today-ზე.",
+  "scenes": [
+    {
+      "type": "hook",
+      "at": "კახეთში არქეოლოგებმა",
+      "kicker": "არქეოლოგია · კახეთი",
+      "lines": [
+        "უძველესი",
+        "ნამოსახლარი",
+        "აღმოაჩინეს"
+      ]
+    },
+    {
+      "type": "quote",
+      "at": "ექსპედიციის ხელმძღვანელის",
+      "kicker": "არქეოლოგიური ექსპედიცია",
+      "headline": "აღმოჩენა",
+      "text": "ეს აღმოჩენა რეგიონის ისტორიას ახლებურად წარმოაჩენს",
+      "by": "ექსპედიციის ხელმძღვანელი",
+      "duration": 210
+    },
+    {
+      "type": "where",
+      "at": "კვლევები სიღნაღის",
+      "kicker": "ლოკაცია",
+      "headline": "გათხრების არეალი",
+      "place": "სიღნაღის მუნიციპალიტეტი",
+      "sub": "კახეთის რეგიონი"
+    },
+    {
+      "type": "end",
+      "at": "დეტალები tbilisi.today-ზე"
+    }
+  ]
+}

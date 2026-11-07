@@ -228,6 +228,23 @@ TOOLS = {
                        "Returns an overall grade (PASS, NEEDS_ATTENTION, FAIL), score (0-100), checklist items, and "
                        "contact sheet path.",
                        lambda a: _engine("critique", [a["story"]] + _flags(a, ("format", "look", "director")))),
+    "veasy_review": ({"type": "object", "properties": {
+                         "story": STORY,
+                         "rounds": {"type": "integer", "description": "Repair rounds, default 2 (hard caps: 3 machine, 2 look)."},
+                         "format": CHOICE_PROPS["format"],
+                         "look": CHOICE_PROPS["look"],
+                         "director": CHOICE_PROPS["director"],
+                         "stills": {"type": "string", "description": "A folder of stills: also run the pixel checks."},
+                         "packet": {"type": "boolean", "description": "Add the review packet (spec and sheets, no code)."},
+                         "save": {"type": "boolean", "description": "Write the repaired story back to its file."}},
+                      "required": ["story"]},
+                     "The film's eyes (skill veasy:review): free checks on either engine's film (same picture twice, "
+                     "an empty middle, no hero frame, cuts on a metronome, a scene that only repeats the words, "
+                     "unreadable text and flashing, which hold) and a loop capped at 3 machine and 2 look rounds that "
+                     "repairs layout and pacing and never changes a fact (facts_diff stays empty). Notes read "
+                     "`t=4.2s · where · problem -> change`. Costs nothing but local work.",
+                     lambda a: _engine("review", [a["story"]] + _flags(a, ("rounds", "format", "look", "director", "stills")) +
+                                       (["--packet"] if a.get("packet") else []) + (["--save"] if a.get("save") else []))),
     "veasy_dry_run": ({"type": "object", "properties": {
                           "story": STORY,
                           "format": CHOICE_PROPS["format"],
