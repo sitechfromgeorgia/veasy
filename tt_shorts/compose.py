@@ -248,7 +248,9 @@ def timing(story_path, sheet, engine="silent", music="off", tone=None, theme="de
                   for s in p["scenes"]],
         "facts": {"date": p["date"], "category": p["category"], "sources": p["sources"], "sourcesLine": p["sourcesLine"],
                   "url": p["url"], "cta": p["cta"], "previewNote": p["previewNote"]},
-        "map": {k: where["map"][k] for k in ("viewBox", "focus", "pins", "level", "credit")} if where else None,
+        "map": {k: where["map"][k] for k in ("viewBox", "focus", "pins", "level", "credit")} | {
+            "occupied": [{k: o[k] for k in ("id", "label", "at", "r", "in_focus")} for o in where["map"].get("occupied") or []]}
+               if where else None,
         "sfx": [{"t": b["t"], "name": b["sfx"]} for b in beats if b.get("sfx")],  # beats that name a sound effect
     }, p, work
 
@@ -278,6 +280,9 @@ def facts(story, b, p, t=None):
         _put(out, f"source-{i + 1}", s, CODE_KIND, "data")
     if t and t.get("map"):
         _put(out, "map-credit", t["map"]["credit"], CODE_KIND, "the map's licence")
+        label = next((o["label"] for o in t["map"].get("occupied") or [] if o.get("label")), "")
+        if label:  # the pack's word for the occupied territories: a scene that shows the map writes it in ink beside them
+            _put(out, "map-occupied", label, CODE_KIND, "the pack's label of the occupied territories")
     screen = [x for _, x in ka_check.screen_texts(story)]
     texts = screen + [story.get("narration", "")]
     kinds = (("date", news_check._DAY_MONTH), ("time", news_check._TIME), ("quote", re.compile(r"„[^“”]+[“”]")),
@@ -766,9 +771,16 @@ def map_svg(m, vb, c, tint):
     regions = "".join(f'<path d="{r}" fill="{c["ink"]}" fill-opacity="{0.18 * tint:.2f}"/>' for r in m["regions"])
     outlines = "".join(f'<path d="{r}" fill="none" stroke="{c["ink"]}" stroke-width="{4 * u:.1f}" stroke-linejoin="round" '
                        f'opacity="{tint}"/>' for r in m["regions"])
+    # the territories Georgian law calls occupied: the accent at low opacity and a fine hatch, as map.tsx draws them
+    occupied = "".join(
+        f'<path d="{o["path"]}" fill="{c["accent"]}" fill-opacity="0.16"/><path d="{o["path"]}" fill="url(#hatch)" fill-opacity="0.5"/>'
+        f'<path d="{o["path"]}" fill="none" stroke="{c["lineStrong"]}" stroke-width="{2 * u:.1f}" '
+        f'stroke-dasharray="{8 * u:.1f} {6 * u:.1f}" stroke-linejoin="round"/>' for o in m.get("occupied") or [])
+    hatch = (f'<pattern id="hatch" patternUnits="userSpaceOnUse" width="{9 * u:.1f}" height="{9 * u:.1f}" patternTransform="rotate(45)">'
+             f'<line x1="0" y1="0" x2="0" y2="{9 * u:.1f}" stroke="{c["accent"]}" stroke-width="{1.6 * u:.2f}"/></pattern>')
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{" ".join(map(str, vb))}" width="{MAP_W}" height="{MAP_H}">'
-            f'<defs><clipPath id="land"><path d="{m["land"]}"/></clipPath></defs>'
-            f'<path d="{m["land"]}" fill="{c["ink"]}" fill-opacity="0.05"/>{regions}'
+            f'<defs><clipPath id="land"><path d="{m["land"]}"/></clipPath>{hatch}</defs>'
+            f'<path d="{m["land"]}" fill="{c["ink"]}" fill-opacity="0.05"/>{regions}{occupied}'
             f'<path d="{m["rivers"]}" fill="none" stroke="{c["ink"]}" stroke-opacity="0.3" stroke-width="{2.5 * u:.1f}" '
             f'stroke-linejoin="round" stroke-linecap="round" clip-path="url(#land)"/>'
             f'<path d="{m["borders"]}" fill="none" stroke="{c["lineStrong"]}" stroke-width="{2 * u:.1f}" '

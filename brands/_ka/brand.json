@@ -88,7 +88,8 @@
   "category_default": "ამბები",
   "at_least": "მინიმუმ {n}",
   "illustrative": "საილუსტრაციო",
-  "media_credit": "{author} · {licence} · {source}"
+  "media_credit": "{author} · {licence} · {source}",
+  "occupied": "დროებით ოკუპირებული"
  },
  "media": {
   "providers": [],

@@ -109,7 +109,49 @@ export type GeoMap = {
   focus: number[];
   pins: number[][];
   level: "country" | "region" | "district";
-  credit: string; // the boundary data's licence credit, shown small
+  credit: string; // the data's licence credit, shown small (with OpenStreetMap's when `layers` is set)
+  // the territories Georgian law calls occupied (Abkhazia, the Tskhinvali region): a tint over the regions, always
+  // both (the camera starts on the whole country); `label` is the pack's word (strings.occupied)
+  occupied?: GeoOccupied[];
+  // OpenStreetMap layers (ODbL): see assets/maps/README.md "What a scene gets"
+  layers?: GeoLayers;
+};
+
+export type GeoOccupied = {
+  id: "abkhazia" | "tskhinvali";
+  name: string;
+  path: string; // closed outline, in viewBox units; inside Georgia's outline
+  bbox: number[];
+  at: number[]; // where the label goes (the pole of inaccessibility), viewBox units
+  r: number; // the largest circle that fits inside at `at`, viewBox units
+  label: string;
+  in_focus: boolean; // the camera's last view meets it
+};
+
+export type GeoLayers = {
+  // the whole country, coarse: always (rivers: m.rivers); lakes closed paths, roads motorway and trunk
+  overview: { lakes: string; roads: string };
+  // a region view: detail clipped to `box`, fine; each missing class did not fit the budget
+  detail?: {
+    box: number[];
+    lakes?: string;
+    rivers?: { major?: string; minor?: string };
+    roads?: { motorway?: string; trunk?: string; primary?: string };
+    rail?: string;
+  };
+  // Tbilisi for a district view (never in the crime family); numbers carry one decimal
+  city?: {
+    box: number[];
+    decimals: number;
+    districts: { id: string; name: string; path: string; at: number[]; r: number; named: boolean }[];
+    streets: { trunk?: string; primary?: string; secondary?: string };
+    metro?: string;
+    streams?: string;
+    stations?: number[][];
+    rivers?: string;
+    lakes?: string;
+    rail?: string;
+  };
 };
 
 // tt_shorts/assets.py for_props(): a scene's picture, resolved in Python into a local file (public/media/) with the

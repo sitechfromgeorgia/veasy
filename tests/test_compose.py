@@ -150,7 +150,17 @@ def fake_props(sources=("ინტერპრესნიუსი", "ON.ge")):
             "sources": list(sources)}
 
 
-class Facts(unittest.TestCase):
+class MapSvg(unittest.TestCase):
+    def test_the_occupied_territories_are_tinted_and_hatched_in_the_accent(self):
+        c = brand.load()["colors"]
+        m = {"land": "M0 0l10 0l0 10z", "rivers": "M0 0l1 1", "borders": "M0 0l1 1", "regions": [],
+             "occupied": [{"id": "abkhazia", "path": "M0 0l5 0l0 5z"}]}
+        svg = compose.map_svg(m, [0, 0, 100, 63], c, 0)
+        self.assertIn('fill="url(#hatch)"', svg)
+        self.assertIn(c["accent"], svg)
+        self.assertNotIn("url(#hatch)", compose.map_svg({**m, "occupied": []}, [0, 0, 100, 63], c, 0))
+
+
     def test_facts_are_the_data_and_the_story(self):
         story = json.loads((ROOT / "stories" / "24835.json").read_text(encoding="utf-8"))
         fx = compose.facts(story, brand.load(), fake_props(), {"map": {"credit": "Geostat"}})
@@ -158,6 +168,10 @@ class Facts(unittest.TestCase):
         self.assertEqual(fx["sources-n"]["value"], "2")
         self.assertEqual(fx["source-2"]["value"], "ON.ge")
         self.assertEqual(fx["map-credit"]["kind"], "code")
+        occ = compose.facts(story, brand.load(), fake_props(), {"map": {"credit": "Geostat", "occupied": [
+            {"id": "abkhazia", "label": "დროებით ოკუპირებული"}]}})
+        self.assertEqual(occ["map-occupied"]["value"], "დროებით ოკუპირებული")  # the pack's word, bound, never typed
+        self.assertNotIn("map-occupied", fx)
         self.assertIn("6400", [v["value"] for k, v in fx.items() if k.startswith("num-")])
         self.assertIn("22:00", [v["value"] for k, v in fx.items() if k.startswith("time-")])
         self.assertEqual(fx["quote-1"]["value"], "„თბილისი ენერჯის“")
