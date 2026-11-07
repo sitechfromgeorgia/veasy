@@ -23,11 +23,11 @@ export type CaptionLayout = {
 };
 
 // who and link {name, role} · pair {title, sub} · bars, trend and compare {label, value} · rail {when, label} ·
-// points and steps: plain strings
+// figures {label, value, unit?} · points and steps: plain strings
 export type Item = string | {
   name?: string; role?: string; title?: string; sub?: string; label?: string; value?: number; when?: string;
   text?: string; count?: number; // agree: a fact and how many member articles state it (code counts them)
-  rank?: number; state?: "done" | "pending"; note?: string; share?: number;
+  rank?: number; state?: "done" | "pending"; note?: string; share?: number; unit?: string; // figures: this tile's own unit
 };
 
 // tt_shorts/marks.py: a scene's voice-synced mark (its "em"), resolved in Python. field: the slot it sits in

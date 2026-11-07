@@ -316,7 +316,7 @@ def shape_problems(s):
     if t == "steps":
         if any(not isinstance(it, str) or not it.strip() for it in items or []):
             out.append("items: each step is a short text")
-    if t in ("bars", "trend", "compare"):
+    if t in ("bars", "trend", "compare", "figures"):
         for k, it in enumerate(items or []):
             if not isinstance(it, dict) or not isinstance(it.get("label"), str) or not _number(it.get("value")):
                 out.append(f"items[{k}]: needs {{label, value}} with a number value")

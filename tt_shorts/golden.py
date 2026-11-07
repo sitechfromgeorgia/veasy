@@ -28,7 +28,7 @@ from tt_shorts import brand, probe, props, speech, store
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIR = ROOT / "tests" / "golden"
-STORIES = ("veasy-scenes", "veasy-demo")
+STORIES = ("veasy-scenes", "veasy-demo", "veasy-figures")
 THEMED = (("sitech", "light"),)  # (pack, theme) the fixtures are also drawn in, beside their own default theme
 SIZE = 16  # the frame's grid
 BAND_SIZE = 32  # the scene band's grid

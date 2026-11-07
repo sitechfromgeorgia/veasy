@@ -1,0 +1,20 @@
+{
+ "type": "figures",
+ "order": 122,
+ "what": "2-4 number tiles from the articles, each with its label, its number counted up and its own unit: items [{label, value, unit}]",
+ "use_when": "2-4 numbers the articles state, side by side, that are not one kind (different units, or not a ranking)",
+ "avoid_when": "one number (stat); values of one unit to compare from zero (bars); values over time (trend); a before and after (change)",
+ "pairs_with": ["stat", "bars", "where"],
+ "slots": {
+  "items": {"kind": "list", "count": [2, 4], "of": {"label": {"kind": "text", "max": 24, "required": true}, "value": {"kind": "num", "required": true}, "unit": {"kind": "text", "max": 12}}, "required": true},
+  "kicker": {"kind": "text", "max": 24},
+  "headline": {"kind": "text", "max": 40}
+ },
+ "families_deny": [],
+ "min_seconds": 3.2,
+ "min_words": 7,
+ "em": {"fields": ["headline"], "kinds": ["underline"]},
+ "schema": null,
+ "rules": [],
+ "example": {"type": "figures", "at": "ახალი ხიდი ასე", "kicker": "ხიდი", "items": [{"label": "სიგრძე", "value": 420, "unit": "მეტრი"}, {"label": "ღირებულება", "value": 38.5, "unit": "მლნ ლარი"}, {"label": "ზოლი", "value": 4, "unit": "ზოლი"}]}
+}

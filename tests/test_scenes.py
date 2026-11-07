@@ -108,6 +108,12 @@ class Shapes(unittest.TestCase):
         p = engine.shape_problems
         self.assertEqual(p({"type": "bars", "items": [{"label": "a", "value": 3}, {"label": "b", "value": 1.5}]}), [])
         self.assertTrue(p({"type": "bars", "items": [{"label": "a", "value": 3}]}))  # 2-5
+        tile = lambda **k: {"label": "a", "value": 4, **k}  # noqa: E731 - figures: 2-4 tiles, each its own unit
+        self.assertEqual(p({"type": "figures", "items": [tile(unit="მეტრი"), tile(value=0, unit="ზოლი")]}), [])
+        self.assertTrue(p({"type": "figures", "items": [tile()]}))
+        self.assertTrue(p({"type": "figures", "items": [tile()] * 5}))
+        self.assertTrue(p({"type": "figures", "items": [tile(), tile(value="4")]}))
+        self.assertTrue(p({"type": "figures", "items": [tile(), tile(unit="x" * 13)]}))
         self.assertTrue(p({"type": "bars", "items": [{"label": "a", "value": 3}, {"label": "b", "value": -1}]}))
         self.assertTrue(p({"type": "bars", "items": [{"label": "a", "value": "3"}, {"label": "b", "value": 1}]}))
         self.assertTrue(p({"type": "trend", "items": [{"label": "a", "value": 1}, {"label": "b", "value": 2}]}))  # 3-8
@@ -154,12 +160,12 @@ class Shapes(unittest.TestCase):
         self.assertIn('plain English word "versus"', found)
 
     def test_every_type_is_allowed_by_the_news_rules(self):
-        self.assertEqual(set(engine.SCENES), news_check.SCENE_TYPES)
+        self.assertEqual(set(engine.SCENES) - {"figures"}, news_check.SCENE_TYPES)  # figures: kit only, no news
 
     def test_sample_stories_pass(self):  # the demos use every scene type, old and new
         used = set()
         for name in ("veasy-demo", "veasy-scenes", "veasy-icons", "sitech-cybercartel", "veasy-brushes",
-                     "digest-2026-11-01", "../tests/fixtures/rubric-agree", "veasy-new-01", "veasy-new-02"):  # agree: a synthetic test fixture
+                     "digest-2026-11-01", "../tests/fixtures/rubric-agree", "veasy-new-01", "veasy-new-02", "veasy-figures"):  # agree: a synthetic test fixture
             s = json.loads((ROOT / "stories" / f"{name}.json").read_text(encoding="utf-8"))
             self.assertEqual(engine.check_story(s), [], name)
             used |= {x["type"] for x in s["scenes"]}
