@@ -1,6 +1,6 @@
 # Ink plates
 
-A drawing painted on screen mark by mark, in a real material. Every hatch, knife cut and brush stroke is its own mark,
+A drawing painted on screen mark by mark, in a real material. Every hatch and every drag of the stick is its own mark,
 laid at its own moment, so a film looks made by a hand and not by a template. It is a plate (see
 [../README.md](../README.md)): a grey clip baked once and played behind a scene.
 

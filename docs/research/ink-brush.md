@@ -7,6 +7,8 @@
 > **What the user or agent gets back**:
 > `plate.mp4` (deterministic tone-only H.264 video, grey on black), `poster.png` (exact middle frame still), `plate.json` (runtime cost in ms/frame, manifest and frame hash), and `anchors.json` (focal dot coordinate tracks for the DOM brand dot).
 
+> **Outcome, 2026-11-07**: chalk and pencil hatch shipped; woodcut, ink wash, blueprint and halftone were built and cut (none reached 4 of 5). See [ink-brush-result.md](ink-brush-result.md). This file is the research as written, so it still describes six materials.
+
 ---
 
 ## 1. Executive Summary & Design Contract
