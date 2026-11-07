@@ -225,7 +225,7 @@ function rubbed(m, draw, start) { // the print comes through under the baren: in
 
 // Ink poured on: first-passage time over a random floor, so the front runs in fingers and leaves bays (Dijkstra)
 function pour(W, H, S, noise, origins) {
-  const w = Math.ceil(W / 3), h = Math.ceil(H / 3), n = w * h, time = new Float32Array(n).fill(Infinity), cost = new Float32Array(n);
+  const w = Math.ceil(W / 3), h = Math.ceil(H / 3), n = w * h, time = new Float64Array(n).fill(Infinity), cost = new Float32Array(n);
   for (let y = 0, p = 0; y < h; y++) {
     for (let x = 0; x < w; x++, p++) {
       const c = noise.fbm((x * 3) / (70 * S), (y * 3) / (70 * S), 4);

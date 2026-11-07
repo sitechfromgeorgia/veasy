@@ -59,7 +59,7 @@ Woodcut, ink wash, blueprint and halftone were built and cut: a fresh-eye critic
 ### The flood as a cut
 
 `{"reveal": "flood"}` for about 1.5 seconds. Play it over the scene, full frame, `mix-blend-mode: screen`: it covers the
-old scene in the pack's ink, and in a 1.5-second clip 99% of the frame is covered from about 0.8 to 0.93 seconds. Change scene in that gap. Each
+old scene in the pack's ink, and in a 1.5-second clip the frame is fully covered from about 0.8 to 0.9 seconds. Change scene in that gap. Each
 part of the frame changes once on the way in and once on the way out, so it passes the flash check
 (`tt_shorts/flash.py`). Don't play it shorter than 1 second, and run `flash.measure` on the film.
 
