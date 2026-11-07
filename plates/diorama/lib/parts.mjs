@@ -139,43 +139,47 @@ function painting({ at, w = 1, h = 1.3, kind = 0, tone = 0.72 }) {
 
 const jarProfile = [[0.1, 0], [0.17, 0.03], [0.09, 0.1], [0.27, 0.42], [0.32, 0.68], [0.25, 0.92], [0.11, 1.02], [0.09, 1.18], [0.16, 1.26]];
 
-// A jar: its silhouette folded in half, bands cut from a dark sheet and glued on each half, the handles behind.
-function amphora({ at, height = 1.1, tone = 0.72 }) {
+// A jar as a contour cut: nested sheets on spacers, each smaller and paler than the one behind, no two quite centred.
+function amphora({ at, height = 1.1, tone = 0.7 }) {
   const k = height / 1.26;
   const curve = new THREE.CatmullRomCurve3(jarProfile.map(([x, y]) => new THREE.Vector3(x * k, y * k, 0)), false, "centripetal");
-  const right = curve.getPoints(20).map((p) => [p.x, p.y]);
+  const right = curve.getPoints(18).map((p) => [p.x, p.y]);
   const widthAt = (y) => right.reduce((best, p) => (Math.abs(p[1] - y) < Math.abs(best[1] - y) ? p : best))[0];
-  const half = [[0, 0], ...right, [0, 1.26 * k]];
+  const whole = (scale, dx = 0, y0 = 0, y1 = 9) => {
+    const part = right.filter(([, y]) => y >= y0 && y <= y1).map(([x, y]) => [x * scale, y]);
+    return [...mirror(part), ...part].map(([x, y]) => [x + dx, y]);
+  };
   const parts = [];
   for (const side of [1, -1]) { // handles, laminated
     const p = arc(side * 0.22 * k, 1.03 * k, 0.15 * k, side > 0 ? 100 : 80, side > 0 ? -70 : 250, 8);
-    parts.push(strip(p, 0.06, { tone: tone - 0.2, z: -0.1, depth: 0.03 }));
+    parts.push(strip(p, 0.065, { tone: tone - 0.22, z: -0.12, depth: 0.03 }), strip(p, 0.03, { tone: tone - 0.04, z: -0.07, depth: 0.012 }));
   }
-  parts.push(...folded(half.map(([x, y]) => [x * 1.05, y]), { tone: tone - 0.36, fold: 10 }).map((c) => { c.position.z = -0.05; return c; }));
-  parts.push(...folded(half, { tone, fold: 10 }));
-  const band = (y, tall, teeth) => { // cut from a dark sheet and glued across the fold
-    const w0 = widthAt(y - tall) * 0.95, w1 = widthAt(y + tall) * 0.95, top = [];
-    for (let i = teeth; i >= 0; i--) {
-      const x = w1 * i / Math.max(1, teeth);
-      top.push([x, y + tall]);
-      if (teeth && i) top.push([x - w1 / teeth / 2, y + tall + 0.05]);
+  parts.push(card(whole(1), { tone: tone - 0.38, z: -0.05 }));
+  parts.push(card(whole(0.9, 0.012), { tone, z: 0.05, wobble: 0.016 }));
+  parts.push(card(whole(0.58, -0.05, 0.14 * k, 1.0 * k), { tone: tone + 0.13, z: 0.14, wobble: 0.02, depth: 0.03 }));
+  const band = (y, tall, teeth, lift) => { // cut from a dark sheet with the zigzag shears
+    const w0 = widthAt(y - tall) * 0.86, w1 = widthAt(y + tall) * 0.86, top = [];
+    for (let i = teeth; i >= -teeth; i--) {
+      top.push([w1 * i / teeth, y + tall]);
+      if (i > -teeth) top.push([w1 * (i - 0.5) / teeth, y + tall + (teeth > 2 ? 0.055 : 0)]);
     }
-    return folded([[-0.02, y - tall], [w0, y - tall], ...top.map(([x, b]) => [Math.max(-0.02, x), b])], { tone: 0.2, fold: 10, depth: 0.02, bevel: 0.006, wobble: 0.01, z: 0.09 });
+    return card([[-w0, y - tall], [w0, y - tall], ...top], { tone: 0.18, z: lift, depth: 0.03, wobble: 0.012 });
   };
-  parts.push(...band(0.66 * k, 0.07 * k, 4), ...band(0.44 * k, 0.025 * k, 0), ...band(0.9 * k, 0.025 * k, 0));
+  parts.push(band(0.66 * k, 0.075 * k, 5, 0.2), band(0.43 * k, 0.03 * k, 2, 0.2), band(0.9 * k, 0.03 * k, 2, 0.2));
   return group(parts, { at });
 }
 
-// A bust: head, neck and shoulders folded down the nose, the drape a second cut glued across it.
-function bust({ at, height = 1, tone = 0.68 }) {
+// A bust as a contour cut: shoulders, then neck and head, then the drape and the hair on spacers.
+function bust({ at, height = 1, tone = 0.66 }) {
   const k = height, P = (list) => list.map(([x, y]) => [x * k, y * k]);
-  const half = P([[0, 0], [0.13, 0], [0.17, 0.08], [0.09, 0.11], [0.3, 0.26], [0.37, 0.4], [0.15, 0.5], [0.075, 0.56], [0.08, 0.66],
-    [0.15, 0.72], [0.175, 0.82], [0.14, 0.94], [0.06, 1], [0, 1.01]]);
+  const half = [[0.13, 0], [0.17, 0.08], [0.09, 0.11], [0.3, 0.26], [0.37, 0.4], [0.15, 0.5], [0.075, 0.56], [0.08, 0.66], [0.15, 0.72], [0.175, 0.82], [0.14, 0.94], [0.06, 1]];
+  const whole = P([...half, ...mirror(half)]);
   return group([
-    ...folded(half.map(([x, y]) => [x * 1.05, y * 1.01]), { tone: tone - 0.36, fold: 12 }).map((c) => { c.position.z = -0.05; return c; }),
-    ...folded(half, { tone, fold: 12 }),
-    ...folded(P([[0, 0.14], [0.26, 0.26], [0.33, 0.39], [0.13, 0.47], [0, 0.4]]), { tone: tone - 0.16, fold: 12, z: 0.09, depth: 0.02 }),
-    ...folded(P([[0, 0.9], [0.17, 0.84], [0.15, 0.93], [0.06, 1], [0, 1.01]]), { tone: tone - 0.24, fold: 12, z: 0.09, depth: 0.02 }),
+    card(whole.map(([x, y]) => [x * 1.06, y * 1.01]), { tone: tone - 0.38, z: -0.05 }),
+    card(whole, { tone, z: 0.05, wobble: 0.014 }),
+    card(P([[-0.3, 0.27], [0.06, 0.13], [0.3, 0.27], [0.33, 0.39], [0.1, 0.47], [-0.16, 0.45], [-0.34, 0.39]]), { tone: tone - 0.15, z: 0.12, depth: 0.03 }),
+    card(P([[-0.17, 0.83], [-0.1, 0.88], [0.1, 0.87], [0.18, 0.82], [0.14, 0.95], [0.05, 1], [-0.06, 1], [-0.14, 0.95]]), { tone: tone - 0.26, z: 0.12, depth: 0.03 }),
+    card(P([[-0.1, 0.72], [-0.03, 0.66], [0.02, 0.84], [-0.09, 0.84]]), { tone: tone + 0.14, z: 0.12, depth: 0.02, wobble: 0.006 }),
   ], { at });
 }
 

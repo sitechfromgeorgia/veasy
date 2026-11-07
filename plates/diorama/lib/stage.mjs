@@ -135,7 +135,7 @@ export function buildStage(spec, { renderer, random, drawings }) {
     uniforms: {
       lightMatrix: { value: shadow.matrix }, keyAt: { value: key }, keyPower: { value: s.power ?? 1.1 },
       fillFrom: { value: new THREE.Vector3(...(s.fillFrom || [0.3, 0.8, 0.5])).normalize() }, fill: { value: s.fill ?? 0.16 },
-      fogNear: { value: fogNear }, fogFar: { value: fogFar }, poolEdge: { value: s.pool ?? 0.55 }, fogTone: { value: (s.fogTone ?? 0) ** 2 }, soft: { value: (s.soft ?? 1.2) / (s.map ?? 4096) },
+      fogNear: { value: fogNear }, fogFar: { value: fogFar }, poolEdge: { value: s.pool ?? 0.55 }, fogTone: { value: (s.fogTone ?? 0) ** 2 }, soft: { value: (s.soft ?? 2.4) / (s.map ?? 4096) },
       shade: { value: shadow.texture }, grain: { value: grainTexture(random) },
     },
     depthFunc: THREE.LessEqualDepth,
