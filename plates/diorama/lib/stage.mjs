@@ -4,7 +4,10 @@
 // 800 ms a frame here, on software GL, and this page has 370.
 import * as THREE from "three";
 import { mergePaper, seedPaper } from "./paper.mjs";
-import { PARTS } from "./parts.mjs";
+import { PARTS as SHAPES } from "./parts.mjs";
+import { PROPS } from "./props.mjs";
+
+export const PARTS = { ...SHAPES, ...PROPS };
 
 const VERTEX = /* glsl */ `
 in vec3 ink;
@@ -23,7 +26,7 @@ void main() {
   vAmbient = fill * (0.6 + 0.4 * dot(normal, fillFrom));
   vLight = lightMatrix * vec4(position + normal * 0.012, 1.0);
   vRough = 0.3 + 0.85 * fract(ink.z * 7.0);
-  vPaper = vec2(position.x + position.z * 0.61, position.y + position.z * 0.83) * (0.3 + 0.24 * ink.z) + ink.z * vec2(13.0, 7.0);
+  vPaper = vec2(position.x + position.z * 0.61, position.y + position.z * 0.83) * (0.6 + 0.3 * ink.z) + ink.z * vec2(13.0, 7.0);
   vec4 view = modelViewMatrix * vec4(position, 1.0);
   vFog = 1.0 - clamp((-view.z - fogNear) / (fogFar - fogNear), 0.0, 1.0);
   gl_Position = projectionMatrix * view;

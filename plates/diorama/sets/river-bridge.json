@@ -1,462 +1,52 @@
 {
-  "$schema": "./schema.json",
-  "id": "river-bridge",
-  "name": "The Stone Arch River Crossing",
-  "description": "Panoramic river landscape featuring a monumental three-span stone arch bridge crossing a stepped contour paper riverbed, layered masonry embankment steps, silhouette riverside trees, and four receding tiers of paper-cut hills fading into atmospheric valley mist.",
-  "duration": 6.0,
-  "tone": "greys-blacks-paper-whites",
-  "environment": {
-    "background_color": "#060606",
-    "fog": {
-      "type": "linear",
-      "color": "#0c0c0b",
-      "near": 6.5,
-      "far": 24.0
-    },
-    "lighting": {
-      "ambient": {
-        "sky_tone": "#4a4a46",
-        "ground_tone": "#141413",
-        "intensity": 0.85
-      },
-      "key_light": {
-        "type": "directional",
-        "color": "#ffffff",
-        "intensity": 2.7,
-        "position": [-7.5, 5.5, 3.2],
-        "target": [0.4, 0.35, -2.4],
-        "description": "Low raking dawn sunlight grazing stepped paper water ripple edges and highlighting bridge voussoirs and balustrade crests."
-      },
-      "fill_light": {
-        "type": "directional",
-        "color": "#6c6c68",
-        "intensity": 0.55,
-        "position": [5.5, 3.8, 1.2],
-        "target": [-0.3, 0.8, -1.0],
-        "description": "Gentle riverside fill softening cutwater shadows and illuminating embankment masonry steps."
-      }
-    }
-  },
-  "camera": {
-    "move": "wipe-cut",
-    "duration": 6.0,
-    "easing": "cubic-bezier(0.42, 0.0, 0.18, 1.0)",
-    "path": {
-      "start": {
-        "position": [1.45, 1.62, 4.3],
-        "target": [-0.25, 0.95, -3.2],
-        "fov": 38.0
-      },
-      "end": {
-        "position": [-0.32, 1.38, 1.55],
-        "target": [0.12, 1.08, -4.8],
-        "fov": 34.0
-      }
-    },
-    "choreography_notes": "The shot opens tightly occluded behind a textured foreground stone abutment and drooping paper willow foliage on the right. A graceful lateral dolly-truck to the left wipes the foreground obstruction across the lens in seconds 0.0-1.8, executing a dramatic physical paper reveal-behind that unveils the expansive river valley, stone bridge crossing, and mist-veiled mountain tiers."
-  },
-  "depth_layers": {
-    "foreground": {
-      "z_range": [2.8, 5.2],
-      "role": "Masonry riverbank abutment pier, dangling willow tree foliage cutout, and layered reed grass clumps creating an organic foreground wipe layer."
-    },
-    "midground": {
-      "z_range": [-2.2, 2.7],
-      "role": "Stepped contour paper riverbed ripples, stone embankment retaining stairs, monumental 3-span arch bridge, river barge standee, and aerial drone."
-    },
-    "background": {
-      "z_range": [-14.0, -2.5],
-      "role": "Receding river bend shoreline, stone watchtower silhouette, and four graduated tiers of paper cut hills creating atmospheric aerial depth."
-    }
-  },
-  "anchors": [
-    {
-      "id": "dot",
-      "position": [0.0, 1.95, -0.6],
-      "description": "Hero DOM dot anchor poised directly above the central bridge arch keystone."
-    },
-    {
-      "id": "bridge_header_title",
-      "position": [0.0, 2.85, -0.6],
-      "description": "Primary DOM title banner anchor aligned in the high valley sky clearance."
-    },
-    {
-      "id": "cargo_vessel_stat",
-      "position": [0.35, 0.88, -0.3],
-      "description": "Logistics and freight metric anchor tracking the river barge standee."
-    },
-    {
-      "id": "drone_aerial_stat",
-      "position": [-1.25, 2.25, 0.75],
-      "description": "Environmental/aerial monitoring callout tracking the hovering drone standee."
-    },
-    {
-      "id": "embankment_quay_anchor",
-      "position": [-1.75, 0.65, 1.2],
-      "description": "Infrastructure access anchor at the base of the stone embankment flight of steps."
-    },
-    {
-      "id": "distant_ridge_anchor",
-      "position": [0.0, 2.55, -11.5],
-      "description": "Geographic landscape anchor resting on the highest mountain ridge line."
-    }
-  ],
-  "standees": [
-    {
-      "id": "hero_bridge_drawing",
-      "motif": "bridge",
-      "drawing_path": "assets/drawings/bridge.json",
-      "layer": "midground",
-      "position": [0.0, 1.35, -0.6],
-      "rotation": [0.0, 0.0, 0.0],
-      "scale": [1.1, 1.1, 1.1],
-      "paper_layers": 3,
-      "extrusion_depth": 0.05,
-      "base_bracket": {
-        "type": "pier-abutment-anchor",
-        "width": 0.85,
-        "depth": 0.45,
-        "tone": "#d6d6d1"
-      },
-      "tone": "#fbfbf8",
-      "description": "Hero architectural bridge motif drawing standee crowning the bridge roadway deck."
-    },
-    {
-      "id": "river_cargo_ship",
-      "motif": "cargo-ship",
-      "drawing_path": "assets/drawings/cargo-ship.json",
-      "layer": "midground",
-      "position": [0.35, 0.32, -0.3],
-      "rotation": [0.0, -14.0, 0.0],
-      "scale": [0.95, 0.95, 0.95],
-      "paper_layers": 2,
-      "extrusion_depth": 0.04,
-      "base_bracket": {
-        "type": "hull-keel-slot",
-        "width": 0.8,
-        "depth": 0.35,
-        "tone": "#b4b4b0"
-      },
-      "tone": "#f0f0ec",
-      "description": "Inland river cargo barge standee navigating through the central bridge archway."
-    },
-    {
-      "id": "aerial_survey_drone",
-      "motif": "drone-flight",
-      "drawing_path": "assets/drawings/drone-flight.json",
-      "layer": "midground",
-      "position": [-1.25, 1.85, 0.75],
-      "rotation": [-8.0, 20.0, 0.0],
-      "scale": [0.75, 0.75, 0.75],
-      "paper_layers": 2,
-      "extrusion_depth": 0.035,
-      "base_bracket": {
-        "type": "aerial-wire-pin",
-        "width": 0.3,
-        "depth": 0.2,
-        "tone": "#90908c"
-      },
-      "tone": "#f5f5f1",
-      "description": "Aerial monitoring drone standee hovering above the western riverbank approach."
-    },
-    {
-      "id": "riverside_forest_nature",
-      "motif": "forest-nature",
-      "drawing_path": "assets/drawings/forest-nature.json",
-      "layer": "background",
-      "position": [1.95, 0.82, -3.2],
-      "rotation": [0.0, -25.0, 0.0],
-      "scale": [0.85, 0.85, 0.85],
-      "paper_layers": 2,
-      "extrusion_depth": 0.035,
-      "base_bracket": {
-        "type": "grove-ridge-stand",
-        "width": 0.6,
-        "depth": 0.3,
-        "tone": "#6a6a66"
-      },
-      "tone": "#d2d2cd",
-      "description": "Woodland nature standee standing along the distant riverbank terrace."
-    }
-  ],
-  "components": [
-    {
-      "id": "fg_embankment_pier",
-      "type": "wall",
-      "layer": "foreground",
-      "position": [1.85, 1.1, 3.6],
-      "rotation": [0.0, -18.0, 0.0],
-      "scale": [1.0, 1.0, 1.0],
-      "paper_properties": {
-        "sheets": 4,
-        "edge_cut": "beveled",
-        "tone": "mid-grey",
-        "hex": "#8c8c87"
-      },
-      "geometry_params": {
-        "width": 1.2,
-        "height": 2.8,
-        "thickness": 0.25,
-        "rusticated_quoin_blocks": true,
-        "capstone_coping": 0.12
-      }
-    },
-    {
-      "id": "fg_willow_tree",
-      "type": "tree",
-      "layer": "foreground",
-      "position": [2.1, 2.2, 3.8],
-      "rotation": [0.0, -25.0, 0.0],
-      "scale": [1.1, 1.1, 1.1],
-      "paper_properties": {
-        "sheets": 3,
-        "edge_cut": "deckled",
-        "tone": "charcoal",
-        "hex": "#282826"
-      },
-      "geometry_params": {
-        "trunk_height": 2.4,
-        "trunk_radius": 0.14,
-        "drooping_boughs": 5,
-        "foliage_layers": 4,
-        "branch_reach": 2.4,
-        "foliage_style": "drooping-cutout-willow"
-      }
-    },
-    {
-      "id": "fg_river_reeds_clump",
-      "type": "tree",
-      "layer": "foreground",
-      "position": [-1.7, 0.35, 2.9],
-      "rotation": [0.0, 15.0, 0.0],
-      "scale": [0.9, 0.9, 0.9],
-      "paper_properties": {
-        "sheets": 2,
-        "edge_cut": "deckled",
-        "tone": "mid-grey",
-        "hex": "#70706c"
-      },
-      "geometry_params": {
-        "reed_stalk_count": 18,
-        "height": 0.85,
-        "spread_radius": 0.45,
-        "cattail_heads": 4
-      }
-    },
-    {
-      "id": "paper_riverbed_plane",
-      "type": "riverbed-plane",
-      "layer": "midground",
-      "position": [0.0, -0.05, -1.8],
-      "rotation": [-90.0, 0.0, 0.0],
-      "scale": [1.0, 1.0, 1.0],
-      "paper_properties": {
-        "sheets": 3,
-        "edge_cut": "deckled",
-        "tone": "dark-grey",
-        "hex": "#1e1e1d"
-      },
-      "geometry_params": {
-        "width": 6.8,
-        "depth": 15.0,
-        "water_contour_tiers": 5,
-        "meander_amplitude": 0.65,
-        "contour_step_height": 0.035,
-        "water_sheen_highlights": true
-      }
-    },
-    {
-      "id": "stone_arch_bridge_structure",
-      "type": "stone-bridge",
-      "layer": "midground",
-      "position": [0.0, 0.85, -0.6],
-      "rotation": [0.0, 0.0, 0.0],
-      "scale": [1.0, 1.0, 1.0],
-      "paper_properties": {
-        "sheets": 4,
-        "edge_cut": "beveled",
-        "tone": "paper-white",
-        "hex": "#f5f5f0"
-      },
-      "geometry_params": {
-        "span_count": 3,
-        "total_length": 6.2,
-        "deck_width": 0.9,
-        "deck_camber_arch_height": 0.35,
-        "center_arch_span": 2.2,
-        "side_arch_span": 1.4,
-        "center_arch_height": 1.25,
-        "pier_cutwaters": 2,
-        "pier_width": 0.42,
-        "balustrade_height": 0.38,
-        "balustrade_openings": 16,
-        "voussoir_segments": 14
-      }
-    },
-    {
-      "id": "embankment_quay_wall_left",
-      "type": "wall",
-      "layer": "midground",
-      "position": [-2.4, 0.65, 0.4],
-      "rotation": [0.0, 20.0, 0.0],
-      "scale": [1.0, 1.0, 1.0],
-      "paper_properties": {
-        "sheets": 3,
-        "edge_cut": "clean",
-        "tone": "mid-grey",
-        "hex": "#7a7a76"
-      },
-      "geometry_params": {
-        "width": 3.8,
-        "height": 1.4,
-        "thickness": 0.22,
-        "battered_slope_deg": 10.0,
-        "coursed_ashlar_grooves": true
-      }
-    },
-    {
-      "id": "embankment_stairs_left",
-      "type": "embankment-step",
-      "layer": "midground",
-      "position": [-1.8, 0.32, 1.1],
-      "rotation": [0.0, 20.0, 0.0],
-      "scale": [1.0, 1.0, 1.0],
-      "paper_properties": {
-        "sheets": 3,
-        "edge_cut": "beveled",
-        "tone": "light-grey",
-        "hex": "#b6b6b1"
-      },
-      "geometry_params": {
-        "step_count": 6,
-        "step_width": 1.1,
-        "step_height": 0.12,
-        "step_depth": 0.28,
-        "low_water_landing": true
-      }
-    },
-    {
-      "id": "embankment_quay_wall_right",
-      "type": "wall",
-      "layer": "midground",
-      "position": [2.4, 0.65, 0.4],
-      "rotation": [0.0, -20.0, 0.0],
-      "scale": [1.0, 1.0, 1.0],
-      "paper_properties": {
-        "sheets": 3,
-        "edge_cut": "clean",
-        "tone": "mid-grey",
-        "hex": "#7a7a76"
-      },
-      "geometry_params": {
-        "width": 3.8,
-        "height": 1.4,
-        "thickness": 0.22,
-        "battered_slope_deg": 10.0,
-        "coursed_ashlar_grooves": true
-      }
-    },
-    {
-      "id": "distant_watchtower_facade",
-      "type": "facade",
-      "layer": "background",
-      "position": [-1.9, 1.8, -5.2],
-      "rotation": [0.0, 15.0, 0.0],
-      "scale": [0.85, 0.85, 0.85],
-      "paper_properties": {
-        "sheets": 2,
-        "edge_cut": "clean",
-        "tone": "dark-grey",
-        "hex": "#4e4e4b"
-      },
-      "geometry_params": {
-        "width": 1.2,
-        "height": 3.0,
-        "tower_profile": "octagonal-keep",
-        "machicolations": true,
-        "crenellations": 4
-      }
-    },
-    {
-      "id": "layered_hill_tier_1",
-      "type": "hill",
-      "layer": "background",
-      "position": [0.0, 1.2, -5.5],
-      "rotation": [0.0, 0.0, 0.0],
-      "scale": [1.0, 1.0, 1.0],
-      "paper_properties": {
-        "sheets": 2,
-        "edge_cut": "deckled",
-        "tone": "dark-grey",
-        "hex": "#464643"
-      },
-      "geometry_params": {
-        "width": 8.5,
-        "height": 2.2,
-        "peak_offset_x": 1.8,
-        "ridge_profile": "undulating-foothills",
-        "micro_paper_trees": 12
-      }
-    },
-    {
-      "id": "layered_hill_tier_2",
-      "type": "hill",
-      "layer": "background",
-      "position": [0.0, 1.8, -8.0],
-      "rotation": [0.0, 0.0, 0.0],
-      "scale": [1.05, 1.05, 1.05],
-      "paper_properties": {
-        "sheets": 2,
-        "edge_cut": "deckled",
-        "tone": "charcoal",
-        "hex": "#343431"
-      },
-      "geometry_params": {
-        "width": 9.5,
-        "height": 3.0,
-        "peak_offset_x": -1.4,
-        "ridge_profile": "rolling-valley-slopes"
-      }
-    },
-    {
-      "id": "layered_hill_tier_3",
-      "type": "hill",
-      "layer": "background",
-      "position": [0.0, 2.5, -11.0],
-      "rotation": [0.0, 0.0, 0.0],
-      "scale": [1.1, 1.1, 1.1],
-      "paper_properties": {
-        "sheets": 2,
-        "edge_cut": "deckled",
-        "tone": "charcoal",
-        "hex": "#242422"
-      },
-      "geometry_params": {
-        "width": 11.0,
-        "height": 3.8,
-        "peak_offset_x": 0.8,
-        "ridge_profile": "high-alpine-pass"
-      }
-    },
-    {
-      "id": "layered_hill_tier_4_horizon",
-      "type": "hill",
-      "layer": "background",
-      "position": [0.0, 3.2, -14.0],
-      "rotation": [0.0, 0.0, 0.0],
-      "scale": [1.2, 1.2, 1.2],
-      "paper_properties": {
-        "sheets": 1,
-        "edge_cut": "deckled",
-        "tone": "ink-black",
-        "hex": "#141413"
-      },
-      "geometry_params": {
-        "width": 12.5,
-        "height": 4.5,
-        "peak_offset_x": -0.5,
-        "ridge_profile": "distant-mountain-crest"
-      }
-    }
-  ]
+ "id": "river-bridge",
+ "about": "a river as a tunnel book: a stone bridge of three arches over cut water, hills and a low sun beyond, a paper boat, reeds and trees on the banks",
+ "move": "wipe-pass",
+ "easing": "smoothstep",
+ "camera": { "vFov": 30
+ },
+ "direction": "left-to-right",
+ "travelX": 3.2,
+ "baseZ": 14.2,
+ "baseY": 1.9,
+ "nearDip": 0.8,
+ "targetY": 2.1,
+ "targetZ": 0,
+ "wipeCenter": 0.5,
+ "stage": { "key": [-5, 22, 8],
+  "aim": [0, 1.5, 0],
+  "angle": 24,
+  "power": 2.4,
+  "fill": 0.34,
+  "pool": 0.85,
+  "fog": [40, 80]
+ },
+ "anchors": {
+  "bridge": [0, 3, -1]
+ },
+ "parts": [
+  {"part": "sky", "at": [0,0,-9], "tone": 0.52, "power": 0.75, "sun": [0.8,5.7,0.75], "clouds": [[-2.3,6.2,1.1],[2.2,5.6,0.8],[0,7.4,0.7]]},
+  {"part": "hill", "at": [0,0,-7.6], "height": 2.9, "tone": 0.44, "roll": 0.6, "wave": 0.42, "phase": 1},
+  {"part": "hill", "at": [0,0,-6.4], "height": 2.3, "tone": 0.36, "roll": 0.5, "wave": 0.6, "phase": 3},
+  {"part": "hill", "at": [0,0,-5], "height": 1.5, "tone": 0.28, "roll": 0.3, "wave": 0.8, "phase": 0.4},
+  {"part": "water-row", "at": [0,0,-3.8], "height": 0.56, "tone": 0.6},
+  {"part": "water-row", "at": [0,0,-3.1], "height": 0.46, "tone": 0.52},
+  {"part": "water-row", "at": [0,0,-2.4], "height": 0.38, "tone": 0.46},
+  {"part": "bridge", "at": [0,0,-1.4], "width": 13, "height": 2.9, "arches": 3, "span": 1.9, "pier": 0.7, "water": 0.2},
+  {"part": "water-row", "at": [0,0,-0.9], "height": 0.3, "tone": 0.42},
+  {"part": "water-row", "at": [0,0,0], "height": 0.3, "tone": 0.38, "glints": 7},
+  {"part": "paper-boat", "at": [0.8,0.14,0.45], "size": 0.95},
+  {"part": "water-row", "at": [0,0,1], "height": 0.26, "tone": 0.34, "glints": 7},
+  {"part": "water-row", "at": [0,0,2], "height": 0.24, "tone": 0.3},
+  {"part": "bank", "at": [-1.3,0,2.8], "side": -1, "width": 6, "height": 1},
+  {"part": "tree", "at": [-1.75,0.9,3], "height": 3.5, "r": 1, "tone": 0.26},
+  {"part": "bank", "at": [1.8,0,3.8], "side": 1, "width": 6, "height": 0.9, "tone": 0.28},
+  {"part": "tree", "at": [1.75,0.8,4.1], "height": 3, "r": 0.8, "tone": 0.2},
+  {"part": "water-row", "at": [0,0,4.6], "height": 0.22, "tone": 0.2, "glints": 4},
+  {"part": "bank", "at": [-2,0,6.6], "side": -1, "width": 6, "height": 0.8, "tone": 0.16},
+  {"part": "water-row", "at": [0,0,7.2], "height": 0.2, "tone": 0.14, "glints": 3},
+  {"part": "wipe", "at": [0.8,0,11.2], "width": 0.85},
+  {"part": "water-row", "at": [0,0,8.6], "height": 0.3, "tone": 0.12, "glints": 3},
+  {"part": "water-row", "at": [0,0,9.8], "height": 0.34, "tone": 0.1, "glints": 2}
+ ]
 }

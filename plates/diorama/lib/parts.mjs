@@ -80,6 +80,15 @@ function windowPanes(x, sill, width, spring) { // the bars are what is left of t
   return holes;
 }
 
+// A tall window with its own light: for a wall that has no opening of its own.
+function windowSet({ at, width = 1.4, height = 3.2, sill = 1, tone = 0.5 }) {
+  const holes = windowPanes(0, 0.1, width - 0.2, height - 0.1 - (width - 0.2) / 2 - 0.1);
+  return group([
+    card(rect(-width / 2, 0, width / 2, height), { holes, tone, z: 0.09, wobble: 0.006, bevel: 0.008, depth: 0.03 }),
+    card(rect(-width / 2 + 0.02, 0.02, width / 2 - 0.02, height - 0.02), { tone: 0.9, glow: 1.4, z: 0.06, depth: 0.01, wobble: 0, bevel: 0, warp: 0 }),
+  ], { at: [at[0], at[1] + sill, at[2]] });
+}
+
 // The light behind a wall: one sheet lit from within.
 function glow({ at, width = 12, height = 9, power = 1.4, tone = 0.8 }) {
   return group([card(rect(-width / 2, 0, width / 2, height), { tone, glow: power, wobble: 0, bevel: 0, warp: 0 })], { at });
@@ -219,4 +228,4 @@ function standee({ at, turn, drawing, height = 1.2, tone = 0x2e2e2e, base = "dis
   return group([figure], { at, turn });
 }
 
-export const PARTS = { sheet, glow, "ground-row": groundRow, column, painting, amphora, bust, pedestal, rope, standee };
+export const PARTS = { sheet, glow, "window-set": windowSet, "ground-row": groundRow, column, painting, amphora, bust, pedestal, rope, standee };

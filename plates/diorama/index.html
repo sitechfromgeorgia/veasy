@@ -17,7 +17,7 @@ window.setup = async (spec, c) => {
   renderer.setPixelRatio(1);
   renderer.setSize(c.width, c.height);
   document.body.appendChild(renderer.domElement);
-  const drawings = spec.standees?.length ? await (await fetch("./drawings.json")).json() : {};
+  const drawings = spec.parts.some((p) => p.drawing) ? await (await fetch("./drawings.json")).json() : {};
   scene = buildStage(spec, { renderer, random: seeded(c.seed), drawings });
   rig = createCameraSystem(spec, c);
 };
