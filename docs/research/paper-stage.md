@@ -210,3 +210,28 @@ A baked, deterministic grey vertical clip (`plate.mp4`, `poster.png`, `plate.jso
    - Beveled card edges that catch rim light
    - Exponential/linear depth fog
    - Physical layer occlusion
+
+---
+
+## 5. The critic's verdicts on the first set (museum hall)
+
+Every round was a new Sonnet sub-agent shown only three full-size stills, with the same brief: name the place, then
+PASS or FAIL on "handmade paper miniature, or grey game boxes / flat vector art?", then three fixes. It was told a polite
+pass is useless. Frames: `out/critic/museum<n>/` (not in git). No round passed.
+
+| Round | Commit | Named the place | Verdict | What it said, what changed next |
+|---|---|---|---|---|
+| 1 | d7acc1b | "grand museum hall" | FAIL | Flat vector or low-poly. No paper material, no layers. Next: bevelled cuts, fibre, soft shadow, stacked props |
+| 2 | 2nd commit after d7acc1b | "museum sculpture hall" | FAIL | Clean low-poly render, decals on boxes. Next: warped sheets, tooth, ring stacks, folded columns |
+| 3 | third commit | "museum hall gallery" | FAIL, narrowly | Clay render with a paper filter; asked for tight hard contact shadows and chunky layers |
+| 4 | 85ea81d | "museum antiquities hall" | FAIL | A continuous 3D room, not stacked layers. **This changed the approach**: no room, no floor plane, parallel sheets on a long lens |
+| 5 | first tunnel-book commit | "museum vase hall" | FAIL, narrowly | Reads as a 3D diorama; keylines look like vector strokes; asked for rings on the jar |
+| 6 | a9327bd | "museum gallery hall" | FAIL, narrowly | Clean CG under a paper texture; jar a mesh with a seam; asked for soft contact shadows |
+| 7 | a82bed3 | "museum hall, amphora" | borderline FAIL | Tooth, pale edges, tape and sheet edges "get close to handmade paper"; jar faceted, tooth stretched in the last close-up, window a hard cut-out |
+
+What the seven rounds establish: the place reads every time, and the verdict moved from flat vector art to borderline. The
+notes also contradict each other from round to round (rings wanted in 2, rejected in 3 and 4, wanted again in 5 and 6;
+soft shadows wanted in 1, 2, 6, hard ones in 3), so more rounds were not converging. The critic's FAIL stands: **the first
+Done-when line, as written ("passed the critic"), was not met.** The hand-over brief's gate was the verdict in this file,
+so the other four sets were built after this table, on the tunnel-book approach. The owner decides whether this look is
+good enough (see the result file).
