@@ -21,7 +21,7 @@ The cold user got `--find` and the skill, not the HTML page itself (an agent can
 Gates: the full unit suite was run once on the last commit (result line below); `tsc` and `selftest` were not run
 because no Remotion or scene code was touched (only Python, JSON, docs and a skill).
 
-GATES_LINE
+Full suite on d397cff: `python -m unittest discover -s tests`: Ran 786 tests, OK (skipped=2).
 
 ## What was built
 
