@@ -475,5 +475,112 @@ class Baked(unittest.TestCase):
             plates.make("nope", seconds=1)
 
 
+class OwnBake(unittest.TestCase):
+    """A kind with its own bake.mjs (matter solves cache/sim.bin first) is baked through it (the Tbilisi agent's report,
+    2026-11-08: `engine plate matter` failed on a fresh clone with a JSON error, its cache/ never made)."""
+
+    def test_a_kind_with_its_own_bake_is_baked_through_it(self):
+        self.assertEqual(plates.entry("matter").name, "bake.mjs")
+        self.assertEqual(plates.entry("example"), plates.PLATES / "run.mjs")
+        own = plates._run_args("matter", 2, 3, 0.5, "s.json")
+        self.assertEqual((pathlib.Path(own[1]).name, own[2]), ("bake.mjs", "--seconds"))  # no kind: bake.mjs is matter's
+        self.assertEqual(own[-2:], ["--spec", "s.json"])
+        run = plates._run_args("example", 1, 1, 1, None)
+        self.assertEqual((pathlib.Path(run[1]).name, run[2]), ("run.mjs", "example"))
+
+    def test_matter_without_a_spec_is_refused_before_node_runs(self):
+        with mock.patch.object(plates.subprocess, "run", side_effect=AssertionError("node ran")):
+            with self.assertRaisesRegex(plates.PlateError, "--spec"):
+                plates.hash_of("matter", 2, 3)
+
+    def test_the_fast_key_ignores_a_kinds_generated_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "plates" / "k" / "cache").mkdir(parents=True)
+            (root / "plates" / "k" / "index.html").write_text("<p>")
+            with mock.patch.object(plates, "ROOT", root), mock.patch.object(plates, "PLATES", root / "plates"):
+                before = plates._fast_key("k", 1, 1, 1, None, None)
+                (root / "plates" / "k" / "cache" / "sim.bin").write_bytes(b"solved")
+                self.assertEqual(plates._fast_key("k", 1, 1, 1, None, None), before)
+                (root / "plates" / "k" / "page.mjs").write_text("// a source file")
+                self.assertNotEqual(plates._fast_key("k", 1, 1, 1, None, None), before)
+
+
+@unittest.skipUnless(plates.node(), "node needed")
+class RunnerOnATempKind(unittest.TestCase):
+    """plates/run.mjs on a throwaway kind in plates/ (it reads kinds from its own folder)."""
+
+    def setUp(self):
+        self.kind = f"_test_kind_{os.getpid()}"
+        self.dir = plates.PLATES / self.kind
+        self.dir.mkdir()
+        (self.dir / "index.html").write_text("<script>window.setup=()=>{};window.step=()=>{};</script>")
+        self.addCleanup(lambda: __import__("shutil").rmtree(self.dir, ignore_errors=True))
+
+    def run_mjs(self, *more):
+        return subprocess.run([plates.node(), str(plates.PLATES / "run.mjs"), self.kind, *more], capture_output=True,
+                              text=True, encoding="utf-8", timeout=60)
+
+    def test_the_hash_leaves_a_generated_cache_out_and_nothing_else(self):
+        before = self.run_mjs("--hash").stdout.strip()
+        (self.dir / "cache").mkdir()
+        (self.dir / "cache" / "sim.bin").write_bytes(b"solved once")
+        self.assertEqual(self.run_mjs("--hash").stdout.strip(), before)
+        (self.dir / "data").mkdir()
+        (self.dir / "data" / "x.bin").write_bytes(b"part of the kind")
+        self.assertNotEqual(self.run_mjs("--hash").stdout.strip(), before)
+
+    def test_a_kind_that_makes_its_cache_says_so_when_run_directly(self):
+        (self.dir / "bake.mjs").write_text("// solves cache/ first")
+        with tempfile.TemporaryDirectory() as out:
+            r = self.run_mjs("--out", out, "--seconds", "1")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(f"plates/{self.kind}/bake.mjs", r.stderr)
+        self.assertNotIn("JSON", r.stderr)
+
+
+@unittest.skipUnless(TOOLS, "node, ffmpeg and plates/node_modules needed")
+class BakedMatter(unittest.TestCase):
+    """One real matter bake (quarter scale, one second, 120 blocks), from a spec, through engine plate's own path."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.env = mock.patch.dict(os.environ, {"VEASY_HOME": cls.tmp.name})
+        cls.env.start()
+        cls.spec = pathlib.Path(cls.tmp.name, "matter.json")
+        cls.spec.write_text(json.dumps({"form": "pile", "fact": 120, "unit": 1}), encoding="utf-8")
+        cls.before = plates.hash_of("matter", 1, 3, 0.25, cls.spec)
+        try:
+            cls.first = plates.make("matter", 1, 3, 0.25, str(cls.spec))
+        except plates.PlateError as e:
+            cls.tearDownClass()
+            if "chrome-headless-shell" in str(e):  # a machine with no browser yet (CI): the baked checks wait for one
+                raise unittest.SkipTest(str(e)[-90:])
+            raise
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.env.stop()
+        cls.tmp.cleanup()
+
+    def test_it_bakes_and_files_the_plate_under_the_hash_asked_before(self):
+        self.assertFalse(self.first["cached"])
+        self.assertEqual((self.first["kind"], self.first["frames"]), ("matter", 30))
+        self.assertEqual(self.first["hash"], self.before)
+        self.assertEqual(plates.hash_of("matter", 1, 3, 0.25, self.spec), self.before)  # cache/ now exists: same plate
+        self.assertEqual((self.first["matter"]["proof"], self.first["matter"]["exact"]), ("120 x 1 = 120", True))
+
+    def test_the_second_call_is_a_cache_hit(self):
+        start = time.time()
+        again = plates.make("matter", 1, 3, 0.25, str(self.spec))
+        self.assertTrue(again["cached"])
+        self.assertEqual(again["hash"], self.before)
+        self.assertLess(time.time() - start, 1.0)
+
+    def test_the_library_lists_it(self):
+        self.assertIn(self.before, [m["hash"] for m in plates.library() if m["kind"] == "matter"])
+
+
 if __name__ == "__main__":
     unittest.main()

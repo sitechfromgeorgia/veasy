@@ -18,7 +18,13 @@ python -m tt_shorts.engine plate list | check
 ```
 
 `node plates/run.mjs <kind> ... --hash` prints the plate's 16-hex content hash and exits (what the cache key is). The hash is
-a function of the kind's own files, the spec's contents (not its path), the seed, the seconds and the scale.
+a function of the kind's own files, the spec's contents (not its path), the seed, the seconds and the scale. A kind's
+`cache/` is left out: it is what a bake makes from those (matter's solved `sim.bin`), not what the plate is made of.
+
+A kind that must make files before its page can run has its own `plates/<kind>/bake.mjs` (matter: verify the fact, solve
+`cache/sim.bin`, then call `run.mjs`). `engine plate <kind>` bakes through it, and asks it for the hash (`bake.mjs ...
+--hash`, on the spec as the bake resolves it), so the hash before a bake is the plate's hash after it. Such a kind needs
+`--spec`; `run.mjs` called directly on it without its `cache/` says so instead of failing in the page.
 
 The result of a bake is `plate.mp4`, `poster.png` (the middle frame), `plate.json` (what it is a function of, and its cost) and,
 if the page exports them, `anchors.json`.

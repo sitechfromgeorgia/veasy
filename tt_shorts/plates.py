@@ -39,6 +39,9 @@ LICENCE = "own"  # drawn by Veasy's own code (three.js, MIT, is the only library
 # their own (matter: a count proved against one fact; relief: a real region; diorama: a kind of place; ink: one
 # drawing), so behind any other story they would be false. A film gets one of those only by name: `plate use`.
 GROUND_KINDS = ("example", "surface")
+# a kind's per-bake output (matter's cache/, solved from the spec and seed by its own bake.mjs): never part of a plate's
+# identity, here (the fast key) or in run.mjs's hash (its GENERATED)
+GENERATED = ("cache",)
 
 
 class PlateError(ValueError):
@@ -78,10 +81,21 @@ def refusal(program=None, family=None, text=""):
 # ---------------------------------------------------------------- the content hash and the bake
 
 
+def entry(kind):
+    """The file that bakes a kind: its own plates/<kind>/bake.mjs when it has one (matter solves cache/sim.bin, then
+    calls run.mjs itself), else plates/run.mjs."""
+    own = PLATES / kind / "bake.mjs"
+    return own if own.is_file() else PLATES / "run.mjs"
+
+
 def _run_args(kind, seconds, seed, scale, spec):
     if kind not in kinds():
         raise PlateError(f"no plate kind {kind!r}; known: {', '.join(kinds())}")
-    a = [node(), str(PLATES / "run.mjs"), kind, "--seconds", str(seconds), "--seed", str(seed), "--scale", str(scale)]
+    run = entry(kind)
+    if run.name == "bake.mjs" and not spec:
+        raise PlateError(f"{kind} needs --spec: what its plate proves (plates/{kind}/README.md)")
+    a = [node(), str(run)] + ([] if run.name == "bake.mjs" else [kind])
+    a += ["--seconds", str(seconds), "--seed", str(seed), "--scale", str(scale)]
     return a + (["--spec", str(spec)] if spec else [])
 
 
@@ -119,6 +133,10 @@ def bake(kind, seconds=6, seed=1, scale=1, spec=None):
     if r.returncode:
         shutil.rmtree(tmp, ignore_errors=True)
         raise PlateError(f"bake of {kind} failed: {r.stderr.strip()[-400:]}")
+    made = json.loads((tmp / "plate.json").read_text(encoding="utf-8"))
+    if made.get("hash") != h:  # the plate is filed under the hash asked before the bake: they must be one
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise PlateError(f"bake of {kind} made plate {made.get('hash')}, but its hash before the bake was {h}")
     for f in tmp.iterdir():
         os.replace(f, final / f.name)
     shutil.rmtree(tmp, ignore_errors=True)
@@ -209,7 +227,8 @@ def _fast_key(kind, seconds, seed, scale, spec, brands):
     """What a finished answer is a function of, read from file stats alone (no node, no brand loading): the kind's files,
     run.mjs, the packs' brand.json files, the spec's contents and the numbers. None when something can't be read."""
     try:
-        files = [PLATES / "run.mjs", *sorted((PLATES / kind).rglob("*")), *sorted((ROOT / "brands").glob("*/brand.json"))]
+        own = [f for f in sorted((PLATES / kind).rglob("*")) if f.relative_to(PLATES / kind).parts[0] not in GENERATED]
+        files = [PLATES / "run.mjs", *own, *sorted((ROOT / "brands").glob("*/brand.json"))]
         sig = [[str(f.relative_to(ROOT)), f.stat().st_size, f.stat().st_mtime_ns] for f in files if f.is_file()]
         body = pathlib.Path(spec).read_text(encoding="utf-8") if spec else ""
         return hashlib.sha256(json.dumps([kind, seconds, seed, scale, body, sig, brands], sort_keys=True).encode()).hexdigest()

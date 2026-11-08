@@ -7,7 +7,15 @@ cd plates && npm ci
 node plates/matter/bake.mjs --spec spec.json --seconds 6 --seed 1 --out out/plates/budget
 ```
 
-`bake.mjs` verifies the fact, solves once into `cache/sim.bin` (git-ignored), then runs `plates/run.mjs matter`. It bakes a 1080×1920 clip (`plate.mp4`), a center poster (`poster.png`), verification metadata (`plate.json`), and 2D group tracking coordinates (`anchors.json`) for DOM typography.
+From an agent or a script, the front door bakes into the store and answers from its cache the next time:
+
+```bash
+python -m tt_shorts.engine plate matter --spec spec.json --seconds 6 --seed 1
+```
+
+`bake.mjs` verifies the fact, solves once into `cache/sim.bin` (git-ignored, never part of the plate's hash), then runs
+`plates/run.mjs matter`, and prints the whole manifest. `--hash` instead of `--out` prints the plate's hash without solving.
+Without a spec there is nothing to prove: the bake is refused. It bakes a 1080×1920 clip (`plate.mp4`), a center poster (`poster.png`), verification metadata (`plate.json`), and 2D group tracking coordinates (`anchors.json`) for DOM typography.
 
 ---
 
