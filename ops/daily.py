@@ -89,7 +89,12 @@ def main(argv=None):
     ap.add_argument("--digest-day", help="the day whose done videos the digest joins (default yesterday)")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
-    seen = [j["ref"] for j in queue.listing(limit=1000) if j["source"] == "tbilisi-today"]
+    # A story is spent once a video exists for it. A failed or cancelled job must not block its story
+    # forever: 338 renders failed on the writer's spent OpenRouter key (2026-11-07), and every one of
+    # those clusters stayed invisible to the picker even after the key was fixed.
+    SEEN_STATES = {"queued", "writing", "rendering", "done", "held"}
+    seen = [j["ref"] for j in queue.listing(limit=1000)
+            if j["source"] == "tbilisi-today" and j.get("state") in SEEN_STATES]
     picks = tbilisi_today.candidates(a.hours, a.limit, seen=seen, scores=scores())
     out = {"picks": [{"id": c["id"], "category": c["category"], "sources": c["source_count"],
                       "headline": c["headline"][:80]} for c in picks]}

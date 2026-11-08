@@ -511,7 +511,13 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     model = model or MODEL
     prompt_of = make_prompt or (lambda c, a, av: _prompt(c, a, av, mistakes, director, facts, extra, extra_types))
     checks_of = run_checks or _checks
-    story = _object(_call(prompt_of(cluster, articles, avoid), model))
+    first = prompt_of(cluster, articles, avoid)
+    try:
+        story = _object(_call(first, model))
+    except ValueError:
+        # The writer sometimes answers in prose with no JSON at all (deepseek-flash did on 2026-11-08
+        # and cost a whole render). One strict retry is far cheaper than a failed job.
+        story = _object(_call(first + "\n\nდააბრუნე მხოლოდ JSON ობიექტი, ყოველგვარი ტექსტის გარეშე.", model))
     story.pop("sources", None)
     story.pop("date", None)
     story.pop("director", None)  # code assigns it (directors.py), like the date
