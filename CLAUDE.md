@@ -143,6 +143,9 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
     never a 13th region or a border line). The label is written on the territory, never beside it (2026-11-10):
     no outline, the hatch and lines cleared behind it, tilt at most 15°, 22-20 px, 16 px only where nothing bigger
     fits inside (a map label's probe floor, `probe.MIN_PX["map"]`).
+  - A map names its region on it and the cities around with a dot each (`geo._names`: the country's by the gazetteer's
+    `rank`, Geostat's census), a city view its districts; a name never covers a pin, the occupied words or another
+    name, and none is drawn in `map-focus`.
   - For the crime family the map stops at the region and marks no district, and ships no district outline or
     street (`geo.PRIVATE`, `tests/test_geo.py`).
 - **No publisher photos:** tbilisi.today has no reuse grant (tbilisi.today repo: `ingest/src/story-cover-assets/README.md`).

@@ -117,9 +117,13 @@ export type GeoMap = {
   // the territories Georgian law calls occupied (Abkhazia, the Tskhinvali region): a tint over the regions, always
   // both (the camera starts on the whole country); `label` is the pack's word (strings.occupied)
   occupied?: GeoOccupied[];
+  region_names?: string[]; // the highlighted regions' Georgian names, in `regions`' order
+  names?: GeoName[]; // cities and towns the view may name, most worth showing first (geo.py _names)
   // OpenStreetMap layers (ODbL): see assets/maps/README.md "What a scene gets"
   layers?: GeoLayers;
 };
+
+export type GeoName = { name: string; point: number[]; kind: "capital" | "city" | "town" };
 
 export type GeoOccupied = {
   id: "abkhazia" | "tskhinvali";

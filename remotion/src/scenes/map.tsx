@@ -15,8 +15,9 @@ import { CANVAS, FONT, INK, LINE_STRONG, MUTED, PANEL, RAIL_X, RED, SIDE, W } fr
 import { marked } from "../marker";
 import type { Scene } from "../types";
 import { beat, fitSize, Frame, In, measure, stepped, useTheme } from "../ui";
-import { balancedLines, gridInside, lerpView, polygons, seatInside, toScreen, zoomIn } from "./mapgeo";
-import type { View } from "./mapgeo";
+import { balancedLines, gridInside, insideAny, lerpView, placeCentred, placeNames, polygons, seatInside, toScreen,
+  zoomIn } from "./mapgeo";
+import type { Placed, Pt, Rect, View } from "./mapgeo";
 
 const INNER = W - 2 * SIDE; // 952
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -24,6 +25,7 @@ const smooth = Easing.inOut(Easing.cubic);
 // the grid scene's pin: its tip is at (0, 100), the dot at (0, -122)
 const PIN = "M0 -250c-74 0-130 56-130 128 0 96 130 222 130 222s130-126 130-222c0-72-56-128-130-128z";
 const FADE = "3.5%"; // the map's edges fade out instead of ending in a hard frame
+const REGION_SIZES = [26, 24, 22, 20]; // px of a highlighted region's name on it, biggest first
 const OCC_SIZES = [22, 20, 18, 16]; // px of an occupied territory's label, biggest first; 16 only where nothing bigger fits
 // inside (the Tskhinvali region at the country view): a map label's floor is 16 (probe.py)
 
@@ -166,6 +168,78 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number; mode?: "where" | "fo
       }
     }
     return out.filter((l) => l.vis > 0.02);
+  });
+
+  // names on the camera's last view (the owner, 2026-11-10: a city's map names its region and the cities around):
+  // the highlighted region's name on it, the cities and towns around with a dot each, a city view's districts; none
+  // over a pin, the occupied territories' words or one another. They come in once the camera has landed, each on a
+  // plate of the ground it stands on, so no line runs through the words (the pack: no outlines)
+  const namesT = m.level === "country" ? interpolate(frame, [drawEnd + 8, drawEnd + 20], [0, 1], clamp)
+    : interpolate(frame, [landed, landed + 12], [0, 1], clamp);
+  const regionRings = useMemo(() => m.regions.map((r) => polygons(r)), [m.regions]);
+  // a region's name stays off the occupied territories (Shida Kartli's name on its free part), unless the region is
+  // one of them (Abkhazia: then its name sits beside the territory's words, on the same red)
+  const occRingsAll = rings;
+  const named = useMemo(() => {
+    if (focus) return { regions: [], cities: [], districts: [] }; // the map-focus scene: its region and number only
+    const v1: View = { k: b.k, cx: b.x, cy: b.y };
+    const taken: Rect[] = m.pins.map((p) => {
+      const P = toScreen(v1, boxW, boxH, p);
+      return { x: P[0] - 34, y: P[1] - 86, w: 68, h: 96 }; // the pin's head stands above its tip
+    });
+    for (const x of seated) {
+      if (!x) continue;
+      const s1 = x.seats[1], [w, h] = x.dims(s1.size), S = toScreen(v1, boxW, boxH, [s1.x, s1.y]);
+      const a = (Math.abs(s1.angle) * Math.PI) / 180, W = w * Math.cos(a) + h * Math.sin(a), H = w * Math.sin(a) + h * Math.cos(a);
+      taken.push({ x: S[0] - W / 2 - 8, y: S[1] - H / 2 - 8, w: W + 16, h: H + 16 });
+    }
+    const regions: (Placed & { lines: string[]; size: number })[] = [];
+    if (m.level === "region" && !focus) {
+      (m.region_names ?? []).forEach((name, i) => {
+        const rings = regionRings[i];
+        if (!rings || !name) return;
+        const xs = rings.flat().map((p) => p[0]), ys = rings.flat().map((p) => p[1]);
+        const bbox = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+        const words = name.split(" ").filter(Boolean);
+        const outside = occRingsAll.filter((occ) => { // not the territory that is this region itself (Abkhazia)
+          const g = gridInside(rings, bbox, 8);
+          return g.filter((p) => insideAny(occ, p[0], p[1])).length <= g.length * 0.6;
+        });
+        // one line first (a narrow band, as Shida Kartli's free part beside the pin), then two balanced lines
+        for (const lines of words.length > 1 ? [[words.join(" ")], balancedLines(words, (l) => measure(l, 600))] : [words]) {
+          const dims = (z: number): [number, number] => [(Math.max(...lines.map((l) => measure(l, 600))) * z) / 100,
+            lines.length * z * LH];
+          const seat = seatInside({ rings, view: v1, boxW, boxH, at: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2],
+            bbox, sizes: REGION_SIZES, dims, pins: m.pins, avoid: [...taken], outside });
+          if (!seat.fits || seat.angle !== 0) continue; // a region's name stands straight, wholly on it, or not at all
+          const [w, h] = dims(seat.size), S = toScreen(v1, boxW, boxH, [seat.x, seat.y]);
+          regions.push({ name, kind: "region", dot: null, x: S[0], y: S[1], w, h, lines, size: seat.size });
+          taken.push({ x: S[0] - w / 2 - 8, y: S[1] - h / 2 - 4, w: w + 16, h: h + 8 });
+          break;
+        }
+      });
+    }
+    const size = (kind: string) => (kind === "capital" ? 20 : 18);
+    const cities = placeNames({ names: m.names ?? [], view: v1, boxW, boxH, taken, max: m.level === "country" ? 8 : 7,
+      dims: (n, kind) => [(measure(n, kind === "capital" ? 600 : 500) * size(kind)) / 100, size(kind) * LH] });
+    cities.forEach((c) => taken.push({ x: c.x - c.w / 2 - 8, y: c.y - c.h / 2 - 4, w: c.w + 16, h: c.h + 8 }));
+    const ds = (m.layers?.city?.districts ?? []).filter((d) => d.name && d.r * b.k >= 22)
+      .map((d) => ({ name: d.name, kind: d.named ? "named" : "district", at: d.at, r: d.r }))
+      .sort((p, q) => Number(q.kind === "named") - Number(p.kind === "named") || q.r - p.r);
+    const districts = m.level === "district" ? placeCentred({ names: ds, view: v1, boxW, boxH, taken, max: 6,
+      dims: (n, kind) => [(measure(n, kind === "named" ? 600 : 500) * 18) / 100, 18 * LH] }) : [];
+    return { regions, cities, districts };
+  }, [seated, regionRings, occRingsAll, m.region_names, m.names, m.layers, m.pins, m.level, focus, boxW, boxH, b.k, b.x, b.y]);
+  // which ground a name's plate repeats: the land, a highlighted region's tint, an occupied territory's tint
+  const occRings = rings;
+  const groundOf = (p: Pt) => ({
+    region: regionRings.some((r) => insideAny(r, p[0], p[1])),
+    occupied: occRings.some((r) => insideAny(r, p[0], p[1])),
+  });
+  const toMap = (x: number, y: number): Pt => [cx + (x - boxW / 2) / k, cy + (y - boxH / 2) / k];
+  const plates = [...named.regions, ...named.cities, ...named.districts].map((n, i) => {
+    const c = toMap(n.x, n.y);
+    return { key: `plate-${i}`, x: c[0], y: c[1], w: px(n.w + 14), h: px(n.h + 6), ...groundOf(c) };
   });
 
   const place = String(s.place ?? "");
@@ -328,6 +402,28 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number; mode?: "where" | "fo
             ))}
             <path d={m.land} fill="none" stroke={INK} strokeWidth={px(3)} strokeLinejoin="round" pathLength={1}
               strokeDasharray="1 1" strokeDashoffset={1 - draw} />
+            {/* the names' plates: the ground each stands on, over every line, the outlines too (a map breaks a line
+                under a name), so none runs through the words */}
+            <g opacity={namesT}>
+              {plates.map((p) => {
+                const at = { x: p.x - p.w / 2, y: p.y - p.h / 2, width: p.w, height: p.h, rx: px(7) };
+                return (
+                  <g key={p.key}>
+                    <rect {...at} fill={v === "cards" ? PANEL : CANVAS} />
+                    <rect {...at} fill={INK} fillOpacity={0.05} />
+                    {p.region && <rect {...at} fill={focus ? RED : INK} fillOpacity={(focus ? 0.34 : 0.14) * tint} />}
+                    {p.occupied && <rect {...at} fill={RED} fillOpacity={0.16} />}
+                  </g>
+                );
+              })}
+            </g>
+            {/* the cities' dots (the capital's a little bigger) */}
+            <g opacity={namesT}>
+              {named.cities.map((c, i) => {
+                const d = toMap(c.dot![0], c.dot![1]);
+                return <circle key={i} cx={d[0]} cy={d[1]} r={px(c.kind === "capital" ? 6 : 4.5)} fill={INK} />;
+              })}
+            </g>
           </g>
           {pins.map(({ x, y, drop }, i) => (
             <g key={i} opacity={Math.min(1, drop * 2)}>
@@ -355,6 +451,21 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number; mode?: "where" | "fo
           ))}
         </svg>
       </div>
+      {/* the region's name, the cities' and the districts' (data-probe "map": a map label's own size floor) */}
+      {named.regions.map((n, i) => (
+        <div key={`rn-${i}`} data-probe="map" style={{ position: "absolute", left: n.x - n.w / 2 - 20, top: n.y - n.h / 2,
+          width: n.w + 40, height: n.h, opacity: namesT, fontFamily: FONT, fontWeight: 600, fontSize: n.size, lineHeight: LH,
+          color: MUTED, textAlign: "center", whiteSpace: "nowrap", pointerEvents: "none" }}>
+          {n.lines.map((l, j) => <div key={j}>{l}</div>)}
+        </div>
+      ))}
+      {[...named.cities, ...named.districts].map((n, i) => (
+        <div key={`cn-${i}`} data-probe="map" style={{ position: "absolute", left: n.x - n.w / 2 - 10, top: n.y - n.h / 2,
+          width: n.w + 20, height: n.h, opacity: namesT, fontFamily: FONT,
+          fontWeight: n.kind === "capital" || n.kind === "named" ? 600 : 500,
+          fontSize: n.kind === "capital" ? 20 : 18, lineHeight: LH, color: n.kind === "district" ? MUTED : INK,
+          textAlign: "center", whiteSpace: "nowrap", pointerEvents: "none" }}>{n.name}</div>
+      ))}
       {/* the occupied territories' labels, on the territory (data-probe "map": a map label's own size floor) */}
       {labels.map(({ key, lines: ls, S, w, h, angle, size: sz, vis }) => (
         <div key={key} data-probe="map" style={{ position: "absolute", left: S[0] - w / 2 - 20, top: S[1] - h / 2, width: w + 40,

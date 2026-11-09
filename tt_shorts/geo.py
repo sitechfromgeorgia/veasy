@@ -23,6 +23,7 @@ names (or another place there names); otherwise only the region they share, else
 """
 import functools
 import json
+import math
 import pathlib
 import re
 
@@ -282,6 +283,47 @@ def weight(m):
     return sum(size(m.get(k)) for k in ("land", "borders", "rivers", "regions", "occupied", "layers"))
 
 
+NAMES_MAX = 14  # the city names a view ships at most; the scene draws those that fit (mapgeo.placeNames)
+NAME_KINDS = ("city", "town")  # a village is too small and a district is the city view's own (its outline's name)
+
+
+def _capital():
+    """Tbilisi as a city: the region's Georgian name at the middle of its districts' points (the gazetteer has the
+    districts, not the city)."""
+    d = data()
+    pts = [p["point"] for p in d["places"] if p["region"] == "tbilisi" and p["kind"] == "district"]
+    if not pts:
+        return None
+    return {"id": "tbilisi", "name": d["regions"]["tbilisi"]["name"], "kind": "capital",
+            "point": [round(sum(p[0] for p in pts) / len(pts)), round(sum(p[1] for p in pts) / len(pts))]}
+
+
+def _names(level, focus, regions, pins):
+    """The city and town names a view may draw, most worth showing first (the scene keeps those that fit beside the
+    pins, the occupied territories' words and one another). The country view: the capital, then the cities by their
+    population (the gazetteer's `rank`, Geostat's census). A region view: the capital, then the cities, then the
+    towns inside the camera's last window, the bigger and the nearer the pin first. Never a village or a district (a district
+    view names its districts from their outlines), never a pinned place (its name stands under the map), never the
+    capital when its own region is the one highlighted."""
+    if level == "district":
+        return []
+    cap = _capital()
+    pinned = {p["id"] for p in pins}
+    places = [p for p in data()["places"] if p["kind"] in NAME_KINDS and p["id"] not in pinned]
+    if level == "country":
+        out = ([cap] if cap else []) + sorted((p for p in places if p.get("rank")), key=lambda p: p["rank"])
+        out = out[:NAMES_MAX]
+    else:
+        x0, y0, x1, y1 = focus
+        inside = [p for p in places if x0 <= p["point"][0] <= x1 and y0 <= p["point"][1] <= y1]
+        if cap and "tbilisi" not in regions and x0 <= cap["point"][0] <= x1 and y0 <= cap["point"][1] <= y1:
+            inside.append(cap)
+        anchor = pins[0]["point"] if pins else [(x0 + x1) / 2, (y0 + y1) / 2]
+        rank = {"capital": 0, "city": 1, "town": 2}
+        out = sorted(inside, key=lambda p: (rank[p["kind"]], p.get("rank", 99), math.dist(p["point"], anchor)))[:NAMES_MAX]
+    return [{"name": p["name"], "point": p["point"], "kind": p["kind"]} for p in out]
+
+
 def _occupied(focus, label):
     """The territories Georgian law calls occupied (Abkhazia, the Tskhinvali region), drawn as an overlay on the
     regions: both always (the camera starts on the whole country), `in_focus` when the camera's last view meets
@@ -370,7 +412,8 @@ def view(loc, family=None, strings=None):
     m = {"viewBox": d["viewBox"], "land": d["land"], "borders": d["borders"], "rivers": d["rivers"],
          "regions": [d["regions"][r]["path"] for r in regions], "start": land,
          "focus": [round(v) for v in focus], "pins": [p["point"] for p in pins], "level": level,
-         "credit": d["credit"], "occupied": _occupied(focus, str((strings or {}).get("occupied") or ""))}
+         "credit": d["credit"], "occupied": _occupied(focus, str((strings or {}).get("occupied") or "")),
+         "region_names": [d["regions"][r]["name"] for r in regions], "names": _names(level, focus, regions, pins)}
     layers = _layers(m, level, focus, private, {p["id"] for p in pins})
     if layers:
         m["layers"] = layers

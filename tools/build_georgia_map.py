@@ -324,6 +324,8 @@ def places(faces, regions):
             for col in ("aliases", "stems"):
                 if row.get(col):
                     p[col] = row[col].split("|")
+            if row.get("rank"):  # the city's order by population (Geostat, 2014 census): what a country map names first
+                p["rank"] = int(row["rank"])
             out.append(p)
     ids = [p["id"] for p in out]
     if len(ids) != len(set(ids)):

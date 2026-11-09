@@ -95,6 +95,67 @@ const ANGLES = [0, 5, -5, 10, -10, 15, -15]; // straight first; a tilt along the
 const PAD = 6; // px around the words that stay on the area too
 const GRID = 14; // candidate centres a side over the territory's box
 
+/** A name placed on the camera's last view: its dot and the words' centre and size, in screen px. */
+export type Placed = { name: string; kind: string; dot: Pt | null; x: number; y: number; w: number; h: number };
+
+// px a name keeps from the map box's edges: the box fades out over its outer 3.5% (map.tsx FADE)
+const EDGE_X = 36, EDGE_Y = 22;
+const inside = (r: Rect, boxW: number, boxH: number) =>
+  r.x >= EDGE_X && r.y >= EDGE_Y && r.x + r.w <= boxW - EDGE_X && r.y + r.h <= boxH - EDGE_Y;
+
+const hitsAny = (r: Rect, taken: Rect[]) =>
+  taken.some((t) => r.x < t.x + t.w && r.x + r.w > t.x && r.y < t.y + t.h && r.y + r.h > t.y);
+
+/** City names: a dot on the place and its words beside it (right, left, above, below: the first that is free), the
+ *  most worth showing first, kept only where the words stay in the box clear of every rectangle taken (the pins, the
+ *  occupied territories' words, the region's name, the names placed before). At most `max`. */
+export const placeNames = (o: {
+  names: { name: string; kind: string; point: number[] }[]; view: View; boxW: number; boxH: number;
+  dims: (name: string, kind: string) => [number, number]; taken: Rect[]; max: number;
+}): Placed[] => {
+  const out: Placed[] = [];
+  const taken = [...o.taken];
+  const G = 10; // px between the dot and the words
+  for (const n of o.names) {
+    if (out.length >= o.max) break;
+    const dot = toScreen(o.view, o.boxW, o.boxH, n.point);
+    if (dot[0] < EDGE_X || dot[1] < EDGE_Y || dot[0] > o.boxW - EDGE_X || dot[1] > o.boxH - EDGE_Y) continue;
+    const dotRect = { x: dot[0] - 7, y: dot[1] - 7, w: 14, h: 14 };
+    if (hitsAny(dotRect, taken)) continue;
+    const [w, h] = o.dims(n.name, n.kind);
+    const sides: Pt[] = [[dot[0] + G + w / 2, dot[1]], [dot[0] - G - w / 2, dot[1]],
+      [dot[0], dot[1] - G - h / 2], [dot[0], dot[1] + G + h / 2]];
+    for (const [cx, cy] of sides) {
+      const r = { x: cx - w / 2 - 8, y: cy - h / 2 - 4, w: w + 16, h: h + 8 };
+      if (!inside(r, o.boxW, o.boxH) || hitsAny(r, taken)) continue;
+      out.push({ name: n.name, kind: n.kind, dot, x: cx, y: cy, w, h });
+      taken.push(r, dotRect);
+      break;
+    }
+  }
+  return out;
+};
+
+/** Names centred on their own point with no dot (a city view's districts), the most worth showing first, kept only
+ *  where they stay in the box clear of the rectangles taken. */
+export const placeCentred = (o: {
+  names: { name: string; kind: string; at: number[] }[]; view: View; boxW: number; boxH: number;
+  dims: (name: string, kind: string) => [number, number]; taken: Rect[]; max: number;
+}): Placed[] => {
+  const out: Placed[] = [];
+  const taken = [...o.taken];
+  for (const n of o.names) {
+    if (out.length >= o.max) break;
+    const [x, y] = toScreen(o.view, o.boxW, o.boxH, n.at);
+    const [w, h] = o.dims(n.name, n.kind);
+    const r = { x: x - w / 2 - 8, y: y - h / 2 - 4, w: w + 16, h: h + 8 };
+    if (!inside(r, o.boxW, o.boxH) || hitsAny(r, taken)) continue;
+    out.push({ name: n.name, kind: n.kind, dot: null, x, y, w, h });
+    taken.push(r);
+  }
+  return out;
+};
+
 /** Points on a grid over a territory's box that lie inside it (map units): where its label may stand, and, on screen,
  *  how much of it the camera shows and where that part's middle is. */
 export const gridInside = (rings: Pt[][], bbox: number[], n = GRID): Pt[] => {
@@ -114,6 +175,8 @@ export const gridInside = (rings: Pt[][], bbox: number[], n = GRID): Pt[] => {
 export const seatInside = (o: {
   rings: Pt[][]; view: View; boxW: number; boxH: number; at: number[]; bbox: number[]; sizes: number[];
   dims: (size: number) => [number, number]; pins: number[][];
+  avoid?: Rect[]; // screen rectangles the words keep clear of (the occupied territories' words, for a region's name)
+  outside?: Pt[][][]; // areas the words stay off (the occupied territories, for a region's name)
 }): Seat => {
   const v = o.view;
   const near = (p: number[]) => Math.hypot(p[0] - o.at[0], p[1] - o.at[1]);
@@ -133,9 +196,13 @@ export const seatInside = (o: {
         const C = toScreen(v, o.boxW, o.boxH, c);
         // a pin's head stands above its tip: keep the words clear of both
         if (pins.some((P) => Math.abs(P[0] - C[0]) < w / 2 + 30 && P[1] > C[1] - h / 2 - 30 && P[1] < C[1] + h / 2 + 90)) continue;
+        const half = [(w * Math.abs(ca) + h * Math.abs(sa)) / 2 + PAD, (w * Math.abs(sa) + h * Math.abs(ca)) / 2 + PAD];
+        const box = { x: C[0] - half[0], y: C[1] - half[1], w: 2 * half[0], h: 2 * half[1] };
+        if (o.avoid && hitsAny(box, o.avoid)) continue;
         const ok = probe.every(([px, py]) => {
           const X = c[0] + px * ca - py * sa, Y = c[1] + px * sa + py * ca;
-          return insideAny(o.rings, X, Y) && onBox(toScreen(v, o.boxW, o.boxH, [X, Y]));
+          return insideAny(o.rings, X, Y) && onBox(toScreen(v, o.boxW, o.boxH, [X, Y])) &&
+            !(o.outside ?? []).some((r) => insideAny(r, X, Y));
         });
         if (ok) return { x: c[0], y: c[1], angle, size, fits: true };
       }

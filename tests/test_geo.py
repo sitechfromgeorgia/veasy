@@ -200,7 +200,7 @@ class Scene(unittest.TestCase):
     def test_props_carry_only_what_the_scene_draws(self):
         m = geo.scene_map(where("ბათუმი"))
         self.assertEqual(set(m), {"viewBox", "land", "borders", "rivers", "regions", "start", "focus", "pins", "level",
-                                  "credit", "occupied", "layers"})
+                                  "credit", "occupied", "layers", "names", "region_names"})
         self.assertEqual(len(m["regions"]), 1)
         self.assertLess(geo.weight(m), geo.BUDGET)  # no gazetteer, no other regions' shapes
         self.assertLess(len(json.dumps(m, ensure_ascii=False)), 90_000)
@@ -309,6 +309,38 @@ class Occupied(unittest.TestCase):
             self.assertGreater(count(det["rivers"]["major"] + det["rivers"]["minor"], ring), 3, f"{name} rivers")
             self.assertGreater(count(det["roads"]["trunk"] + det["roads"]["primary"], ring), 0, f"{name} roads")
         self.assertGreater(count(det["rail"], ab), 0)  # the coast line
+
+
+class Names(unittest.TestCase):
+    """A map names its region and the cities around (owner, 2026-11-10); the scene keeps the ones that fit."""
+
+    def test_the_country_names_the_capital_then_the_cities_by_population(self):
+        m = geo.scene_map({"place": "საქართველო"})
+        self.assertEqual((m["names"][0]["name"], m["names"][0]["kind"]), ("თბილისი", "capital"))
+        ranked = [p for p in geo.data()["places"] if p.get("rank")]
+        self.assertEqual(sorted(p["rank"] for p in ranked), list(range(1, 16)))  # Geostat's census order, 15 cities
+        by_name = {p["name"]: p["rank"] for p in ranked}
+        self.assertEqual([by_name[n["name"]] for n in m["names"][1:]], sorted(by_name[n["name"]] for n in m["names"][1:]))
+        self.assertLessEqual(len(m["names"]), geo.NAMES_MAX)
+        self.assertEqual(m["region_names"], [])
+
+    def test_a_region_view_names_its_region_and_the_places_in_its_window(self):
+        m = geo.scene_map({"place": "ზუგდიდი"})
+        self.assertEqual(m["region_names"], ["სამეგრელო-ზემო სვანეთი"])
+        x0, y0, x1, y1 = m["focus"]
+        self.assertTrue(m["names"])
+        for n in m["names"]:
+            self.assertIn(n["kind"], ("capital", "city", "town"))
+            self.assertTrue(x0 <= n["point"][0] <= x1 and y0 <= n["point"][1] <= y1, n)
+        self.assertNotIn("ზუგდიდი", [n["name"] for n in m["names"]])  # the pinned place's name stands under the map
+        kinds = [n["kind"] for n in m["names"]]
+        self.assertEqual(kinds, sorted(kinds, key=("capital", "city", "town").index))  # the bigger first
+
+    def test_the_capital_is_not_named_twice_and_a_district_view_names_its_districts_only(self):
+        crime = geo.scene_map({"place": "ვაკე"}, "crime")  # Tbilisi as a region: its own name on it, no capital dot
+        self.assertEqual(crime["region_names"], ["თბილისი"])
+        self.assertNotIn("capital", [n["kind"] for n in crime["names"]])
+        self.assertEqual(geo.scene_map({"place": "ვაკე"})["names"], [])  # the city view names its districts' outlines
 
 
 class Layers(unittest.TestCase):
@@ -528,7 +560,8 @@ class Focus(unittest.TestCase):
         # the merge with origin/main's rebuilt map: map-focus goes through the same view() as a where scene, so it
         # carries the occupied overlay and the OpenStreetMap layers, inside the same budget as a where scene's map
         self.assertEqual(set(scenes[0]["map"]), {"viewBox", "land", "borders", "rivers", "regions", "start", "focus",
-                                                "pins", "level", "credit", "occupied", "layers"})
+                                                "pins", "level", "credit", "occupied", "layers",
+                                            "names", "region_names"})
         self.assertLess(geo.weight(scenes[0]["map"]), geo.BUDGET)
         self.assertLess(len(json.dumps(scenes[0]["map"], ensure_ascii=False)), 90_000)
 
