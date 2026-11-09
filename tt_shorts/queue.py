@@ -466,6 +466,40 @@ def _lock():
                 msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
 
 
+STALE_SECONDS = {"writing": 25 * 60, "rendering": 60 * 60}
+
+
+def reap(now_ts=None, stale=None):
+    """Return jobs whose worker died mid-run to the queue, or fail them once MAX_TRANSIENT attempts are spent.
+
+    A tick killed during a model call or a render leaves the row in `writing`/`rendering` with nothing
+    running it, and that phantom row blocks its story for good. `updated` is stamped at the claim, so a
+    row older than the window has no live worker behind it.
+    """
+    stale = stale or STALE_SECONDS
+    t = now_ts if now_ts is not None else dt.datetime.now(dt.timezone.utc).timestamp()
+    requeued, failed = [], []
+    con = db()
+    try:
+        for state, window in stale.items():
+            cutoff = dt.datetime.fromtimestamp(t - window, dt.timezone.utc).isoformat(timespec="seconds")
+            for r in con.execute("select id, attempts from jobs where state=? and updated<=?",
+                                 (state, cutoff)).fetchall():
+                attempts = r["attempts"] or 0
+                if attempts >= MAX_TRANSIENT:
+                    con.execute("update jobs set state='failed', error_class='transient', error=?, updated=? where id=?",
+                                (f"stale {state} claim reaped after {attempts} attempts", now(), r["id"]))
+                    failed.append(r["id"])
+                else:
+                    con.execute("update jobs set state='queued', error=?, updated=? where id=?",
+                                (f"stale {state} claim reaped", now(), r["id"]))
+                    requeued.append(r["id"])
+        con.commit()
+    finally:
+        con.close()
+    return {"requeued": requeued, "failed": failed}
+
+
 def run(max_jobs=5, engine="gemini"):
     """Process up to max_jobs queued jobs, one at a time; returns what happened. Another worker running -> busy."""
     import contextlib
@@ -473,10 +507,14 @@ def run(max_jobs=5, engine="gemini"):
     with gate as mine:
         if not mine:
             return {"busy": True, "processed": []}
+        reaped = reap()
         processed = []
         for _ in range(max_jobs):
             job = _claim()
             if not job:
                 break
             processed.append({k: v for k, v in process(job, engine).items() if k in ("id", "name", "state", "error")})
-        return {"busy": False, "processed": processed, "counts": counts()}
+        out = {"busy": False, "processed": processed, "counts": counts()}
+        if reaped["requeued"] or reaped["failed"]:
+            out["reaped"] = reaped
+        return out

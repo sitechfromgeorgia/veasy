@@ -149,6 +149,34 @@ class Queue(Home):
             self._run_with(render=boom)
         self.assertEqual(queue.get(jid)["state"], "failed")
 
+    def test_a_dead_worker_does_not_hold_a_job_forever(self):
+        """A tick killed mid-write or mid-render leaves the row claimed; reap returns it, and only
+        after MAX_TRANSIENT spent attempts does it fail, so one story is never blocked for good."""
+        from tt_shorts import queue
+        import datetime as dt
+        job, _ = queue.add(story=str(ROOT / "stories" / "24725.json"))
+        jid = job["id"]
+        con = queue.db()
+        con.execute("update jobs set state='writing', attempts=1, updated=? where id=?",
+                    ("2026-11-01T00:00:00+00:00", jid))
+        con.commit(); con.close()
+        reaped = queue.reap()
+        self.assertIn(jid, reaped["requeued"])
+        self.assertEqual(queue.get(jid)["state"], "queued")
+        # fresh claims are left alone: a live render is not a dead one
+        con = queue.db()
+        con.execute("update jobs set state='rendering', updated=? where id=?", (queue.now(), jid))
+        con.commit(); con.close()
+        self.assertEqual(queue.reap()["requeued"], [])
+        self.assertEqual(queue.get(jid)["state"], "rendering")
+        # a job that keeps dying is failed rather than looped
+        con = queue.db()
+        con.execute("update jobs set state='writing', attempts=?, updated=? where id=?",
+                    (queue.MAX_TRANSIENT, "2026-11-01T00:00:00+00:00", jid))
+        con.commit(); con.close()
+        self.assertIn(jid, queue.reap()["failed"])
+        self.assertEqual(queue.get(jid)["state"], "failed")
+
     def test_one_worker_at_a_time(self):
         from tt_shorts import queue
         with queue._lock() as first:
