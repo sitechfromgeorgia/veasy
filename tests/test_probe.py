@@ -71,6 +71,13 @@ class Rules(unittest.TestCase):
         # the footer's pack line sits bottom right by design (the brand's chrome)
         self.assertEqual(rules_of(report(text(box=(620, 1833, 396, 33), region="footer", size=28))), [])
 
+    def test_a_map_label_has_its_own_floor_and_the_scenes_other_rules(self):  # occupied territories' words, 2026-11-10
+        self.assertEqual(rules_of(report(text("ოკუპირებულია", region="map", size=16, box=(300, 700, 112, 37)))), [])
+        self.assertEqual(rules_of(report(text("ოკუპირებულია", region="map", size=14, box=(300, 700, 98, 32)))), ["size"])
+        self.assertEqual(rules_of(report(text("ოკუპირებულია", region="scene", size=20, box=(300, 700, 140, 46)))), ["size"])
+        self.assertEqual(rules_of(report(text("ოკუპირებულია", region="map", size=20, box=(300, 1360, 140, 46)))), ["band"])
+        self.assertEqual(rules_of(report(text("ოკუპირებულია", region="map", size=20, box=(880, 1150, 140, 46)))), ["rail"])
+
     def test_captions_end_at_their_band(self):
         self.assertEqual(rules_of(report(text(box=(200, 1500, 500, 72), region="captions"))), ["captions"])
 

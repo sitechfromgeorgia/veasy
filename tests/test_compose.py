@@ -169,8 +169,8 @@ class MapSvg(unittest.TestCase):
         self.assertEqual(fx["source-2"]["value"], "ON.ge")
         self.assertEqual(fx["map-credit"]["kind"], "code")
         occ = compose.facts(story, brand.load(), fake_props(), {"map": {"credit": "Geostat", "occupied": [
-            {"id": "abkhazia", "label": "დროებით ოკუპირებული"}]}})
-        self.assertEqual(occ["map-occupied"]["value"], "დროებით ოკუპირებული")  # the pack's word, bound, never typed
+            {"id": "abkhazia", "label": "ოკუპირებულია რუსეთის მიერ"}]}})
+        self.assertEqual(occ["map-occupied"]["value"], "ოკუპირებულია რუსეთის მიერ")  # the pack's word, bound, never typed
         self.assertNotIn("map-occupied", fx)
         self.assertIn("6400", [v["value"] for k, v in fx.items() if k.startswith("num-")])
         self.assertIn("22:00", [v["value"] for k, v in fx.items() if k.startswith("time-")])

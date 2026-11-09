@@ -186,7 +186,7 @@ class Privacy(unittest.TestCase):
                 m = next(x for x in p["scenes"] if x["type"] == "where")["map"]
                 self.assertEqual((m["level"], len(m["pins"])), (level, pins), category)
                 self.assertEqual("city" in m["layers"], category == "society", category)  # no district detail in crime
-                self.assertEqual({o["label"] for o in m["occupied"]}, {"დროებით ოკუპირებული"})  # props pass the pack's
+                self.assertEqual({o["label"] for o in m["occupied"]}, {"ოკუპირებულია რუსეთის მიერ"})  # props pass the pack's
 
 
 class Scene(unittest.TestCase):
@@ -226,7 +226,7 @@ def near_or_in(p, ring, tol=2.0):
     return inside(p, ring) or min(seg_dist(p, a, b) for a, b in zip(ring, ring[1:] + ring[:1])) <= tol
 
 
-LABEL = "დროებით ოკუპირებული"
+LABEL = "ოკუპირებულია რუსეთის მიერ"
 PACK = {"occupied": LABEL}
 
 

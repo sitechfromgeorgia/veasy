@@ -2,7 +2,7 @@
 // is, as one console line "VEASY_PROBE {json}" that remotion/probe.mjs collects through onBrowserLog. Python judges
 // the boxes against the safe zone; nothing here decides what is wrong, it only measures.
 //
-// Regions are marked in the composition with data-probe="scene|card|captions|header|footer|ticker" (the ticker
+// Regions are marked in the composition with data-probe="scene|card|map|captions|header|footer|ticker" (the ticker
 // scrolls out of the frame by design and is skipped). data-probe-clip marks a box whose clipping is by design
 // (the roll captions' neighbour lines). data-probe-decor marks a glyph that is ornament, faint by design (the quote
 // scene's giant „): it is measured, but not judged for contrast.

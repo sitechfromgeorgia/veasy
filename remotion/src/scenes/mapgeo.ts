@@ -74,51 +74,85 @@ export const lerpView = (a: View, b: View, t: number): View => ({
 export const toScreen = (v: View, boxW: number, boxH: number, p: number[]): Pt =>
   [boxW / 2 + (p[0] - v.cx) * v.k, boxH / 2 + (p[1] - v.cy) * v.k];
 
-const GAPS = [18, 40, 64];
-const DIRS = Array.from({ length: 16 }, (_, i) => (i * Math.PI * 2) / 16);
-
-/** The rectangle of a label of w x h sitting outside the circle (centre A, radius rpx) in direction u. */
-export const outsideRect = (A: Pt, rpx: number, u: Pt, w: number, h: number, gap = 18): Rect => {
-  const reach = rpx * 0.8 + gap + Math.abs(u[0]) * (w / 2) + Math.abs(u[1]) * (h / 2);
-  const cx = A[0] + u[0] * reach, cy = A[1] + u[1] * reach;
-  return { x: cx - w / 2, y: cy - h / 2, w, h };
+/** A label's words in two lines that keep the wider one narrowest (a long first word stands alone), not a split by
+ *  word count. width: a line's width at any one size. */
+export const balancedLines = (words: string[], width: (line: string) => number): string[] => {
+  if (words.length < 2) return words;
+  let best = [words.join(" ")], widest = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const lines = [words.slice(0, i).join(" "), words.slice(i).join(" ")];
+    const w = Math.max(...lines.map(width));
+    if (w < widest) { widest = w; best = lines; }
+  }
+  return best;
 };
 
-/** The direction (angle in radians, and the gap from the area) in which a territory's label goes when it does not fit inside. Chosen once per
- *  scene on the camera's first and last view (so it does not wander during the zoom): the least land under the
- *  text, nothing outside the map's box, away from the pins and from the labels placed before it. */
-export const labelAngle = (o: {
-  views: View[]; boxW: number; boxH: number; at: number[]; r: number; w: number; h: number;
-  land: Pt[][]; pins: number[][]; taken: Rect[][];
-}): [number, number] => {
-  let best: [number, number] = [0, 18], bestScore = Infinity;
-  const cands = DIRS.flatMap((th, di) => GAPS.map((g, gi) => [th, g, di * 0.01 + gi * 3] as const));
-  cands.forEach(([th, gap, base]) => {
-    const u: Pt = [Math.cos(th), Math.sin(th)];
-    let score = base;
-    o.views.forEach((v, vi) => {
-      const A = toScreen(v, o.boxW, o.boxH, o.at);
-      if (A[0] < 0 || A[0] > o.boxW || A[1] < 0 || A[1] > o.boxH) return; // not on screen in this view
-      const R = outsideRect(A, o.r * v.k, u, o.w, o.h, gap);
-      if (R.x < 4 || R.y < 4 || R.x + R.w > o.boxW - 4 || R.y + R.h > o.boxH - 4) score += 1000;
-      let onLand = 0;
-      for (let i = 0; i <= 6; i++) {
-        for (let j = 0; j <= 2; j++) {
-          const sx = R.x + (R.w * i) / 6, sy = R.y + (R.h * j) / 2;
-          // screen -> map units, to test against the outline
-          if (insideAny(o.land, (sx - o.boxW / 2) / v.k + v.cx, (sy - o.boxH / 2) / v.k + v.cy)) onLand++;
-        }
+/** Where a territory's label sits in one camera view: x, y in map units, angle in degrees, its size in px, and
+ *  whether it fits. */
+export type Seat = { x: number; y: number; angle: number; size: number; fits: boolean };
+
+const ANGLES = [0, 5, -5, 10, -10, 15, -15]; // straight first; a tilt along the area's shape never past 15°
+const PAD = 6; // px around the words that stay on the area too
+const GRID = 14; // candidate centres a side over the territory's box
+
+/** Points on a grid over a territory's box that lie inside it (map units): where its label may stand, and, on screen,
+ *  how much of it the camera shows and where that part's middle is. */
+export const gridInside = (rings: Pt[][], bbox: number[], n = GRID): Pt[] => {
+  const step = Math.max(bbox[2] - bbox[0], bbox[3] - bbox[1]) / n;
+  const out: Pt[] = [];
+  for (let x = bbox[0] + step / 2; x < bbox[2]; x += step) {
+    for (let y = bbox[1] + step / 2; y < bbox[3]; y += step) if (insideAny(rings, x, y)) out.push([x, y]);
+  }
+  return out;
+};
+
+/** The owner (2026-11-10): the label is written on the territory, never beside it. Its rectangle (w x h px at each
+ *  size, plus PAD) wholly inside the territory and the map's box, clear of the pins: the pole first, straight first,
+ *  the biggest size first. Where nothing fits (the Tskhinvali region at the country view holds two words only at
+ *  16 px), it is straight at the smallest size where the most of it lands on the part the camera shows: on the
+ *  area, running a little past its edges. Pure: the same props and view give the same seat. */
+export const seatInside = (o: {
+  rings: Pt[][]; view: View; boxW: number; boxH: number; at: number[]; bbox: number[]; sizes: number[];
+  dims: (size: number) => [number, number]; pins: number[][];
+}): Seat => {
+  const v = o.view;
+  const near = (p: number[]) => Math.hypot(p[0] - o.at[0], p[1] - o.at[1]);
+  const cands: Pt[] = [[o.at[0], o.at[1]], ...gridInside(o.rings, o.bbox)];
+  cands.sort((p, q) => near(p) - near(q));
+  const onBox = (S: Pt) => S[0] >= 4 && S[1] >= 4 && S[0] <= o.boxW - 4 && S[1] <= o.boxH - 4;
+  const pins = o.pins.map((p) => toScreen(v, o.boxW, o.boxH, p));
+  for (const size of o.sizes) {
+    const [w, h] = o.dims(size);
+    const hw = (w / 2 + PAD) / v.k, hh = (h / 2 + PAD) / v.k; // half the rectangle, in map units
+    const probe: Pt[] = [[0, 0]];
+    for (let i = 0; i <= 8; i++) for (const fy of [-1, 0, 1]) probe.push([(-1 + i / 4) * hw, fy * hh]);
+    for (const fy of [-0.5, 0.5]) for (const fx of [-1, 1]) probe.push([fx * hw, fy * hh]);
+    for (const angle of ANGLES) {
+      const a = (angle * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
+      for (const c of cands) {
+        const C = toScreen(v, o.boxW, o.boxH, c);
+        // a pin's head stands above its tip: keep the words clear of both
+        if (pins.some((P) => Math.abs(P[0] - C[0]) < w / 2 + 30 && P[1] > C[1] - h / 2 - 30 && P[1] < C[1] + h / 2 + 90)) continue;
+        const ok = probe.every(([px, py]) => {
+          const X = c[0] + px * ca - py * sa, Y = c[1] + px * sa + py * ca;
+          return insideAny(o.rings, X, Y) && onBox(toScreen(v, o.boxW, o.boxH, [X, Y]));
+        });
+        if (ok) return { x: c[0], y: c[1], angle, size, fits: true };
       }
-      score += onLand * 2;
-      for (const p of o.pins) {
-        const P = toScreen(v, o.boxW, o.boxH, p);
-        if (P[0] > R.x - 30 && P[0] < R.x + R.w + 30 && P[1] > R.y - 70 && P[1] < R.y + R.h + 30) score += 500;
-      }
-      for (const t of o.taken[vi] ?? []) {
-        if (R.x < t.x + t.w + 12 && R.x + R.w + 12 > t.x && R.y < t.y + t.h + 12 && R.y + R.h + 12 > t.y) score += 800;
-      }
-    });
-    if (score < bestScore) { bestScore = score; best = [th, gap]; }
-  });
-  return best;
+    }
+  }
+  // nothing fits: straight, the smallest size, where the most of the words land on the territory the camera shows
+  // (ties go to the one nearer the pole: the candidates are sorted so)
+  const size = o.sizes[o.sizes.length - 1];
+  const [w, h] = o.dims(size);
+  const hw = w / 2 / v.k, hh = h / 2 / v.k;
+  const probe: Pt[] = [];
+  for (let i = 0; i <= 8; i++) for (const fy of [-1, -0.5, 0, 0.5, 1]) probe.push([(-1 + i / 4) * hw, fy * hh]);
+  let best: Pt = [o.at[0], o.at[1]], most = -1;
+  for (const c of cands) {
+    if (!onBox(toScreen(v, o.boxW, o.boxH, c))) continue;
+    const on = probe.filter(([px, py]) => insideAny(o.rings, c[0] + px, c[1] + py)).length;
+    if (on > most) { most = on; best = c; }
+  }
+  return { x: best[0], y: best[1], angle: 0, size, fits: false };
 };

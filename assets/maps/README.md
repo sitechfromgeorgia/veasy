@@ -25,8 +25,12 @@ municipality line, and the rest to Shida Kartli, so no border is drawn around it
 
 The Law on Occupied Territories (2008) names the Autonomous Republic of Abkhazia and the Tskhinvali region (the
 territory of the former South Ossetian AO). The map marks both: a light tint of the pack's accent over the region
-and the pack's label („დროებით ოკუპირებული", `strings.occupied` in `brands/_ka/brand.json`) at the overlay's
-`at` point. They are an overlay (`occupied` in `georgia.json`), not regions: the 12 regions, the outline and the
+and the pack's label („ოკუპირებულია რუსეთის მიერ", `strings.occupied` in `brands/_ka/brand.json`) written on the
+territory itself (owner, 2026-11-10): two balanced lines in the pack's font, no outline, straight or tilted up to 15°
+along the area where that is what fits, the hatch cleared behind the words (`remotion/src/scenes/mapgeo.ts`
+`seatInside`), 22-20 px, and 16 px only where nothing bigger fits (the Tskhinvali region at the country view).
+Behind the words a clearing of the plain tint covers the hatch, rivers, roads and region lines; the territory's own
+edge stays on top. Where even 16 px cannot fit, the words sit straight where most of them land on the area. They are an overlay (`occupied` in `georgia.json`), not regions: the 12 regions, the outline and the
 lines are unchanged, no border is drawn around them, and they lie inside Georgia's outline. Abkhazia is the
 `abkhazia` region's own ring. The Tskhinvali ring is cut from the same arcs as the regions (Geostat's GE48 unit),
 so it meets their lines exactly. `at` is the pole of inaccessibility (the point farthest from the edges) and `r`

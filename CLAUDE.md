@@ -140,7 +140,9 @@ Its first client is tbilisi.today ([sitechfromgeorgia/tbilisi.today](https://git
     no separate entity.
   - Occupied areas (owner, 2026-11-07): they are marked with the pack's label (`strings.occupied`) and a light
     accent tint, and stay inside Georgia's outline, drawn as no separate entity (an overlay in `georgia.json`,
-    never a 13th region or a border line).
+    never a 13th region or a border line). The label is written on the territory, never beside it (2026-11-10):
+    no outline, the hatch and lines cleared behind it, tilt at most 15°, 22-20 px, 16 px only where nothing bigger
+    fits inside (a map label's probe floor, `probe.MIN_PX["map"]`).
   - For the crime family the map stops at the region and marks no district, and ships no district outline or
     street (`geo.PRIVATE`, `tests/test_geo.py`).
 - **No publisher photos:** tbilisi.today has no reuse grant (tbilisi.today repo: `ingest/src/story-cover-assets/README.md`).

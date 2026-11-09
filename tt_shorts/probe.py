@@ -58,8 +58,10 @@ TOL = 2.0  # px: sub-pixel rounding and antialiasing
 RAIL_Y = 1100  # below this, nothing right of RAIL_X (CLAUDE.md: the safe zone)
 # The smallest effective size (font size x any scale) per region, px. The writer's drawing labels may be 26 at the
 # drawing's own scale (art.GUIDE), which a card shrinks to ~24; captions.MIN_SIZE is 44; the footer's link shrinks
-# to 22 for a long slug (NewsShort Footer).
-MIN_PX = {"scene": 24, "card": 26, "captions": 40, "header": 26, "footer": 22, "other": 24}
+# to 22 for a long slug (NewsShort Footer). A map's label (the occupied territories' words, written on the territory:
+# owner, 2026-11-10) is 16 at least: 22-20 where the area holds it, 16 only where nothing bigger fits inside (the
+# Tskhinvali region at the country view); it is checked like the scene's text in every other rule.
+MIN_PX = {"scene": 24, "card": 26, "captions": 40, "header": 26, "footer": 22, "map": 16, "other": 24}
 CHROME = ("header", "footer")
 WEIGHTS = ("400", "500", "600", "700")  # brand.FONT_WEIGHTS: every pack ships the four
 RULES = ("band", "rail", "captions", "frame", "overflow", "glyph", "font", "size", "contrast", "seat")
@@ -159,14 +161,14 @@ def rules(report, cmaps=None, c=None):
         right, bottom = x + w, y + h
         region = t.get("region") or "other"
         q = _quote(t.get("text", ""))
-        if region == "scene" and (y < c["SCENE_TOP"] - TOL or bottom > c["SCENE_BOTTOM"] + TOL):
+        if region in ("scene", "map") and (y < c["SCENE_TOP"] - TOL or bottom > c["SCENE_BOTTOM"] + TOL):
             edge = f"ends at y={bottom:.0f}, below" if bottom > c["SCENE_BOTTOM"] + TOL else f"starts at y={y:.0f}, above"
             bad("band", t, f"{q} {edge} the scene band ({c['SCENE_TOP']}-{c['SCENE_BOTTOM']})")
         if region not in CHROME and bottom > c["RAIL_Y"] + TOL and right > c["RAIL_X"] + TOL:
             bad("rail", t, f"{q} reaches x={right:.0f} below y={c['RAIL_Y']} (the like/share rail starts at "
                            f"x={c['RAIL_X']})")
         seat = report.get("seat")
-        if seat and region in ("scene", "card") and x < seat["x"] + seat["w"] and right > seat["x"] and                 y < seat["y"] + seat["h"] and bottom > seat["y"] + TOL:
+        if seat and region in ("scene", "card", "map") and x < seat["x"] + seat["w"] and right > seat["x"] and                 y < seat["y"] + seat["h"] and bottom > seat["y"] + TOL:
             bad("seat", t, f"{q} ends at y={bottom:.0f}, over the object's seat, which starts at y={seat['y']}",
                 bottom=round(bottom))  # vignettes.relieve moves a drawing below it
         if region == "captions" and bottom > c["CAPTION_BOTTOM"] + TOL:

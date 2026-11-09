@@ -37,7 +37,7 @@ class Packs(unittest.TestCase):
     def test_the_occupied_label_is_the_packs_word(self):  # geo.py: the where scene's map marks the territories
         for n in brand.names():
             b = brand.load(n)
-            self.assertEqual(b["strings"]["occupied"], "დროებით ოკუპირებული")  # the Georgian base's word
+            self.assertEqual(b["strings"]["occupied"], "ოკუპირებულია რუსეთის მიერ")  # the Georgian base's word
             self.assertEqual(brand.for_remotion(b)["strings"]["occupied"], b["strings"]["occupied"])
 
     def test_media_words_and_allow_list_come_from_the_base_and_the_pack(self):  # assets.py, news rule N13

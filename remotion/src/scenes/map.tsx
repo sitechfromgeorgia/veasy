@@ -15,8 +15,8 @@ import { CANVAS, FONT, INK, LINE_STRONG, MUTED, PANEL, RAIL_X, RED, SIDE, W } fr
 import { marked } from "../marker";
 import type { Scene } from "../types";
 import { beat, fitSize, Frame, In, measure, stepped, useTheme } from "../ui";
-import { labelAngle, lerpView, outsideRect, polygons, toScreen, zoomIn } from "./mapgeo";
-import type { Rect, View } from "./mapgeo";
+import { balancedLines, gridInside, lerpView, polygons, seatInside, toScreen, zoomIn } from "./mapgeo";
+import type { View } from "./mapgeo";
 
 const INNER = W - 2 * SIDE; // 952
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -24,6 +24,8 @@ const smooth = Easing.inOut(Easing.cubic);
 // the grid scene's pin: its tip is at (0, 100), the dot at (0, -122)
 const PIN = "M0 -250c-74 0-130 56-130 128 0 96 130 222 130 222s130-126 130-222c0-72-56-128-130-128z";
 const FADE = "3.5%"; // the map's edges fade out instead of ending in a hard frame
+const OCC_SIZES = [22, 20, 18, 16]; // px of an occupied territory's label, biggest first; 16 only where nothing bigger fits
+// inside (the Tskhinvali region at the country view): a map label's floor is 16 (probe.py)
 
 type Box = number[];
 const fit = (r: Box, w: number, h: number) => ({
@@ -103,41 +105,67 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number; mode?: "where" | "fo
     return { x, y, drop };
   });
 
-  // the occupied territories' labels: inside the area when it is big enough on screen, else outside beside it with
-  // a hairline leader (the side is chosen once, on the camera's first and last view, so it does not wander)
-  const land = useMemo(() => polygons(m.land), [m.land]);
-  const LS = 26; // the label's size: the layout probe's floor for a scene's text is 24
-  const views: View[] = [{ k: a.k, cx: a.x, cy: a.y }, { k: b.k, cx: b.x, cy: b.y }];
-  const now = lerpView(views[0], views[1], t);
-  const taken: Rect[][] = [[], []];
-  const labels = (m.occupied ?? []).filter((o) => o.label).map((o) => {
-    const words = o.label.split(" ").filter(Boolean);
-    const half = Math.ceil(words.length / 2);
-    const lines = words.length > 1 ? [words.slice(0, half).join(" "), words.slice(half).join(" ")] : words;
-    const wOf = (size: number) => (Math.max(...lines.map((l) => measure(l, 600))) * size) / 100;
-    const hOf = (size: number) => lines.length * size * 1.18;
-    const need = (size: number) => Math.hypot(wOf(size) / 2, hOf(size) / 2) + 6;
-    const A = toScreen(now, boxW, boxH, o.at);
-    const rpx = o.r * now.k;
-    const q = (rpx * 0.95) / need(LS);
-    const inside = Math.max(0, Math.min(1, (q - 0.92) / 0.14)); // 0: outside beside it, 1: inside, between: both fade
-    let size = LS;
-    for (let z = 36; z > LS; z -= 2) if (need(z) <= rpx * 0.95) { size = z; break; }
-    const [th, gap] = labelAngle({ views: m.level === "country" || o.in_focus ? views : [views[0]], boxW, boxH, at: o.at, r: o.r,
-      w: wOf(LS), h: hOf(LS), land, pins: m.pins, taken });
-    const u: [number, number] = [Math.cos(th), Math.sin(th)];
-    views.forEach((v, i) => taken[i].push(outsideRect(toScreen(v, boxW, boxH, o.at), o.r * v.k, u, wOf(LS), hOf(LS), gap)));
-    const R0 = outsideRect(A, rpx, u, wOf(LS), hOf(LS), gap);
-    // the camera moves under the label: it stays inside the map's box
-    const R = { ...R0, x: Math.max(4, Math.min(R0.x, boxW - 4 - R0.w)), y: Math.max(4, Math.min(R0.y, boxH - 4 - R0.h)) };
-    // the area's own on-screen window: a label for a territory the camera has left does not hang in the air
-    const seen = Math.max(0, Math.min(1, Math.min(A[0], boxW - A[0], A[1], boxH - A[1]) / 40));
-    // and a territory the camera passes over, big on screen, is never shown without its label, inside it or beside it
-    // (the owner: the tint always comes with the pack's label; the camera starts before the labels come in, so
-    // without this a zooming film never labels a territory it only passes)
-    const big = Math.max(0, Math.min(1, (rpx - 36) / 18));
-    const vis = Math.max(m.level === "country" || o.in_focus ? 1 : 1 - Math.min(1, t * 3), inside, big) * seen;
-    return { o, lines, A, rpx, inside, size, R, u, vis: vis * labelT };
+  // the occupied territories' labels (the owner, 2026-11-10): written on the territory, never beside it, in two
+  // balanced lines, straight or tilted up to 15° along the area where that is what fits (mapgeo.seatInside). Seated
+  // once for the camera's first and last view, never per frame: the words ride the map with the camera, and the first
+  // seat gives way to the last in the middle of the zoom when the last is shown and differs (one out, then the other
+  // in: two copies never overlap). A territory the camera only passes, big on screen with neither seat in view, gets
+  // its words straight on the middle of the part it shows. FiraGO in ink, no outline (the pack: no outlines): the
+  // hatch is cleared behind the words instead, so they sit on the plain tint
+  const LH = 1.15;
+  const rings = useMemo(() => (m.occupied ?? []).map((o) => polygons(o.path)), [m.occupied]);
+  const seated = useMemo(() => {
+    const views: View[] = [{ k: a.k, cx: a.x, cy: a.y }, { k: b.k, cx: b.x, cy: b.y }];
+    return (m.occupied ?? []).map((o, i) => {
+      if (!o.label) return null;
+      const lines = balancedLines(o.label.split(" ").filter(Boolean), (l) => measure(l, 500));
+      const dims = (z: number): [number, number] => [(Math.max(...lines.map((l) => measure(l, 500))) * z) / 100,
+        lines.length * z * LH];
+      const seats = views.map((view) => seatInside({ rings: rings[i], view, boxW, boxH, at: o.at, bbox: o.bbox,
+        sizes: OCC_SIZES, dims, pins: m.pins }));
+      const grid = gridInside(rings[i], o.bbox);
+      const cell = Math.max(o.bbox[2] - o.bbox[0], o.bbox[3] - o.bbox[1]) / 14; // gridInside's step
+      return { o, lines, dims, seats, views, grid, cell };
+    });
+  }, [m.occupied, m.pins, rings, boxW, boxH, a.k, a.x, a.y, b.k, b.x, b.y]);
+  const now = lerpView({ k: a.k, cx: a.x, cy: a.y }, { k: b.k, cx: b.x, cy: b.y }, t);
+  const labels = seated.flatMap((x) => {
+    if (!x) return [];
+    const { o, lines, dims, seats, views, grid, cell } = x;
+    const wanted = (fits: boolean) => (m.level === "country" || o.in_focus || fits ? 1 : 0);
+    const inBox = (p: number[], v: View) => {
+      const S = toScreen(v, boxW, boxH, p);
+      return S[0] > 0 && S[1] > 0 && S[0] < boxW && S[1] < boxH;
+    };
+    const [s0, s1] = seats;
+    const moves = Math.hypot(s0.x - s1.x, s0.y - s1.y) * views[1].k > 4 || s0.angle !== s1.angle || s0.size !== s1.size;
+    const handover = moves && wanted(s1.fits) > 0 && inBox([s1.x, s1.y], views[1]);
+    const weight = [handover ? 1 - interpolate(t, [0.3, 0.5], [0, 1], clamp) : 1,
+      handover ? interpolate(t, [0.5, 0.7], [0, 1], clamp) : 0];
+    // a territory the camera passes over, big on screen, is never shown without its words
+    const big = Math.max(0, Math.min(1, (o.r * now.k - 36) / 18));
+    const fade = (S: number[], w: number, h: number) => // at the box's edge a label fades, it never hangs in the air
+      Math.max(0, Math.min(1, Math.min(S[0] - w / 2, boxW - S[0] - w / 2, S[1] - h / 2, boxH - S[1] - h / 2) / 24));
+    const out = seats.map((seat, i) => {
+      const [w, h] = dims(seat.size);
+      const S = toScreen(now, boxW, boxH, [seat.x, seat.y]);
+      const vis = labelT * fade(S, w, h) * Math.max(wanted(seat.fits), big) * weight[i];
+      return { key: `${o.id}-${i}`, id: o.id, lines, S, w, h, x: seat.x, y: seat.y, angle: seat.angle, size: seat.size, vis };
+    });
+    const held = Math.max(...out.map((l) => l.vis));
+    if (big > 0 && held < 0.5) {
+      const shown = grid.filter((p) => inBox(p, now));
+      const area = shown.length * (cell * now.k) ** 2; // square px of the territory on screen
+      if (shown.length && area > 160 * 120) {
+        const c = [shown.reduce((sum, p) => sum + p[0], 0) / shown.length, shown.reduce((sum, p) => sum + p[1], 0) / shown.length];
+        const size = OCC_SIZES[1]; // a big part on screen: the size an area that holds its words gets
+        const [w, h] = dims(size);
+        const S = toScreen(now, boxW, boxH, c);
+        const vis = labelT * big * fade(S, w, h) * Math.max(0, 1 - 2 * held) * Math.min(1, (area - 160 * 120) / 9600);
+        out.push({ key: `${o.id}-pass`, id: o.id, lines, S, w, h, x: c[0], y: c[1], angle: 0, size, vis });
+      }
+    }
+    return out.filter((l) => l.vis > 0.02);
   });
 
   const place = String(s.place ?? "");
@@ -165,6 +193,7 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number; mode?: "where" | "fo
             <clipPath id={clip}><path d={m.land} /></clipPath>
             {/* the occupied territories' hatch: fine diagonal lines in the accent (sizes in map units, so px() keeps them
                 the same on screen at any zoom) */}
+            {(m.occupied ?? []).map((o) => <clipPath key={o.id} id={`${hatch}-${o.id}`}><path d={o.path} /></clipPath>)}
             <pattern id={hatch} patternUnits="userSpaceOnUse" width={px(9)} height={px(9)} patternTransform="rotate(45)">
               <line x1={0} y1={0} x2={0} y2={px(9)} stroke={RED} strokeWidth={px(1.6)} />
             </pattern>
@@ -269,6 +298,25 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number; mode?: "where" | "fo
             </g>
             <path d={m.borders} fill="none" stroke={LINE_STRONG} strokeWidth={px(2)} strokeDasharray={`${px(8)} ${px(6)}`}
               opacity={lines} />
+            {/* behind an occupied territory's words, a clearing of the plain tint over everything drawn so far (the hatch,
+                rivers, roads, the region lines), inside the territory only: the words sit on a calm ground with no
+                outline of their own. The territory's edge, the highlighted region's line and the outline come after */}
+            {(m.occupied ?? []).map((o) => (
+              <g key={`clear-${o.id}`} clipPath={`url(#${hatch}-${o.id})`} opacity={occT}>
+                {labels.filter((l) => l.id === o.id).map((l) => {
+                  const rw = px(l.w + 16), rh = px(l.h + 12);
+                  const at = { x: l.x - rw / 2, y: l.y - rh / 2, width: rw, height: rh, rx: px(8),
+                    transform: `rotate(${l.angle} ${l.x} ${l.y})` };
+                  return (
+                    <g key={l.key} opacity={l.vis}>
+                      <rect {...at} fill={v === "cards" ? PANEL : CANVAS} />
+                      <rect {...at} fill={INK} fillOpacity={0.05} />
+                      <rect {...at} fill={RED} fillOpacity={0.16} />
+                    </g>
+                  );
+                })}
+              </g>
+            ))}
             {(m.occupied ?? []).map((o) => (
               // the same thin line as the other regions' (they are Georgia's: no thick border)
               <path key={o.id} d={o.path} fill="none" stroke={LINE_STRONG} strokeWidth={px(2)} strokeDasharray={`${px(8)} ${px(6)}`}
@@ -307,40 +355,15 @@ export const MapWhere: React.FC<{ s: Scene; inner?: number; mode?: "where" | "fo
           ))}
         </svg>
       </div>
-      {/* the occupied territories' labels, over the (masked) map and clear of it */}
-      <svg width={boxW} height={boxH} viewBox={`0 0 ${boxW} ${boxH}`} style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none" }}>
-        {labels.map(({ o, A, R, vis, inside }) => {
-          const o2 = vis * (1 - inside);
-          if (o2 < 0.02) return null;
-          const ex = Math.max(R.x, Math.min(A[0], R.x + R.w)), ey = Math.max(R.y, Math.min(A[1], R.y + R.h));
-          return (
-            <g key={o.id} opacity={o2}>
-              <line x1={A[0]} y1={A[1]} x2={ex} y2={ey} stroke={INK} strokeOpacity={0.6} strokeWidth={1.5} />
-              <circle cx={A[0]} cy={A[1]} r={3.5} fill={INK} />
-            </g>
-          );
-        })}
-      </svg>
-      {labels.map(({ o, lines: ls, A, R, u, vis, inside, size }) => {
-        const out = vis * (1 - inside), inn = vis * inside;
-        const align = u[0] > 0.35 ? "left" : u[0] < -0.35 ? "right" : "center";
-        const text = (x: number, y: number, w: number, al: "left" | "right" | "center", sz: number, op: number, key: string) => (
-          op < 0.02 ? null : (
-            <div key={key} style={{ position: "absolute", left: x, top: y, width: w, textAlign: al, opacity: op, fontFamily: FONT,
-              fontWeight: 600, fontSize: sz, lineHeight: 1.18, color: INK, whiteSpace: "nowrap",
-              // a canvas halo keeps the text clear of the lines under it (not a shadow)
-              WebkitTextStroke: `6px ${CANVAS}`, paintOrder: "stroke fill" }}>
-              {ls.map((l, i) => <div key={i}>{l}</div>)}
-            </div>
-          )
-        );
-        return (
-          <React.Fragment key={o.id}>
-            {text(R.x, R.y, R.w, align, LS, out, "out")}
-            {text(A[0] - 200, A[1] - (ls.length * size * 1.18) / 2, 400, "center", size, inn, "in")}
-          </React.Fragment>
-        );
-      })}
+      {/* the occupied territories' labels, on the territory (data-probe "map": a map label's own size floor) */}
+      {labels.map(({ key, lines: ls, S, w, h, angle, size: sz, vis }) => (
+        <div key={key} data-probe="map" style={{ position: "absolute", left: S[0] - w / 2 - 20, top: S[1] - h / 2, width: w + 40,
+          height: h, transform: `rotate(${angle}deg)`, transformOrigin: "50% 50%", opacity: vis, fontFamily: FONT,
+          fontWeight: 500, fontSize: sz, lineHeight: LH, color: INK, textAlign: "center", whiteSpace: "nowrap",
+          pointerEvents: "none" }}>
+          {ls.map((l, i) => <div key={i}>{l}</div>)}
+        </div>
+      ))}
       </div>
       {/* the boundary data's licence asks for a credit: small, under the map, left of the rail */}
       <div style={{ width: textW, height: 28, textAlign: "right", fontFamily: FONT, fontWeight: 400, fontSize: 24, lineHeight: 1.2,
