@@ -80,7 +80,10 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
       </div>
       <In delay={14 + lines.length * 5}>
         <div style={{ display: "flex", gap: 16, marginTop: 48 }}>
-          <Chip solid size={38}>{fill(props.brand.strings.outlets, { n: props.sources.length })}</Chip>
+          {/* A brand film has no sources of its own, so an empty list draws no chip instead of „0 წყარო“. */}
+          {props.sources.length > 0 && (
+            <Chip solid size={38}>{fill(props.brand.strings.outlets, { n: props.sources.length })}</Chip>
+          )}
           <Chip size={38}>{props.when}</Chip>
         </div>
       </In>

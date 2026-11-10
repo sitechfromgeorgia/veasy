@@ -86,6 +86,10 @@
  "media": {
   "own": [
    "tbilisi.today"
+  ],
+  "providers": [
+   "commons",
+   "openverse"
   ]
  },
  "package": {

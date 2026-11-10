@@ -19,6 +19,10 @@ class Packs(unittest.TestCase):
     def setUp(self):
         brand.load.cache_clear()
 
+    # A pack opts into pictures by naming its providers (2026-11-03). tbilisi.today needs them for
+    # its own films; sitech stays without pictures until it asks.
+    EXPECT_PROVIDERS = {"tbilisi-today": ["commons", "openverse"], "sitech": []}
+
     def tearDown(self):
         brand.load.cache_clear()
 
@@ -47,7 +51,7 @@ class Packs(unittest.TestCase):
             self.assertIn("{author}", b["strings"]["media_credit"])
             self.assertEqual(b["media"]["own"], [own])  # the pack's own site
             self.assertIn("matsne.gov.ge", b["media"]["official"])  # the base's official sites, merged
-            self.assertEqual(b["media"]["providers"], [])  # pictures are opt-in per pack (2026-11-03): none by default
+            self.assertEqual(b["media"]["providers"], self.EXPECT_PROVIDERS[n])  # pictures are opt-in per pack (2026-11-03)
             self.assertIn("illustrative", brand.for_remotion(b)["strings"])
 
     def test_a_tinted_keyword_falls_back_where_the_theme_cant_carry_it(self):
