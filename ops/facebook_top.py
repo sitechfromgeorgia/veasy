@@ -27,7 +27,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from tt_shorts import facebook, queue  # noqa: E402
+from tt_shorts import facebook, queue, social_copy  # noqa: E402
 
 MARK = ROOT / "data" / "facebook-posted.json"
 RECEIPTS = pathlib.Path("/root/sitech/scratch/hourly-audit/fb-video-receipts.jsonl")
@@ -123,17 +123,22 @@ def candidates(state: dict) -> list[tuple[int, dict, str]]:
 
 
 def caption_for(job: dict) -> str:
+    """Badge, hook in Mtavruli, the story's own lede, the story link, up to ten hashtags."""
     try:
         story = json.loads(pathlib.Path(job["story"]).read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
-        return HASHTAGS
+        return social_copy.caption("", "", f"https://tbilisi.today/stories/{job.get('ref')}",
+                                   kind="video")
     if not isinstance(story, dict):
-        return HASHTAGS
+        return social_copy.caption("", "", "", kind="video")
     hook = next((s for s in story.get("scenes", []) if s.get("type") == "hook"), {})
-    text = _clean(" ".join(hook.get("lines") or []))
-    if not text:
-        text = _clean(story.get("narration", "")[:140])
-    return f"{text}\n\n{HASHTAGS}" if text else HASHTAGS
+    title = " ".join(hook.get("lines") or [])
+    if not title:
+        title = story.get("narration", "")[:90]
+    category = social_copy.CAT_KA.get(str(story.get("category") or ""), None)
+    return social_copy.caption(title, story.get("narration", ""),
+                               f"https://tbilisi.today/stories/{job.get('ref')}",
+                               kind="video", category_ka=category, summary_limit=240)
 
 
 def main() -> int:
@@ -194,11 +199,8 @@ def main() -> int:
                "error": out.get("error"), "status": out.get("status"),
                "action": ("posted" if a.live else "dry") if out.get("ok") else "error"}
         if out.get("ok") and a.live:
-            cmt = facebook.comment(out.get("post_id") or out.get("video_id") or "",
-                                   f"სრული სტატია: {link}")
-            rec["comment_id"] = cmt.get("id")
-            if not cmt.get("ok"):
-                rec["warn"] = f"comment failed: {json.dumps(cmt.get('error'), ensure_ascii=False)[:200]}"
+            # The link already sits in the description, so no first comment here. If the comment
+            # shape comes back (LINK_IN_BODY off), it must target out["post_id"], never video_id.
             state["posted"][job["id"]] = {
                 "at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "cid": cid, "video_id": out.get("video_id")}
