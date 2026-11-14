@@ -487,6 +487,36 @@ def _wait_ready(video_id: str, token: str, seconds: int) -> dict:
     return out
 
 
+def set_thumbnail(video_id: str, image_path: str, *, dry: bool = False,
+                  token: str | None = None) -> dict:
+    """Make an image the reel's cover.
+
+    Reels without a cover get a frame chosen by Facebook, and a grid of those reads as one grey
+    column. The cover is uploaded as the preferred thumbnail for the video object.
+    """
+    path = pathlib.Path(image_path)
+    if not path.exists():
+        return {"ok": False, "platform": PLATFORM, "kind": "thumbnail",
+                "error": {"message": f"no such file: {path}"}}
+    if dry:
+        return {"ok": True, "platform": PLATFORM, "kind": "thumbnail", "dry": True,
+                "video_id": video_id, "image": str(path)}
+    payload = path.read_bytes()
+    ctype = mimetypes.guess_type(path.name)[0] or "image/jpeg"
+    data, ct = _multipart({"is_preferred": "true", "access_token": token or page_token()},
+                          {"source": (path.name, payload, ctype)})
+    try:
+        status, _h, body = _call("POST", _url(f"{video_id}/thumbnails"), data=data,
+                                 headers={"Content-Type": ct}, timeout=180)
+    except GraphError as e:
+        return e.as_receipt()
+    err = _error_from(body, status)
+    if err:
+        return err.as_receipt()
+    return {"ok": bool(body.get("success", True)), "platform": PLATFORM,
+            "kind": "thumbnail", "video_id": video_id, "body": body}
+
+
 def comment(object_id: str, message: str, *, dry: bool = False, token: str | None = None) -> dict:
     """First comment on our own post. The story link lives here, never in the post body:
     a bare outbound link in the body costs reach on Facebook."""

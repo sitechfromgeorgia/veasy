@@ -41,8 +41,16 @@ def clean(text: str) -> str:
 
 
 def mtavruli(text: str) -> str:
-    """Georgian capitals (Mtavruli, U+1C90..). Latin and digits pass through unchanged."""
-    return (text or "").upper()
+    """Georgian capitals (Mtavruli, U+1C90..). Latin and digits pass through untouched.
+
+    str.upper() would also shout Latin brand names ("MICROSOFT-მა"), which reads as a poster, not a
+    headline: only the Georgian letters move to their capital forms.
+    """
+    out = []
+    for ch in text or "":
+        code = ord(ch)
+        out.append(chr(code + 0xBC0) if 0x10D0 <= code <= 0x10FF else ch)
+    return "".join(out)
 
 
 def headline(title: str) -> str:
@@ -106,10 +114,51 @@ def first_sentences(text: str, limit: int = 300) -> str:
     return (s[:space] if space > 40 else s[:limit]).rstrip(",;:") + "…"
 
 
+_KAEASY_PARENT = "/root/.hermes/profiles/tbilisi/plugins"
+if _KAEASY_PARENT not in __import__("sys").path:
+    __import__("sys").path.insert(0, _KAEASY_PARENT)
+try:
+    from kaeasy import fix as ka_fix_mod  # noqa: E402  (deterministic, no network)
+    from kaeasy import lint as ka_lint_mod  # noqa: E402
+except Exception:  # noqa: BLE001 - the gate degrades to a no-op, never to a crash
+    ka_fix_mod = ka_lint_mod = None
+
+
+def guard(text: str, mode: str = "social") -> tuple[str, list]:
+    """Run kaeasy's mechanical fixer and linter over published copy.
+
+    Edo, 2026-11-14: „ქართულ გრამატიკაში პრობლემები იყო ... kaeasy-იც გამოიყენე აუცილებლად".
+    ka_fix repairs what is mechanical (brand hyphens, quotes, decimal comma, dashes); ka_lint
+    reports the rest so a caller can see it. Grammar proper is still the editor's job: a regex
+    cannot see case government, and pretending otherwise is how bad text ships.
+
+    URLs are masked before linting: the linter reads `https://` as a colon without a following
+    space and fires on every post that carries a link.
+    """
+    if not text:
+        return text, []
+    masked, urls = text, []
+
+    def _stash(match):
+        urls.append(match.group(0))
+        return f" ‹URL{len(urls) - 1}› "
+
+    import re as _re
+    masked = _re.sub(r"https?://\S+", _stash, text)
+    if ka_fix_mod is not None:
+        masked, _changes = ka_fix_mod.fix_text(masked)
+    findings = ka_lint_mod.check_text(masked, mode=mode) if ka_lint_mod is not None else []
+    for i, url in enumerate(urls):
+        masked = masked.replace(f"‹URL{i}›", url)
+    return masked, findings
+
+
 def caption(title: str, summary: str = "", link: str = "", *, kind: str = "photo",
             category_ka: str | None = None, summary_limit: int = 320,
             extra_tags: list[str] | None = None) -> str:
     """Build the full caption. Empty pieces disappear instead of leaving blank lines."""
+    title, _f1 = guard(title)
+    summary, _f2 = guard(summary)
     emoji = _BADGE_EMOJI.get(kind, "📰")
     badge = f"{emoji} {'ვიდეო' if kind == 'video' else 'სიახლე'}"
     if category_ka:

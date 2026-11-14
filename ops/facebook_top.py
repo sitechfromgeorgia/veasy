@@ -28,7 +28,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from tt_shorts import facebook, queue, social_copy  # noqa: E402
+from tt_shorts import facebook, queue, reel_cover, social_copy  # noqa: E402
 
 MARK = ROOT / "data" / "facebook-posted.json"
 RECEIPTS = pathlib.Path("/root/sitech/scratch/hourly-audit/fb-video-receipts.jsonl")
@@ -212,8 +212,19 @@ def main() -> int:
                "error": out.get("error"), "status": out.get("status"),
                "action": ("posted" if a.live else "dry") if out.get("ok") else "error"}
         if out.get("ok") and a.live:
-            # The link already sits in the description, so no first comment here. If the comment
-            # shape comes back (LINK_IN_BODY off), it must target out["post_id"], never video_id.
+            # A cover per reel, coloured by category: without one Facebook picks a frame and the
+            # grid reads as one grey column (owner, 2026-11-14).
+            try:
+                story = json.loads(pathlib.Path(job["story"]).read_text(encoding="utf-8"))
+                cover = reel_cover.from_story(
+                    job["id"], story if isinstance(story, dict) else {},
+                    f"/root/sitech/covers/fb-reel-{cid}.jpg")
+                thumb = facebook.set_thumbnail(out.get("video_id") or "", cover)
+                rec["cover"] = bool(thumb.get("ok"))
+                if not thumb.get("ok"):
+                    rec["cover_error"] = json.dumps(thumb.get("error"), ensure_ascii=False)[:200]
+            except Exception as e:  # noqa: BLE001 - a cover failure must not lose the post
+                rec["cover_error"] = f"{type(e).__name__}: {str(e)[:160]}"
             state["posted"][job["id"]] = {
                 "at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "cid": cid, "video_id": out.get("video_id")}
