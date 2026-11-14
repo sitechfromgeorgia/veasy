@@ -115,6 +115,40 @@ def armed() -> bool:
     return True
 
 
+def ensure_page_token(*, dry: bool = False) -> dict:
+    """Exchange a System User or user token for the Page's own token, once.
+
+    A System User token answers /me with the system user, not the Page. Most Page endpoints accept
+    it when the page is assigned, but the Page's own token is unambiguous: it always acts as the
+    Page and it does not expire separately from the user token that minted it. The original is kept
+    aside so a re-derivation is possible after a rotation.
+    """
+    current = _read(TOKEN_FILE)
+    if token_fingerprint(current) in LEAKED_FINGERPRINTS:
+        raise MissingCredentials("stored token is known-compromised; rotate it first")
+    body = _graph("GET", page_id(), {"fields": "id,name,access_token"}, token=current,
+                  idempotent=True)
+    page_token_value = body.get("access_token")
+    if not page_token_value:
+        return {"ok": False, "platform": PLATFORM, "kind": "exchange",
+                "error": {"message": "the token returned no Page access_token; it may not hold "
+                                     "CREATE_CONTENT on this page"}}
+    if dry:
+        return {"ok": True, "platform": PLATFORM, "kind": "exchange", "dry": True,
+                "page": body.get("name"),
+                "would_write": str(TOKEN_FILE),
+                "fingerprint": token_fingerprint(page_token_value)}
+    USER_FILE = pathlib.Path("/root/.secrets/fb_user_token")
+    if not USER_FILE.exists():
+        USER_FILE.write_text(current, encoding="utf-8")
+        USER_FILE.chmod(0o600)
+    TOKEN_FILE.write_text(page_token_value, encoding="utf-8")
+    TOKEN_FILE.chmod(0o600)
+    return {"ok": True, "platform": PLATFORM, "kind": "exchange", "page": body.get("name"),
+            "fingerprint": token_fingerprint(page_token_value),
+            "kept_user_token_at": str(USER_FILE)}
+
+
 def page_id() -> str:
     return _read(PAGE_ID_FILE)
 
@@ -242,10 +276,24 @@ def pages(token: str | None = None) -> dict:
     This is the discovery step before a token is trusted: New Page Experience exposes a legacy id
     and a delegate id, and a System User token can carry several pages. Comparing this list against
     /root/.secrets/fb_page_id is how a wrong id gets caught before a post lands nowhere.
+
+    A Page token has no /me/accounts (it acts as one page and nothing else), so that case answers
+    with the page itself instead of failing.
     """
-    body = _graph("GET", "me/accounts",
-                  {"fields": "id,name,username,tasks,link", "limit": "100"}, token=token,
-                  idempotent=True)
+    try:
+        body = _graph("GET", "me/accounts",
+                      {"fields": "id,name,username,tasks,link", "limit": "100"}, token=token,
+                      idempotent=True)
+    except GraphError as e:
+        if e.code not in (100, 200, 190):
+            raise
+        one = _graph("GET", page_id(), {"fields": "id,name,username,link"},
+                     token=token, idempotent=True)
+        return {"ok": True, "platform": PLATFORM, "kind": "pages", "count": 1,
+                "note": "page token: cannot enumerate pages, answers with its own",
+                "pages": [{"id": one.get("id"), "name": one.get("name"),
+                           "username": one.get("username"),
+                           "tasks": [], "can_post": True}]}
     rows = body.get("data") or []
     return {"ok": True, "platform": PLATFORM, "kind": "pages",
             "count": len(rows),
@@ -368,6 +416,19 @@ def send_video(path: str, caption: str, *, title: str | None = None, dry: bool =
                    "publish_state": publish_state}
         if poll_seconds:
             receipt["status"] = _wait_ready(video_id, tok, poll_seconds)
+        # A Reel's video id is not its post id: commenting on the video id answers
+        # "(#12) singular statuses API is deprecated". Resolve the post and hand back the
+        # fully qualified object id so the caller can comment on the post.
+        try:
+            meta = video_status(video_id)
+            raw_post = meta.get("post_id")
+            if raw_post:
+                receipt["post_id"] = (raw_post if "_" in str(raw_post)
+                                      else f"{pid}_{raw_post}")
+            if not receipt.get("permalink_url"):
+                receipt["permalink_url"] = meta.get("permalink_url")
+        except GraphError:
+            pass
         return receipt
     except GraphError as e:
         return e.as_receipt()
@@ -445,7 +506,7 @@ def probe_seconds(path: pathlib.Path) -> float | None:
 def main(argv: list[str] | None = None) -> int:
     import argparse
     ap = argparse.ArgumentParser(description="tbilisi.today Facebook transport")
-    ap.add_argument("command", choices=["verify", "pages", "photo", "video", "text"])
+    ap.add_argument("command", choices=["verify", "pages", "exchange", "photo", "video", "text"])
     ap.add_argument("target", nargs="?", help="image url/path, video file, or the text itself")
     ap.add_argument("--caption", default="")
     ap.add_argument("--live", action="store_true", help="actually publish (default: dry)")
@@ -456,6 +517,8 @@ def main(argv: list[str] | None = None) -> int:
             out = verify()
         elif a.command == "pages":
             out = pages()
+        elif a.command == "exchange":
+            out = ensure_page_token(dry=not a.live)
         elif a.command == "photo":
             out = send_photo(a.target, a.caption or a.target, dry=not a.live)
         elif a.command == "video":
