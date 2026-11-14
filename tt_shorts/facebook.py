@@ -450,14 +450,25 @@ def _upload_bytes(upload_url: str, video_id: str, path: pathlib.Path, size: int,
 
 
 def _wait_ready(video_id: str, token: str, seconds: int) -> dict:
-    """Poll until the reel is published, or the budget runs out. Never raises."""
+    """Poll until the reel is published, or the budget runs out. Never raises.
+
+    Right after publishing, a fresh video can answer `Unsupported get request` for a few seconds
+    (code 100/subcode 33): that is eventual consistency, not a failure, so keep polling instead of
+    reporting an error on a post that is in fact live.
+    """
     deadline = time.time() + seconds
     last = {}
+    last_error = None
     while time.time() < deadline:
         try:
             last = video_status(video_id)
+            last_error = None
         except GraphError as e:
-            return {"error": e.as_receipt()["error"]}
+            if e.code in (190, 200, 10):  # auth/permission: retrying will not help
+                return {"error": e.as_receipt()["error"]}
+            last_error = e.as_receipt()["error"]
+            time.sleep(5)
+            continue
         st = (last.get("status") or {})
         video_state = st.get("video_status")
         publish = (st.get("publishing_phase") or {}).get("publish_status")
@@ -470,7 +481,10 @@ def _wait_ready(video_id: str, token: str, seconds: int) -> dict:
                     or (st.get("publishing_phase") or {}).get("error")}
         time.sleep(5)
     st = (last.get("status") or {})
-    return {"video_status": st.get("video_status"), "timed_out": True}
+    out = {"video_status": st.get("video_status"), "timed_out": True}
+    if last_error and not st:
+        out["error"] = last_error
+    return out
 
 
 def comment(object_id: str, message: str, *, dry: bool = False, token: str | None = None) -> dict:

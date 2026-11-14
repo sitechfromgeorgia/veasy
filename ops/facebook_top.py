@@ -23,6 +23,7 @@ import datetime as dt
 import json
 import pathlib
 import sys
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -31,8 +32,14 @@ from tt_shorts import facebook, queue, social_copy  # noqa: E402
 
 MARK = ROOT / "data" / "facebook-posted.json"
 RECEIPTS = pathlib.Path("/root/sitech/scratch/hourly-audit/fb-video-receipts.jsonl")
-LIMIT = 4              # reels per calendar day (+04)
-MIN_GAP_MIN = 90
+# Edo, 2026-11-14: „დღეში მინიმუმ 20 რილსი". The Reels API allows 30 API-published posts in a
+# rolling 24 h, so 20 leaves headroom. The lane still paces itself: a run publishes a small batch
+# with a pause between posts instead of emptying the queue in one burst, because ten reels inside
+# two minutes is what a spam feed looks like.
+LIMIT = 20             # reels per calendar day (+04)
+BATCH = 3              # posts per run, so eight ticks spread the day instead of one dump
+PAUSE_S = 120          # seconds between two posts inside one run
+MIN_GAP_MIN = 15       # minutes between runs
 AGE_HOURS = 18         # same freshness rule as the Telegram video lane
 MAX_SECONDS = 90       # Reels hard limit; a longer render is not a reel
 HASHTAGS = "#თბილისი #tbilisitoday"
@@ -104,21 +111,23 @@ def candidates(state: dict) -> list[tuple[int, dict, str]]:
             continue
         if story.get("private") is True or story.get("visibility") == "private":
             continue  # an embargoed piece never reaches a social surface
+        stamp = 0.0
         try:
             when = dt.datetime.fromisoformat(str(story.get("date") or "").replace("Z", "+00:00"))
             if when.tzinfo is None:
                 when = when.replace(tzinfo=dt.timezone.utc)
             if (dt.datetime.now(dt.timezone.utc) - when).total_seconds() > AGE_HOURS * 3600:
                 continue
+            stamp = when.timestamp()
         except (ValueError, TypeError):
             pass
         seconds = result.get("seconds")
         if isinstance(seconds, (int, float)) and seconds > MAX_SECONDS:
             continue
-        out.append((job.get("priority") or 0, job, str(file)))
-    # Freshest story first: within a day the newest event is the one worth posting, and priority
-    # alone floated older renders above it.
-    out.sort(key=lambda x: (-x[0], str(x[1].get("created") or "")))
+        out.append((stamp, job, str(file)))
+    # Freshest story first: with 20 reels a day the newest events must lead, and priority alone
+    # floated older renders above them.
+    out.sort(key=lambda x: -float(x[0]))
     return out
 
 
@@ -144,7 +153,9 @@ def caption_for(job: dict) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--live", action="store_true", help="publish to the Page (default: dry)")
-    ap.add_argument("--max", type=int, default=LIMIT)
+    ap.add_argument("--max", type=int, default=LIMIT, help="daily ceiling")
+    ap.add_argument("--batch", type=int, default=BATCH, help="posts allowed in this run")
+    ap.add_argument("--pause", type=int, default=PAUSE_S, help="seconds between posts in one run")
     ap.add_argument("--ignore-gap", action="store_true", help="skip the pacing check (testing)")
     a = ap.parse_args()
 
@@ -157,9 +168,9 @@ def main() -> int:
     today = dt.datetime.now(dt.timezone.utc).astimezone(
         dt.timezone(dt.timedelta(hours=4))).date().isoformat()
     used = _today_count(state, today)
-    budget = max(0, a.max - used)
+    budget = max(0, min(a.max - used, a.batch))
     if budget == 0:
-        print(json.dumps({"skipped": "daily_cap", "used": used}))
+        print(json.dumps({"skipped": "daily_cap", "used": used, "cap": a.max}))
         return 0
     last = _last_post(state)
     if not a.ignore_gap and last and (dt.datetime.now(dt.timezone.utc) - last).total_seconds() < MIN_GAP_MIN * 60:
@@ -186,7 +197,9 @@ def main() -> int:
             return 2
 
     results = []
-    for _prio, job, file in todo[:budget]:
+    for index, (_prio, job, file) in enumerate(todo[:budget]):
+        if index and a.pause:
+            time.sleep(a.pause)  # spread a batch: ten reels in two minutes reads as a spam feed
         caption = caption_for(job)
         cid = job.get("ref")
         link = f"https://tbilisi.today/stories/{cid}"
