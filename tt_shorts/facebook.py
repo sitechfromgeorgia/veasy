@@ -41,6 +41,11 @@ TOKEN_FILE = pathlib.Path("/root/.secrets/fb_page_token")
 PAGE_ID_FILE = pathlib.Path("/root/.secrets/fb_page_id")
 
 PLATFORM = "facebook"
+# A token that has been pasted into a chat is compromised: it sits in message history, session logs
+# and backups, and anyone who reaches those can post as the Page. Fingerprints (not values) of such
+# tokens live here so every code path refuses them, even if the file is written again by hand.
+# Removing an entry is never the fix; rotating the token in Business Manager is.
+LEAKED_FINGERPRINTS: set[str] = {"58228850"}
 # Reels limits from the Reels Publishing API: 3..90 s, 9x16, 540x960 minimum.
 REEL_MIN_SECONDS = 3.0
 REEL_MAX_SECONDS = 90.0
@@ -86,7 +91,28 @@ def _read(path: pathlib.Path) -> str:
 
 
 def page_token() -> str:
-    return _read(TOKEN_FILE)
+    value = _read(TOKEN_FILE)
+    fp = token_fingerprint(value)
+    if fp in LEAKED_FINGERPRINTS:
+        raise MissingCredentials(
+            f"the stored token ({fp}) was posted in chat and is compromised; "
+            "rotate it in Business Manager and save the new one with "
+            "bash /root/sitech/scripts/save-fb-token.sh")
+    return value
+
+
+def armed() -> bool:
+    """True only when a usable, non-leaked token and a page id are in place.
+
+    Callers gate on this instead of on file existence, so a compromised or half-configured
+    credential makes a lane go quiet rather than fail every tick.
+    """
+    try:
+        page_token()
+        page_id()
+    except MissingCredentials:
+        return False
+    return True
 
 
 def page_id() -> str:
@@ -230,11 +256,18 @@ def pages(token: str | None = None) -> dict:
 
 
 def verify() -> dict:
-    """Prove the token belongs to the Page: id, name and username must all come back."""
+    """Prove which Page the token acts as, and whether it is a Page token at all.
+
+    A Page token answers /me with the Page itself. A user token answers with the person, which
+    means posting would land on a profile instead of the Page: worth knowing before a live run.
+    """
     body = _graph("GET", page_id(), {"fields": "id,name,username,link"}, idempotent=True)
+    me = _graph("GET", "me", {"fields": "id,name"}, idempotent=True)
     return {"ok": True, "platform": PLATFORM, "kind": "verify",
             "id": body.get("id"), "name": body.get("name"),
             "username": body.get("username"), "link": body.get("link"),
+            "as": me.get("id"), "as_name": me.get("name"),
+            "token_kind": "page" if str(me.get("id")) == str(body.get("id")) else "user",
             "token": token_fingerprint()}
 
 
