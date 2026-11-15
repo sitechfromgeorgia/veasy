@@ -7,7 +7,7 @@ import { Easing, interpolate, useCurrentFrame } from "remotion";
 import { CANVAS, FONT, INK, LINE_STRONG, MUTED, PANEL, RAIL_X, RED, SIDE, W } from "../brand";
 import { Mark, marked } from "../marker";
 import type { Scene } from "../types";
-import { Chip, CountUp, Dot, fitSize, Frame, group, In, measure, useTheme } from "../ui";
+import { beat, Chip, CountUp, Dot, fitSize, Frame, group, In, measure, stepped, useTheme } from "../ui";
 import { num } from "./more";
 
 const INNER = W - 2 * SIDE; // 952
@@ -130,7 +130,7 @@ export const Share: React.FC<P> = ({ s, inner = INNER }) => {
   const gap = Math.round(G * 0.022);
   const cell = (G - 9 * gap) / 10;
   const span = Math.min(42, s.duration * 0.45);
-  const t = interpolate(frame, [8, 8 + span], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
+  const t = stepped(s, frame, interpolate(frame, [8, 8 + span], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) }));
   const filled = value * t;
   const dec = decimalsOf(value);
   const numW = width - G - 40;
@@ -162,7 +162,7 @@ export const Share: React.FC<P> = ({ s, inner = INNER }) => {
           </div>
         </In>
       </div>
-      <In delay={16}>
+      <In delay={16} at={beat(s, "label")}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: tight ? 52 : 60, lineHeight: 1.2, color: INK,
           marginTop: tight ? 32 : 48, maxWidth: width }}>
           {marked(s, "label", s.label, { px: tight ? 52 : 60 })}
@@ -194,7 +194,13 @@ export const Rail: React.FC<P> = ({ s, inner = INNER }) => {
   const labelSize = n <= 2 ? (tight ? 56 : 64) : n === 3 ? (tight ? 48 : 56) : (tight ? 42 : 48);
   const ys = items.map((_, i) => i * rowH + whenSize * 0.65);
   const first = 10, step = Math.min(30, Math.max(10, (s.duration * 0.6 - first) / (n - 1)));
-  const arrive = items.map((_, i) => first + i * step);
+  const maxArrive = Math.max(first + (n - 1) * 6, s.duration - 28);
+  const arrive: number[] = [first];
+  for (let i = 1; i < n; i++) {
+    const cap = maxArrive - (n - 1 - i) * 6;
+    const raw = beat(s, `items.${i}`) ?? (first + i * step);
+    arrive.push(Math.min(cap, Math.max(arrive[i - 1] + 6, raw)));
+  }
   const pos = interpolate(frame, arrive, items.map((_, i) => i), { ...clamp, easing: Easing.inOut(Easing.cubic) });
   const y = interpolate(pos, items.map((_, i) => i), ys, clamp);
   const reached = (i: number) => frame >= arrive[i] - 1;
@@ -213,7 +219,7 @@ export const Rail: React.FC<P> = ({ s, inner = INNER }) => {
         </svg>
         {items.map((it, i) => (
           <div key={i} style={{ position: "absolute", left: railW + 36, top: i * rowH, width: width - railW - 36 }}>
-            <In delay={Math.max(0, Math.round(arrive[i] - 8))}>
+            <In delay={Math.max(0, Math.round(arrive[i] - 6))} at={i > 0 ? beat(s, `items.${i}`) : undefined}>
               <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: whenSize, lineHeight: 1.3,
                 color: reached(i) ? INK : MUTED, whiteSpace: "nowrap" }}>{marked(s, `items.${i}.when`, it.when, { px: whenSize })}</div>
               <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: labelSize, lineHeight: 1.2, marginTop: 8,
@@ -255,7 +261,9 @@ export const Compare: React.FC<P> = ({ s, inner = INNER }) => {
       )}
       <div style={{ display: "flex", gap, width }}>
         {items.map((it, i) => {
-          const t = interpolate(frame - (6 + i * 10), [0, 22], [0, 1], { ...clamp, easing: easeOut });
+          const start = i === 0 ? 6 : (beat(s, `items.${i}`) ?? 6 + i * 10);
+          const t = interpolate(frame - start, [0, 16], [0, 1], { ...clamp, easing: easeOut });
+          const textFade = interpolate(frame - Math.max(0, start - 4), [0, 10], [0, 1], clamp);
           const side = S * Math.sqrt(it.value / max);
           const ink = i === big;
           return (
@@ -267,9 +275,9 @@ export const Compare: React.FC<P> = ({ s, inner = INNER }) => {
               </div>
               <div style={{ height: 4, background: LINE_STRONG, marginTop: 0 }} />
               <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: valueSize, lineHeight: 1.1, color: INK, marginTop: 20,
-                whiteSpace: "nowrap", opacity: Math.min(1, t * 2) }}>{num(it.value * t, dec)}</div>
+                whiteSpace: "nowrap", opacity: textFade }}>{num(it.value * t, dec)}</div>
               <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: tight ? 36 : 40, lineHeight: 1.25, color: ink ? INK : MUTED,
-                marginTop: 8, opacity: Math.min(1, t * 2) }}>{marked(s, `items.${i}.label`, it.label, { px: 40 })}</div>
+                marginTop: 8, opacity: textFade }}>{marked(s, `items.${i}.label`, it.label, { px: 40 })}</div>
             </div>
           );
         })}

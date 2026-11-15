@@ -70,10 +70,65 @@ class Track(unittest.TestCase):
 
     def test_the_shipped_stories_have_no_still_scene(self):  # the goal of phase 3's beats
         with tempfile.TemporaryDirectory() as home, mock.patch.dict(os.environ, {"VEASY_HOME": home}):
-            for name in ("24835", "24725", "law-constitution-17"):
+            for name in ("24835", "24725", "law-constitution-17", "veasy-scenes"):
                 _, p = props.build(str(ROOT / "stories" / f"{name}.json"), "auto", "silent", music="off")
                 still = [w for w in motion_rules.check(p)["warnings"] if w.startswith("motion still")]
                 self.assertEqual(still, [], name)
+
+    def test_ten_remaining_brushes_produce_valid_beat_tracks(self):
+        cases = [
+            ({"type": "bars", "from": 0, "duration": 8 * FPS,
+              "items": [{"label": "თბილისი", "value": 10}, {"label": "ბათუმი", "value": 20}, {"label": "ქუთაისი", "value": 15}]},
+             "სვეტები ადარებს მონაცემებს: თბილისი პირველია, ბათუმი მეორეა და ქუთაისი მესამეა დეტალურად",
+             ["items.1", "items.2"], None),
+            ({"type": "trend", "from": 0, "duration": 8 * FPS, "label": "მნიშვნელოვანი ზრდა",
+              "items": [{"label": "დილა", "value": 10}, {"label": "საღამო", "value": 20}]},
+             "ტრენდის ხაზი აჩვენებს დინამიკას დროში, მნიშვნელოვანი ზრდა ფიქსირდება ბოლოს",
+             ["label"], "line"),
+            ({"type": "change", "from": 0, "duration": 8 * FPS,
+              "before": {"label": "ძველი", "value": 10}, "after": {"label": "ახალი", "value": 25}},
+             "ცვლილების სცენა ადარებს ძველსა და ახალ მაჩვენებელს, მაჩვენებელი საგრძნობლად გაიზარდა",
+             [], "roll"),
+            ({"type": "share", "from": 0, "duration": 8 * FPS, "value": 75, "label": "მოსახლეობის წილი"},
+             "წილის სცენა აჩვენებს პროცენტს, მოსახლეობის წილი შეადგენს სამოცდათხუთმეტ პროცენტს",
+             ["label"], "cells"),
+            ({"type": "rail", "from": 0, "duration": 8 * FPS,
+              "items": [{"when": "10:00", "label": "გახსნა"}, {"when": "14:00", "label": "შეხვედრა"}, {"when": "18:00", "label": "დახურვა"}]},
+             "განრიგი ასეთია: გახსნა დილით, შემდეგ შეხვედრა შუადღეს და დახურვა საღამოს",
+             ["items.1", "items.2"], None),
+            ({"type": "compare", "from": 0, "duration": 8 * FPS,
+              "items": [{"label": "ექსპორტი", "value": 40}, {"label": "იმპორტი", "value": 60}]},
+             "შედარება აჩვენებს სხვაობას: ექსპორტი ნაკლებია, ხოლო იმპორტი აღემატება მნიშვნელოვნად",
+             ["items.1"], None),
+            ({"type": "ranking", "from": 0, "duration": 8 * FPS,
+              "items": [{"label": "ქართული", "value": 90}, {"label": "ინგლისური", "value": 70}, {"label": "გერმანული", "value": 50}]},
+             "რეიტინგი ასეთია: პირველი ქართული ენაა, მეორე ინგლისური და მესამე გერმანული სიაში",
+             ["items.1", "items.2"], None),
+            ({"type": "route", "from": 0, "duration": 8 * FPS,
+              "stops": ["თბილისი", "ბათუმი", "ტრაპიზონი"]},
+             "მარშრუტი იწყება თბილისიდან, შემდეგ ბათუმი და საბოლოო გაჩერება ტრაპიზონი იქნება",
+             ["stops.1", "stops.2"], "route"),
+            ({"type": "budget", "from": 0, "duration": 8 * FPS,
+              "items": [{"label": "განათლება", "value": 100}, {"label": "ჯანდაცვა", "value": 80}, {"label": "ინფრასტრუქტურა", "value": 60}]},
+             "ბიუჯეტი ნაწილდება შემდეგნაირად: განათლება მთავარია, ჯანდაცვა მეორე და ინფრასტრუქტურა მესამე",
+             ["items.1", "items.2"], "bar"),
+            ({"type": "chart", "from": 0, "duration": 8 * FPS,
+              "items": [{"label": "იანვარი", "value": 10}, {"label": "თებერვალი", "value": 20}, {"label": "მარტი", "value": 30}]},
+             "დიაგრამა ასახავს ზრდას: იანვარი იწყება, თებერვალი იზრდება და მარტი პიკს აღწევს",
+             ["items.1", "items.2"], None),
+        ]
+        for scene, narration, expected_reveals, expected_steps in cases:
+            ws = words(narration, step=0.35)
+            t = beats.track(scene, ws, 0, scene["duration"])
+            self.assertIsNotNone(t, f"beats.track was None for {scene['type']}")
+            fr = t["frames"]
+            self.assertEqual(fr, sorted(set(fr)), f"Frames not sorted/unique for {scene['type']}")
+            settled = beats.probe_settled(scene["duration"])
+            self.assertLessEqual(fr[-1], settled - beats.SETTLE, f"Last beat exceeds settle for {scene['type']}")
+            for rev in expected_reveals:
+                self.assertIn(rev, t["reveal"], f"Expected reveal {rev} missing in {scene['type']}")
+            if expected_steps:
+                self.assertTrue(len(t["steps"]) > 0, f"Expected steps for {scene['type']}")
 
     def test_beats_off_renders_as_before(self):
         with tempfile.TemporaryDirectory() as home, mock.patch.dict(os.environ, {"VEASY_HOME": home}):

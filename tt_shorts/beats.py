@@ -57,6 +57,16 @@ DEVICES = {
     "pair": {"reveal": "items", "match": "title", "lit": ["title", "sub"], "steps": None},
     # a quote's speaker is on screen with it from the start (a quote is never shown without its name)
     "quote": {"reveal": [], "lit_fields": ["text"], "lit": [], "steps": None},
+    "bars": {"reveal": "items", "match": "label", "lit": [], "steps": None},
+    "trend": {"reveal": ["label"], "lit": [], "steps": "line"},
+    "change": {"reveal": [], "lit": [], "steps": "roll"},
+    "share": {"reveal": ["label"], "lit": [], "steps": "cells"},
+    "rail": {"reveal": "items", "match": "label", "lit": [], "steps": None},
+    "compare": {"reveal": "items", "match": "label", "lit": [], "steps": None},
+    "ranking": {"reveal": "items", "match": "label", "lit": [], "steps": None},
+    "route": {"reveal": "stops", "match": "", "lit": [], "steps": "route"},
+    "budget": {"reveal": "items", "match": "label", "lit": [], "steps": "bar"},
+    "chart": {"reveal": "items", "match": "label", "lit": [], "steps": None},
 }
 
 
@@ -121,6 +131,12 @@ def _reveals(scene, dev, spoken, leave, last):
             text = _text_of(it, dev.get("match", ""))
             whole = " ".join(x for x in (_text_of(it, f) for f in (dev["lit"] or [""])) if x) or text
             plan.append((f"items.{k}", text, whole))
+    elif dev["reveal"] == "stops":
+        items = scene.get("stops") or []
+        for k, it in enumerate(items[1:], 1):
+            text = _text_of(it, dev.get("match", ""))
+            whole = text
+            plan.append((f"stops.{k}", text, whole))
     else:
         for f in dev["reveal"]:
             if isinstance(scene.get(f), str) and scene[f].strip():
@@ -129,7 +145,7 @@ def _reveals(scene, dev, spoken, leave, last):
     raw = []
     for key, text, whole in plan:
         i = _find(text, spoken, after)
-        if i is None and not key.startswith("items."):
+        if i is None and not (key.startswith("items.") or key.startswith("stops.")):
             continue  # a label the voice doesn't say keeps the scene's own timing
         raw.append((key, whole, spoken[i][0] if i is not None else None))
         if i is not None:
@@ -275,7 +291,7 @@ def track(scene, words, a, b, first=False):
             steps.append(spoken[end][0])
             used.add(spoken[end][0])
     frames = sorted(x for x in used if 0 <= x <= last)
-    if len(frames) <= 1:
+    if len(frames) <= 1 or any((c - a) / FPS > MAX_BEAT + 0.6 for a, c in zip(frames, frames[1:])):
         return None
     return {"frames": frames, "reveal": {k: f for k, _, f in reveal}, "lit": lit, "steps": sorted(steps),
             "texts": [[t, f] for _, t, f in reveal]}

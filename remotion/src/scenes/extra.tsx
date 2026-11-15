@@ -5,7 +5,7 @@ import { Easing, interpolate, useCurrentFrame } from "remotion";
 import { CANVAS, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import { marked } from "../marker";
 import type { Scene } from "../types";
-import { Chip, CountUp, Dot, fitSize, Frame, In, measure, stepped, useIn, useTheme } from "../ui";
+import { beat, Chip, CountUp, Dot, fitSize, Frame, In, measure, stepped, useIn, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
 const low = (inner: number) => Math.min(inner, RAIL_X - (W - inner) / 2);
@@ -34,10 +34,11 @@ export const Ranking: React.FC<P> = ({ s, inner = INNER }) => {
       <div style={{ display: "flex", flexDirection: "column", gap: items.length > 3 ? 20 : 28, width, marginTop: 12 }}>
         {items.map((it, i) => {
           const rankNum = it.rank ?? i + 1;
-          const t = interpolate(frame - (6 + i * 5), [0, 16], [0, 1], { ...clamp, easing: easeOut });
+          const barStart = (i === 0 ? 4 : (beat(s, `items.${i}`) ?? 4 + i * 5)) + 2;
+          const t = interpolate(frame - barStart, [0, 14], [0, 1], { ...clamp, easing: easeOut });
           const barW = typeof it.value === "number" ? Math.max(12, ((width - 240) * it.value * t) / maxVal) : 0;
           return (
-            <In key={i} delay={4 + i * 5}>
+            <In key={i} delay={4 + i * 5} at={i > 0 ? beat(s, `items.${i}`) : undefined}>
               <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
                 {/* Rank Badge */}
                 <div style={{
@@ -356,7 +357,7 @@ export const Route: React.FC<P> = ({ s, inner = INNER }) => {
   const frame = useCurrentFrame();
   const width = low(inner);
   const stops = s.stops ?? [];
-  const lineProgress = interpolate(frame, [8, 32], [0, 1], { ...clamp, easing: easeOut });
+  const lineProgress = stepped(s, frame, interpolate(frame, [8, 32], [0, 1], { ...clamp, easing: easeOut }));
 
   return (
     <Frame s={s}>
@@ -374,7 +375,7 @@ export const Route: React.FC<P> = ({ s, inner = INNER }) => {
           {stops.map((stop, i) => {
             const isLast = i === stops.length - 1;
             return (
-              <In key={i} delay={4 + i * 8}>
+              <In key={i} delay={4 + i * 8} at={i > 0 ? beat(s, `stops.${i}`) : undefined}>
                 <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                   {/* Station node dot */}
                   <div style={{
@@ -422,7 +423,7 @@ export const Budget: React.FC<P> = ({ s, inner = INNER }) => {
   if (!items.length) return null;
 
   const total = s.total ?? items.reduce((acc, it) => acc + it.value, 0);
-  const progress = interpolate(frame, [8, 30], [0, 1], { ...clamp, easing: easeOut });
+  const progress = stepped(s, frame, interpolate(frame, [8, 30], [0, 1], { ...clamp, easing: easeOut }));
 
   return (
     <Frame s={s}>
@@ -462,7 +463,7 @@ export const Budget: React.FC<P> = ({ s, inner = INNER }) => {
           {items.map((it, i) => {
             const pct = it.share ?? (total > 0 ? Math.round((it.value / total) * 100) : 0);
             return (
-              <In key={i} delay={12 + i * 5}>
+              <In key={i} delay={12 + i * 5} at={i > 0 ? beat(s, `items.${i}`) : undefined}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 34, color: INK }}>
                     {marked(s, `items.${i}.label`, it.label, { px: 34 })}
