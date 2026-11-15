@@ -464,8 +464,17 @@ export { group };
 /** A count-up from 0, written as Georgian writes numbers ("6 400", "3,8"), ending on the exact fact (number.ts). */
 export const CountUp: React.FC<{ to: number; delay?: number; frames?: number }> = ({ to, delay = 0, frames = 32 }) => {
   const frame = useCurrentFrame();
-  const t = interpolate(frame - delay, [0, frames], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
-    easing: (x) => 1 - Math.pow(1 - x, 3) });
+  const m = useMotion();
+  const { fps } = useVideoConfig();
+  const elapsed = frame - delay;
+  const t = !m
+    ? interpolate(elapsed, [0, frames], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
+        easing: (x) => 1 - Math.pow(1 - x, 3) })
+    : elapsed >= frames
+      ? 1
+      : elapsed <= 0
+        ? 0
+        : Math.max(0, Math.min(1, spring({ frame: elapsed, fps, config: { damping: m.damping, stiffness: m.stiffness, mass: 0.8 } })));
   return <>{group(counted(to, t), decimalsOf(to))}</>;
 };
 
