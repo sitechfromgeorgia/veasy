@@ -90,6 +90,12 @@ def _clean(s: str) -> str:
 
 def candidates(state: dict) -> list[tuple[int, dict, str]]:
     posted = set((state.get("posted") or {}))
+    # A story can be rendered into more than one job, and the queue always is: two job ids for
+    # cid 33352 and for cid 33373 were both posted, each with its own ledger key, so the same
+    # story reached Facebook twice (owner noticed the duplicate Reels, 2026-11-16). The story id
+    # is the real identity, so it is checked as well as the job id.
+    posted_cids = {str((v or {}).get("cid")) for v in (state.get("posted") or {}).values()
+                   if (v or {}).get("cid")}
     cutoff = dt.datetime.now().timestamp() - 12 * 3600
     out = []
     for job in queue.listing("done", 400) or []:
@@ -101,7 +107,7 @@ def candidates(state: dict) -> list[tuple[int, dict, str]]:
             continue
         if pathlib.Path(file).stat().st_mtime < cutoff:
             continue
-        if job["id"] in posted:
+        if job["id"] in posted or str(job.get("ref") or "") in posted_cids:
             continue
         try:
             story = json.loads(pathlib.Path(job["story"]).read_text(encoding="utf-8"))
@@ -212,6 +218,13 @@ def main() -> int:
                "error": out.get("error"), "status": out.get("status"),
                "action": ("posted" if a.live else "dry") if out.get("ok") else "error"}
         if out.get("ok") and a.live:
+            # The post is live from this instant. Record it before anything else runs, because a
+            # cover or comment failure must never leave a live post unrecorded: that is how the
+            # same Reel reached the page twice or three times (owner, 2026-11-16).
+            state["posted"][job["id"]] = {
+                "at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "cid": cid, "video_id": out.get("video_id")}
+            _save(state)
             # A cover per reel, coloured by category: without one Facebook picks a frame and the
             # grid reads as one grey column (owner, 2026-11-14).
             try:
@@ -244,10 +257,10 @@ def main() -> int:
                 rec["comment_on"] = target
                 if not cmt.get("ok"):
                     rec["comment_error"] = json.dumps(cmt.get("error"), ensure_ascii=False)[:180]
-            state["posted"][job["id"]] = {
-                "at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "cid": cid, "video_id": out.get("video_id")}
-            _save(state)
+            # Write the ledger the moment the post exists, before the cover and the comment: if
+            # anything after this line throws, the post is already live and must already be
+            # recorded, or the next tick posts it again.
+
         receipt(rec)
         results.append(rec)
 
