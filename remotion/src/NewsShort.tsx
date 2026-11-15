@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { AbsoluteFill, Html5Audio, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Html5Audio, interpolate, Sequence, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import {
   alpha, applyBrand, CANVAS, CAPTION_BOTTOM, fill, FONT, GRID, H, INK, LINE, MUTED, PANEL, RADIUS, RAIL_X, SCENE_BOTTOM, SCENE_TOP,
   SIDE, TICKER, W,
@@ -175,9 +175,10 @@ const Cut: React.FC = () => {
   if (frame > n || (tr !== "line" && tr !== "panel")) return null;
   const [fx, fy] = flowOf(props.style, [1, 0]); // the sweep moves along the director's current (today: to the right)
   const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
+  const p = interpolate(frame, [0, n], [0, 1], { ...clamp, easing: (x) => 1 - Math.pow(1 - x, 3) });
   const band = SCENE_BOTTOM - SCENE_TOP;
   if (fy !== 0) { // the current is up: the panel and the line rise through the scene band
-    const y = interpolate(frame, [0, n], [band, -band], clamp) * -fy;
+    const y = (band * (1 - 2 * p)) * -fy;
     if (tr === "panel") {
       return (
         <div style={{ position: "absolute", left: 0, top: SCENE_TOP, width: W, height: band, overflow: "hidden" }}>
@@ -185,14 +186,15 @@ const Cut: React.FC = () => {
         </div>
       );
     }
+    const top = interpolate(p, [0, 1], fy < 0 ? [SCENE_BOTTOM, SCENE_TOP - 24] : [SCENE_TOP - 24, SCENE_BOTTOM]);
     return (
-      <div style={{ position: "absolute", left: SIDE, right: SIDE, top: interpolate(frame, [0, n], [SCENE_BOTTOM, SCENE_TOP - 24], clamp),
+      <div style={{ position: "absolute", left: SIDE, right: SIDE, top,
         display: "flex", alignItems: "center" }}>
         <div style={{ flex: 1, height: 4, background: INK }} /><Dot size={20} />
       </div>
     );
   }
-  const x = interpolate(frame, [0, n], [-W, W], clamp) * fx;
+  const x = interpolate(p, [0, 1], [-W, W]) * fx;
   if (tr === "panel") {
     return <div style={{ position: "absolute", left: x, top: SCENE_TOP, width: W, height: SCENE_BOTTOM - SCENE_TOP, background: INK }} />;
   }
@@ -252,15 +254,26 @@ const CLAMP = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
  *  maskwipe: a soft-edged horizontal mask sweeps the new scene in · scalethrough: the old scene scales up and fades
  *  through · gridsplit: the old scene breaks into four panels that slide apart (SceneSlot draws them). */
 const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, last: boolean, total: number, left: number,
-  p: ShortProps) => {
+  p: ShortProps, fps: number) => {
   const ease = (t: number) => 1 - Math.pow(1 - t, 3);
   const n = enterFrames(p);
   const plain = MOVES.indexOf(tr) >= 0 && s.duration < n; // too short for the move: a cut
-  const enter = first || plain ? 1 : ease(interpolate(frame, [0, n], [0, 1], CLAMP));
-  const out = last || tr === "cut" || tr === "one-take" || plain ? 1 // one-take: the camera carries the old scene away, it doesn't fade
-    : interpolate(frame, [s.duration - EXIT, s.duration], [1, 0], CLAMP);
+  const dm = p.style?.motion;
+  const rawSpring = dm ? spring({ frame, fps, config: { damping: dm.damping, stiffness: dm.stiffness, mass: 0.8 } }) : 0;
+  const enterVal = first || plain ? 1
+    : dm ? (frame >= n ? 1 : Math.min(1.06, rawSpring))
+    : ease(interpolate(frame, [0, n], [0, 1], CLAMP));
+  const enter = Math.max(0, Math.min(1, enterVal));
+  const outRaw = interpolate(frame, [s.duration - EXIT, s.duration], [0, 1], CLAMP);
+  const out = last || tr === "cut" || tr === "one-take" || plain ? 1 : 1 - outRaw * outRaw;
   const style: React.CSSProperties = {};
-  let dx = 0, opacity = out, dy = (1 - out) * -48, scale = 1;
+  let dx = 0, dy = (1 - out) * -48;
+  if (p.style?.flow) {
+    const [ex, ey] = p.style.flow;
+    dx = (1 - out) * 56 * ex;
+    dy = (1 - out) * 48 * ey;
+  }
+  let opacity = out, scale = 1;
   // a director's current moves every directional cut one way; without one, today's: wipe to the right, slide and
   // push to the left
   const [wx, wy] = flowOf(p.style, [1, 0]);
@@ -286,6 +299,7 @@ const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, la
   }
   if (tr === "fade") {
     opacity = Math.min(enter, out);
+    dx = 0;
     dy = 0;
   }
   if (tr === "object") { // the object's body carries the cut (thread.tsx): the old scene goes behind it, the new one comes
@@ -297,9 +311,10 @@ const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, la
       else if (!first) style.clipPath = ox >= 0 ? `inset(0 ${100 - k}% 0 0)` : `inset(0 0 0 ${100 - k}%)`;
     }
     opacity = 1;
+    dx = 0;
     dy = 0;
   }
-  const along = (d: number) => -(1 - enter) * d + (1 - out) * d; // comes in from behind, leaves ahead
+  const along = (d: number) => -(1 - enterVal) * d + (1 - out) * d; // comes in from behind, leaves ahead
   if (tr === "slide") { dx = along(160) * mx; dy = along(160) * my; opacity = Math.min(enter, out); }
   if (tr === "push") { dx = along(W) * mx; dy = along(SCENE_BOTTOM - SCENE_TOP) * my; opacity = 1; }
   if (tr === "dot" && enter < 1) {
@@ -315,8 +330,9 @@ const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, la
     style.WebkitMaskImage = mask;
   }
   if (tr === "scalethrough") {
-    scale = (0.94 + 0.06 * enter) * (1 + 0.16 * (1 - out)); // in from just under size, out growing past the frame
+    scale = (0.94 + 0.06 * enterVal) * (1 + 0.16 * (1 - out)); // in from just under size, out growing past the frame
     opacity = Math.min(enter, out);
+    dx = 0;
     dy = 0;
   }
   return { style, dx, dy, opacity, enter, out, scale };
@@ -332,14 +348,14 @@ const SceneBody: React.FC<{ i: number }> = ({ i }) => {
   const { v, props } = useTheme();
   const s = props.scenes[i];
   const frame = useCurrentFrame();
-  const { durationInFrames } = useVideoConfig();
+  const { durationInFrames, fps } = useVideoConfig();
   const Comp = SCENES[s.type];
   const first = i === 0, last = i === props.scenes.length - 1;
   const tr = props.transition ?? "line";
   if (v === "cards" && s.type !== "end") {
     const left = SIDE - 16;
-    const m = sceneMotion(tr, frame, s, first, last, durationInFrames, left, props);
-    const own = tr === "line" || tr === "cut" || tr === "panel" || tr === "meter" || tr === "fade" || tr === "shutter" || tr === "blind" || tr === "match"; // the card's own entrance: it rises and settles
+    const m = sceneMotion(tr, frame, s, first, last, durationInFrames, left, props, fps);
+    const own = tr === "line" || tr === "cut" || tr === "panel" || tr === "meter" || tr === "fade" || tr === "shutter" || tr === "blind" || tr === "match" || tr === "gridsplit"; // the card's own entrance: it rises and settles
     const enter = own && !first ? interpolate(frame, [0, enterFrames(props)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
       easing: (t) => 1 - Math.pow(1 - t, 3) }) : 1; // the first card is there at frame 0 (outro.tsx: the opening)
     const shown = Math.min(enter, m.opacity);
@@ -360,7 +376,7 @@ const SceneBody: React.FC<{ i: number }> = ({ i }) => {
       </div>
     );
   }
-  const m = sceneMotion(tr, frame, s, first, last, durationInFrames, SIDE, props);
+  const m = sceneMotion(tr, frame, s, first, last, durationInFrames, SIDE, props, fps);
   if (tr === "gridsplit" && !last && s.duration >= enterFrames(props) && frame >= s.duration - EXIT) {
     // the outgoing frame breaks into four panels that slide apart over the background, revealing what is next
     const k = interpolate(frame, [s.duration - EXIT, s.duration], [0, 1], { ...CLAMP, easing: (x) => x * x });

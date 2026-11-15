@@ -2,7 +2,7 @@ import React from "react";
 import { Freeze, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { FONT, H, INK, LINE, ON_ACCENT, PANEL, QR_LIGHT, RADIUS, RAIL_X, RED, SCENE_BOTTOM, SCENE_TOP, SIDE, W } from "./brand";
 import type { ShortProps } from "./types";
-import { fitSize, Opening, useTheme } from "./ui";
+import { fitSize, flowOf, Opening, useTheme } from "./ui";
 
 // Built for the swipe and the loop (tt_shorts/swipe.py, ROADMAP D7).
 // - Scene 0 is the opening: readable at frame 0 (ui.tsx Opening), where a swipe decides.
@@ -23,8 +23,12 @@ const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 const hasChip = (p: ShortProps) => (p.outro === "overlay" || p.outro === "loop") && typeof p.outroFrom === "number";
 
 /** 0..1: how far the chip has come in at an absolute frame (0 before outroFrom, and always 0 for the end card). */
-const chipIn = (p: ShortProps, frame: number, fps: number) =>
-  hasChip(p) ? spring({ frame: frame - (p.outroFrom as number), fps, config: { damping: 20, stiffness: 170, mass: 0.8 } }) : 0;
+const chipIn = (p: ShortProps, frame: number, fps: number) => {
+  if (!hasChip(p)) return 0;
+  const m = p.style?.motion;
+  return spring({ frame: frame - (p.outroFrom as number), fps,
+    config: { damping: m?.damping ?? 20, stiffness: m?.stiffness ?? 170, mass: 0.8 } });
+};
 
 /** Around every scene slot: scene 0 is the opening (readable at frame 0); the last scene makes room for the chip by
  *  scaling down from its top left corner as the chip comes in. */
@@ -57,10 +61,11 @@ export const OutroChip: React.FC = () => {
   const text = width - 2 * CHIP_PAD - 4 - qr - 32;
   const urlSize = fitSize([props.url], text, 40, 24);
   const ctaSize = fitSize([props.cta], text - 64, 36, 24);
+  const [fx, fy] = flowOf(props.style, [1, 0]);
   return (
     <div style={{ position: "absolute", left, top: CHIP_TOP, width, height: CHIP_H, boxSizing: "border-box", padding: CHIP_PAD,
       display: "flex", alignItems: "center", gap: 32, background: PANEL, border: `2px solid ${LINE}`, borderRadius: RADIUS,
-      transform: `translateX(${(1 - t) * -(left + width + 40)}px)` }}>
+      transform: `translate(${(1 - t) * -fx * (left + width + 40)}px, ${(1 - t) * -fy * 260}px)` }}>
       {/* a QR needs its light quiet zone, as on the end card (the QR's own ground: white, or a light theme's canvas) */}
       <div style={{ width: qr, height: qr, flex: "none", boxSizing: "border-box", padding: 8, background: QR_LIGHT, borderRadius: 8,
         lineHeight: 0 }} dangerouslySetInnerHTML={{ __html: props.qrSvg }} />
