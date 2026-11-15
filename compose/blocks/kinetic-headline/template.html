@@ -24,17 +24,28 @@
   <script>
     (function () {
       const C = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+      const V = typeof window !== "undefined" ? window.VEASY : null;
+      const hostBeats = (function () {
+        if (!V || !V.beats) return null;
+        const vals = Array.isArray(V.beats)
+          ? V.beats.map((b) => (typeof b === "number" ? b : b && (b.t ?? b.at)))
+          : Object.values(V.beats).map((v) => (typeof v === "number" ? v : v && (v.t ?? v.at)));
+        const nums = vals.filter((n) => typeof n === "number" && !isNaN(n) && n > 0).sort((a, b) => a - b);
+        return nums.length ? nums : null;
+      })();
+      const tAt = (idx, fallback) => (hostBeats && hostBeats[idx] != null && hostBeats[idx] > 0 ? hostBeats[idx] : fallback);
+
       const tl = gsap.timeline({ paused: true });
       // Frame 0: chip and first line are readable on screen at frame 0 (settling a few px)
       tl.fromTo("#{id}-chip", { y: 12 }, { y: 0, duration: 0.45, ease: "expo.out" }, 0);
       tl.fromTo("#{id}-l1", { y: 16 }, { y: 0, duration: 0.5, ease: "expo.out" }, 0);
       // Second line inverts cleanly on emphasis beat
-      tl.fromTo("#{id}-l2", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, 0.28);
-      tl.fromTo("#{id}-l2 .blk", { scaleX: 0 }, { scaleX: 1, duration: 0.35, ease: "expo.out" }, 0.48);
-      tl.fromTo("#{id}-l2 em", { color: C("--ink") }, { color: C("--canvas"), duration: 0.1, ease: "none" }, 0.52);
+      tl.fromTo("#{id}-l2", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, tAt(0, 0.28));
+      tl.fromTo("#{id}-l2 .blk", { scaleX: 0 }, { scaleX: 1, duration: 0.35, ease: "expo.out" }, tAt(1, 0.48));
+      tl.fromTo("#{id}-l2 em", { color: C("--ink") }, { color: C("--canvas"), duration: 0.1, ease: "none" }, tAt(2, 0.52));
       // Divider rule and sub line
-      tl.fromTo("#{id}-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "expo.out" }, 0.65);
-      tl.fromTo("#{id}-sub", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.75);
+      tl.fromTo("#{id}-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "expo.out" }, tAt(3, 0.65));
+      tl.fromTo("#{id}-sub", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, tAt(4, 0.75));
       window.__timelines["{id}"] = tl;
     })();
   </script>

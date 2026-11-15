@@ -1,7 +1,7 @@
 import React, { createContext, useContext } from "react";
 import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, FONT, INK, LINE_STRONG, MARK_BG, MARK_INK, RED, T_PATH } from "./brand";
-import { marked } from "./marker";
+import { Mark as NotationMark, marked } from "./marker";
 import { MediaCredit, SceneMedia } from "./media";
 import { counted, decimalsOf, group } from "./number";
 import type { Motion, Scene, ShortProps, Style, Variant } from "./types";
@@ -245,6 +245,115 @@ export const MaskReveal: React.FC<{
   );
 };
 
+/** Computes deterministic reveal frames for each display word in `text` synced to the narrator's spoken words. */
+export const spokenWordFrames = (
+  text: string,
+  s: Scene | undefined,
+  words: ShortProps["words"] | undefined,
+  fps: number,
+  delay: number,
+  stagger: number
+): number[] => {
+  const displayWords = text.split(/\s+/).filter(Boolean);
+  if (!displayWords.length) return [];
+  const fallback = displayWords.map((_, i) => delay + i * stagger);
+  if (!s || !words || !words.length) return fallback;
+
+  const sceneFrom = s.from ?? 0;
+  const sceneDur = s.duration ?? 90;
+  const sceneEnd = sceneFrom + sceneDur - 14;
+
+  const sceneWords: { word: string; frame: number }[] = [];
+  for (const w of words) {
+    const absFrame = Math.round(w.start * fps);
+    if (absFrame >= sceneFrom && absFrame <= sceneEnd) {
+      sceneWords.push({
+        word: w.text,
+        frame: absFrame - sceneFrom,
+      });
+    }
+  }
+
+  if (!sceneWords.length) return fallback;
+
+  const norm = (str: string) => str.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  const maxFrame = Math.max(delay, sceneDur - 26);
+
+  const matched: (number | null)[] = new Array(displayWords.length).fill(null);
+  let cursor = 0;
+
+  for (let i = 0; i < displayWords.length; i++) {
+    const dw = norm(displayWords[i]);
+    if (!dw) continue;
+    for (let j = cursor; j < sceneWords.length; j++) {
+      const sw = norm(sceneWords[j].word);
+      if (!sw) continue;
+      if (dw === sw || (dw.length >= 4 && sw.length >= 4 && dw.slice(0, 4) === sw.slice(0, 4))) {
+        matched[i] = Math.max(delay, Math.min(sceneWords[j].frame, maxFrame));
+        cursor = j + 1;
+        break;
+      }
+    }
+  }
+
+  // If no words matched at all, return fallback
+  const hasMatch = matched.some((m) => m !== null);
+  if (!hasMatch) return fallback;
+
+  // Fill unmatched words monotonically by interpolating between surrounding matches
+  const result: number[] = new Array(displayWords.length);
+
+  for (let i = 0; i < displayWords.length; i++) {
+    if (matched[i] !== null) {
+      result[i] = matched[i]!;
+      continue;
+    }
+    // Find previous match
+    let prevIdx = -1;
+    for (let p = i - 1; p >= 0; p--) {
+      if (matched[p] !== null) {
+        prevIdx = p;
+        break;
+      }
+    }
+    // Find next match
+    let nextIdx = -1;
+    for (let n = i + 1; n < displayWords.length; n++) {
+      if (matched[n] !== null) {
+        nextIdx = n;
+        break;
+      }
+    }
+
+    if (prevIdx !== -1 && nextIdx !== -1) {
+      const prevF = matched[prevIdx]!;
+      const nextF = matched[nextIdx]!;
+      const t = (i - prevIdx) / (nextIdx - prevIdx);
+      result[i] = Math.round(prevF + t * (nextF - prevF));
+    } else if (prevIdx !== -1) {
+      const prevF = result[i - 1] ?? matched[prevIdx]!;
+      result[i] = Math.min(maxFrame, prevF + stagger);
+    } else if (nextIdx !== -1) {
+      const nextF = matched[nextIdx]!;
+      const t = i / nextIdx;
+      result[i] = Math.round(delay + t * (nextF - delay));
+    } else {
+      result[i] = delay + i * stagger;
+    }
+  }
+
+  // Ensure monotonicity: frame i >= frame i-1, and clamp to [delay, maxFrame]
+  for (let i = 0; i < result.length; i++) {
+    let f = result[i];
+    if (i > 0 && f < result[i - 1]) {
+      f = result[i - 1];
+    }
+    result[i] = Math.max(delay, Math.min(f, maxFrame));
+  }
+
+  return result;
+};
+
 /** Kinetic typography for Georgian text: word-by-word reveal with mask reveals and emphasis blocks.
  *  Georgian Mkhedruli script has uniform casing but deep descenders; sufficient clearance ensures no clipping. */
 export const WordReveal: React.FC<{
@@ -258,22 +367,25 @@ export const WordReveal: React.FC<{
   style?: React.CSSProperties;
   s?: Scene;
   field?: string;
-  emStyle?: "inverted" | "underline";
+  emStyle?: "inverted" | "underline" | "mark";
+  inline?: boolean;
 }> = ({
   text,
   delay = 4,
   stagger = 3,
   size = 60,
   weight = 700,
-  lineHeight = 1.3,
+  lineHeight = 1.2,
   color,
   style,
   s,
   field,
   emStyle = "inverted",
+  inline,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const { props } = useTheme();
   const opening = useOpening();
   const m = useMotion();
 
@@ -289,6 +401,110 @@ export const WordReveal: React.FC<{
   const mark = field && s?.mark && s.mark.field === field ? s.mark : null;
   const phrase = mark ? mark.phrase : null;
   const words = text.split(/\s+/).filter(Boolean);
+
+  const spoken = s && props?.words?.length
+    ? spokenWordFrames(text, s, props.words, fps, delay, stag)
+    : null;
+
+  const renderWord = (w: string, i: number) => {
+    const beatFrame = lit && lit[i] !== undefined ? lit[i] : undefined;
+    const wordDelay = beatFrame !== undefined ? beatFrame : (spoken ? spoken[i] : delay + i * stag);
+    const t = opening
+      ? 1
+      : spring({
+          frame: frame - wordDelay,
+          fps,
+          config: { damping, stiffness, mass: 0.8 },
+        });
+
+    const isEm = phrase && phrase.includes(w);
+    const isSettled = opening || Math.min(1, t) >= 0.999;
+    const opacity = isSettled ? 1 : Math.min(1, t * 2.5);
+    const trY = isSettled ? 0 : (1 - Math.min(1, t)) * (size * 0.4);
+    const tr = isSettled ? undefined : `translateY(${trY}px)`;
+
+    const wrapperStyle: React.CSSProperties = {
+      display: "inline-block",
+      overflow: "hidden",
+      padding: "4px 0 8px",
+      margin: "-4px 0 -8px",
+      ...(inline ? { verticalAlign: "bottom" } : {}),
+    };
+
+    if (isEm && emStyle === "inverted") {
+      return (
+        <span key={i} style={wrapperStyle}>
+          <span
+            style={{
+              display: "inline-block",
+              opacity,
+              transform: tr,
+              background: inkColor,
+              color: canvasColor,
+              padding: `2px ${Math.round(size * 0.16)}px 4px`,
+              borderRadius: 6,
+              fontWeight: 800,
+            }}
+          >
+            {w}
+          </span>
+        </span>
+      );
+    }
+
+    return (
+      <span key={i} style={wrapperStyle}>
+        <span style={{ display: "inline-block", opacity, transform: tr }}>
+          {w}
+        </span>
+      </span>
+    );
+  };
+
+  if (inline) {
+    const canMark = Boolean(
+      emStyle === "mark" && s && field && mark && text.slice(mark.start, mark.start + mark.phrase.length) === mark.phrase
+    );
+    const renderInlineSlice = (sliceText: string, wordOffset: number) => {
+      const sliceWords = sliceText.split(/\s+/).filter(Boolean);
+      return sliceWords.map((w, idx) => (
+        <React.Fragment key={wordOffset + idx}>
+          {renderWord(w, wordOffset + idx)}
+          {idx < sliceWords.length - 1 ? " " : null}
+        </React.Fragment>
+      ));
+    };
+    let inlineContent: React.ReactNode;
+    if (canMark && mark) {
+      const before = text.slice(0, mark.start);
+      const after = text.slice(mark.start + mark.phrase.length);
+      const beforeWords = before.split(/\s+/).filter(Boolean);
+      const phraseWords = mark.phrase.split(/\s+/).filter(Boolean);
+      inlineContent = (
+        <>
+          {beforeWords.length ? <>{renderInlineSlice(before, 0)}{/\s$/.test(before) ? " " : ""}</> : null}
+          <NotationMark s={s!} field={field!} px={size}>{renderInlineSlice(mark.phrase, beforeWords.length)}</NotationMark>
+          {after.trim() ? <>{/^\s/.test(after) ? " " : ""}{renderInlineSlice(after, beforeWords.length + phraseWords.length)}</> : null}
+        </>
+      );
+    } else {
+      inlineContent = renderInlineSlice(text, 0);
+    }
+    return (
+      <div
+        style={{
+          fontFamily: FONT,
+          fontWeight: weight,
+          fontSize: size,
+          lineHeight,
+          color: inkColor,
+          ...style,
+        }}
+      >
+        {inlineContent}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -306,50 +522,7 @@ export const WordReveal: React.FC<{
         ...style,
       }}
     >
-      {words.map((w, i) => {
-        const beatFrame = lit && lit[i] !== undefined ? lit[i] : undefined;
-        const wordDelay = beatFrame !== undefined ? beatFrame : delay + i * stag;
-        const t = opening
-          ? 1
-          : spring({
-              frame: frame - wordDelay,
-              fps,
-              config: { damping, stiffness, mass: 0.8 },
-            });
-
-        const isEm = phrase && phrase.includes(w);
-        const opacity = opening ? 1 : Math.min(1, t * 2.5);
-        const trY = opening ? 0 : (1 - Math.min(1, t)) * (size * 0.4);
-
-        if (isEm && emStyle === "inverted") {
-          return (
-            <span key={i} style={{ display: "inline-block", overflow: "hidden", padding: "2px 0 4px" }}>
-              <span
-                style={{
-                  display: "inline-block",
-                  opacity,
-                  transform: `translateY(${trY}px)`,
-                  background: inkColor,
-                  color: canvasColor,
-                  padding: `2px ${Math.round(size * 0.16)}px 4px`,
-                  borderRadius: 6,
-                  fontWeight: 800,
-                }}
-              >
-                {w}
-              </span>
-            </span>
-          );
-        }
-
-        return (
-          <span key={i} style={{ display: "inline-block", overflow: "hidden", padding: "2px 0 4px" }}>
-            <span style={{ display: "inline-block", opacity, transform: `translateY(${trY}px)` }}>
-              {w}
-            </span>
-          </span>
-        );
-      })}
+      {words.map((w, i) => renderWord(w, i))}
     </div>
   );
 };
@@ -380,6 +553,7 @@ export const LineReveal: React.FC<{
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const { props } = useTheme();
   const opening = useOpening();
   const m = useMotion();
 
@@ -387,6 +561,12 @@ export const LineReveal: React.FC<{
   const stag = m ? Math.max(1, Math.round((stagger * m.stagger_frames) / 5)) : stagger;
   const damping = m?.damping ?? 20;
   const stiffness = m?.stiffness ?? 170;
+
+  const lineLeadingWords = lines.map((l) => l.trim().split(/\s+/).filter(Boolean)[0] ?? "");
+  const firstWordsJoined = lineLeadingWords.join(" ");
+  const spoken = s && props?.words?.length
+    ? spokenWordFrames(firstWordsJoined, s, props.words, fps, delay, stag)
+    : null;
 
   return (
     <div
@@ -403,7 +583,7 @@ export const LineReveal: React.FC<{
       }}
     >
       {lines.map((line, i) => {
-        const lineDelay = delay + i * stag;
+        const lineDelay = spoken && spoken[i] !== undefined ? spoken[i] : delay + i * stag;
         const t = opening
           ? 1
           : spring({
@@ -411,12 +591,14 @@ export const LineReveal: React.FC<{
               fps,
               config: { damping, stiffness, mass: 0.8 },
             });
-        const opacity = opening ? 1 : Math.min(1, t * 2.2);
-        const trY = opening ? 0 : (1 - Math.min(1, t)) * (size * 0.5);
+        const isSettled = opening || Math.min(1, t) >= 0.999;
+        const opacity = isSettled ? 1 : Math.min(1, t * 2.2);
+        const trY = isSettled ? 0 : (1 - Math.min(1, t)) * (size * 0.5);
+        const tr = isSettled ? undefined : `translateY(${trY}px)`;
 
         return (
-          <div key={i} style={{ overflow: "hidden", padding: "4px 0 6px" }}>
-            <div style={{ opacity, transform: `translateY(${trY}px)` }}>
+          <div key={i} style={{ overflow: "hidden", padding: "4px 0 8px", margin: "-4px 0 -8px" }}>
+            <div style={{ opacity, transform: tr }}>
               {s && field ? marked(s, `${field}.${i}`, line, { px: size }) : line}
             </div>
           </div>
@@ -433,15 +615,28 @@ export const Headline: React.FC<{
   s?: Scene;
   kinetic?: boolean | "word" | "line" | "mask";
 }> = ({ text, delay = 4, size = 60, s, kinetic }) => {
+  const { v } = useTheme();
   if (!text) return null;
-  if (kinetic === "word") {
+  const mode = kinetic === true
+    ? (v === "kinetic" ? "word" : v === "editorial" ? "mask" : undefined)
+    : kinetic;
+
+  if (mode === "word") {
     return (
       <div style={{ marginTop: 24 }}>
-        <WordReveal text={text} delay={delay} size={size} s={s} field="headline" />
+        <WordReveal text={text} delay={delay} size={size} s={s} field="headline" emStyle="mark" inline />
       </div>
     );
   }
-  if (kinetic === "mask") {
+  if (mode === "line") {
+    const lines = text.split("\n").length > 1 ? text.split("\n") : [text];
+    return (
+      <div style={{ marginTop: 24 }}>
+        <LineReveal lines={lines} delay={delay} size={size} s={s} field="headline" />
+      </div>
+    );
+  }
+  if (mode === "mask") {
     return (
       <MaskReveal delay={delay} direction="up" style={{ marginTop: 24 }}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: size, lineHeight: 1.2, color: INK }}>
@@ -472,20 +667,23 @@ export const CountUp: React.FC<{ to: number; delay?: number; frames?: number }> 
 
 /** Scene frame: kicker and headline on top, the body fills the rest of the scene band. A scene with a picture
  *  (media.tsx, tt_shorts/assets.py) gets it behind everything, and its label and credit in a row at the bottom. */
-export const Frame: React.FC<{ s: Scene; children: React.ReactNode; head?: boolean }> = ({ s, children, head = true }) => (
-  <>
-    {s.media && <SceneMedia s={s} />}
-    {/* a scene that seats the film's object or a drawing keeps the room free (tt_shorts/thread.py, vignettes.py) */}
-    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", boxSizing: "border-box",
-      paddingBottom: (s.thread ?? s.vignette)?.reserve ?? 0 }}>
-      {head && (
-        <div>
-          <Kicker text={s.kicker} />
-          <Headline text={s.headline} s={s} />
-        </div>
-      )}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>{children}</div>
-      {s.media && <MediaCredit s={s} />}
-    </div>
-  </>
-);
+export const Frame: React.FC<{ s: Scene; children: React.ReactNode; head?: boolean }> = ({ s, children, head = true }) => {
+  const { v } = useTheme();
+  return (
+    <>
+      {s.media && <SceneMedia s={s} />}
+      {/* a scene that seats the film's object or a drawing keeps the room free (tt_shorts/thread.py, vignettes.py) */}
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", boxSizing: "border-box",
+        paddingBottom: (s.thread ?? s.vignette)?.reserve ?? 0 }}>
+        {head && (
+          <div>
+            <Kicker text={s.kicker} />
+            <Headline text={s.headline} s={s} kinetic={v === "kinetic" ? "word" : v === "editorial" ? "mask" : undefined} />
+          </div>
+        )}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>{children}</div>
+        {s.media && <MediaCredit s={s} />}
+      </div>
+    </>
+  );
+};

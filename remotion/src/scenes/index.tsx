@@ -1,5 +1,5 @@
 import React from "react";
-import { interpolate, useCurrentFrame } from "remotion";
+import { interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, fill, FONT, INK, LINE, LINE_STRONG, MUTED, ON_ACCENT, PANEL, QR_LIGHT, RADIUS, RAIL_X, RED, SIDE, W } from "../brand";
 import type { Scene } from "../types";
 import { MapWhere } from "./map";
@@ -16,7 +16,7 @@ import { Budget, Calendar, Checklist, Countdown, Glossary, Impact, Ranking, Rout
 import { Kinetic, Odometer } from "./motion";
 import { Chart, Gauge, Sparkline } from "./data";
 import {
-  beat, Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, measure, stepped, useIn, useOpening, useStyle, useTheme,
+  beat, Chip, CountUp, Dot, fitSize, Frame, group, In, Kicker, Logo, measure, spokenWordFrames, stepped, useIn, useOpening, useStyle, useTheme,
 } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
@@ -30,40 +30,62 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
   const { v, props } = useTheme();
   const { hook } = useStyle();
   const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
   const lines = s.lines ?? [];
   const kinetic = v === "kinetic";
   // stack: the lines as they are (kinetic inverts the last) · lead: the first line small and quiet, the rest large ·
-  // blocks: every line in an ink block · underline: an ink rule draws under each line after it lands
+  // blocks: every line in an ink block · underline: an ink rule draws under each line after it lands ·
+  // split: lines[0] compact/muted, animated divider rule, lines.slice(1) bold ·
+  // badge: card/badge frame with top-right Dot around hook lines ·
+  // bracket: crisp vertical editorial brackets framing the lines ·
+  // rail: 8px vertical left rail with traveling red dot
   const lead = hook === "lead" && lines.length > 1;
   const blocks = hook === "blocks";
-  const width = (inner - (kinetic || blocks ? 48 : 8)) * 0.92;
-  const size = fitSize(lead ? lines.slice(1) : lines, width, kinetic ? 176 : 160, 44);
+  const split = hook === "split";
+  const badge = hook === "badge";
+  const bracket = hook === "bracket";
+  const rail = hook === "rail";
+
+  const widthPadding = badge ? 64 : bracket ? 68 : rail ? 36 : (kinetic || blocks ? 48 : 8);
+  const width = (inner - widthPadding) * 0.92;
+  const size = fitSize(lead || (split && lines.length > 1) ? lines.slice(1) : lines, width, kinetic ? 176 : 160, 44);
   const leadSize = fitSize([lines[0] ?? ""], width, 72, 40);
+
   // the opening (frame 0 decides the swipe): the rule is half drawn and the dot is there; underlines draw quickly
   const opening = useOpening();
   // with a beat track the rule steps on with the voice, a stage a beat (tt_shorts/beats.py), and ends full as before
   const grow = stepped(s, frame, useIn(opening ? 2 : 8 + lines.length * 5, 22, 120));
   const bar = opening ? 0.5 + 0.5 * grow : grow;
-  return (
-    <Frame s={s} head={false}>
-      {props.rubric && (
-        // the rubric's chip (tt_shorts/rubrics.py chip(): code's text), there from frame 0 like the kicker
-        <In><div style={{ marginBottom: 28 }}><Chip size={40}>{props.rubric}</Chip></div></In>
-      )}
-      <In><Kicker text={s.kicker ?? props.category} /></In>
-      <div style={{ marginTop: 48 }}>
-        {lines.map((l, i) => {
-          const quiet = lead && i === 0;
-          const block = blocks || (kinetic && hook === "stack" && i === lines.length - 1);
-          const fs = quiet ? leadSize : size;
-          const rule = hook === "underline"
-            ? interpolate(frame - (opening ? i * 3 : 12 + i * 6), [0, opening ? 8 : 10], [opening ? 0.4 : 0, 1],
-              { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
-          return (
-            <In key={i} delay={4 + i * 5}>
+
+  // Compute spoken start frame per hook line matching against props.words
+  const lineLeadingWords = lines.map((l) => l.trim().split(/\s+/).filter(Boolean)[0] ?? "");
+  const firstWordsJoined = lineLeadingWords.join(" ");
+  const spokenLineFrames = s && props?.words?.length
+    ? spokenWordFrames(firstWordsJoined, s, props.words, fps, 4, 5)
+    : lines.map((_, i) => 4 + i * 5);
+
+  const renderLines = () => (
+    <>
+      {lines.map((l, i) => {
+        const quiet = (lead || (split && lines.length > 1)) && i === 0;
+        const block = blocks || (kinetic && hook === "stack" && i === lines.length - 1);
+        const fs = quiet ? leadSize : size;
+        const startFrame = spokenLineFrames[i] ?? (4 + i * 5);
+        const rule = hook === "underline"
+          ? interpolate(frame - startFrame, [0, 10], [opening ? 0.4 : 0, 1],
+            { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
+        const shouldPulse = ["blocks", "underline", "split", "rail"].includes(hook) && frame > 0;
+        const pulse = shouldPulse
+          ? interpolate(frame - startFrame, [0, 5, 10], [1.0, 1.02, 1.0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
+          : 1.0;
+
+        return (
+          <React.Fragment key={i}>
+            <In delay={4 + i * 5}>
               <div style={{ position: "relative", fontFamily: FONT, fontWeight: quiet ? 600 : 700, fontSize: fs, lineHeight: 1.16,
                 whiteSpace: "nowrap", color: block ? CANVAS : quiet ? MUTED : INK, background: block ? INK : "transparent",
                 display: "inline-block", padding: block ? `0 ${fs * 0.14}px ${fs * 0.1}px` : 0,
+                transform: pulse === 1.0 ? undefined : `scale(${pulse})`, transformOrigin: "left center",
                 marginTop: block ? 12 : 0, marginBottom: quiet ? 20 : hook === "underline" ? 16 : 0 }}>
                 {marked(s, `lines.${i}`, l, { px: fs, inverted: block })}
                 {hook === "underline" && (
@@ -71,9 +93,83 @@ export const Hook: React.FC<P> = ({ s, inner = INNER }) => {
                 )}
               </div>
             </In>
-          );
-        })}
-      </div>
+            {split && lines.length > 1 && i === 0 && (
+              <div style={{ height: 4, width: `${bar * 100}%`, background: INK, margin: "18px 0" }} />
+            )}
+          </React.Fragment>
+        );
+      })}
+      {split && lines.length <= 1 && (
+        <div style={{ height: 4, width: `${bar * 100}%`, background: INK, margin: "18px 0" }} />
+      )}
+    </>
+  );
+
+  return (
+    <Frame s={s} head={false}>
+      {props.rubric && (
+        // the rubric's chip (tt_shorts/rubrics.py chip(): code's text), there from frame 0 like the kicker
+        <In><div style={{ marginBottom: 28 }}><Chip size={40}>{props.rubric}</Chip></div></In>
+      )}
+      <In><Kicker text={s.kicker ?? props.category} /></In>
+      {badge ? (
+        <div
+          style={{
+            position: "relative",
+            border: `2px solid ${LINE_STRONG}`,
+            background: PANEL,
+            borderRadius: RADIUS,
+            padding: "28px 32px",
+            marginTop: 48,
+          }}
+        >
+          <div style={{ position: "absolute", top: 24, right: 28 }}>
+            <Dot size={20} pulse />
+          </div>
+          {renderLines()}
+        </div>
+      ) : bracket ? (
+        <div
+          style={{
+            position: "relative",
+            borderLeft: `6px solid ${INK}`,
+            borderRight: `6px solid ${INK}`,
+            padding: "16px 28px",
+            marginTop: 48,
+            display: "inline-block",
+          }}
+        >
+          {renderLines()}
+        </div>
+      ) : rail ? (
+        <div style={{ position: "relative", paddingLeft: 28, marginTop: 48 }}>
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              width: 8,
+              height: `${Math.min(1, bar) * 100}%`,
+              background: INK,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: -6,
+              top: `${Math.min(1, bar) * 100}%`,
+              transform: "translateY(-50%)",
+            }}
+          >
+            <Dot size={20} />
+          </div>
+          {renderLines()}
+        </div>
+      ) : (
+        <div style={{ marginTop: 48 }}>
+          {renderLines()}
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", marginTop: 40, gap: 0 }}>
         <div style={{ height: 8, width: 400 * bar, background: INK }} />
         <span style={{ transform: `scale(${opening ? 1 : bar})` }}><Dot size={28} pulse /></span>
