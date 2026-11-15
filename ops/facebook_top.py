@@ -225,6 +225,13 @@ def main() -> int:
                     rec["cover_error"] = json.dumps(thumb.get("error"), ensure_ascii=False)[:200]
             except Exception as e:  # noqa: BLE001 - a cover failure must not lose the post
                 rec["cover_error"] = f"{type(e).__name__}: {str(e)[:160]}"
+            # Link in the description AND in the first comment: the comment is the target a thumb
+            # reaches without expanding the caption (owner, 2026-11-15).
+            if out.get("post_id"):
+                cmt = facebook.comment(out["post_id"], f"სრული სტატია: {link}")
+                rec["comment_id"] = cmt.get("id")
+                if not cmt.get("ok"):
+                    rec["comment_error"] = json.dumps(cmt.get("error"), ensure_ascii=False)[:180]
             state["posted"][job["id"]] = {
                 "at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "cid": cid, "video_id": out.get("video_id")}
