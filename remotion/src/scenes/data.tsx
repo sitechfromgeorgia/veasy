@@ -83,7 +83,7 @@ export const Chart: React.FC<P> = ({ s, inner = INNER }) => {
       <div style={{ width }}>
         <div style={{ position: "relative", height }}>
           {items.map((it, i) => {
-            const t = interpolate(frame - starts[i], [0, 20], [0, 1], { ...clamp, easing: easeOut });
+            const t = interpolate(frame - starts[i], [0, 16], [0, 1], { ...clamp, easing: easeOut });
             const h = Math.max(0, (height - head) * (it.value / max) * t);
             const ink = i === top;
             return (

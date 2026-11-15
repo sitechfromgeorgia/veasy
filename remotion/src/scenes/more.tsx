@@ -6,7 +6,7 @@ import { CANVAS, FONT, INK, LINE, LINE_STRONG, MUTED, PANEL, RADIUS, RAIL_X, RED
 import { marked } from "../marker";
 import { ObjectArt, threadT } from "../thread";
 import type { ArtNode, Scene } from "../types";
-import { beat, Chip, Dot, fitSize, Frame, In, measure, useIn, useTheme } from "../ui";
+import { beat, Chip, Dot, fitSize, Frame, In, measure, stepped, useIn, useTheme } from "../ui";
 
 const INNER = W - 2 * SIDE; // 952
 // text that reaches the lower part stays left of the like/share rail (a card's content starts further right)
@@ -256,7 +256,8 @@ export const Bars: React.FC<P> = ({ s, inner = INNER }) => {
   if (!items.length) return null;
   const max = Math.max(...items.map((it) => it.value));
   const dec = Math.max(...items.map((it) => decimalsOf(it.value)));
-  const starts = stagger(items.length, s.duration, 6, 10);
+  const fallback = stagger(items.length, s.duration, 6, 10);
+  const starts = items.map((_, i) => i === 0 ? fallback[0] : (beat(s, `items.${i}`) ?? fallback[i]));
   const valueW = (Math.max(...items.map((it) => measure(num(it.value, dec), 700))) * 56) / 100 + 48;
   const barMax = width - valueW;
   const top = items.reduce((a, it, i) => (it.value > items[a].value ? i : a), 0);
@@ -266,9 +267,10 @@ export const Bars: React.FC<P> = ({ s, inner = INNER }) => {
       <Unit text={s.unit} />
       <div style={{ display: "flex", flexDirection: "column", gap: tight ? 20 : 32, width }}>
         {items.map((it, i) => {
-          const t = interpolate(frame - starts[i], [0, 18], [0, 1], { ...clamp, easing: easeOut });
+          const op = interpolate(frame - Math.max(0, starts[i] - 4), [0, 10], [0, 1], clamp);
+          const t = interpolate(frame - starts[i], [0, 16], [0, 1], { ...clamp, easing: easeOut });
           return (
-            <div key={i} style={{ opacity: Math.min(1, t * 3) }}>
+            <div key={i} style={{ opacity: op }}>
               <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: tight ? 34 : 38, lineHeight: 1.3, color: INK,
                 whiteSpace: "nowrap", overflow: "hidden" }}>{it.label}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 32, marginTop: 8 }}>
@@ -306,7 +308,7 @@ export const Trend: React.FC<P> = ({ s, inner = INNER }) => {
   const y = (v: number) => padT + (1 - (v - lo) / (hi - lo || 1)) * (height - padT - padB);
   const d = items.map((it, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(it.value).toFixed(1)}`).join(" ");
   const span = Math.min(1.4 * fps, s.duration * 0.45);
-  const run = interpolate(frame, [8, 8 + span], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
+  const run = stepped(s, frame, interpolate(frame, [8, 8 + span], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) }));
   const reached = (i: number) => run >= i / last - 1e-6;
   const dec = Math.max(...vals.map(decimalsOf));
   const showAll = items.length <= 5;
@@ -333,7 +335,7 @@ export const Trend: React.FC<P> = ({ s, inner = INNER }) => {
         ) : null))}
       </svg>
       {s.label && (
-        <In delay={Math.round(8 + span)}>
+        <In delay={Math.round(8 + span)} at={beat(s, "label")}>
           <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 52, lineHeight: 1.2, color: INK, marginTop: 24, maxWidth: width }}>
             {marked(s, "label", s.label, { px: 52 })}
           </div>
@@ -351,8 +353,8 @@ export const Change: React.FC<P> = ({ s, inner = INNER }) => {
   if (!b || !a) return null;
   const dec = Math.max(decimalsOf(b.value), decimalsOf(a.value));
   const size = fitSize([num(a.value, dec), num(b.value, dec)], width - (s.unit ? measure(s.unit, 600) * 0.52 + 96 : 96), 280, 96);
-  const arrow = interpolate(frame, [12, 22], [0, 1], clamp);
-  const roll = interpolate(frame, [20, 46], [0, 1], { ...clamp, easing: easeOut });
+  const arrow = interpolate(frame, [10, 22], [0, 1], clamp);
+  const roll = stepped(s, frame, interpolate(frame, [20, 46], [0, 1], { ...clamp, easing: easeOut }));
   const label = (text: string, color: string) => (
     <div style={{ fontFamily: FONT, fontWeight: 600, fontSize: 40, lineHeight: 1.3, color }}>{text}</div>
   );
