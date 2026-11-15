@@ -36,7 +36,7 @@ RECEIPTS = pathlib.Path("/root/sitech/scratch/hourly-audit/fb-video-receipts.jso
 # rolling 24 h, so 20 leaves headroom. The lane still paces itself: a run publishes a small batch
 # with a pause between posts instead of emptying the queue in one burst, because ten reels inside
 # two minutes is what a spam feed looks like.
-LIMIT = 20             # reels per calendar day (+04)
+LIMIT = 25             # reels per calendar day (+04); owner raised it from 20 on 2026-11-15
 BATCH = 3              # posts per run, so eight ticks spread the day instead of one dump
 PAUSE_S = 120          # seconds between two posts inside one run
 MIN_GAP_MIN = 15       # minutes between runs
@@ -227,9 +227,21 @@ def main() -> int:
                 rec["cover_error"] = f"{type(e).__name__}: {str(e)[:160]}"
             # Link in the description AND in the first comment: the comment is the target a thumb
             # reaches without expanding the caption (owner, 2026-11-15).
-            if out.get("post_id"):
-                cmt = facebook.comment(out["post_id"], f"სრული სტატია: {link}")
+            # A published Reel has no post id at publish time; asking the video for it is the only
+            # reliable way. Commenting on the bare video id answers "(#12) singular statuses API is
+            # deprecated" and the link silently never lands (three Reels, 2026-11-15).
+            target = out.get("post_id")
+            if not target and out.get("video_id"):
+                resolved = facebook.post_object_id(out["video_id"])
+                rec["post_id_resolved"] = resolved.get("object_id")
+                if resolved.get("ok"):
+                    target = resolved["object_id"]
+                else:
+                    rec["comment_error"] = json.dumps(resolved.get("error"), ensure_ascii=False)[:180]
+            if target:
+                cmt = facebook.comment(target, f"სრული სტატია: {link}")
                 rec["comment_id"] = cmt.get("id")
+                rec["comment_on"] = target
                 if not cmt.get("ok"):
                     rec["comment_error"] = json.dumps(cmt.get("error"), ensure_ascii=False)[:180]
             state["posted"][job["id"]] = {

@@ -320,7 +320,25 @@ def verify() -> dict:
 
 
 def video_status(video_id: str) -> dict:
-    return _graph("GET", video_id, {"fields": "status,description,permalink_url"}, idempotent=True)
+    return _graph("GET", video_id, {"fields": "status,description,permalink_url,post_id"},
+                  idempotent=True)
+
+
+def post_object_id(video_id: str) -> dict:
+    """The object a comment must hang from, for a published Reel.
+
+    Commenting on the video id itself answers "(#12) singular statuses API is deprecated"; the
+    thread a reader sees lives on the feed post, addressed as {page}_{post_id}. Three Reels
+    published on 2026-11-15 went out without their link comment for exactly this reason.
+    """
+    try:
+        body = _graph("GET", video_id, {"fields": "post_id"}, idempotent=True)
+    except GraphError as e:
+        return {"ok": False, "error": e.as_receipt()}
+    pid = body.get("post_id")
+    if not pid:
+        return {"ok": False, "error": {"message": "video has no post_id yet"}}
+    return {"ok": True, "post_id": pid, "object_id": f"{page_id()}_{pid}"}
 
 
 # ------------------------------------------------------------------ writes
