@@ -7,6 +7,7 @@ import { marked } from "../marker";
 import { ObjectArt, threadT } from "../thread";
 import type { ArtNode, Scene } from "../types";
 import { beat, Chip, Dot, fitSize, Frame, In, measure, useIn, useTheme } from "../ui";
+import { isCurvedStroke, taperedOutline } from "../ink";
 
 const INNER = W - 2 * SIDE; // 952
 // text that reaches the lower part stays left of the like/share rail (a card's content starts further right)
@@ -97,19 +98,47 @@ export const artNode = (n: ArtNode, key: number, c: ArtCtx, drawing: number | nu
     return moved(n, artNode({ ...n, move: undefined }, key, c, drawing), key, c, start);
   }
   const t = n.motion ? interpolate(c.frame - own, [0, 0.5 * c.fps], [0, 1], { ...clamp, easing: easeOut }) : 1;
-  const props: Record<string, unknown> = { key };
-  for (const [a, v] of Object.entries(n.attrs)) {
-    props[CAMEL[a] ?? a] = a === "fill" || a === "stroke" ? (c.colors[v] ?? v) : v;
-  }
   const draws = n.motion === "s" ? t : drawing;
-  if (draws !== null && SHAPES.has(n.tag)) {
-    Object.assign(props, { pathLength: 1, strokeDasharray: 1, strokeDashoffset: 1 - draws });
-  }
+
   let el: React.ReactNode;
-  if (n.tag === "text") {
-    el = React.createElement("text", { ...props, fontFamily: FONT, stroke: "none" }, n.text);
-  } else {
-    el = React.createElement(n.tag, props, ...n.children.map((ch, i) => artNode(ch, i, c, draws)));
+  if (n.tag === "path" && isCurvedStroke(n.attrs)) {
+    const sw = Number(n.attrs["stroke-width"] ?? 6) || 6;
+    const strokeColor = c.colors[n.attrs.stroke] ?? n.attrs.stroke;
+    const progress = draws !== null ? draws : 1;
+    const outline = taperedOutline(n.attrs.d, sw, progress);
+    if (outline === "") {
+      el = <g key={key} />;
+    } else if (outline) {
+      const pathProps: Record<string, unknown> = {
+        key,
+        d: outline,
+        fill: strokeColor,
+        stroke: "none",
+      };
+      if (n.attrs.opacity !== undefined) pathProps.opacity = n.attrs.opacity;
+      if (n.attrs["stroke-opacity"] !== undefined) {
+        pathProps.fillOpacity = n.attrs["stroke-opacity"];
+      } else if (n.attrs["fill-opacity"] !== undefined) {
+        pathProps.fillOpacity = n.attrs["fill-opacity"];
+      }
+      if (n.attrs.transform !== undefined) pathProps.transform = n.attrs.transform;
+      el = React.createElement("path", pathProps);
+    }
+  }
+
+  if (!el) {
+    const props: Record<string, unknown> = { key };
+    for (const [a, v] of Object.entries(n.attrs)) {
+      props[CAMEL[a] ?? a] = a === "fill" || a === "stroke" ? (c.colors[v] ?? v) : v;
+    }
+    if (draws !== null && SHAPES.has(n.tag)) {
+      Object.assign(props, { pathLength: 1, strokeDasharray: 1, strokeDashoffset: 1 - draws });
+    }
+    if (n.tag === "text") {
+      el = React.createElement("text", { ...props, fontFamily: FONT, stroke: "none" }, n.text);
+    } else {
+      el = React.createElement(n.tag, props, ...n.children.map((ch, i) => artNode(ch, i, c, draws)));
+    }
   }
   if (n.motion === "r") {
     return <g key={key} style={{ opacity: t, transform: `translateY(${(1 - t) * 24}px)` }}>{el}</g>;
