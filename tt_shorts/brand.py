@@ -334,6 +334,15 @@ def validate(b, dirs):
     if styles is not None:
         if not isinstance(styles, list) or not all(isinstance(s, str) and re.match(r"^[a-z0-9][a-z0-9-]*$", s) for s in styles):
             raise BrandError(f"brand {name}: styles is a list of style slug strings (lowercase, digits, hyphens)")
+    if "say_letters" in b and b["say_letters"] is not None:
+        sl = b["say_letters"]
+        if not isinstance(sl, dict):
+            raise BrandError(f"brand {name}: say_letters must be a dict")
+        for k, v in sl.items():
+            if not isinstance(k, str) or not re.fullmatch(r"^[A-Z]$", k):
+                raise BrandError(f"brand {name}: say_letters key {k!r} must be a single uppercase ASCII letter A-Z")
+            if not isinstance(v, str) or not v.strip() or re.search(r"[A-Za-z]", v):
+                raise BrandError(f"brand {name}: say_letters value {v!r} for {k!r} must be a non-empty Georgian string with no Latin letters")
     media_problems(b)
     _validate_social(b, name)
     if not str(b["strings"]["occupied"]).strip():  # the where scene's label on the occupied territories (geo.py)
@@ -437,6 +446,32 @@ def with_say(story):
     if not pack:
         return story
     return {**story, "say": {**pack, **(story.get("say") or {})}}
+
+
+def say_letters(name=None):
+    """Spoken Georgian letter names (say_letters): from the resolved pack, falling back to _ka."""
+    if name is not None:
+        try:
+            sl = load(name).get("say_letters")
+            if sl:
+                return dict(sl)
+        except Exception:
+            pass
+    try:
+        raw, _ = _raw("_ka")
+        if raw.get("say_letters"):
+            return dict(raw["say_letters"])
+    except Exception:
+        pass
+    path = DIR / "_ka" / "brand.json"
+    if path.is_file():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if data.get("say_letters"):
+                return dict(data["say_letters"])
+        except Exception:
+            pass
+    return {}
 
 
 KEYWORD_TINT_FLOOR = 3.0  # a tinted keyword is large bold text: the probe's floor for it (probe contrast)

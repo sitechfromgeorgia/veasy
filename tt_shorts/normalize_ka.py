@@ -26,10 +26,24 @@ SCALES = ((1_000_000_000_000, "ტრილიონ"), (1_000_000_000, "მი�
 ORDINAL_SMALL = {1: "პირველი", 2: "მეორე", 3: "მესამე", 4: "მეოთხე", 5: "მეხუთე", 6: "მეექვსე", 7: "მეშვიდე",
                  8: "მერვე", 9: "მეცხრე", 10: "მეათე"}
 DENOMINATORS = {1: "მეათედი", 2: "მეასედი", 3: "მეათასედი"}
-LETTERS = {"A": "ეი", "B": "ბი", "C": "სი", "D": "დი", "E": "ი", "F": "ეფ", "G": "ჯი", "H": "ეიჩ", "I": "აი",
-           "J": "ჯეი", "K": "ქეი", "L": "ელ", "M": "ემ", "N": "ენ", "O": "ოუ", "P": "პი", "Q": "ქიუ", "R": "არ",
-           "S": "ეს", "T": "ტი", "U": "იუ", "V": "ვი", "W": "დაბლიუ", "X": "ექს", "Y": "უაი", "Z": "ზედ"}
 HERE = pathlib.Path(__file__).resolve().parent
+
+
+def _load_letters():
+    path = HERE.parent / "brands" / "_ka" / "brand.json"
+    try:
+        if path.is_file():
+            data = json.loads(path.read_text(encoding="utf-8"))
+            sl = data.get("say_letters")
+            if isinstance(sl, dict) and sl:
+                return dict(sl)
+    except Exception:
+        pass
+    return {}
+
+
+LETTERS = _load_letters()
+RUSSIAN_LETTERS = {"ა", "ბე", "ცე", "დე", "ე", "გე", "ხა", "კა", "ო", "პე", "კუ", "ერ", "ტე", "უ", "ვე", "ზეტ"}
 WORDS = json.loads((HERE / "lexicon_ka.json").read_text(encoding="utf-8"))["words"]  # approved spoken forms
 VOWELS = "აეიოუ"
 CURRENCY = {"$": "დოლარ", "€": "ევრო", "₾": "ლარ", "£": "ფუნტ"}
@@ -108,8 +122,9 @@ def attributive(words, next_word):
     return words
 
 
-def spell(latin):
-    return " ".join(LETTERS[c.upper()] for c in latin if c.upper() in LETTERS)
+def spell(latin, letters=None):
+    l_map = LETTERS if letters is None else letters
+    return " ".join(l_map[c.upper()] for c in latin if c.upper() in l_map)
 
 
 def attach(nominative, suf):
@@ -313,3 +328,18 @@ def unspoken(text, say=None):
     """Latin words the voice would get in Latin letters (no lexicon entry, no "say", not a letter acronym)."""
     out = [re.sub(r"-[ა-ჿ]+$", "", TOKEN.match(tok)["core"]) for tok, said in pairs(text, say) if LATIN.search(said)]
     return list(dict.fromkeys(out))
+
+
+def fix_say_letters(story: dict, letters: dict | None = None, russian: set[str] | None = None) -> dict:
+    """Repair Russian-spelled letter acronyms in story["say"] to English letter names (TPM -> ტი პი ემ)."""
+    say = story.get("say")
+    if not isinstance(say, dict):
+        return story
+    l_map = LETTERS if letters is None else letters
+    rus = RUSSIAN_LETTERS if russian is None else russian
+    for k, v in list(say.items()):
+        if isinstance(k, str) and re.fullmatch(r"[A-Z]{2,8}", k) and isinstance(v, str):
+            tokens = set(re.split(r"[\s-]+", v.strip()))
+            if rus & tokens:
+                say[k] = spell(k, l_map)
+    return story

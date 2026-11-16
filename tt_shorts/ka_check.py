@@ -32,7 +32,8 @@ FIELDS = tuple(dict.fromkeys(("kicker", "headline", "label", "text", "big", "fro
                              tuple(f for f in _TOP if f not in ("prefix", "suffix"))))  # a number's sign, not words
 ITEM_FIELDS = tuple(dict.fromkeys(("text", "title", "status", "name", "role", "label", "what", "when", "sub") + _INNER))
 # K20: Latin letters as Russian names them (TPM "ტე-პე-ემ"); a voice reads letters the English way ("ტი პი ემ")
-RUSSIAN_LETTERS = {"ა", "ბე", "ცე", "დე", "ე", "გე", "ხა", "კა", "ო", "პე", "კუ", "ერ", "ტე", "უ", "ვე", "ზეტ"}
+RUSSIAN_LETTERS = getattr(normalize_ka, "RUSSIAN_LETTERS",
+                          {"ა", "ბე", "ცე", "დე", "ე", "გე", "ხა", "კა", "ო", "პე", "კუ", "ერ", "ტე", "უ", "ვე", "ზეტ"})
 # K22: imperial units a Georgian viewer doesn't use (a screen's diagonal in დიუმი stays: shops sell it that way)
 IMPERIAL = re.compile(r"(?<![ა-ჿ])(ფუნტ|უნცი|მილ|ფუტ|იარდ|გალონ|აკრ|ფარენჰაიტ)(ი|ის|ს|ით|ზე|ამდე|ში|ი?ან[ა-ჿ]*)?"
                       r"(?![ა-ჿ])|°\s?F\b")
@@ -195,8 +196,10 @@ def problems(story, art):
         p.append(f'K20: "say" values are Georgian letters only: {", ".join(map(str, bad_say))}')
     russian = [k for k, v in say.items() if isinstance(v, str) and RUSSIAN_LETTERS & set(re.split(r"[\s-]+", v))]
     if russian:
+        ex = ", ".join(f"{ch} {normalize_ka.LETTERS.get(ch, '')}" for ch in ("E", "K", "O", "P", "T"))
+        tpm = normalize_ka.spell("TPM")
         p.append(f'K20: "say" spells letters the Russian way for {", ".join(russian)}: use the English letter names '
-                 f'(E ი, K ქეი, O ოუ, P პი, T ტი: "TPM" = "ტი პი ემ")')
+                 f'({ex}: "TPM" = "{tpm}")')
     for cve in dict.fromkeys(IDS.findall(narration)):
         p.append(f'K15: the narration reads the identifier {cve} aloud: say "ხარვეზი" or "განახლება", keep the ID on screen')
 

@@ -98,6 +98,34 @@ class Packs(unittest.TestCase):
         for n in brand.names():
             self.assertEqual(meta.ka_date("2026-11-01T18:38:46Z", n)["date"], "1 ნოემბერი 2026")
 
+    def test_say_letters_in_ka_base_and_validation(self):
+        letters = brand.say_letters()
+        self.assertEqual(len(letters), 26)
+        expected_keys = [chr(c) for c in range(ord("A"), ord("Z") + 1)]
+        self.assertEqual(sorted(letters.keys()), expected_keys)
+        for n in brand.names():
+            b = brand.load(n)
+            self.assertEqual(b.get("say_letters"), letters)
+            self.assertEqual(brand.say_letters(n), letters)
+
+        b = brand.load("sitech")
+        dirs = [pathlib.Path(b["_dir"])]
+
+        # Valid say_letters pass validation
+        brand.validate({**b, "say_letters": letters}, dirs)
+
+        # Lowercase key is rejected
+        with self.assertRaises(brand.BrandError):
+            brand.validate({**b, "say_letters": {"a": "ეი"}}, dirs)
+
+        # Latin value is rejected
+        with self.assertRaises(brand.BrandError):
+            brand.validate({**b, "say_letters": {"A": "ei"}}, dirs)
+
+        # Non-dict say_letters is rejected
+        with self.assertRaises(brand.BrandError):
+            brand.validate({**b, "say_letters": ["ეი"]}, dirs)
+
     def test_charon_is_sitech_only(self):  # SiTech's voice stays SiTech's
         st, tt = brand.load("sitech"), brand.load("tbilisi-today")
         self.assertEqual(voices.preset("family", "security", st)["voice"], "Charon")

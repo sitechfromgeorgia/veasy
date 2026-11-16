@@ -2,7 +2,7 @@
 The metric-number test moves here with script.py in phase 1."""
 import unittest
 
-from tt_shorts import ka_check
+from tt_shorts import ka_check, normalize_ka
 from tt_shorts.normalize_ka import speech
 
 ART = {"title": "Eko აგენტები", "description": "",
@@ -90,6 +90,21 @@ class Rules(unittest.TestCase):
         ok = ka_check.problems(story("14-დიუმიანი მოდელი 1,4 კილოგრამს იწონის. 3 მილიონი გაიყიდა, ფუტბოლზე კი "
                                      "აკრძალვა მოქმედებს. შენ რას ფიქრობ? გამოიწერე tbilisi.today."), ART)
         self.assertEqual([x for x in ok if x.startswith(("K1", "K22"))], [])  # დიუმი, მილიონი, ფუტბოლი, აკრძალვა
+
+    def test_fix_say_letters(self):
+        # normalize_ka.spell maps uppercase letters using _ka brand data
+        self.assertEqual(normalize_ka.spell("TPM"), "ტი პი ემ")
+
+        # fix_say_letters repairs Russian-spelled acronyms without breaking other entries
+        raw = {"say": {"TPM": "ტე-პე-ემ", "PXE": "პიქსი"}}
+        repaired = normalize_ka.fix_say_letters(raw)
+        self.assertEqual(repaired["say"]["TPM"], "ტი პი ემ")
+        self.assertEqual(repaired["say"]["PXE"], "პიქსი")
+
+        # Repaired say map clears ka_check.problems K20 Russian-letter error
+        s = story("TPM-მა და PXE-მ იმუშავეს. გამოიწერე tbilisi.today.", say=repaired["say"])
+        p = ka_check.problems(s, ART)
+        self.assertFalse(any("Russian" in x for x in p), p)
 
 
 if __name__ == "__main__":
