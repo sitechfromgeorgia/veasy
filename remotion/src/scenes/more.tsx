@@ -7,7 +7,7 @@ import { marked } from "../marker";
 import { ObjectArt, threadT } from "../thread";
 import type { ArtNode, Scene } from "../types";
 import { beat, Chip, Dot, fitSize, Frame, In, measure, stepped, useIn, useTheme } from "../ui";
-import { isCurvedStroke, taperedOutline } from "../ink";
+import { boilPathD, boilPoint, boilTickFor, isCurvedStroke, taperedOutline } from "../ink";
 
 const INNER = W - 2 * SIDE; // 952
 // text that reaches the lower part stays left of the like/share rail (a card's content starts further right)
@@ -42,7 +42,10 @@ const CAMEL: Record<string, string> = {
 };
 const SHAPES = new Set(["path", "line", "polyline", "polygon", "rect", "circle", "ellipse"]);
 // actAt: the frame (on c.frame's clock) the voice says the scene's key phrase; an act waits for it
-export type ArtCtx = { frame: number; fps: number; k: number; colors: Record<string, string>; actAt?: number };
+export type ArtCtx = {
+  frame: number; fps: number; k: number; colors: Record<string, string>; actAt?: number;
+  boilTick?: number; boilSeed?: number;
+};
 
 const maxDelay = (ns: ArtNode[]): number => Math.max(0, ...ns.map((n) => Math.max(n.motion ? n.delay : 0, maxDelay(n.children))));
 
@@ -105,7 +108,7 @@ export const artNode = (n: ArtNode, key: number, c: ArtCtx, drawing: number | nu
     const sw = Number(n.attrs["stroke-width"] ?? 6) || 6;
     const strokeColor = c.colors[n.attrs.stroke] ?? n.attrs.stroke;
     const progress = draws !== null ? draws : 1;
-    const outline = taperedOutline(n.attrs.d, sw, progress);
+    const outline = taperedOutline(n.attrs.d, sw, progress, c.boilTick, c.boilSeed ?? 0);
     if (outline === "") {
       el = <g key={key} />;
     } else if (outline) {
@@ -130,6 +133,43 @@ export const artNode = (n: ArtNode, key: number, c: ArtCtx, drawing: number | nu
     const props: Record<string, unknown> = { key };
     for (const [a, v] of Object.entries(n.attrs)) {
       props[CAMEL[a] ?? a] = a === "fill" || a === "stroke" ? (c.colors[v] ?? v) : v;
+    }
+    if (c.boilTick !== undefined && n.tag !== "text") {
+      const seed = c.boilSeed ?? 0;
+      const tick = c.boilTick;
+      if (n.tag === "path" && typeof props.d === "string") {
+        props.d = boilPathD(props.d, tick, seed, 1.0);
+      } else if (n.tag === "line") {
+        const x1 = Number(props.x1), y1 = Number(props.y1);
+        const x2 = Number(props.x2), y2 = Number(props.y2);
+        if (Number.isFinite(x1) && Number.isFinite(y1)) {
+          const [bx1, by1] = boilPoint(x1, y1, tick, seed, 1.0);
+          props.x1 = bx1;
+          props.y1 = by1;
+        }
+        if (Number.isFinite(x2) && Number.isFinite(y2)) {
+          const [bx2, by2] = boilPoint(x2, y2, tick, seed, 1.0);
+          props.x2 = bx2;
+          props.y2 = by2;
+        }
+      } else if (n.tag === "circle") {
+        const cx = Number(props.cx), cy = Number(props.cy);
+        if (Number.isFinite(cx) && Number.isFinite(cy)) {
+          const [bcx, bcy] = boilPoint(cx, cy, tick, seed, 0.65);
+          props.cx = bcx;
+          props.cy = bcy;
+        }
+      } else if ((n.tag === "polyline" || n.tag === "polygon") && typeof props.points === "string") {
+        const nums = props.points.trim().split(/[\s,]+/).map(Number);
+        if (nums.length >= 2 && nums.every(Number.isFinite)) {
+          const boiled: number[] = [];
+          for (let pi = 0; pi + 1 < nums.length; pi += 2) {
+            const [bx, by] = boilPoint(nums[pi], nums[pi + 1], tick, seed, 1.0);
+            boiled.push(bx, by);
+          }
+          props.points = boiled.join(" ");
+        }
+      }
     }
     if (draws !== null && SHAPES.has(n.tag)) {
       Object.assign(props, { pathLength: 1, strokeDasharray: 1, strokeDashoffset: 1 - draws });
@@ -163,6 +203,7 @@ export const Draw: React.FC<P> = ({ s, inner = INNER }) => {
   const room = (s.duration / fps) * 0.55 - 0.5; // the drawing is complete by about half the scene
   const k = last > 0 ? Math.max(0.2, Math.min(1, room / last)) : 1;
   const colors = { ACCENT: RED, INK, MUTED, LINE: LINE_STRONG, CANVAS: ground, none: "none" };
+  const boilTick = boilTickFor(props, s.from + frame);
   const height = Math.round((inner * 640) / 952);
   return (
     <Frame s={s}>
@@ -171,7 +212,7 @@ export const Draw: React.FC<P> = ({ s, inner = INNER }) => {
       ) : (
         <svg width={inner} height={height} viewBox="0 0 952 640" fill="none" strokeLinecap="round" strokeLinejoin="round"
           style={{ overflow: "visible", flex: "none" }}>
-          {art.map((n, i) => artNode(n, i, { frame, fps, k, colors, actAt: s.mark?.at }, null))}
+          {art.map((n, i) => artNode(n, i, { frame, fps, k, colors, actAt: s.mark?.at, boilTick }, null))}
         </svg>
       )}
       {s.label && (
