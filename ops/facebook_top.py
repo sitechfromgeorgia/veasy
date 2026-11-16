@@ -36,7 +36,11 @@ RECEIPTS = pathlib.Path("/root/sitech/scratch/hourly-audit/fb-video-receipts.jso
 # rolling 24 h, so 20 leaves headroom. The lane still paces itself: a run publishes a small batch
 # with a pause between posts instead of emptying the queue in one burst, because ten reels inside
 # two minutes is what a spam feed looks like.
-LIMIT = 25             # reels per calendar day (+04); owner raised it from 20 on 2026-11-15
+LIMIT = 10             # reels per calendar day (+04)
+# Owner, 2026-11-16: twenty-five was set while the writer still had a paid route, then the
+# OpenRouter key hit its own cap and the free lane had to take over. Ten a day is the ceiling until
+# a usable writer is funded again, and the owner will send alternatives. Raising this again without
+# a measured pass rate is what produced a queue full of failed renders.
 BATCH = 3              # posts per run, so eight ticks spread the day instead of one dump
 PAUSE_S = 120          # seconds between two posts inside one run
 MIN_GAP_MIN = 15       # minutes between runs

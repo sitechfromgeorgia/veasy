@@ -24,6 +24,20 @@ MODEL = os.environ.get("SHORTS_WRITER_MODEL", "nvidia/nemotron-3-ultra-550b-a55b
 # NVIDIA's own endpoint names the model without the vendor prefix and without the :free suffix.
 NVIDIA_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
 NVIDIA_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions"
+# The OpenCode seat (owner, 2026-11-16: "use yesterday's key with the deepseek model"). This endpoint
+# only produces usable text with reasoning_effort "none": without it the model spends the whole
+# completion budget on private reasoning and returns empty content. Measured with the flag: 26 s,
+# 1,340 characters, reasoning_tokens 0, finish_reason stop, and clean Georgian.
+OPENCODE_ENDPOINT = "https://opencode.ai/zen/go/v1/chat/completions"
+OPENCODE_MODEL = "deepseek-v4.1-flash"
+OPENCODE_KEY_FILE = pathlib.Path("/root/.secrets/opencode_extraction_key")
+
+
+def _opencode_key() -> str:
+    try:
+        return OPENCODE_KEY_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
 
 
 def _nvidia_key() -> str:
@@ -70,6 +84,10 @@ def _provider() -> tuple[str, str, dict, str, dict]:
     named by SHORTS_WRITER_URL with SHORTS_WRITER_KEY (read when used: daily.py loads data/.env after importing this).
     The writer names itself there: an API behind Cloudflare refuses Python-urllib's default signature (error 1010)."""
     url = os.environ.get("SHORTS_WRITER_URL", "").rstrip("/")
+    if not url and _opencode_key():
+        return OPENCODE_ENDPOINT, _opencode_key(), {"reasoning_effort": "none"}, \
+            "opencode_extraction_key", {"User-Agent": "tbilisi.today writer",
+                                        "x-opencode-session": "tt-writer"}
     if not url:
         # 2026-11-16: OpenRouter is no longer the default route. Its key is at $50.01 of a $50.00
         # limit, so every request came back 403 and the render lane sat at zero for hours. NVIDIA
@@ -613,7 +631,12 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     # vendor prefix or the :free suffix, and sending OpenRouter's spelling there is a 404.
     if model is None:
         _u = _provider()[0]
-        model = NVIDIA_MODEL if _u == NVIDIA_ENDPOINT else MODEL
+        if _u == OPENCODE_ENDPOINT:
+            model = OPENCODE_MODEL
+        elif _u == NVIDIA_ENDPOINT:
+            model = NVIDIA_MODEL
+        else:
+            model = MODEL
     prompt_of = make_prompt or (lambda c, a, av: _prompt(c, a, av, mistakes, director, facts, extra, extra_types))
     checks_of = run_checks or _checks
     first = prompt_of(cluster, articles, avoid)
