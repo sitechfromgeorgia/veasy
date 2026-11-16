@@ -109,7 +109,7 @@
       "page_id_file": "/root/.secrets/fb_page_id",
       "token_file": "/root/.secrets/fb_page_token",
       "user_token_file": "/root/.secrets/fb_user_token",
-      "reels_per_day": 30
+      "reels_per_day": 20
     },
     "hashtags": [
       "#თბილისი",

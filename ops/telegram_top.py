@@ -15,7 +15,10 @@ sys.path.insert(0, str(ROOT))
 from tt_shorts import queue, telegram  # noqa: E402
 
 MARK = ROOT / "data" / "telegram-posted.json"
-LIMIT = 50
+# Owner, 2026-11-17: "ტელეგრამზეც 15-20 რილსი გააკეთე ჯამში ჯობს, არ აკეთო მეტი". Twenty is the
+# ceiling, not a target: the dispatcher stops here and the Facebook lane uses the same number, so the
+# day cannot silently grow past what the owner asked for.
+LIMIT = 20
 AGE_HOURS = 18  # a story older than this is stale: the video lane must not post yesterday's news
 TG_NEWS_STATE = pathlib.Path(os.environ.get("TG_NEWS_STATE", "/root/sitech/scripts/analysis/.tg_news_posted.json"))
 
