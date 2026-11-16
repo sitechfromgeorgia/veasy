@@ -573,6 +573,10 @@ def render_story(story_path, fmt, engine="gemini", out_path=None, director=None)
     problems = (list(checked["problems"]) if checked else []) + motion["holds"]
     if not fmt["min_seconds"] <= secs <= fmt["max_seconds"]:
         problems.append(f"length {secs:.1f}s is outside the format's {fmt['min_seconds']}-{fmt['max_seconds']}s")
+    if programs.name_of(story) != programs.DEFAULT:
+        for lp in programs.length_problems(story):
+            if lp not in problems:
+                problems.append(lp)
     result["problems"] = problems
     side = store.props_path(target)  # what was drawn (timings, captions, the pack): `engine package` reuses it
     side.write_text(json.dumps(p, ensure_ascii=False), encoding="utf-8")

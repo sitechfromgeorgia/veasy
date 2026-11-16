@@ -232,7 +232,8 @@ class Wiring(unittest.TestCase):
         work = pathlib.Path(self.tmp.name) / "work"
         work.mkdir(exist_ok=True)
         p = {"durationInFrames": 900, "variant": "cards", "style": {}, "transition": "line", "outro": "card",
-             "music": None, "scenes": [{"type": "hook"}]}
+             "music": None, "scenes": [{"type": "hook", "from": 0, "duration": 90},
+                                        {"type": "end", "from": 90, "duration": 810}]}
         found = {"problems": ["probe rail: scene 0 (hook) frame 80: „x“ reaches x=982 below y=1100"], "issues": [],
                  "frames": [80], "texts": 9, "seconds": 1.0} if checked is None else checked
         with mock.patch.object(props, "build", return_value=(work, p)), \

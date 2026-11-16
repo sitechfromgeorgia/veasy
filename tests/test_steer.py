@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from tt_shorts import compose, flash, golden, probe, props, segments, speech, store
+from tt_shorts import compose, flash, golden, motion_rules, probe, props, segments, speech, store
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -270,7 +270,8 @@ class TestSteerDry(unittest.TestCase):
         self.assertEqual(r["saved_frames"], r["total_frames"] - 144)
 
     def test_timing_change_costs_the_scene_and_its_neighbour_and_no_money(self):
-        r = self._dry(scene=3, tighter=True)
+        with mock.patch.object(motion_rules, "check", return_value={"holds": [], "warnings": []}):
+            r = self._dry(scene=3, tighter=True)
         self.assertEqual(r["kind"], "timing")
         self.assertEqual(r["dirty_scenes"], [3, 4])  # the cut moves, so the next scene starts earlier
         self.assertFalse(r["full_render"])
@@ -353,6 +354,7 @@ class TestSteerGuards(unittest.TestCase):
                 mock.patch.object(steer.probe, "enabled", lambda: False), \
                 mock.patch.object(steer.flash, "measure", lambda p: {}), \
                 mock.patch.object(steer.flash, "problems", lambda m: flashes), \
+                mock.patch.object(motion_rules, "check", return_value={"holds": [], "warnings": []}), \
                 mock.patch.object(steer.room, "write_room", lambda *a, **k: {"room_html": "room"}):
             return steer.steer(self.path, scene=3, tighter=True, out_path=film), film
 

@@ -441,8 +441,7 @@ class ReviewLoopTest(unittest.TestCase):
         story = copy.deepcopy(self.story)
         story["narration"] = story["narration"].replace(
             "მისამართების სრული სია ბმულზეა.",
-            "მისამართების სრული სია ბმულზეა. აბონენტებს ურჩევენ წინასწარ მოამზადონ წყალი და თბილი ტანსაცმელი. "
-            "ამასთან მომსახურების ცენტრი ღამითაც უპასუხებს ყველა ზარს და დაგეხმარებათ.",
+            "მისამართების სრული სია ბმულზეა. აბონენტებს ურჩევენ მოემზადონ. ცენტრი ზარებს უპასუხებს.",
         )
         story["scenes"].insert(4, {
             "type": "points",
@@ -451,7 +450,7 @@ class ReviewLoopTest(unittest.TestCase):
         })
         story["scenes"].insert(5, {
             "type": "points",
-            "at": "აბონენტებს ურჩევენ წინასწარ",
+            "at": "აბონენტებს ურჩევენ მოემზადონ",
             "items": ["მესამე დეტალი", "მეოთხე დეტალი"]
         })
         res = review.review_story(story, rounds=2)

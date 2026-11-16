@@ -15,8 +15,8 @@ import time
 import urllib.error
 import urllib.request
 
-from tt_shorts import (art, catalog, drawings, icons, illustrator, ka_check, kaeasy, meta, news_check,
-                       vignettes)
+from tt_shorts import (art, catalog, drawings, icons, illustrator, ka_check, kaeasy, meta,
+                       motion_rules, news_check, normalize_ka, vignettes)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STYLE = (ROOT / "tt_shorts" / "ka_style.md").read_text(encoding="utf-8")
@@ -235,7 +235,9 @@ def _prompt(cluster: dict, articles: list[str], avoid: list[str] | None = None, 
         "- სია (points, steps, checklist, ranking) მხოლოდ მაშინ, როცა სტატია თვითონ ჩამოთვლის ცალკეულ რამეებს; ფილმში მაქსიმუმ "
         "ერთი სია. ამბის შეჯამება სია არ არის: აირჩიე სცენა, რომელიც თემას აჩვენებს.\n"
         "- stat/bars/compare-ის ციფრი ზუსტად იმავე ნაწილის ნარაციაში უნდა ჟღერდეს, სხვა რიცხვი არ დაწერო.\n"
-        "- ყოველი სცენის \"at\" არის ამ სცენის ნარაციის პირველი სიტყვები, ზუსტად.\n\n"
+        "- ყოველი სცენის \"at\" არის ამ სცენის ნარაციის პირველი სიტყვები, ზუსტად.\n"
+        "- არასდროს გაიმეორო ერთი და იგივე სცენის ტიპი (type) ზედიზედ ორჯერ; არ დატოვო სცენა უმოძრაოდ 3 წამზე მეტხანს გაჭრის გარეშე.\n"
+        "- \"say\"-ში ლათინური ასოების სახელები დაწერე ინგლისურად (A ეი, E ი, K ქეი, P პი, T ტი), არასდროს რუსულად (ტე, პე).\n\n"
     )
     return (f"{STYLE}\n\n{georgian + chr(10) * 2 if georgian else ''}{shape}\n\n{direction}{extra}{_variety_line(avoid)}"
             f"{mistakes + chr(10) * 2 if mistakes else ''}{hard}"
@@ -636,7 +638,8 @@ def _checks(story: dict, articles: list[str], cluster: dict):
     joined = "\n\n".join(articles)
     article = {"title": cluster.get("headline", ""), "description": "", "text": joined}
     return (news_check.problems(story, articles) + ka_check.problems(story, article) + art.story_problems(story)
-            + icons.story_problems(story) + catalog.story_problems(story, meta.family(story.get("category", ""))))
+            + icons.story_problems(story) + catalog.story_problems(story, meta.family(story.get("category", "")))
+            + motion_rules.draft_problems(story))
 
 
 OWNED = ("rubric", "episode", "part", "digest", "concept", "scenario")  # code sets them (rubrics.py, digest.py,
@@ -691,6 +694,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _clamp_texts(story)
     _no_dashes(story)
     _ka_forms(story)
+    normalize_ka.fix_say_letters(story)
     _repair_scenes(story, articles)
     _fix_anchors(story)
     _drop_short_scenes(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
@@ -725,6 +729,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _clamp_texts(story)
         _no_dashes(story)
         _ka_forms(story)
+        normalize_ka.fix_say_letters(story)
         _drop_unsourced_numbers(story, articles)
         _repair_scenes(story, articles)
         _fix_anchors(story)

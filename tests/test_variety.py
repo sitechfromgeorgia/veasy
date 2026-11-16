@@ -364,7 +364,9 @@ class NoveltyGuard(unittest.TestCase):
         nov = {"similarity": 5.0, "distance": 0.286, "nearest": "40", "too_close": True, "rerolls": 3, "kept": False,
                "warning": "novelty: after 3 re-roll(s) ..."}
         p = {"durationInFrames": 900, "variant": "cards", "style": {"hook": "stack", "director": "data"},
-             "transition": "line", "outro": "card", "music": None, "scenes": [{"type": "hook"}], "novelty": nov}
+             "transition": "line", "outro": "card", "music": None,
+             "scenes": [{"type": "hook", "from": 0, "duration": 90}, {"type": "end", "from": 90, "duration": 810}],
+             "novelty": nov}
         target = pathlib.Path(self.home.name) / "out" / "x.mp4"
         touch = lambda w, pr, t: (t.parent.mkdir(parents=True, exist_ok=True), t.touch())  # noqa: E731
         with mock.patch.object(props, "build", return_value=(work, p)), \

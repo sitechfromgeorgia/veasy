@@ -67,7 +67,7 @@ RULES = {
     "lists": f"more than one list scene ({', '.join(LISTS)}) in a film of at most {LISTS_SHORT} scenes: keep the one "
              "the article itself lists and show the rest by their subject (owner, 2026-11-07)",
 }
-HOLDS = ("read",)
+HOLDS = ("read", "still", "repeat")
 TEXTS_HOLDS = ("read", "safe_zone")
 
 
@@ -358,8 +358,43 @@ def check(p):
 
 
 def hold_problems(p):
-    """The findings that hold a render (engine.render_story): only unreadable text."""
+    """The findings that hold a render (engine.render_story): unreadable text, stills, and repeated scene types."""
     return check(p)["holds"]
+
+
+def draft_problems(story: dict, *, allow_lists: bool = False) -> list[str]:
+    """Pure lightweight estimator for a draft story before audio alignment or rendering."""
+    narration = story.get("narration") or ""
+    scenes = story.get("scenes") or []
+    if not narration or not scenes:
+        return []
+    try:
+        words = speech.estimate_words(narration)
+        if not words:
+            return []
+        marks = speech.scene_frames(story, words)
+        if len(marks) < len(scenes) + 1:
+            return []
+    except (ValueError, RuntimeError, IndexError):
+        return []
+    built_scenes = [{**s, "from": marks[i], "duration": max(1, marks[i + 1] - marks[i])}
+                    for i, s in enumerate(scenes)]
+    try:
+        from tt_shorts import beats
+        beats.attach(built_scenes, words)
+    except Exception:
+        pass
+    p = {
+        "scenes": built_scenes,
+        "durationInFrames": marks[-1],
+        "transition": "line",
+        "style": {},
+    }
+    if story.get("director"):
+        p["style"] = {"director": story["director"]}
+    rows = timeline(p)
+    found = still(rows, _holds(p)) + repeat(rows) + ([] if allow_lists else lists(rows))
+    return [f"motion {f['rule']}: {f['detail']}" for f in found]
 
 
 def load(row):

@@ -11,7 +11,7 @@
   "defect": {
     "number": 9,
     "name": "dead_freeze_tail",
-    "gate": "warning",
+    "gate": "hold",
     "rule": "stillness_after_settle",
     "metric": "quiet_duration_after_settle > 4.0s (STILL_MAX = 3.0s)",
     "description": "The quote scene holds for 7.5 s with nothing changing after it settles",

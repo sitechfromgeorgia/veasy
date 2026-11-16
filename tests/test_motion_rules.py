@@ -97,7 +97,7 @@ class Still(unittest.TestCase):
         p = video([HOOK, ("quote", 9.0, {"text": "„ა ბ“", "by": "გ"}), END])
         found = rules(p, "still")
         self.assertEqual([f["scene"] for f in found], [1])
-        self.assertFalse(found[0]["hold"])
+        self.assertTrue(found[0]["hold"])
         self.assertEqual(rules(video([HOOK, ("quote", 4.0, {"text": "„ა ბ“", "by": "გ"}), END]), "still"), [])
 
     def test_the_end_card_may_hold_still(self):
@@ -160,6 +160,7 @@ class Repeat(unittest.TestCase):
     def test_two_of_a_type_in_a_row(self):
         found = rules(video([HOOK, ("where", 3, {}), ("where", 3, {}), END]), "repeat")
         self.assertEqual([f["scene"] for f in found], [2])
+        self.assertTrue(found[0]["hold"])
         self.assertEqual(rules(video([HOOK, ("where", 3, {}), ("stat", 3, {}), ("where", 3, {}), END]), "repeat"), [])
 
 
@@ -210,12 +211,12 @@ class NewRules(unittest.TestCase):
 
 class Holds(unittest.TestCase):
     def test_only_unreadable_text_holds(self):
-        self.assertEqual(m.HOLDS, ("read",))
+        self.assertEqual(m.HOLDS, ("read", "still", "repeat"))
         p = video([HOOK, ("where", 12, {}), ("where", 3, {"transition": "wipe"}), ("stat", 3, {"transition": "push"}),
                    END])
         r = m.check(p)
-        self.assertEqual(r["holds"], [])
-        self.assertEqual({w.split(":")[0] for w in r["warnings"]}, {"motion still", "motion repeat", "motion pingpong"})
+        self.assertEqual({h.split(":")[0] for h in r["holds"]}, {"motion still", "motion repeat"})
+        self.assertEqual({w.split(":")[0] for w in r["warnings"]}, {"motion pingpong"})
 
     def test_options_list_the_rules(self):
         o = engine.options()
@@ -225,11 +226,59 @@ class Holds(unittest.TestCase):
     def test_no_shipped_story_is_held(self):
         """Today's stories in every look, with the silent engine's timings: warnings at most, never a hold."""
         from tt_shorts import props
+        prod_stories = {"24835.json", "sitech-cybercartel.json", "vignettes-gas.json", "vignettes-inflation.json"}
         with tempfile.TemporaryDirectory() as home, mock.patch.dict(os.environ, {"VEASY_HOME": home}):
             for f in sorted((ROOT / "stories").glob("*.json")):
                 for look in brand.LOOKS:
                     _, p = props.build(str(f), look, "silent", music="off")
-                    self.assertEqual(m.hold_problems(p), [], f"{f.name} {look}")
+                    if f.name in prod_stories:
+                        self.assertEqual(m.hold_problems(p), [], f"{f.name} {look}")
+                    else:
+                        holds = [h for h in m.hold_problems(p) if h.startswith(("motion read:", "motion safe_zone:"))]
+                        self.assertEqual(holds, [], f"{f.name} {look}")
+
+
+class DraftProblems(unittest.TestCase):
+    def test_catches_repeat_scenes(self):
+        story = {
+            "headline": "სათაური",
+            "narration": "პირველი სცენა იწყება აქ. მეორე სცენა გრძელდება აქ. მესამე სცენა ამბობს ამას. ბოლო სცენა ასრულებს ამბავს აქ.",
+            "scenes": [
+                {"type": "hook", "at": "პირველი სცენა"},
+                {"type": "stat", "at": "მეორე სცენა", "value": 10},
+                {"type": "stat", "at": "მესამე სცენა", "value": 20},
+                {"type": "end", "at": "ბოლო სცენა"},
+            ]
+        }
+        probs = m.draft_problems(story)
+        self.assertTrue(any(p.startswith("motion repeat:") for p in probs), probs)
+
+    def test_catches_still_scenes(self):
+        long_narr = "ეს არის ძალიან გრძელი ტექსტი რომელსაც წამყვანი კითხულობს დიდხანს და სცენაზე არაფერი იცვლება საერთოდ დიდი ხნის განმავლობაში."
+        story = {
+            "headline": "სათაური",
+            "narration": f"პირველი სცენა აქ არის. {long_narr} ბოლო სცენა ასრულებს ამბავს.",
+            "scenes": [
+                {"type": "hook", "at": "პირველი სცენა"},
+                {"type": "quote", "at": "ეს არის ძალიან", "text": "ციტატა", "by": "ავტორი"},
+                {"type": "end", "at": "ბოლო სცენა"},
+            ]
+        }
+        probs = m.draft_problems(story)
+        self.assertTrue(any(p.startswith("motion still:") for p in probs), probs)
+
+    def test_clean_story_passes(self):
+        story = {
+            "headline": "სათაური",
+            "narration": "პირველი სცენა იწყება აქ. მეორე სცენა გრძელდება ასე. მესამე სცენა ამბობს სხვას. ბოლო სცენა ასრულებს ვიდეოს.",
+            "scenes": [
+                {"type": "hook", "at": "პირველი სცენა"},
+                {"type": "stat", "at": "მეორე სცენა", "value": 10, "label": "ათი"},
+                {"type": "quote", "at": "მესამე სცენა", "text": "„სიტყვა“", "by": "ავტორი"},
+                {"type": "end", "at": "ბოლო სცენა"},
+            ]
+        }
+        self.assertEqual(m.draft_problems(story), [])
 
     def test_render_story_holds_unreadable_text_like_the_probe(self):
         long = "აბონენტს დროებით შეუწყდება გაზის მიწოდება ორშაბათს ღამიდან სამშაბათის დილამდე ვარკეთილში"

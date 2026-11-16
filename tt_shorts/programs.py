@@ -319,13 +319,13 @@ def prompt(p, cluster, articles, avoid=None, brand=None, director=None, found=No
 
 def writer_checks(p, story, articles, cluster, brand=None):
     """What the writer's draft must pass for this program (it goes back to the model with the problems)."""
-    from tt_shorts import art, brand as packs, icons, ka_check
+    from tt_shorts import art, brand as packs, icons, ka_check, motion_rules
     joined = "\n\n".join(articles)
     article = {"title": cluster.get("headline", ""), "description": "", "text": joined}
     draft = {**story, "program": p["name"], "brand": brand or packs.DEFAULT, "sources": cluster.get("sources") or []}
     out = rule_problems(draft, articles, doc=doc_of(cluster)) + ka_check.problems(story, article) + \
         art.story_problems(story) + [x for x in story_problems(draft) if not x.startswith("story:")] + \
-        length_problems(story, p) + icons.motif_problems(story)
+        length_problems(story, p) + motion_rules.draft_problems(story) + icons.motif_problems(story)
     cats = packs.load(brand)["categories"]
     if not p.get("category") and story.get("category") not in cats:
         out.append(f"story: category {story.get('category')!r} is not one of {', '.join(cats)}")

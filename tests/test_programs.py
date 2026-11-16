@@ -383,5 +383,56 @@ class StoryTier(unittest.TestCase):
         self.assertIn("S1", rules(claims_check.fiction(branded)))  # in another pack it is a real company
 
 
+class BlogWriterChecks(unittest.TestCase):
+    def test_overlength_narration_is_caught(self):
+        p = programs.get("blog")
+        cluster = {"headline": "SiTech ბლოგი", "sources": ["sitech"]}
+        articles = ["სტატია: SiTech ბლოგის პოსტი."]
+        story = {
+            "headline": "SiTech ბლოგი",
+            "category": "ai",
+            "narration": "სიტყვა " * 50 + "მეორე " + "სიტყვა " * 50 + "ბოლო " + "სიტყვა " * 91,
+            "scenes": [
+                {"type": "hook", "at": "სიტყვა"},
+                {"type": "stat", "at": "მეორე", "value": 10},
+                {"type": "end", "at": "ბოლო"},
+            ],
+        }
+        probs = programs.writer_checks(p, story, articles, cluster)
+        self.assertTrue(any(x.startswith("timing:") and "shorten" in x for x in probs), probs)
+
+    def test_motion_repeat_and_still_caught(self):
+        p = programs.get("blog")
+        cluster = {"headline": "SiTech ბლოგი", "sources": ["sitech"]}
+        articles = ["სტატია: SiTech ბლოგის პოსტი."]
+        repeat_story = {
+            "headline": "SiTech ბლოგი",
+            "category": "ai",
+            "narration": "პირველი სცენა იწყება აქ. მეორე სცენა მოდის აქ. მესამე სცენა მოდის აქ. ბოლო სცენა ასრულებს ვიდეოს.",
+            "scenes": [
+                {"type": "hook", "at": "პირველი სცენა"},
+                {"type": "stat", "at": "მეორე სცენა", "value": 10},
+                {"type": "stat", "at": "მესამე სცენა", "value": 20},
+                {"type": "end", "at": "ბოლო სცენა"},
+            ],
+        }
+        probs = programs.writer_checks(p, repeat_story, articles, cluster)
+        self.assertTrue(any("motion repeat:" in x for x in probs), probs)
+
+        long_narr = "ეს არის ძალიან გრძელი ტექსტი რომელსაც წამყვანი კითხულობს დიდხანს და სცენაზე არაფერი იცვლება საერთოდ დიდი ხნის განმავლობაში."
+        still_story = {
+            "headline": "SiTech ბლოგი",
+            "category": "ai",
+            "narration": f"პირველი სცენა აქ არის. {long_narr} ბოლო სცენა ასრულებს ამბავს.",
+            "scenes": [
+                {"type": "hook", "at": "პირველი სცენა"},
+                {"type": "quote", "at": "ეს არის ძალიან", "text": "ციტატა", "by": "ავტორი"},
+                {"type": "end", "at": "ბოლო სცენა"},
+            ],
+        }
+        probs_still = programs.writer_checks(p, still_story, articles, cluster)
+        self.assertTrue(any("motion still:" in x for x in probs_still), probs_still)
+
+
 if __name__ == "__main__":
     unittest.main()

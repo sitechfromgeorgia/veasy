@@ -11,7 +11,7 @@
   "defect": {
     "number": 1,
     "name": "same_picture",
-    "gate": "warning",
+    "gate": "hold",
     "rule": "dhash_similarity",
     "metric": "hamming_distance_dhash <= 3",
     "description": "Two consecutive scenes have identical visual layout, typography, and card composition (dHash distance <= 3)",

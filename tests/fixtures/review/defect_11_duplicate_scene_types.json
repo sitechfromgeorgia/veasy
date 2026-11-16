@@ -11,7 +11,7 @@
   "defect": {
     "number": 11,
     "name": "duplicate_scene_types",
-    "gate": "warning",
+    "gate": "hold",
     "rule": "consecutive_duplicate_types",
     "metric": "scenes[i].type == scenes[i+1].type",
     "description": "Consecutive duplicate scene types (scenes 1 and 2 are both quote scenes in a row)",
