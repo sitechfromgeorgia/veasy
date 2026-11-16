@@ -249,13 +249,15 @@ const enterFrames = (p: ShortProps) => p.style?.motion?.enter_frames ?? ENTER;
 const MOVES: Transition[] = ["maskwipe", "gridsplit", "scalethrough"];
 const CLAMP = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
+const CARRY_EXEMPT = new Set<Transition>(["slide", "push", "fade", "one-take", "cut", "object", "scalethrough"]);
+
 /** How the scene itself enters and leaves for a transition (frame is the scene's own, left is the slot's x).
  *  wipe: revealed left to right · slide: a short slide and fade · push: the old scene leaves left, the new one
  *  comes from the right · dot: an iris opens from the header's progress dot · cut, line, panel: the scene fades out.
  *  maskwipe: a soft-edged horizontal mask sweeps the new scene in · scalethrough: the old scene scales up and fades
  *  through · gridsplit: the old scene breaks into four panels that slide apart (SceneSlot draws them). */
 const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, last: boolean, total: number, left: number,
-  p: ShortProps, fps: number) => {
+  p: ShortProps, fps: number, cards = false) => {
   const ease = (t: number) => 1 - Math.pow(1 - t, 3);
   const n = enterFrames(p);
   const plain = MOVES.indexOf(tr) >= 0 && s.duration < n; // too short for the move: a cut
@@ -336,6 +338,18 @@ const sceneMotion = (tr: Transition, frame: number, s: Scene, first: boolean, la
     dx = 0;
     dy = 0;
   }
+  if (!first && !plain && !CARRY_EXEMPT.has(tr) && enter < 1) {
+    if (p.style?.flow) {
+      dx += -(1 - enter) * 32 * p.style.flow[0];
+      dy += -(1 - enter) * 28 * p.style.flow[1];
+    } else if (!cards) {
+      dy += (1 - enter) * 28;
+    }
+  }
+  const allowBreath = !!p.program && p.program !== "news";
+  if (allowBreath && !first && !plain && tr !== "one-take" && tr !== "scalethrough" && enter < 1) {
+    scale = 1 + 0.03 * Math.sin(Math.PI * enter);
+  }
   return { style, dx, dy, opacity, enter, out, scale };
 };
 
@@ -353,8 +367,9 @@ const SceneBody: React.FC<{ i: number }> = ({ i }) => {
   const Comp = SCENES[s.type];
   const first = i === 0, last = i === props.scenes.length - 1;
   const tr = props.transition ?? "line";
-  const left = v === "cards" && s.type !== "end" ? SIDE - 16 : SIDE;
-  const mv = (f: number) => sceneMotion(tr, f, s, first, last, durationInFrames, left, props, fps);
+  const isCards = v === "cards" && s.type !== "end";
+  const left = isCards ? SIDE - 16 : SIDE;
+  const mv = (f: number) => sceneMotion(tr, f, s, first, last, durationInFrames, left, props, fps, isCards);
   const m = mv(frame);
   const plain = MOVES.indexOf(tr) >= 0 && s.duration < enterFrames(props);
   let blur: { sx: number; sy: number } | null = null;
@@ -379,7 +394,7 @@ const SceneBody: React.FC<{ i: number }> = ({ i }) => {
   ) : null;
   const filter = blur !== null ? `url(#${fid})` : undefined;
 
-  if (v === "cards" && s.type !== "end") {
+  if (isCards) {
     const own = tr === "line" || tr === "cut" || tr === "panel" || tr === "meter" || tr === "fade" || tr === "shutter" || tr === "blind" || tr === "match" || tr === "gridsplit"; // the card's own entrance: it rises and settles
     const enter = own && !first ? interpolate(frame, [0, enterFrames(props)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
       easing: (t) => 1 - Math.pow(1 - t, 3) }) : 1; // the first card is there at frame 0 (outro.tsx: the opening)
