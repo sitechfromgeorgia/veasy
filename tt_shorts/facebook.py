@@ -1,55 +1,51 @@
-"""Post to the tbilisi.today Facebook Page: photos, text and Reels.
+"""Post to a brand's Facebook Page: photos, text and Reels.
 
-Transport only. This module owns the Graph calls, the credential files and the error shape;
-selection rules, caps and ledgers stay with the callers, so the Facebook lane cannot drift
-from the Telegram one.
+Transport only. This module owns the Graph calls, the pack-configured credential paths and the
+error shape; selection rules, caps and ledgers stay with the callers.
 
-Credentials (never in env, never in git):
-    /root/.secrets/fb_page_token    long-lived Page access token (System User tokens do not expire)
-    /root/.secrets/fb_page_id       the Page id (not secret; kept beside the token so config is one place)
+Each brand pack provides its credential paths and daily target under brand.json `social.facebook`:
+    {"page_id_file": ..., "token_file": ..., "user_token_file": ..., "reels_per_day": 3}
 
 Every function returns a receipt dict:
     {"ok": True, "platform": "facebook", "kind": "photo"|"video"|"text"|"comment", ...ids}
     {"ok": False, "platform": "facebook", "error": {...code, message, http, fbtrace}}
 
 A failed call never raises for an expected Graph rejection; it returns ok=False so the caller can
-write an honest receipt and leave the ledger untouched. Programming errors still raise.
+write an honest receipt and leave the ledger untouched. Programming and pack config errors still raise.
 
 CLI:
-    python -m tt_shorts.facebook verify
-    python -m tt_shorts.facebook photo  <url-or-path> --caption "..." [--live]
-    python -m tt_shorts.facebook video  <file.mp4>    --caption "..." [--live]
-    python -m tt_shorts.facebook text   "..."        [--live]
+    python -m tt_shorts.facebook --brand <name> verify
+    python -m tt_shorts.facebook --brand <name> photo  <url-or-path> --caption "..." [--live]
+    python -m tt_shorts.facebook --brand <name> video  <file.mp4>    --caption "..." [--live]
+    python -m tt_shorts.facebook --brand <name> text   "..."        [--live]
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import mimetypes
-import os
 import pathlib
 import re
+import shutil
+import subprocess
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
+from tt_shorts import brand as packs
+
 API = "https://graph.facebook.com"
 RUPLOAD = "https://rupload.facebook.com"
 VERSION = "v23.0"
 
-TOKEN_FILE = pathlib.Path("/root/.secrets/fb_page_token")
-PAGE_ID_FILE = pathlib.Path("/root/.secrets/fb_page_id")
-
 PLATFORM = "facebook"
-# A token that has been pasted into a chat is compromised: it sits in message history, session logs
-# and backups, and anyone who reaches those can post as the Page. Fingerprints (not values) of such
-# tokens live here so every code path refuses them, even if the file is written again by hand.
-# Removing an entry is never the fix; rotating the token in Business Manager is.
+# Fingerprints (not values) of tokens known to have leaked in chat/logs so every path refuses them.
 LEAKED_FINGERPRINTS: set[str] = {"58228850"}
 # Reels limits from the Reels Publishing API: 3..90 s, 9x16, 540x960 minimum.
 REEL_MIN_SECONDS = 3.0
 REEL_MAX_SECONDS = 90.0
-# Reels API allows 30 API-published posts in a rolling 24 h; stay well under it.
+# Reels API allows 30 API-published posts in a rolling 24 h.
 REELS_DAILY_CAP = 30
 
 # Graph codes worth another attempt: rate limits and transient platform trouble.
@@ -58,7 +54,7 @@ MAX_ATTEMPTS = 3
 
 
 class MissingCredentials(RuntimeError):
-    """The token or page id file is absent or empty."""
+    """The token or page id file is absent, empty or known-compromised."""
 
 
 class GraphError(RuntimeError):
@@ -80,6 +76,20 @@ class GraphError(RuntimeError):
             "message": self.message, "fbtrace": self.fbtrace}}
 
 
+def _cfg(brand=None) -> tuple[dict, pathlib.Path, pathlib.Path, pathlib.Path, int]:
+    pack, fb = packs.require_social(brand, "facebook")
+    tok = pathlib.Path(fb["token_file"])
+    pid = pathlib.Path(fb["page_id_file"])
+    utok = pathlib.Path(fb.get("user_token_file") or f"{tok}.user")
+    target = min(REELS_DAILY_CAP, int(fb.get("reels_per_day", 3)))
+    return pack, tok, pid, utok, target
+
+
+def daily_target(brand=None) -> int:
+    """Daily Reel target configured on the pack, capped by the Reels API daily limit."""
+    return _cfg(brand)[4]
+
+
 def _read(path: pathlib.Path) -> str:
     try:
         value = path.read_text(encoding="utf-8").strip()
@@ -90,44 +100,35 @@ def _read(path: pathlib.Path) -> str:
     return value
 
 
-def page_token() -> str:
-    value = _read(TOKEN_FILE)
-    fp = token_fingerprint(value)
+def page_token(brand=None) -> str:
+    _, tok_file, _, _, _ = _cfg(brand)
+    value = _read(tok_file)
+    fp = token_fingerprint(value, brand=brand)
     if fp in LEAKED_FINGERPRINTS:
         raise MissingCredentials(
             f"the stored token ({fp}) was posted in chat and is compromised; "
-            "rotate it in Business Manager and save the new one with "
-            "bash /root/sitech/scripts/save-fb-token.sh")
+            f"rotate it in Business Manager and save the new token to {tok_file}")
     return value
 
 
-def armed() -> bool:
-    """True only when a usable, non-leaked token and a page id are in place.
-
-    Callers gate on this instead of on file existence, so a compromised or half-configured
-    credential makes a lane go quiet rather than fail every tick.
-    """
+def armed(brand=None) -> bool:
+    """True only when a configured brand pack has a usable, non-leaked token and page id."""
     try:
-        page_token()
-        page_id()
-    except MissingCredentials:
+        page_token(brand=brand)
+        page_id(brand=brand)
+    except (MissingCredentials, packs.BrandError):
         return False
     return True
 
 
-def ensure_page_token(*, dry: bool = False) -> dict:
-    """Exchange a System User or user token for the Page's own token, once.
-
-    A System User token answers /me with the system user, not the Page. Most Page endpoints accept
-    it when the page is assigned, but the Page's own token is unambiguous: it always acts as the
-    Page and it does not expire separately from the user token that minted it. The original is kept
-    aside so a re-derivation is possible after a rotation.
-    """
-    current = _read(TOKEN_FILE)
-    if token_fingerprint(current) in LEAKED_FINGERPRINTS:
+def ensure_page_token(*, brand=None, dry: bool = False) -> dict:
+    """Exchange a System User or user token for the Page's own token, once."""
+    _, tok_file, _, user_file, _ = _cfg(brand)
+    current = _read(tok_file)
+    if token_fingerprint(current, brand=brand) in LEAKED_FINGERPRINTS:
         raise MissingCredentials("stored token is known-compromised; rotate it first")
-    body = _graph("GET", page_id(), {"fields": "id,name,access_token"}, token=current,
-                  idempotent=True)
+    body = _graph("GET", page_id(brand=brand), {"fields": "id,name,access_token"}, token=current,
+                  idempotent=True, brand=brand)
     page_token_value = body.get("access_token")
     if not page_token_value:
         return {"ok": False, "platform": PLATFORM, "kind": "exchange",
@@ -136,35 +137,31 @@ def ensure_page_token(*, dry: bool = False) -> dict:
     if dry:
         return {"ok": True, "platform": PLATFORM, "kind": "exchange", "dry": True,
                 "page": body.get("name"),
-                "would_write": str(TOKEN_FILE),
-                "fingerprint": token_fingerprint(page_token_value)}
-    USER_FILE = pathlib.Path("/root/.secrets/fb_user_token")
-    if not USER_FILE.exists():
-        USER_FILE.write_text(current, encoding="utf-8")
-        USER_FILE.chmod(0o600)
-    TOKEN_FILE.write_text(page_token_value, encoding="utf-8")
-    TOKEN_FILE.chmod(0o600)
+                "would_write": str(tok_file),
+                "fingerprint": token_fingerprint(page_token_value, brand=brand)}
+    if not user_file.exists():
+        user_file.write_text(current, encoding="utf-8")
+        user_file.chmod(0o600)
+    tok_file.write_text(page_token_value, encoding="utf-8")
+    tok_file.chmod(0o600)
     return {"ok": True, "platform": PLATFORM, "kind": "exchange", "page": body.get("name"),
-            "fingerprint": token_fingerprint(page_token_value),
-            "kept_user_token_at": str(USER_FILE)}
+            "fingerprint": token_fingerprint(page_token_value, brand=brand),
+            "kept_user_token_at": str(user_file)}
 
 
-def page_id() -> str:
-    return _read(PAGE_ID_FILE)
+def page_id(brand=None) -> str:
+    _, _, pid_file, _, _ = _cfg(brand)
+    return _read(pid_file)
 
 
-def token_fingerprint(value: str | None = None) -> str:
+def token_fingerprint(value: str | None = None, *, brand=None) -> str:
     """A short, non-reversible handle for logs: proves which token ran without printing it."""
-    value = value or page_token()
-    import hashlib
+    value = value or page_token(brand=brand)
     return hashlib.sha256(value.encode()).hexdigest()[:8]
 
 
 def _url(path: str, params: dict | None = None) -> str:
-    if path.startswith("http"):
-        base = path
-    else:
-        base = f"{API}/{VERSION}/{path.lstrip('/')}"
+    base = path if path.startswith("http") else f"{API}/{VERSION}/{path.lstrip('/')}"
     if params:
         base = base + ("&" if "?" in base else "?") + urllib.parse.urlencode(params)
     return base
@@ -197,7 +194,7 @@ def _error_from(body: dict, http_status: int) -> GraphError | None:
 
 def _multipart(fields: dict, files: dict) -> tuple[bytes, str]:
     """files: {name: (filename, bytes, content_type)}. Text fields first, file last."""
-    boundary = "----ttfb" + str(int(time.time() * 1000))
+    boundary = "----veasyfb" + str(int(time.time() * 1000))
     out: list[bytes] = []
     for name, value in fields.items():
         out.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n'
@@ -213,11 +210,7 @@ def _multipart(fields: dict, files: dict) -> tuple[bytes, str]:
 
 def _call(method: str, url: str, *, data: bytes | None = None, headers: dict | None = None,
           timeout: int = 120, idempotent: bool = False) -> tuple[int, dict, dict]:
-    """One HTTP attempt. Retries only what cannot create a duplicate: reads, 429, 5xx on reads.
-
-    A create call that answers 5xx is ambiguous (the object may exist), so it is NOT retried;
-    the caller gets the error and leaves its ledger alone.
-    """
+    """One HTTP attempt. Retries only what cannot create a duplicate: reads, 429, 5xx on reads."""
     last: GraphError | None = None
     for attempt in range(1, MAX_ATTEMPTS + 1):
         req = urllib.request.Request(url, data=data, method=method)
@@ -235,7 +228,6 @@ def _call(method: str, url: str, *, data: bytes | None = None, headers: dict | N
                 raise err
             last = err
         except urllib.error.URLError as e:
-            # Network trouble on a create call may still have reached Meta: never blind-retry.
             if not idempotent or attempt == MAX_ATTEMPTS:
                 raise GraphError(f"network: {str(e.reason)[:160]}", transient=True) from e
             last = GraphError(f"network: {str(e.reason)[:160]}", transient=True)
@@ -244,14 +236,9 @@ def _call(method: str, url: str, *, data: bytes | None = None, headers: dict | N
 
 
 def _graph(method: str, path: str, fields: dict | None = None, *, token: str | None = None,
-           timeout: int = 120, idempotent: bool = False) -> dict:
-    """Graph call with the Page token.
-
-    Writes send their parameters form-encoded in the BODY, never the query string: captions are
-    long and a token in a URL ends up in every proxy log. Reads keep them in the query string,
-    which is what a GET can carry.
-    """
-    token = token or page_token()
+           timeout: int = 120, idempotent: bool = False, brand=None) -> dict:
+    """Graph call with the brand's Page token."""
+    token = token or page_token(brand=brand)
     params = dict(fields or {})
     params["access_token"] = token
     if method.upper() == "GET":
@@ -270,25 +257,18 @@ def _graph(method: str, path: str, fields: dict | None = None, *, token: str | N
 
 
 # ------------------------------------------------------------------ reads
-def pages(token: str | None = None) -> dict:
-    """Every Page the token can act for, with the tasks it holds.
-
-    This is the discovery step before a token is trusted: New Page Experience exposes a legacy id
-    and a delegate id, and a System User token can carry several pages. Comparing this list against
-    /root/.secrets/fb_page_id is how a wrong id gets caught before a post lands nowhere.
-
-    A Page token has no /me/accounts (it acts as one page and nothing else), so that case answers
-    with the page itself instead of failing.
-    """
+def pages(token: str | None = None, *, brand=None) -> dict:
+    """Every Page the token can act for, with the tasks it holds."""
+    _cfg(brand)
     try:
         body = _graph("GET", "me/accounts",
                       {"fields": "id,name,username,tasks,link", "limit": "100"}, token=token,
-                      idempotent=True)
+                      idempotent=True, brand=brand)
     except GraphError as e:
         if e.code not in (100, 200, 190):
             raise
-        one = _graph("GET", page_id(), {"fields": "id,name,username,link"},
-                     token=token, idempotent=True)
+        one = _graph("GET", page_id(brand=brand), {"fields": "id,name,username,link"},
+                     token=token, idempotent=True, brand=brand)
         return {"ok": True, "platform": PLATFORM, "kind": "pages", "count": 1,
                 "note": "page token: cannot enumerate pages, answers with its own",
                 "pages": [{"id": one.get("id"), "name": one.get("name"),
@@ -303,78 +283,68 @@ def pages(token: str | None = None) -> dict:
                       for r in rows]}
 
 
-def verify() -> dict:
-    """Prove which Page the token acts as, and whether it is a Page token at all.
-
-    A Page token answers /me with the Page itself. A user token answers with the person, which
-    means posting would land on a profile instead of the Page: worth knowing before a live run.
-    """
-    body = _graph("GET", page_id(), {"fields": "id,name,username,link"}, idempotent=True)
-    me = _graph("GET", "me", {"fields": "id,name"}, idempotent=True)
+def verify(*, brand=None) -> dict:
+    """Prove which Page the token acts as, and whether it is a Page token at all."""
+    body = _graph("GET", page_id(brand=brand), {"fields": "id,name,username,link"}, idempotent=True, brand=brand)
+    me = _graph("GET", "me", {"fields": "id,name"}, idempotent=True, brand=brand)
     return {"ok": True, "platform": PLATFORM, "kind": "verify",
             "id": body.get("id"), "name": body.get("name"),
             "username": body.get("username"), "link": body.get("link"),
             "as": me.get("id"), "as_name": me.get("name"),
             "token_kind": "page" if str(me.get("id")) == str(body.get("id")) else "user",
-            "token": token_fingerprint()}
+            "token": token_fingerprint(brand=brand)}
 
 
-def video_status(video_id: str) -> dict:
+def video_status(video_id: str, *, brand=None) -> dict:
     return _graph("GET", video_id, {"fields": "status,description,permalink_url,post_id"},
-                  idempotent=True)
+                  idempotent=True, brand=brand)
 
 
-def post_object_id(video_id: str) -> dict:
-    """The object a comment must hang from, for a published Reel.
-
-    Commenting on the video id itself answers "(#12) singular statuses API is deprecated"; the
-    thread a reader sees lives on the feed post, addressed as {page}_{post_id}. Three Reels
-    published on 2026-11-15 went out without their link comment for exactly this reason.
-    """
+def post_object_id(video_id: str, *, brand=None) -> dict:
+    """The object a comment must hang from, for a published Reel."""
+    pid_val = page_id(brand=brand)
     try:
-        body = _graph("GET", video_id, {"fields": "post_id"}, idempotent=True)
+        body = _graph("GET", video_id, {"fields": "post_id"}, idempotent=True, brand=brand)
     except GraphError as e:
         return {"ok": False, "error": e.as_receipt()}
     pid = body.get("post_id")
     if not pid:
         return {"ok": False, "error": {"message": "video has no post_id yet"}}
-    return {"ok": True, "post_id": pid, "object_id": f"{page_id()}_{pid}"}
+    return {"ok": True, "post_id": pid, "object_id": f"{pid_val}_{pid}"}
 
 
 # ------------------------------------------------------------------ writes
-def send_text(message: str, *, dry: bool = False, token: str | None = None) -> dict:
+def send_text(message: str, *, dry: bool = False, token: str | None = None, brand=None) -> dict:
+    _cfg(brand)
     if dry:
         return {"ok": True, "platform": PLATFORM, "kind": "text", "dry": True, "chars": len(message)}
     try:
-        body = _graph("POST", f"{page_id()}/feed", {"message": message}, token=token)
+        body = _graph("POST", f"{page_id(brand=brand)}/feed", {"message": message}, token=token, brand=brand)
     except GraphError as e:
         return e.as_receipt()
     return {"ok": True, "platform": PLATFORM, "kind": "text", "id": body.get("id")}
 
 
 def send_photo(image: str, caption: str, *, dry: bool = False, published: bool = True,
-               token: str | None = None) -> dict:
-    """Publish a photo post. `image` is a public https URL or a local file path.
-
-    A URL keeps our cover pipeline unchanged (covers already live on tbilisi.today); a local
-    path is uploaded as multipart, which is what the tests use and what an unpublished cover needs.
-    """
+               token: str | None = None, brand=None) -> dict:
+    """Publish a photo post. `image` is a public https URL or a local file path."""
+    _cfg(brand)
     if dry:
         return {"ok": True, "platform": PLATFORM, "kind": "photo", "dry": True,
                 "image": image, "chars": len(caption)}
-    pid = page_id()
+    pid = page_id(brand=brand)
     try:
         if re.match(r"^https?://", image):
             body = _graph("POST", f"{pid}/photos",
                           {"url": image, "caption": caption,
-                           "published": "true" if published else "false"}, token=token, timeout=180)
+                           "published": "true" if published else "false"}, token=token, timeout=180, brand=brand)
         else:
             path = pathlib.Path(image)
             payload = path.read_bytes()
             ctype = mimetypes.guess_type(path.name)[0] or "image/jpeg"
             data, ct = _multipart(
                 {"caption": caption, "published": "true" if published else "false",
-                 "access_token": token or page_token()},
+                 "access_token": token or page_token(brand=brand)},
                 {"source": (path.name, payload, ctype)})
             status, _h, resp = _call("POST", _url(f"{pid}/photos"), data=data,
                                      headers={"Content-Type": ct}, timeout=300)
@@ -390,12 +360,9 @@ def send_photo(image: str, caption: str, *, dry: bool = False, published: bool =
 
 def send_video(path: str, caption: str, *, title: str | None = None, dry: bool = False,
                publish_state: str = "PUBLISHED", token: str | None = None,
-               poll_seconds: int = 90) -> dict:
-    """Publish a Reel: start an upload session, push the bytes, finish, then watch the status.
-
-    The rendered files are vertical 1080x1920 h264, which is exactly what Reels wants, so the
-    same file Telegram gets is the file Facebook gets.
-    """
+               poll_seconds: int = 90, brand=None) -> dict:
+    """Publish a Reel: start an upload session, push the bytes, finish, then watch the status."""
+    _cfg(brand)
     src = pathlib.Path(path)
     if not src.exists():
         return {"ok": False, "platform": PLATFORM, "kind": "video",
@@ -409,10 +376,10 @@ def send_video(path: str, caption: str, *, title: str | None = None, dry: bool =
         return {"ok": False, "platform": PLATFORM, "kind": "video", "file": str(src),
                 "error": {"message": f"duration {seconds}s outside the Reels window "
                                      f"{REEL_MIN_SECONDS}-{REEL_MAX_SECONDS}s"}}
-    pid = page_id()
-    tok = token or page_token()
+    pid = page_id(brand=brand)
+    tok = token or page_token(brand=brand)
     try:
-        start = _graph("POST", f"{pid}/video_reels", {"upload_phase": "start"}, token=tok)
+        start = _graph("POST", f"{pid}/video_reels", {"upload_phase": "start"}, token=tok, brand=brand)
         video_id = start.get("video_id")
         if not video_id:
             return {"ok": False, "platform": PLATFORM, "kind": "video",
@@ -427,18 +394,15 @@ def send_video(path: str, caption: str, *, title: str | None = None, dry: bool =
         if title:
             fields["title"] = title
         finish = _graph("POST", f"{pid}/video_reels", fields, token=tok, timeout=180,
-                        idempotent=True)
+                        idempotent=True, brand=brand)
         receipt = {"ok": bool(finish.get("success", True)), "platform": PLATFORM,
                    "kind": "video", "video_id": video_id, "seconds": seconds, "bytes": size,
                    "post_id": finish.get("post_id") or finish.get("id"),
                    "publish_state": publish_state}
         if poll_seconds:
-            receipt["status"] = _wait_ready(video_id, tok, poll_seconds)
-        # A Reel's video id is not its post id: commenting on the video id answers
-        # "(#12) singular statuses API is deprecated". Resolve the post and hand back the
-        # fully qualified object id so the caller can comment on the post.
+            receipt["status"] = _wait_ready(video_id, tok, poll_seconds, brand=brand)
         try:
-            meta = video_status(video_id)
+            meta = video_status(video_id, brand=brand)
             raw_post = meta.get("post_id")
             if raw_post:
                 receipt["post_id"] = (raw_post if "_" in str(raw_post)
@@ -467,22 +431,18 @@ def _upload_bytes(upload_url: str, video_id: str, path: pathlib.Path, size: int,
     return {"ok": bool(body.get("success", True)), "body": body}
 
 
-def _wait_ready(video_id: str, token: str, seconds: int) -> dict:
-    """Poll until the reel is published, or the budget runs out. Never raises.
-
-    Right after publishing, a fresh video can answer `Unsupported get request` for a few seconds
-    (code 100/subcode 33): that is eventual consistency, not a failure, so keep polling instead of
-    reporting an error on a post that is in fact live.
-    """
+def _wait_ready(video_id: str, token: str, seconds: int, *, brand=None) -> dict:
+    """Poll until the reel is published, or the budget runs out. Never raises."""
     deadline = time.time() + seconds
     last = {}
     last_error = None
     while time.time() < deadline:
         try:
-            last = video_status(video_id)
+            last = _graph("GET", video_id, {"fields": "status,description,permalink_url,post_id"},
+                          token=token, idempotent=True, brand=brand)
             last_error = None
         except GraphError as e:
-            if e.code in (190, 200, 10):  # auth/permission: retrying will not help
+            if e.code in (190, 200, 10):
                 return {"error": e.as_receipt()["error"]}
             last_error = e.as_receipt()["error"]
             time.sleep(5)
@@ -506,12 +466,9 @@ def _wait_ready(video_id: str, token: str, seconds: int) -> dict:
 
 
 def set_thumbnail(video_id: str, image_path: str, *, dry: bool = False,
-                  token: str | None = None) -> dict:
-    """Make an image the reel's cover.
-
-    Reels without a cover get a frame chosen by Facebook, and a grid of those reads as one grey
-    column. The cover is uploaded as the preferred thumbnail for the video object.
-    """
+                  token: str | None = None, brand=None) -> dict:
+    """Make an image the reel's cover."""
+    _cfg(brand)
     path = pathlib.Path(image_path)
     if not path.exists():
         return {"ok": False, "platform": PLATFORM, "kind": "thumbnail",
@@ -521,7 +478,7 @@ def set_thumbnail(video_id: str, image_path: str, *, dry: bool = False,
                 "video_id": video_id, "image": str(path)}
     payload = path.read_bytes()
     ctype = mimetypes.guess_type(path.name)[0] or "image/jpeg"
-    data, ct = _multipart({"is_preferred": "true", "access_token": token or page_token()},
+    data, ct = _multipart({"is_preferred": "true", "access_token": token or page_token(brand=brand)},
                           {"source": (path.name, payload, ctype)})
     try:
         status, _h, body = _call("POST", _url(f"{video_id}/thumbnails"), data=data,
@@ -535,24 +492,22 @@ def set_thumbnail(video_id: str, image_path: str, *, dry: bool = False,
             "kind": "thumbnail", "video_id": video_id, "body": body}
 
 
-def comment(object_id: str, message: str, *, dry: bool = False, token: str | None = None) -> dict:
-    """First comment on our own post. The story link lives here, never in the post body:
-    a bare outbound link in the body costs reach on Facebook."""
+def comment(object_id: str, message: str, *, dry: bool = False, token: str | None = None,
+            brand=None) -> dict:
+    """First comment on our own post."""
+    _cfg(brand)
     if dry:
         return {"ok": True, "platform": PLATFORM, "kind": "comment", "dry": True,
                 "chars": len(message)}
     try:
-        body = _graph("POST", f"{object_id}/comments", {"message": message}, token=token)
+        body = _graph("POST", f"{object_id}/comments", {"message": message}, token=token, brand=brand)
     except GraphError as e:
         return e.as_receipt()
     return {"ok": True, "platform": PLATFORM, "kind": "comment", "id": body.get("id")}
 
 
 def probe_seconds(path: pathlib.Path) -> float | None:
-    """Duration in seconds, or None when ffprobe is unavailable. Reels rejects the wrong length
-    with a bare error code, so check it before spending an upload."""
-    import shutil
-    import subprocess
+    """Duration in seconds, or None when ffprobe is unavailable."""
     ffprobe = shutil.which("ffprobe") or "/root/.hermes/tools/ffmpeg-9.0.1-linux-x64/bin/ffprobe"
     if not pathlib.Path(ffprobe).exists():
         return None
@@ -567,27 +522,28 @@ def probe_seconds(path: pathlib.Path) -> float | None:
 
 def main(argv: list[str] | None = None) -> int:
     import argparse
-    ap = argparse.ArgumentParser(description="tbilisi.today Facebook transport")
+    ap = argparse.ArgumentParser(description="Brand-configured Facebook transport")
     ap.add_argument("command", choices=["verify", "pages", "exchange", "photo", "video", "text"])
     ap.add_argument("target", nargs="?", help="image url/path, video file, or the text itself")
+    ap.add_argument("--brand", default=None, help="brand pack name (defaults to brand.DEFAULT)")
     ap.add_argument("--caption", default="")
     ap.add_argument("--live", action="store_true", help="actually publish (default: dry)")
     a = ap.parse_args(argv)
 
     try:
         if a.command == "verify":
-            out = verify()
+            out = verify(brand=a.brand)
         elif a.command == "pages":
-            out = pages()
+            out = pages(brand=a.brand)
         elif a.command == "exchange":
-            out = ensure_page_token(dry=not a.live)
+            out = ensure_page_token(brand=a.brand, dry=not a.live)
         elif a.command == "photo":
-            out = send_photo(a.target, a.caption or a.target, dry=not a.live)
+            out = send_photo(a.target, a.caption or a.target, dry=not a.live, brand=a.brand)
         elif a.command == "video":
-            out = send_video(a.target, a.caption, dry=not a.live)
+            out = send_video(a.target, a.caption, dry=not a.live, brand=a.brand)
         else:
-            out = send_text(a.target or a.caption, dry=not a.live)
-    except MissingCredentials as e:
+            out = send_text(a.target or a.caption, dry=not a.live, brand=a.brand)
+    except (MissingCredentials, packs.BrandError) as e:
         out = {"ok": False, "platform": PLATFORM, "error": {"message": str(e)}}
         print(json.dumps(out, ensure_ascii=False))
         return 2

@@ -103,5 +103,25 @@
   "გამოიწერე არხი",
   "მოიწონე და გააზიარე",
   "მხარი დაგვიჭირე: tbilisi.today/support"
- ]
+ ],
+ "social": {
+  "facebook": {
+   "page_id_file": "/root/.secrets/fb_page_id",
+   "token_file": "/root/.secrets/fb_page_token",
+   "user_token_file": "/root/.secrets/fb_user_token",
+   "reels_per_day": 3
+  },
+  "hashtags": [
+   "#თბილისი",
+   "#საქართველო",
+   "#სიახლეები",
+   "#tbilisitoday",
+   "#georgia"
+  ],
+  "cover": {
+   "kicker": "სიახლე",
+   "wordmark": "tbilisi.today"
+  },
+  "kaeasy_plugins": "/root/.hermes/shared-plugins"
+ }
 }

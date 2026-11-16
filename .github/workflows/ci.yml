@@ -27,8 +27,10 @@ jobs:
           npm ci --no-audit --no-fund --prefix remotion
           npm ci --no-audit --no-fund --prefix compose
           npm ci --no-audit --no-fund --prefix plates
-      - name: Python tests (checks, captions, formats, plugin, kaeasy adapter)
-        run: python -m unittest discover -s tests
+      - name: Python tests (checks, captions, formats, plugin, kaeasy adapter, sources)
+        run: |
+          python -m unittest discover -s tests
+          python -m unittest discover -s tt_shorts/tests
       - name: Type-check the compositions
         working-directory: remotion
         run: npx tsc --noEmit

@@ -86,8 +86,8 @@ def _provider() -> tuple[str, str, dict, str, dict]:
     url = os.environ.get("SHORTS_WRITER_URL", "").rstrip("/")
     if not url and _opencode_key():
         return OPENCODE_ENDPOINT, _opencode_key(), {"reasoning_effort": "none"}, \
-            "opencode_extraction_key", {"User-Agent": "tbilisi.today writer",
-                                        "x-opencode-session": "tt-writer"}
+            "opencode_extraction_key", {"User-Agent": "veasy-writer",
+                                        "x-opencode-session": "veasy-writer"}
     if not url:
         # 2026-11-16: OpenRouter is no longer the default route. Its key is at $50.01 of a $50.00
         # limit, so every request came back 403 and the render lane sat at zero for hours. NVIDIA

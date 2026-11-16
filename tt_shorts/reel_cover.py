@@ -1,77 +1,59 @@
-"""Vertical 1080x1920 covers for Facebook Reels.
-
-Edo, 2026-11-14: „ვიზუალურად რილსებსაც ხო ქოვერი არის ... ყველა ერთმანეთს ჰგავს ... როგორც
-ამბებში სხვადასხვა ფერებით არის მსგავსად აქაც რამე ეგეთი გვჭირდება".
-
-The news cards already colour by category; the reels had no cover at all, so Facebook picked a frame
-and the grid read as one long grey wall. This module draws the missing cover: one accent per
-category, the headline in Mtavruli, and the wordmark, at 1080x1920 so it fills the reel slot.
-
-    from tt_shorts import reel_cover
-    reel_cover.build("33070", "რუსთაველის გამზირზე მოძრაობა შეიზღუდება", "politics",
-                     "2026-11-15", "/tmp/cover-33070.jpg")
-
-Then `tt_shorts.facebook.set_thumbnail(video_id, path)` makes it the reel's cover.
-"""
+"""Vertical 1080x1920 covers for Facebook Reels, driven by the brand pack."""
 from __future__ import annotations
 
 import datetime as dt
-import math
 import os
+import pathlib
 import re
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+from tt_shorts import brand as packs
+
 W, H = 1080, 1920
-BG = (10, 13, 18)
-INK = (247, 249, 251)
-MUTED = (168, 176, 186)
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+BUNDLED_KA = ROOT / "assets" / "fonts" / "NotoSansGeorgian.ttf"
+BUNDLED_LAT = ROOT / "assets" / "fonts" / "firago-bold.ed7553cea8.woff2"
 
-REG = next((f for f in ("/usr/local/share/fonts/truetype/noto/NotoSansGeorgian-Regular.ttf",
-                        "/root/sitech/assets/firago-regular.ttf")
-            if os.path.exists(f)), "/usr/local/share/fonts/truetype/noto/NotoSansGeorgian-Regular.ttf")
-BOLD = next((f for f in ("/usr/local/share/fonts/truetype/noto/NotoSansGeorgian-Bold.ttf",
-                         "/root/sitech/assets/firago-bold.ttf")
-             if os.path.exists(f)), "/usr/local/share/fonts/truetype/noto/NotoSansGeorgian-Bold.ttf")
-# FiraGO, the brand face, carries zero Mtavruli glyphs and only ~32 of 80 Mkhedruli (it is a Latin-first
-# subset). A cover set in it prints blanks where the capitals should be. Noto Sans Georgian has 46/48
-# Mtavruli, so Georgian display text must use it; FiraGO stays for Latin only.
-LAT_BOLD = next((f for f in ("/root/sitech/assets/firago-bold.ttf",
-                             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
-                 if os.path.exists(f)), "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
+SYSTEM_KA_REG = (
+    "/usr/local/share/fonts/truetype/noto/NotoSansGeorgian-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSansGeorgian-Regular.ttf",
+    str(BUNDLED_KA),
+)
+SYSTEM_KA_BOLD = (
+    "/usr/local/share/fonts/truetype/noto/NotoSansGeorgian-Bold.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSansGeorgian-Bold.ttf",
+    str(BUNDLED_KA),
+)
+SYSTEM_LAT_BOLD = (
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    str(BUNDLED_LAT),
+    str(BUNDLED_KA),
+)
 
-# One accent per category, so the grid reads as sections instead of one grey column. Kept in the
-# same saturation family as the news covers so a reel and a card of the same story look related.
+# Category accents when a category has a distinct section colour; unmapped categories fall back
+# to the pack's own primary accent colour.
 ACCENT = {
-    "politics": (239, 68, 68),      # red
-    "economy": (34, 197, 94),       # green
-    "society": (59, 130, 246),      # blue
-    "world": (139, 92, 246),        # violet
-    "sports": (249, 115, 22),       # orange
-    "culture": (236, 72, 153),      # pink
-    "tech": (6, 182, 212),          # cyan
-    "crime": (245, 158, 11),        # amber
-    "defense": (100, 116, 139),     # slate
-    "region": (20, 184, 166),       # teal
-    "science": (99, 102, 241),      # indigo
-    "showbusiness": (217, 70, 239), # fuchsia
-    "religion": (161, 98, 7),       # bronze
-    "medicine": (16, 185, 129),     # emerald
-    "education": (234, 179, 8),     # gold
-    "auto": (71, 85, 105),          # steel
-    "realestate": (180, 83, 9),     # rust
-    "tourism": (14, 165, 233),      # sky
-    "ecology": (132, 204, 22),      # lime
-    "incidents": (244, 63, 94),     # rose
-    "general": (239, 68, 68),
-}
-CAT_KA = {
-    "politics": "პოლიტიკა", "economy": "ეკონომიკა", "society": "საზოგადოება", "world": "მსოფლიო",
-    "sports": "სპორტი", "culture": "კულტურა", "tech": "ტექნოლოგია", "general": "სიახლე",
-    "crime": "კრიმინალი", "defense": "თავდაცვა", "region": "რეგიონი",
-    "science": "მეცნიერება", "showbusiness": "შოუბიზნესი", "religion": "რელიგია",
-    "medicine": "მედიცინა", "education": "განათლება", "auto": "ავტო", "realestate": "უძრავი ქონება",
-    "tourism": "ტურიზმი", "ecology": "ეკოლოგია", "incidents": "შემთხვევები",
+    "politics": (239, 68, 68),
+    "economy": (34, 197, 94),
+    "society": (59, 130, 246),
+    "world": (139, 92, 246),
+    "sports": (249, 115, 22),
+    "culture": (236, 72, 153),
+    "tech": (6, 182, 212),
+    "crime": (245, 158, 11),
+    "defense": (100, 116, 139),
+    "region": (20, 184, 166),
+    "science": (99, 102, 241),
+    "showbusiness": (217, 70, 239),
+    "religion": (161, 98, 7),
+    "medicine": (16, 185, 129),
+    "education": (234, 179, 8),
+    "auto": (71, 85, 105),
+    "realestate": (180, 83, 9),
+    "tourism": (14, 165, 233),
+    "ecology": (132, 204, 22),
+    "incidents": (244, 63, 94),
 }
 
 
@@ -79,12 +61,18 @@ def _clean(s: str) -> str:
     return re.sub(r"[\u2013\u2014]", "-", " ".join((s or "").split()))
 
 
-def _font(path: str, size: int) -> ImageFont.FreeTypeFont:
-    return ImageFont.truetype(path, size)
+def _font(candidates: tuple[str, ...], size: int) -> ImageFont.FreeTypeFont:
+    for path in candidates:
+        if path and os.path.exists(path):
+            try:
+                return ImageFont.truetype(path, size)
+            except OSError:
+                continue
+    return ImageFont.load_default(size=size)
 
 
 def _wrap(draw: ImageDraw.ImageDraw, text: str, face, max_w: int, max_lines: int) -> list[str]:
-    """Greedy wrap by measured width, then shrink to fit the line budget."""
+    """Greedy wrap by measured width, then truncate cleanly to the line budget."""
     words, lines, cur = text.split(), [], ""
     for word in words:
         trial = f"{cur} {word}".strip()
@@ -103,18 +91,30 @@ def _wrap(draw: ImageDraw.ImageDraw, text: str, face, max_w: int, max_lines: int
     return lines
 
 
-def build(slug: str, title: str, category: str, date_str: str, out: str) -> str:
-    accent = ACCENT.get(category, ACCENT["general"])
-    cat_ka = CAT_KA.get(category, "სიახლე")
+def _rgb(color: str) -> tuple[int, int, int]:
+    return packs.rgba(color)[:3]
 
-    # Reels UI covers the top ~200 px and the bottom ~340 px (caption, buttons), so every element
-    # lives inside that safe band or it is invisible on a phone.
+
+def build(slug: str, title: str, category: str, date_str: str, out: str, *, brand=None) -> str:
+    """Render a 1080x1920 JPEG Reel cover styled from the brand pack's social & theme config."""
+    b, cover_cfg = packs.require_social(brand, "cover")
+    colors = b["colors"]
+    bg = _rgb(colors["canvas"])
+    ink = _rgb(colors["ink"])
+    muted = _rgb(colors["muted"])
+    pack_accent = _rgb(colors["accent"])
+    accent = ACCENT.get(category, pack_accent)
+
+    kicker = cover_cfg["kicker"]
+    wordmark = cover_cfg["wordmark"]
+    cat_ka = (b.get("categories") or {}).get(category) or kicker
+
+    pack_bold = (b.get("_fonts") or {}).get("700", "")
+    lat_faces = (pack_bold, *SYSTEM_LAT_BOLD)
+
     SAFE_L, SAFE_R, SAFE_T, SAFE_B = 84, W - 84, 260, H - 400
-    img = Image.new("RGB", (W, H), BG)
-    draw = ImageDraw.Draw(img)
+    img = Image.new("RGB", (W, H), bg)
 
-    # A soft accent glow behind the text block: enough colour to differ at thumbnail size, not so
-    # much that the headline loses contrast.
     glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
     cx, cy, r = int(W * 0.78), int(H * 0.16), int(W * 0.9)
@@ -125,42 +125,38 @@ def build(slug: str, title: str, category: str, date_str: str, out: str) -> str:
     img = Image.alpha_composite(img.convert("RGBA"), glow.filter(ImageFilter.GaussianBlur(70))).convert("RGB")
     draw = ImageDraw.Draw(img)
 
-    # Category chip: accent fill, dark label, sized to the measured text so it is never empty.
-    chip_font = _font(BOLD, 34)
+    chip_font = _font(SYSTEM_KA_BOLD, 34)
     label = cat_ka.upper()
     tw = draw.textlength(label, font=chip_font)
     pad_x, pad_y = 28, 16
     chip_h = 34 + pad_y * 2
+    chip_ink = (12, 14, 18) if packs.luminance(accent + (1.0,)) > 0.18 else (247, 249, 251)
     draw.rounded_rectangle([SAFE_L, SAFE_T, SAFE_L + tw + pad_x * 2, SAFE_T + chip_h],
                            radius=8, fill=accent)
     draw.text((SAFE_L + pad_x, SAFE_T + chip_h / 2), label, font=chip_font,
-              fill=(12, 14, 18), anchor="lm")
+              fill=chip_ink, anchor="lm")
 
-    # Headline: Mtavruli, wrapped to the safe column, shrunk until it fits six lines.
     text = _clean(title).upper()
     size, lines = 96, []
     while size >= 52:
-        face = _font(BOLD, size)
+        face = _font(SYSTEM_KA_BOLD, size)
         lines = _wrap(draw, text, face, SAFE_R - SAFE_L, max_lines=6)
         widest = max((draw.textlength(l, font=face) for l in lines), default=0)
         if len(lines) <= 6 and widest <= SAFE_R - SAFE_L:
             break
         size -= 4
-    face = _font(BOLD, size)
+    face = _font(SYSTEM_KA_BOLD, size)
     y = SAFE_T + chip_h + 90
     for line in lines:
-        draw.text((SAFE_L, y), line, font=face, fill=INK, anchor="la")
+        draw.text((SAFE_L, y), line, font=face, fill=ink, anchor="la")
         y += int(size * 1.18)
 
-    # Rule + kicker under the headline
     y += 24
     draw.rectangle([SAFE_L, y, SAFE_L + 110, y + 7], fill=accent)
-    draw.text((SAFE_L, y + 30), "სიახლე", font=_font(REG, 32), fill=MUTED, anchor="la")
+    draw.text((SAFE_L, y + 30), kicker, font=_font(SYSTEM_KA_REG, 32), fill=muted, anchor="la")
 
-    # Wordmark and date, Latin in the brand face, above the caption zone.
-    draw.text((SAFE_L, SAFE_B - 92), "tbilisi.today", font=_font(LAT_BOLD, 44), fill=INK, anchor="la")
-    draw.text((SAFE_L, SAFE_B - 34), _clean(date_str), font=_font(REG, 30), fill=MUTED, anchor="la")
-    # An inset accent bar on the left edge, aligned to the text column: a framing device, not a border.
+    draw.text((SAFE_L, SAFE_B - 92), wordmark, font=_font(lat_faces, 44), fill=ink, anchor="la")
+    draw.text((SAFE_L, SAFE_B - 34), _clean(date_str), font=_font(SYSTEM_KA_REG, 30), fill=muted, anchor="la")
     draw.rounded_rectangle([26, SAFE_T, 34, SAFE_B], radius=4, fill=accent)
 
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
@@ -168,9 +164,10 @@ def build(slug: str, title: str, category: str, date_str: str, out: str) -> str:
     return out
 
 
-def from_story(slug: str, story: dict, out: str) -> str:
-    """Convenience: pull title, category and date out of a veasy story dict."""
+def from_story(slug: str, story: dict, out: str, *, brand=None) -> str:
+    """Build a cover straight from a resolved or raw story dict."""
+    target_brand = brand if brand is not None else story.get("brand")
     hook = next((s for s in story.get("scenes", []) if isinstance(s, dict) and s.get("type") == "hook"), {})
     title = " ".join(hook.get("lines") or []) or str(story.get("narration") or "")[:120]
     date = str(story.get("date") or "")[:10] or dt.date.today().isoformat()
-    return build(slug, title, str(story.get("category") or "general"), date, out)
+    return build(slug, title, str(story.get("category") or "general"), date, out, brand=target_brand)
