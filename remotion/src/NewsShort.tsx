@@ -15,6 +15,7 @@ import { Probe } from "./Probe";
 import { sweepOf, ThreadLayer } from "./thread";
 import { VignetteLayer } from "./vignette";
 import { Chip, Dot, flowOf, Logo, measure, Theme, useStyle, useTheme } from "./ui";
+import { directionalBlur } from "./motion_blur";
 
 const EXIT = 7; // frames a scene takes to leave
 const CARD_PAD = 48;
@@ -352,16 +353,40 @@ const SceneBody: React.FC<{ i: number }> = ({ i }) => {
   const Comp = SCENES[s.type];
   const first = i === 0, last = i === props.scenes.length - 1;
   const tr = props.transition ?? "line";
+  const left = v === "cards" && s.type !== "end" ? SIDE - 16 : SIDE;
+  const mv = (f: number) => sceneMotion(tr, f, s, first, last, durationInFrames, left, props, fps);
+  const m = mv(frame);
+  const plain = MOVES.indexOf(tr) >= 0 && s.duration < enterFrames(props);
+  let blur: { sx: number; sy: number } | null = null;
+  if (!plain && (tr === "slide" || tr === "push" || tr === "scalethrough")) {
+    const fPrev = frame > 0 ? frame - 1 : 0;
+    const fNext = frame > 0 ? frame : Math.min(Math.max(0, s.duration - 1), 1);
+    if (fNext > fPrev) {
+      const a = mv(fPrev);
+      const b = mv(fNext);
+      blur = directionalBlur(b.dx - a.dx, b.dy - a.dy, b.scale - a.scale);
+    }
+  }
+  const fid = `mb-scene-${i}`;
+  const svgDef = blur !== null ? (
+    <svg width={0} height={0} aria-hidden="true" style={{ position: "absolute", pointerEvents: "none" }}>
+      <defs>
+        <filter id={fid} x="-15%" y="-15%" width="130%" height="130%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation={`${blur.sx} ${blur.sy}`} />
+        </filter>
+      </defs>
+    </svg>
+  ) : null;
+  const filter = blur !== null ? `url(#${fid})` : undefined;
+
   if (v === "cards" && s.type !== "end") {
-    const left = SIDE - 16;
-    const m = sceneMotion(tr, frame, s, first, last, durationInFrames, left, props, fps);
     const own = tr === "line" || tr === "cut" || tr === "panel" || tr === "meter" || tr === "fade" || tr === "shutter" || tr === "blind" || tr === "match" || tr === "gridsplit"; // the card's own entrance: it rises and settles
     const enter = own && !first ? interpolate(frame, [0, enterFrames(props)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp",
       easing: (t) => 1 - Math.pow(1 - t, 3) }) : 1; // the first card is there at frame 0 (outro.tsx: the opening)
     const shown = Math.min(enter, m.opacity);
-    return (
+    const card = (
       <div data-probe="card" style={{ position: "absolute", left, right: SIDE - 16, top: SCENE_TOP, bottom: H - SCENE_BOTTOM, background: PANEL,
-        border: `2px solid ${LINE}`, borderRadius: RADIUS, opacity: shown, ...m.style,
+        border: `2px solid ${LINE}`, borderRadius: RADIUS, opacity: shown, filter, ...m.style,
         transform: `translate(${m.dx}px, ${(1 - enter) * 120 + m.dy * (40 / 48)}px) scale(${(own ? 0.96 + 0.04 * Math.min(enter, m.out) : 1) * m.scale})` }}>
         <div data-probe="scene" style={{ position: "absolute", left: CARD_PAD, right: CARD_PAD, top: CARD_PAD, bottom: 120 }}>
           {Comp ? <Comp s={s} inner={W - 2 * (SIDE - 16) - 2 * CARD_PAD} /> : null}
@@ -375,8 +400,8 @@ const SceneBody: React.FC<{ i: number }> = ({ i }) => {
         </div>
       </div>
     );
+    return blur !== null ? <>{svgDef}{card}</> : card;
   }
-  const m = sceneMotion(tr, frame, s, first, last, durationInFrames, SIDE, props, fps);
   if (tr === "gridsplit" && !last && s.duration >= enterFrames(props) && frame >= s.duration - EXIT) {
     // the outgoing frame breaks into four panels that slide apart over the background, revealing what is next
     const k = interpolate(frame, [s.duration - EXIT, s.duration], [0, 1], { ...CLAMP, easing: (x) => x * x });
@@ -395,12 +420,13 @@ const SceneBody: React.FC<{ i: number }> = ({ i }) => {
       </div>
     );
   }
-  return (
+  const body = (
     <div data-probe="scene" style={{ position: "absolute", left: SIDE, right: SIDE, top: SCENE_TOP, height: SCENE_BOTTOM - SCENE_TOP, opacity: m.opacity,
-      transform: `translate(${m.dx}px, ${m.dy}px) scale(${m.scale})`, transformOrigin: "center center", ...m.style }}>
+      transform: `translate(${m.dx}px, ${m.dy}px) scale(${m.scale})`, transformOrigin: "center center", filter, ...m.style }}>
       {Comp ? <Comp s={s} /> : null}
     </div>
   );
+  return blur !== null ? <>{svgDef}{body}</> : body;
 };
 
 /** The band the platforms cover with their own UI: no story text there, only motion that fills it. */

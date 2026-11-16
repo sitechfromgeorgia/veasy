@@ -5,6 +5,7 @@ import { H, INK, LINE, LINE_STRONG, SCENE_BOTTOM, SCENE_TOP, W } from "./brand";
 import { motifCell, motifMark } from "./motif";
 import type { Camera } from "./types";
 import { Dot, useStyle, useTheme } from "./ui";
+import { directionalBlur } from "./motion_blur";
 
 // The one-take camera (tt_shorts/onetake.py, ROADMAP D5). The scenes sit on one 2D path; the camera moves only in a
 // cut window of `cut` frames that starts at the new scene's first frame, and rests everywhere else (offset 0, zoom
@@ -59,10 +60,32 @@ export const OneTakeBand: React.FC<{ i: number; children: React.ReactNode }> = (
   const tx = c.zoom * (cam.points[i][0] - c.x);
   const ty = c.zoom * (cam.points[i][1] - c.y);
   const rest = tx === 0 && ty === 0 && c.zoom === 1;
+  let blur: { sx: number; sy: number } | null = null;
+  if (!rest && i > 0 && local < cam.cut) {
+    const absPrev = local > 0 ? froms[i] + local - 1 : froms[i];
+    const absNext = local > 0 ? froms[i] + local : froms[i] + 1;
+    const cA = camera(cam, froms, absPrev);
+    const cB = camera(cam, froms, absNext);
+    const txA = cA.zoom * (cam.points[i][0] - cA.x);
+    const tyA = cA.zoom * (cam.points[i][1] - cA.y);
+    const txB = cB.zoom * (cam.points[i][0] - cB.x);
+    const tyB = cB.zoom * (cam.points[i][1] - cB.y);
+    blur = directionalBlur(txB - txA, tyB - tyA, cB.zoom - cA.zoom);
+  }
   return (
     <div style={{ position: "absolute", left: 0, top: CLIP_TOP, width: W, height: SCENE_BOTTOM - CLIP_TOP, overflow: "hidden" }}>
+      {blur !== null && (
+        <svg width={0} height={0} aria-hidden="true" style={{ position: "absolute", pointerEvents: "none" }}>
+          <defs>
+            <filter id={`mb-ot-${i}`} x="-15%" y="-15%" width="130%" height="130%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation={`${blur.sx} ${blur.sy}`} />
+            </filter>
+          </defs>
+        </svg>
+      )}
       <div style={{ position: "absolute", left: 0, top: -CLIP_TOP, width: W, height: H, transformOrigin: `${W / 2}px ${CY}px`,
-        transform: rest ? undefined : `translate(${tx}px, ${ty}px) scale(${c.zoom})` }}>
+        transform: rest ? undefined : `translate(${tx}px, ${ty}px) scale(${c.zoom})`,
+        filter: blur !== null ? `url(#mb-ot-${i})` : undefined }}>
         {children}
       </div>
     </div>

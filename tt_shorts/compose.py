@@ -906,7 +906,7 @@ def starter_scene(i, s):
     #root .mid {{ font-size: 56px; }}
     #root .small {{ font-size: 44px; font-weight: 500; color: var(--muted); }}
   </style>
-  <div id="root" data-composition-id="s{i}" data-width="{W}" data-height="{H}">
+  <div id="root" data-composition-id="s{i}" data-width="{W}" data-height="{H}" data-motion-blur="on">
     <div class="stack" data-probe="scene">
 {chr(10).join(rows)}
     </div>
