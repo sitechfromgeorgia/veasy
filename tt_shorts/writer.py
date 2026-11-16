@@ -596,7 +596,10 @@ def _drop_owned(story: dict) -> None:
         story.pop(k, None)
 
 
-def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 2,
+# Repairs are cheap on the free quota (about 45 s each) and the failure they buy back is total, so
+# four passes are worth it: measured 2026-11-16, most rejections are one or two content rules that a
+# later pass satisfies, and a failed job costs a whole story.
+def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 4,
           avoid: list[str] | None = None, make_prompt=None, run_checks=None, mistakes: str = "",
           on_problems=None, director: dict | None = None, facts: dict | None = None, extra: str = "",
           extra_types=(), forgive: tuple = ()) -> dict:
