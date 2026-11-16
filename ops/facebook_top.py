@@ -34,6 +34,7 @@ RECEIPTS = store.home() / "logs" / "fb-video-receipts.jsonl"
 BATCH = 3              # posts per run
 PAUSE_S = 120          # seconds between two posts inside one run
 MIN_GAP_MIN = 15       # minutes between runs
+LOCAL_TZ = dt.timezone(dt.timedelta(hours=4))   # the owner's calendar day, +04
 AGE_HOURS = 18         # same freshness rule as the Telegram video lane
 MAX_SECONDS = 90       # Reels hard limit; a longer render is not a reel
 
@@ -66,8 +67,21 @@ def _save(mark: pathlib.Path, state: dict) -> None:
 
 
 def _today_count(state: dict, today: str) -> int:
-    return len([v for v in (state.get("posted") or {}).values()
-                if str(v.get("at", ""))[:10] == today])
+    """Posts already published on the owner's calendar day.
+
+    The ledger stamps `at` in UTC while `today` is a +04 date, so comparing the first ten characters
+    treated every post made after 20:00 local as yesterday's: the cap read zero and the lane could
+    publish past it. Convert before comparing instead of slicing the string.
+    """
+    n = 0
+    for v in (state.get("posted") or {}).values():
+        try:
+            at = dt.datetime.strptime(str(v.get("at")), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc)
+            if at.astimezone(LOCAL_TZ).strftime("%Y-%m-%d") == today:
+                n += 1
+        except ValueError:
+            continue
+    return n
 
 
 def _last_post(state: dict) -> dt.datetime | None:
@@ -91,7 +105,12 @@ def candidates(state: dict, brand_name: str = packs.DEFAULT) -> list[tuple[int, 
     posted = set((state.get("posted") or {}))
     posted_cids = {str((v or {}).get("cid")) for v in (state.get("posted") or {}).values()
                    if (v or {}).get("cid")}
-    cutoff = dt.datetime.now().timestamp() - 12 * 3600
+    # This window must be the same one the Telegram lane uses. At 12 h a render made for Telegram
+    # stayed visible to Telegram for 18 h but vanished from here after 12, so a file that missed one
+    # Facebook batch was silently lost forever even though the Telegram lane would still have posted
+    # it. The owner asked for Facebook to publish what Telegram already has; that only holds if both
+    # lanes look at the same renders for the same length of time.
+    cutoff = dt.datetime.now().timestamp() - AGE_HOURS * 3600
     out = []
     for job in queue.listing("done", 400) or []:
         if not job:
