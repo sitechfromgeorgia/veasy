@@ -194,7 +194,12 @@ def problems(story, art):
     bad_say = [k for k, v in say.items() if not isinstance(v, str) or normalize_ka.LATIN.search(v)]
     if bad_say:
         p.append(f'K20: "say" values are Georgian letters only: {", ".join(map(str, bad_say))}')
-    russian = [k for k, v in say.items() if isinstance(v, str) and RUSSIAN_LETTERS & set(re.split(r"[\s-]+", v))]
+    # A Russian spelling is a *spelled-out sequence* ("ტე-პე-ემ", "ცე-პე-იუ"): two or more letter names in a
+    # row. One short token on its own is not enough — „კა იისი" (KAeasy, a brand name read as a word) hit this
+    # rule on „კა" and failed a story whose say was correct (measured 2026-11-16).
+    def _russian_tokens(value: str) -> int:
+        return len(RUSSIAN_LETTERS & set(re.split(r"[\s-]+", value)))
+    russian = [k for k, v in say.items() if isinstance(v, str) and _russian_tokens(v) >= 2]
     if russian:
         ex = ", ".join(f"{ch} {normalize_ka.LETTERS.get(ch, '')}" for ch in ("E", "K", "O", "P", "T"))
         tpm = normalize_ka.spell("TPM")

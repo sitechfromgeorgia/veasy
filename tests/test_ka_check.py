@@ -64,6 +64,16 @@ class Rules(unittest.TestCase):
                                      say={"Storm-0940": "სტორმ ნოლ ცხრაას ორმოცი"}), ART)
         self.assertNotIn("K15", rules(ok))
 
+    def test_a_brand_read_as_a_word_is_not_a_russian_acronym(self):
+        # „კა იისი" (KAeasy) contains the letter name „კა"; that alone is a word, not a spelled-out sequence, and
+        # it must not fail a correct story (measured 2026-11-16 on the sitech blog Short)
+        p = ka_check.problems(story("KAeasy-მ გამოვიდა. გამოიწერე SiTech.",
+                                    say={"KAeasy": "კა იისი", "SiTech": "საი-თეჩი"}), ART)
+        self.assertFalse(any("Russian" in x for x in p), p)
+        # two letter names in a row still are a spelled-out sequence
+        p = ka_check.problems(story("TPM-მა იმუშავა. გამოიწერე tbilisi.today.", say={"TPM": "ტე-პე-ემ"}), ART)
+        self.assertTrue(any("Russian" in x for x in p), p)
+
     def test_edit_keeps_qualifiers(self):  # the UEFI edit dropped "მკვლევრის თქმით"
         before = "მკვლევრის თქმით, თავდამსხმელს ქსელზე წვდომა სჭირდება. ზოგადად 15 წლამდე ბავშვები."
         self.assertEqual(ka_check.qualifiers_lost(before, before.replace("მკვლევრის თქმით, ", "")),
