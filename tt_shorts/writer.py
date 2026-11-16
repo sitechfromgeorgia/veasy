@@ -21,6 +21,33 @@ from tt_shorts import (art, catalog, drawings, icons, illustrator, ka_check, kae
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STYLE = (ROOT / "tt_shorts" / "ka_style.md").read_text(encoding="utf-8")
 MODEL = os.environ.get("SHORTS_WRITER_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free")
+# NVIDIA's own endpoint names the model without the vendor prefix and without the :free suffix.
+NVIDIA_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
+NVIDIA_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions"
+# The OpenCode seat (owner, 2026-11-16: "use yesterday's key with the deepseek model"). This endpoint
+# only produces usable text with reasoning_effort "none": without it the model spends the whole
+# completion budget on private reasoning and returns empty content. Measured with the flag: 26 s,
+# 1,340 characters, reasoning_tokens 0, finish_reason stop, and clean Georgian.
+OPENCODE_ENDPOINT = "https://opencode.ai/zen/go/v1/chat/completions"
+OPENCODE_MODEL = "deepseek-v4.1-flash"
+OPENCODE_KEY_FILE = pathlib.Path("/root/.secrets/opencode_extraction_key")
+
+
+def _opencode_key() -> str:
+    try:
+        return OPENCODE_KEY_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def _nvidia_key() -> str:
+    key = os.environ.get("NVIDIA_API_KEY", "")
+    if key:
+        return key
+    try:
+        return pathlib.Path("/root/.secrets/nvidia_api_key").read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
 FALLBACK = os.environ.get("SHORTS_WRITER_FALLBACK", "")
 # The writer draws ("draw" scenes): a drawing per story is what makes each video its own (owner, 2026-11-02: "1000
 # videos in one style is no good"; SiTech's channel draws with a free model). No person reviews it, so code does:
@@ -29,7 +56,14 @@ FALLBACK = os.environ.get("SHORTS_WRITER_FALLBACK", "")
 # out without it. VEASY_WRITER_DRAW=0 turns drawing off.
 DRAW_ENV = "VEASY_WRITER_DRAW"
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
-THINKING_TOKENS = 24000  # a provider's model may think first, and that counts: too few and the answer comes back empty
+# A reasoning provider counts its thinking against max_tokens, so a small budget can leave nothing for
+# the answer. 24000 was set for that, but against the CommandCode gateway it made every request ask for
+# a 24k completion, which took longer than the 180 s read timeout: 54 renders died on "writer model
+# failed: TimeoutError" and 309 jobs sat in failed. The gateway runs reasoning with effort off for this
+# lane, so the budget no longer has to cover a long private monologue; 6000 leaves room for a full
+# script and still comes back in seconds. The OpenRouter free path keeps the larger budget because
+# there the thinking really does consume the completion.
+THINKING_TOKENS = 6000
 
 
 class ChecksFailed(ValueError):
@@ -50,7 +84,18 @@ def _provider() -> tuple[str, str, dict, str, dict]:
     named by SHORTS_WRITER_URL with SHORTS_WRITER_KEY (read when used: daily.py loads data/.env after importing this).
     The writer names itself there: an API behind Cloudflare refuses Python-urllib's default signature (error 1010)."""
     url = os.environ.get("SHORTS_WRITER_URL", "").rstrip("/")
+    if not url and _opencode_key():
+        return OPENCODE_ENDPOINT, _opencode_key(), {"reasoning_effort": "none"}, \
+            "opencode_extraction_key", {"User-Agent": "veasy-writer",
+                                        "x-opencode-session": "veasy-writer"}
     if not url:
+        # 2026-11-16: OpenRouter is no longer the default route. Its key is at $50.01 of a $50.00
+        # limit, so every request came back 403 and the render lane sat at zero for hours. NVIDIA
+        # serves the same model on its own free quota and answered in 0.6 s, so it goes first and
+        # OpenRouter stays as the fallback for whoever raises that limit.
+        if _nvidia_key():
+            return NVIDIA_ENDPOINT, _nvidia_key(), {"reasoning": {"enabled": False}}, \
+                "NVIDIA_API_KEY", {}
         return ENDPOINT, os.environ.get("OPENROUTER_API_KEY", ""), {"reasoning": {"enabled": False}}, \
             "OPENROUTER_API_KEY", {}
     if not url.endswith("/chat/completions"):
@@ -63,7 +108,7 @@ def _call(prompt: str, model: str, max_tokens: int = 1800, tries: int = 3) -> st
     if not key:
         raise RuntimeError(f"{name} is not set")
     body = {"model": model, "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.3, "max_tokens": max_tokens if url == ENDPOINT else max(max_tokens, THINKING_TOKENS), **extra}
+            "temperature": 0.3, "max_tokens": max(max_tokens, THINKING_TOKENS) if url == ENDPOINT else max_tokens, **extra}
     last = ""
     for attempt in range(tries):
         req = urllib.request.Request(url, data=json.dumps(body).encode(),
@@ -78,11 +123,15 @@ def _call(prompt: str, model: str, max_tokens: int = 1800, tries: int = 3) -> st
             last = "empty answer"
         except urllib.error.HTTPError as e:
             last = f"HTTP {e.code}: {e.read()[:200]!r}"
-            if e.code == 429 and url == ENDPOINT:
+            # 429 used to be the only trigger, which meant a key that hit its spend limit (403,
+            # "Key limit exceeded") failed every render while the working NVIDIA quota sat unused.
+            # Measured 2026-11-16: the OpenRouter key was at $50.01 of $50.00 and 309 jobs were
+            # sitting in failed. Any OpenRouter refusal now falls through to NVIDIA.
+            if url == ENDPOINT and e.code in (401, 402, 403, 429, 500, 502, 503):
                 try:
                     return _nvidia(prompt, max_tokens)
                 except Exception as nv:
-                    last = f"429 and nvidia fallback failed: {nv}"
+                    last = f"HTTP {e.code} and nvidia fallback failed: {nv}"
                 time.sleep(20 * (attempt + 1))
                 continue
         except (urllib.error.URLError, TimeoutError) as e:
@@ -305,6 +354,107 @@ def _clamp(text: str, limit: int) -> str:
     return cut.rstrip(" ,.;:—-")
 
 
+_DASH_RE = re.compile(r"\s*[\u2013\u2014]\s*")
+
+
+# Georgian word forms a model gets wrong often enough that a person has had to correct them.
+# Every entry is a pair the owner himself flagged or that kaeasy records as a common error, so this is
+# code enforcing a known rule, not a guess at grammar. Longest first so a longer wrong form is not
+# half-replaced by a shorter entry.
+_KA_WRONG_FORMS = [
+    ("გაეცნა", "გაეცნო"),   # owner, 2026-11-16, after a live reel printed it in the hook
+]
+
+
+def _ka_forms(story: dict) -> None:
+    """Rewrite known-wrong Georgian forms everywhere the writer puts text."""
+    def fix(text):
+        if not isinstance(text, str):
+            return text
+        for wrong, right in _KA_WRONG_FORMS:
+            if wrong in text:
+                text = text.replace(wrong, right)
+        return text
+
+    if isinstance(story.get("narration"), str):
+        story["narration"] = fix(story["narration"])
+    for key in ("headline", "hook", "title", "cta"):
+        if isinstance(story.get(key), str):
+            story[key] = fix(story[key])
+    for sc in story.get("scenes") or []:
+        if not isinstance(sc, dict):
+            continue
+        for key, v in list(sc.items()):
+            if isinstance(v, str):
+                sc[key] = fix(v)
+            elif isinstance(v, list):
+                sc[key] = [fix(x) if isinstance(x, str) else x for x in v]
+
+
+def _no_dashes(story: dict) -> None:
+    """The house rule bans the en and em dash everywhere we publish (owner, standing).
+
+    The writer is told, and the checker rejects it, but the repair pass kept bringing the same dash
+    back in a sign headline, so three jobs burned their repair budget on a rule code can settle
+    itself. A dash becomes a comma, which is the reading the model meant and a legal separator.
+    """
+    def fix(text):
+        if not isinstance(text, str) or not _DASH_RE.search(text):
+            return text
+        out = _DASH_RE.sub(", ", text)
+        return re.sub(r"\s{2,}", " ", out).strip()
+
+    for sc in story.get("scenes") or []:
+        if not isinstance(sc, dict):
+            continue
+        for key in ("headline", "heading", "text", "caption", "label"):
+            if key in sc:
+                sc[key] = fix(sc[key])
+        for key in ("items", "lines"):
+            v = sc.get(key)
+            if isinstance(v, list):
+                sc[key] = [fix(x) if isinstance(x, str) else x for x in v]
+
+
+def _drop_unsourced_numbers(story: dict, articles: list[str]) -> None:
+    """Remove a number the model invented, instead of failing the job over it.
+
+    N2 is the check that matters most in this product (a wrong figure on screen is the one error a
+    reader will quote back at us), so it stays strict. But spending a repair call on a single stray
+    "47" that the model cannot justify is waste: the whole sentence usually reads the same without
+    it. Only the specific tokens the checker named are removed, and only when the removal leaves
+    readable text, so this can never paper over a real numeric claim.
+
+    Measured 2026-11-16: two write passes in a row ended on a single invented number.
+    """
+    from tt_shorts import news_check
+    corpus = news_check.numbers(news_check.flat(" ".join(articles)))
+    allowed = corpus | set()
+
+    def strip(text: str) -> str:
+        if not isinstance(text, str):
+            return text
+        def repl(m):
+            return "" if m.group(0) not in allowed else m.group(0)
+        out = news_check.NUM.sub(repl, text)
+        out = re.sub(r"\s{2,}", " ", out)
+        out = re.sub(r"\s+([,.;:!?])", r"\1", out)
+        return out.strip()
+
+    for sc in story.get("scenes") or []:
+        if not isinstance(sc, dict):
+            continue
+        for key in ("headline", "heading", "text", "caption", "label"):
+            if isinstance(sc.get(key), str):
+                sc[key] = strip(sc[key])
+        for key in ("items", "lines"):
+            v = sc.get(key)
+            if isinstance(v, list):
+                sc[key] = [strip(x) if isinstance(x, str) else x for x in v]
+    if isinstance(story.get("narration"), str):
+        story["narration"] = strip(story["narration"])
+
+
 def _clamp_texts(story: dict) -> None:
     """A text that is one character over its schema limit is a failed job, not a bad video:
     clamp it at a word boundary before the checks see it."""
@@ -498,7 +648,10 @@ def _drop_owned(story: dict) -> None:
         story.pop(k, None)
 
 
-def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 2,
+# Repairs are cheap on the free quota (about 45 s each) and the failure they buy back is total, so
+# four passes are worth it: measured 2026-11-16, most rejections are one or two content rules that a
+# later pass satisfies, and a failed job costs a whole story.
+def write(cluster: dict, articles: list[str], model: str | None = None, repairs: int = 4,
           avoid: list[str] | None = None, make_prompt=None, run_checks=None, mistakes: str = "",
           on_problems=None, director: dict | None = None, facts: dict | None = None, extra: str = "",
           extra_types=(), forgive: tuple = ()) -> dict:
@@ -508,7 +661,16 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     rules (failures.prompt_block, news prompt only); on_problems(list): called with the problems of every pass
     that goes back for a repair (failures.record). forgive: prefixes of problems that go back for repairs like any
     other but never lose the script (the idea step: the caller reads what is left)."""
-    model = model or MODEL
+    # The provider and the model name have to agree: NVIDIA's endpoint names this model without the
+    # vendor prefix or the :free suffix, and sending OpenRouter's spelling there is a 404.
+    if model is None:
+        _u = _provider()[0]
+        if _u == OPENCODE_ENDPOINT:
+            model = OPENCODE_MODEL
+        elif _u == NVIDIA_ENDPOINT:
+            model = NVIDIA_MODEL
+        else:
+            model = MODEL
     prompt_of = make_prompt or (lambda c, a, av: _prompt(c, a, av, mistakes, director, facts, extra, extra_types))
     checks_of = run_checks or _checks
     first = prompt_of(cluster, articles, avoid)
@@ -527,6 +689,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _tidy_end(story)
     _wrap_hook(story)  # the first pass too
     _clamp_texts(story)
+    _no_dashes(story)
+    _ka_forms(story)
     _repair_scenes(story, articles)
     _fix_anchors(story)
     _drop_short_scenes(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
@@ -542,7 +706,12 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         fix = (f"{prompt_of(cluster, articles, avoid)}\n\nწინა პასუხი უარყოფილია ამ შეცდომებით:\n- "
                + "\n- ".join(problems[:12])
                + "\n\nგანსაკუთრებით: არ დატოვო არც ერთი რიცხვი, რომელიც სტატიაში არ არის; "
-               + "თუ timeline სცენას სტატიაში ზუსტი დრო არ აქვს, წაშალე ის და მისი ტექსტი narration-იდანაც მოხსენი.\n"
+               + "თუ timeline სცენას სტატიაში ზუსტი დრო არ აქვს, წაშალე ის და მისი ტექსტი narration-იდანაც მოხსენი. "
+               # The model reaches for an em dash by habit; the checker bans it and the repair kept
+               # coming back with the same dash, so the rule is stated where the fix is asked for.
+               + "არასდროს გამოიყენო გრძელი ან საშუალო ტირე (—, –), არც სათაურში და არც ტექსტში: "
+               + "დაწერე მძიმე, ორწერტილი ან დეფისი. "
+               + "სცენის items-ის თითოეული ელემენტი მაქსიმუმ 40 სიმბოლოა.\n"
                + "დააბრუნე სრული გასწორებული JSON მხოლოდ.")
         story = _object(_call(fix, model))
         story.pop("sources", None)
@@ -554,6 +723,9 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _tidy_end(story)
         _wrap_hook(story)
         _clamp_texts(story)
+        _no_dashes(story)
+        _ka_forms(story)
+        _drop_unsourced_numbers(story, articles)
         _repair_scenes(story, articles)
         _fix_anchors(story)
         _drop_short_scenes(story)

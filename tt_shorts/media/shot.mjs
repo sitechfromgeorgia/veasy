@@ -19,7 +19,7 @@ const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, all) =>
 }, []));
 const width = Number(args.width ?? 1080), height = Number(args.height ?? 1920), timeout = Number(args.timeout ?? 30000);
 const profile = mkdtempSync(join(tmpdir(), "veasy-shot-"));
-const chrome = spawn(args.chrome, ["--headless", "--remote-debugging-port=0", `--user-data-dir=${profile}`,
+const chrome = spawn(args.chrome, ["--headless", "--no-sandbox", "--disable-dev-shm-usage", "--remote-debugging-port=0", `--user-data-dir=${profile}`,
   `--window-size=${width},${height}`, "--hide-scrollbars", "--no-first-run", "--no-default-browser-check",
   "--disable-gpu", "--disable-extensions", "--mute-audio", "--lang=ka", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
 

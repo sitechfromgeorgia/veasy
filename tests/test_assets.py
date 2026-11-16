@@ -195,10 +195,17 @@ class Resolve(Home):
 
     def test_the_shipped_packs_resolve_nothing_until_they_opt_in(self):
         a, b, c = self.fake()
-        with a, b, c:
-            new, report = assets.resolve(story())
+        with a, b, c:  # the sitech pack ships without providers (tbilisi-today opts in)
+            new, report = assets.resolve(story(brand="sitech"))
         self.assertNotIn("assets", new)
         self.assertFalse(any(sc.get("media") for sc in new["scenes"]))
+
+    def test_the_tbilisi_pack_opts_into_pictures(self):
+        a, b, c = self.fake()
+        with a, b, c:  # the pack names its providers, so the same hint now resolves
+            new, report = assets.resolve(story(brand="tbilisi-today"))
+        self.assertTrue(new.get("assets"))
+        self.assertTrue(new["scenes"][1].get("media"))
 
     def test_a_hint_becomes_a_ledger_entry_and_a_local_file(self):
         new, report = self.resolve(story())

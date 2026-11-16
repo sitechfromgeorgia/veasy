@@ -86,6 +86,9 @@ ACCENT_USES = ("dot", "active state", "button")  # design.accent.allowed: where 
 KEYWORD_STYLES = ("underline", "block", "tint")  # design.keyword: the keyword captions' highlight (captions.py)
 KEYWORD_DEFAULT = "underline"
 HASHTAG = re.compile(r"^#[^\s#!.,:;?]+$")
+SOCIAL_KEYS = ("facebook", "hashtags", "cover", "kaeasy_plugins")
+FACEBOOK_KEYS = ("page_id_file", "token_file", "user_token_file", "reels_per_day")
+COVER_KEYS = ("kicker", "wordmark")
 # The music moods tools/compose_music.py writes (assets/music/<family>-N.m4a): a family is one of these.
 FAMILIES = ("politics", "economy", "world", "crime", "sports", "culture", "tech", "society")
 
@@ -332,6 +335,7 @@ def validate(b, dirs):
         if not isinstance(styles, list) or not all(isinstance(s, str) and re.match(r"^[a-z0-9][a-z0-9-]*$", s) for s in styles):
             raise BrandError(f"brand {name}: styles is a list of style slug strings (lowercase, digits, hyphens)")
     media_problems(b)
+    _validate_social(b, name)
     if not str(b["strings"]["occupied"]).strip():  # the where scene's label on the occupied territories (geo.py)
         raise BrandError(f"brand {name}: strings.occupied is the label the map draws on the territories Georgian law "
                          "calls occupied (Abkhazia, the Tskhinvali region); it is never empty")
@@ -476,3 +480,51 @@ def for_remotion(b):
     return {"name": b["name"], "label": b["label"], "theme": b["theme"], "mode": mode(b["colors"]),
             "colors": {**b["colors"], "qrDark": dark, "qrLight": light}, "wordmark": b["wordmark"],
             "logo": b["logo"]["kind"], "footer": b["footer"], "strings": b["strings"]}
+
+
+def _validate_social(b, name):
+    soc = b.get("social")
+    if soc is None:
+        return
+    if not isinstance(soc, dict) or set(soc) - set(SOCIAL_KEYS):
+        raise BrandError(f"brand {name}: social keys are {', '.join(SOCIAL_KEYS)}")
+    fb = soc.get("facebook")
+    if fb is not None:
+        if not isinstance(fb, dict) or set(fb) - set(FACEBOOK_KEYS):
+            raise BrandError(f"brand {name}: social.facebook keys are {', '.join(FACEBOOK_KEYS)}")
+        for req in ("page_id_file", "token_file"):
+            if not isinstance(fb.get(req), str) or not fb[req].strip():
+                raise BrandError(f"brand {name}: social.facebook.{req} is a non-empty path string")
+        if "user_token_file" in fb and (not isinstance(fb["user_token_file"], str) or not fb["user_token_file"].strip()):
+            raise BrandError(f"brand {name}: social.facebook.user_token_file is a non-empty path string")
+        if "reels_per_day" in fb:
+            n = fb["reels_per_day"]
+            if not isinstance(n, int) or isinstance(n, bool) or not (1 <= n <= 30):
+                raise BrandError(f"brand {name}: social.facebook.reels_per_day is an integer 1..30")
+    if "hashtags" in soc:
+        tags = soc["hashtags"]
+        if not isinstance(tags, list) or not tags or not all(isinstance(t, str) and HASHTAG.match(t) for t in tags):
+            raise BrandError(f"brand {name}: social.hashtags is a non-empty list of hashtags like \"#SiTech\"")
+    cov = soc.get("cover")
+    if cov is not None:
+        if not isinstance(cov, dict) or set(cov) - set(COVER_KEYS):
+            raise BrandError(f"brand {name}: social.cover keys are {', '.join(COVER_KEYS)}")
+        for req in COVER_KEYS:
+            if not isinstance(cov.get(req), str) or not cov[req].strip():
+                raise BrandError(f"brand {name}: social.cover.{req} is a non-empty string")
+    if "kaeasy_plugins" in soc and (not isinstance(soc["kaeasy_plugins"], str) or not soc["kaeasy_plugins"].strip()):
+        raise BrandError(f"brand {name}: social.kaeasy_plugins is a non-empty path string")
+
+
+def require_social(brand=None, section=None):
+    """(resolved pack, social config or subsection) -> raises BrandError if the brand has no social config."""
+    b = brand if isinstance(brand, dict) else load(brand)
+    soc = b.get("social")
+    if not isinstance(soc, dict):
+        raise BrandError(f"brand {b['name']}: this brand has no social config")
+    if section:
+        sub = soc.get(section)
+        if not isinstance(sub, dict):
+            raise BrandError(f"brand {b['name']}: this brand has no social config for {section}")
+        return b, sub
+    return b, soc

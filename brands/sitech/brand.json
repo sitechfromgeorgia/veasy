@@ -124,5 +124,25 @@
  },
  "say": {
   "SiTech": "საი-თეჩი"
+ },
+ "social": {
+  "facebook": {
+   "page_id_file": "/root/.secrets/sitech-fb-page-id",
+   "token_file": "/root/.secrets/sitech-fb-page-token",
+   "user_token_file": "/root/.secrets/sitech-fb-user-token",
+   "reels_per_day": 3
+  },
+  "hashtags": [
+   "#SiTech",
+   "#ტექნოლოგიები",
+   "#სიახლეები",
+   "#sitechge",
+   "#საქართველო"
+  ],
+  "cover": {
+   "kicker": "სიახლე",
+   "wordmark": "sitech.ge"
+  },
+  "kaeasy_plugins": "/root/.hermes/shared-plugins"
  }
 }

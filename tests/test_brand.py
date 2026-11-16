@@ -19,6 +19,10 @@ class Packs(unittest.TestCase):
     def setUp(self):
         brand.load.cache_clear()
 
+    # A pack opts into pictures by naming its providers (2026-11-03). tbilisi.today needs them for
+    # its own films; sitech stays without pictures until it asks.
+    EXPECT_PROVIDERS = {"tbilisi-today": ["commons", "openverse"], "sitech": []}
+
     def tearDown(self):
         brand.load.cache_clear()
 
@@ -47,7 +51,7 @@ class Packs(unittest.TestCase):
             self.assertIn("{author}", b["strings"]["media_credit"])
             self.assertEqual(b["media"]["own"], [own])  # the pack's own site
             self.assertIn("matsne.gov.ge", b["media"]["official"])  # the base's official sites, merged
-            self.assertEqual(b["media"]["providers"], [])  # pictures are opt-in per pack (2026-11-03): none by default
+            self.assertEqual(b["media"]["providers"], self.EXPECT_PROVIDERS[n])  # pictures are opt-in per pack (2026-11-03)
             self.assertIn("illustrative", brand.for_remotion(b)["strings"])
 
     def test_a_tinted_keyword_falls_back_where_the_theme_cant_carry_it(self):
@@ -376,6 +380,62 @@ class Props(unittest.TestCase):
         self.assertNotIn("engine", good)  # neither shipped pack sets one: remotion unless a program says otherwise
         with mock.patch.dict(brand.load("sitech"), {"engine": "hyperframes"}):
             self.assertEqual(compose.engine_for({"id": 1, "brand": "sitech"}), ("hyperframes", "brand sitech"))
+
+
+class SocialConfig(unittest.TestCase):
+    def test_shipped_packs_carry_valid_social_config(self):
+        for n in ("sitech", "tbilisi-today"):
+            b, soc = brand.require_social(n)
+            self.assertEqual(b["name"], n)
+            self.assertIn("facebook", soc)
+            self.assertIn("cover", soc)
+            self.assertGreaterEqual(len(soc["hashtags"]), 1)
+
+    def test_pack_without_social_loads_cleanly_but_refuses_social_use(self):
+        bare = json.loads((ROOT / "brands" / "tbilisi-today" / "brand.json").read_text(encoding="utf-8"))
+        bare.pop("social", None)
+        with tempfile.TemporaryDirectory() as d:
+            d = pathlib.Path(d)
+            (d / "_ka").mkdir()
+            (d / "_ka" / "brand.json").write_text((ROOT / "brands" / "_ka" / "brand.json").read_text(encoding="utf-8"),
+                                                  encoding="utf-8")
+            pack(d, "bare", {**bare, "name": "bare"})
+            with mock.patch.object(brand, "DIR", d):
+                brand.load.cache_clear()
+                b = brand.load("bare")
+                self.assertEqual(b["name"], "bare")
+                with self.assertRaisesRegex(brand.BrandError, "this brand has no social config"):
+                    brand.require_social("bare")
+
+    def test_malformed_social_config_fails_loudly(self):
+        good = json.loads((ROOT / "brands" / "sitech" / "brand.json").read_text(encoding="utf-8"))
+        soc = good["social"]
+        bad_cases = {
+            "unknown_key": {**soc, "instagram": {}},
+            "bad_fb_key": {**soc, "facebook": {**soc["facebook"], "page_id": "123"}},
+            "empty_token": {**soc, "facebook": {**soc["facebook"], "token_file": ""}},
+            "zero_reels": {**soc, "facebook": {**soc["facebook"], "reels_per_day": 0}},
+            "too_many_reels": {**soc, "facebook": {**soc["facebook"], "reels_per_day": 31}},
+            "bool_reels": {**soc, "facebook": {**soc["facebook"], "reels_per_day": True}},
+            "bad_tags": {**soc, "hashtags": ["nohash"]},
+            "empty_tags": {**soc, "hashtags": []},
+            "bad_cover": {**soc, "cover": {"kicker": "სიახლე"}},
+            "bad_kaeasy": {**soc, "kaeasy_plugins": "   "},
+        }
+        with tempfile.TemporaryDirectory() as d:
+            d = pathlib.Path(d)
+            (d / "_ka").mkdir()
+            (d / "_ka" / "brand.json").write_text((ROOT / "brands" / "_ka" / "brand.json").read_text(encoding="utf-8"),
+                                                  encoding="utf-8")
+            for name, bad_soc in bad_cases.items():
+                pack(d, name, {**good, "name": name, "social": bad_soc})
+                for f in ("logo-horizontal.svg", "logo-stacked.svg", "logo-horizontal-coal.svg", "logo-stacked-coal.svg"):
+                    (d / name / f).write_bytes((ROOT / "brands" / "sitech" / f).read_bytes())
+            with mock.patch.object(brand, "DIR", d):
+                for name in bad_cases:
+                    brand.load.cache_clear()
+                    with self.assertRaises(brand.BrandError, msg=name):
+                        brand.load(name)
 
 
 if __name__ == "__main__":
