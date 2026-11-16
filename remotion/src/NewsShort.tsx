@@ -50,15 +50,20 @@ const Header: React.FC = () => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const x = (W - 2 * SIDE) * (frame / Math.max(1, durationInFrames - 1));
+  const logoW = props.brand.logo === "svg" ? 360 : 88 + 24 + measure(props.brand.wordmark.text, 700) * 0.44;
+  const maxMetaW = Math.max(240, W - 2 * SIDE - logoW - 24);
+  const fullMeta = `${props.date.weekday} · ${props.date.time} · ${props.category}`;
+  const compactMeta = `${props.date.time} · ${props.category}`;
+  const metaLine = measure(fullMeta, 400) * 0.30 <= maxMetaW ? fullMeta : compactMeta;
   return (
     <>
-      <div data-probe="header" style={{ position: "absolute", left: SIDE, top: 80, height: 88, display: "flex", alignItems: "center" }}>
-        <Logo place="header" size={88} />
-      </div>
-      <div data-probe="header" style={{ position: "absolute", right: SIDE, top: 80, textAlign: "right", fontFamily: FONT }}>
-        <div style={{ fontWeight: 700, fontSize: 40, lineHeight: 1.2, color: INK }}>{props.date.date}</div>
-        <div style={{ fontWeight: 400, fontSize: 30, lineHeight: 1.4, color: MUTED }}>
-          {props.date.weekday} · {props.date.time} · {props.category}
+      <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 80, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24 }}>
+        <div data-probe="header" style={{ height: 88, display: "flex", alignItems: "center", flexShrink: 0 }}>
+          <Logo place="header" size={88} />
+        </div>
+        <div data-probe="header" style={{ flex: "1 1 auto", minWidth: 0, maxWidth: maxMetaW, textAlign: "right", fontFamily: FONT }}>
+          <div style={{ fontWeight: 700, fontSize: 40, lineHeight: 1.2, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{props.date.date}</div>
+          <div style={{ fontWeight: 400, fontSize: 30, lineHeight: 1.4, color: MUTED, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{metaLine}</div>
         </div>
       </div>
       {props.chapters && props.chapters.length > 1 ? <ChapterBar chapters={props.chapters} /> : (
