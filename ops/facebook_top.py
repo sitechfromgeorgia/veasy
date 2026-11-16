@@ -36,9 +36,10 @@ RECEIPTS = pathlib.Path("/root/sitech/scratch/hourly-audit/fb-video-receipts.jso
 # rolling 24 h, so 20 leaves headroom. The lane still paces itself: a run publishes a small batch
 # with a pause between posts instead of emptying the queue in one burst, because ten reels inside
 # two minutes is what a spam feed looks like.
-LIMIT = 5              # reels per calendar day (+04)
-# Owner, 2026-11-16: "რილსები შეამცირე მაგრამ ამბები გაზარდე" - five reels and fifty news cards a day,
-# so the effort sits where the volume is.
+LIMIT = 3              # reels per calendar day (+04)
+# Owner, 2026-11-16: "რილსები შეამცირე მაგრამ ამბები გაზარდე", then "ყველგან შეამცირე ზოგადად
+# რილსების კეთება, ეკონომ რეჟიმში გადავირვართ დროებით". Three a day while the writer seat is the
+# scarce thing; news cards carry the volume at fifty.
 # Owner, 2026-11-16: twenty-five was set while the writer still had a paid route, then the
 # OpenRouter key hit its own cap and the free lane had to take over. Ten a day is the ceiling until
 # a usable writer is funded again, and the owner will send alternatives. Raising this again without
