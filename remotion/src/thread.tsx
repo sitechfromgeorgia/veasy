@@ -5,6 +5,7 @@ import { interpolatePath } from "@remotion/paths";
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, INK, LINE_STRONG, MUTED, PANEL, RED, SCENE_BOTTOM, SCENE_TOP, W } from "./brand";
+import { boilTickFor } from "./ink";
 import { artNode } from "./scenes/more";
 import type { ArtNode, Scene, SceneThread, Thread } from "./types";
 import { flowOf, useTheme } from "./ui";
@@ -36,8 +37,11 @@ const useColors = (invert = false): Record<string, string> => {
 
 const Lines: React.FC<{ art: ArtNode[]; drawn: number; invert?: boolean }> = ({ art, drawn, invert = false }) => {
   const colors = useColors(invert);
+  const { props } = useTheme();
+  const absFrame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  return <>{art.map((n, i) => artNode(n, i, { frame: drawn, fps, k: 0.5, colors }, null))}</>;
+  const boilTick = boilTickFor(props, absFrame);
+  return <>{art.map((n, i) => artNode(n, i, { frame: drawn, fps, k: 0.5, colors, boilTick }, null))}</>;
 };
 
 /** The drawing in its state `t` (0..1), in the drawing's own coordinates. drawn: the frame its strokes draw themselves

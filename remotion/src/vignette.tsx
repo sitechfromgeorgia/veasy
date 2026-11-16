@@ -5,6 +5,7 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { CANVAS, INK, LINE_STRONG, MUTED, PANEL, RED } from "./brand";
+import { boilTickFor } from "./ink";
 import { artNode } from "./scenes/more";
 import { CROSS } from "./thread";
 import { useTheme } from "./ui";
@@ -32,12 +33,13 @@ export const VignetteLayer: React.FC = () => {
   const actAt = s.mark ? s.mark.at - START : undefined;
   // a slow push-in from its foot, inside the seat, so even a drawing without an act is never still
   const push = 1 - DRIFT + DRIFT * interpolate(local, [0, s.duration], [0, 1], clamp);
+  const boilTick = boilTickFor(props, frame);
   return (
     <AbsoluteFill style={{ pointerEvents: "none" }}>
       <svg width={vg.w} height={vg.h} viewBox={`${x0} ${y0} ${x1 - x0} ${y1 - y0}`} fill="none" strokeLinecap="round"
         strokeLinejoin="round" style={{ position: "absolute", left: vg.x, top: vg.y, overflow: "visible", opacity,
           transform: `scale(${push})`, transformOrigin: "50% 100%" }}>
-        {vg.art.map((n, i) => artNode(n, i, { frame: local - START, fps, k: 0.5, colors, actAt }, drawing))}
+        {vg.art.map((n, i) => artNode(n, i, { frame: local - START, fps, k: 0.5, colors, actAt, boilTick }, drawing))}
       </svg>
     </AbsoluteFill>
   );
