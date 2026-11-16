@@ -357,6 +357,40 @@ def _clamp(text: str, limit: int) -> str:
 _DASH_RE = re.compile(r"\s*[\u2013\u2014]\s*")
 
 
+# Georgian word forms a model gets wrong often enough that a person has had to correct them.
+# Every entry is a pair the owner himself flagged or that kaeasy records as a common error, so this is
+# code enforcing a known rule, not a guess at grammar. Longest first so a longer wrong form is not
+# half-replaced by a shorter entry.
+_KA_WRONG_FORMS = [
+    ("გაეცნა", "გაეცნო"),   # owner, 2026-11-16, after a live reel printed it in the hook
+]
+
+
+def _ka_forms(story: dict) -> None:
+    """Rewrite known-wrong Georgian forms everywhere the writer puts text."""
+    def fix(text):
+        if not isinstance(text, str):
+            return text
+        for wrong, right in _KA_WRONG_FORMS:
+            if wrong in text:
+                text = text.replace(wrong, right)
+        return text
+
+    if isinstance(story.get("narration"), str):
+        story["narration"] = fix(story["narration"])
+    for key in ("headline", "hook", "title", "cta"):
+        if isinstance(story.get(key), str):
+            story[key] = fix(story[key])
+    for sc in story.get("scenes") or []:
+        if not isinstance(sc, dict):
+            continue
+        for key, v in list(sc.items()):
+            if isinstance(v, str):
+                sc[key] = fix(v)
+            elif isinstance(v, list):
+                sc[key] = [fix(x) if isinstance(x, str) else x for x in v]
+
+
 def _no_dashes(story: dict) -> None:
     """The house rule bans the en and em dash everywhere we publish (owner, standing).
 
@@ -656,6 +690,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _wrap_hook(story)  # the first pass too
     _clamp_texts(story)
     _no_dashes(story)
+    _ka_forms(story)
     _repair_scenes(story, articles)
     _fix_anchors(story)
     _drop_short_scenes(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
@@ -689,6 +724,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _wrap_hook(story)
         _clamp_texts(story)
         _no_dashes(story)
+        _ka_forms(story)
         _drop_unsourced_numbers(story, articles)
         _repair_scenes(story, articles)
         _fix_anchors(story)
