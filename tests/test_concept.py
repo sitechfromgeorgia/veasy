@@ -293,15 +293,19 @@ class Provider(unittest.TestCase):
     def test_the_default_is_exactly_what_it_was(self):
         s = self.sent({"OPENROUTER_API_KEY": "k"})
         self.assertEqual(s["url"], "https://openrouter.ai/api/v1/chat/completions")
+        # On OpenRouter the model's private reasoning is billed against max_tokens, so the budget widens to
+        # THINKING_TOKENS there; every other provider gets the plain budget (writer.py, 2026-11-16).
         self.assertEqual(s["body"], {"model": "m", "messages": [{"role": "user", "content": "p"}], "temperature": 0.3,
-                                     "max_tokens": 1800, "reasoning": {"enabled": False}})
+                                     "max_tokens": writer.THINKING_TOKENS, "reasoning": {"enabled": False}})
 
     def test_any_openai_format_server_can_write(self):
         s = self.sent({"SHORTS_WRITER_URL": "https://api.example.test/provider/v1/", "SHORTS_WRITER_KEY": "k2"})
         self.assertEqual(s["url"], "https://api.example.test/provider/v1/chat/completions")
         self.assertEqual(s["auth"], "Bearer k2")
         self.assertEqual(s["agent"], "veasy-writer")  # not Python-urllib's default, which Cloudflare refuses
-        self.assertEqual(s["body"]["max_tokens"], writer.THINKING_TOKENS)  # thinking counts: too few, an empty answer
+        # a non-OpenRouter provider asks for the caller's budget only: the widened budget there made the
+        # gateway wait for a 24k completion and timed out (writer.py, 2026-11-16)
+        self.assertEqual(s["body"]["max_tokens"], 1800)
         self.assertNotIn("reasoning", s["body"])
 
     def test_a_missing_key_names_itself(self):
@@ -368,7 +372,8 @@ class WriteStory(unittest.TestCase):
 
     def test_a_script_that_can_not_carry_the_idea_keeps_its_place(self):
         ideas = {"ideas": [idea(rung=1, device="persistent-object", object="კალათა", facts=["3.8"], idea="კალათა 3.8 ნაბიჯით")]}
-        result, prompts = self.write([ideas, self.draft, self.draft, self.draft, self.draft])
+        # one concept call + one write + four repairs (writer.write(repairs=4), 2026-11-16)
+        result, prompts = self.write([ideas, self.draft, self.draft, self.draft, self.draft, self.draft])
         self.assertEqual(result["problems"], [])
         self.assertIn("no scene carries", prompts[2])  # it went back for repairs like any problem
         self.assertIsNone(result["concept"])
