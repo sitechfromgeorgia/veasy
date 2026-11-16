@@ -183,7 +183,7 @@ def build(story_path, variant="auto", engine="edge", tone=None, edge_voice=speec
     props = {
         "brand": brand.for_remotion(b),
         "theme": b["theme"],  # the pack's theme the video is drawn in (brand.themed): its colors are props.brand's
-        "variant": variant, "id": sid, "category": meta.category_label(category, b),
+        "variant": variant, "program": story.get("program"), "id": sid, "category": meta.category_label(category, b),
         "date": {k: d[k] for k in ("date", "time", "weekday")},
         "when": meta.when(d, b),
         "sources": story.get("sources", []), "sourcesLine": meta.sources_line(story.get("sources", []), b=b),

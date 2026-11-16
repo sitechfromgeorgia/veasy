@@ -299,6 +299,7 @@ export type BrandProps = {
 export type ShortProps = {
   brand: BrandProps;
   variant: Variant;
+  program?: string | null;
   transition: Transition;
   camera?: Camera; // transition "one-take" only
   style?: Style; // absent: the look's own (stack; grid or diagonal; rise or slide)

@@ -834,7 +834,7 @@ def starter(story, project):
         hosts.append(f'      <div id="s{i}" data-composition-id="s{i}" data-composition-src="compositions/s{i}.html" '
                      f'data-beat="s{i}" {_until(nxt)} data-track-index="{1 + i % 2}" '
                      f'data-track-kind="graphics" data-width="{W}" data-height="{H}" style="z-index: {10 + i}"></div>')
-        (project / "compositions" / f"s{i}.html").write_text(starter_scene(i, s), encoding="utf-8")
+        (project / "compositions" / f"s{i}.html").write_text(starter_scene(i, s, program=story.get("program")), encoding="utf-8")
     (project / "index.html").write_text(INDEX.replace("{hosts}", "\n".join(hosts)), encoding="utf-8")
 
 
@@ -876,7 +876,7 @@ INDEX = """<!doctype html>
 """
 
 
-def starter_scene(i, s):
+def starter_scene(i, s, program=None):
     """One plain scene: the scene's words, each bound to its fact (s<i>-<field>), stacked and rising in."""
     fields = [k for k, v in s.items() if k not in ("type", "at", "em", "icon", "verb", "style", "svg")]
     rows, n = [], 0
@@ -894,8 +894,15 @@ def starter_scene(i, s):
                 big = "big" if n == 0 else ("mid" if n < 3 else "small")
                 rows.append(f'      <div id="s{i}-r{n}" class="row {big}" data-var-text="{fid}">…</div>')
                 n += 1
-    tweens = "\n".join(f'      tl.fromTo("#s{i}-r{k}", {{ opacity: 0, y: 40 }}, {{ opacity: 1, y: 0, duration: 0.4, '
-                       f'ease: "expo.out" }}, {0.1 + 0.25 * k:.2f});' for k in range(n))
+    cut_tweens = []
+    if i > 0:
+        cut_tweens.append('      tl.fromTo("#root .stack", { y: 18 }, { y: 0, duration: 0.34, ease: "power2.out" }, 0);')
+        if program and program != "news":
+            cut_tweens.append('      tl.to("#root .stack", { scale: 1.03, duration: 0.17, ease: "sine.inOut" }, 0);')
+            cut_tweens.append('      tl.to("#root .stack", { scale: 1, duration: 0.17, ease: "sine.inOut" }, 0.17);')
+    row_tweens = [f'      tl.fromTo("#s{i}-r{k}", {{ opacity: 0, y: 40 }}, {{ opacity: 1, y: 0, duration: 0.4, '
+                  f'ease: "expo.out" }}, {0.1 + 0.25 * k:.2f});' for k in range(n)]
+    tweens = "\n".join(cut_tweens + row_tweens)
     return f"""<!-- scene s{i} ({s['type']}): a plain start, the scene's own words bound to its facts. Make it a picture. -->
 <template>
   <style>
