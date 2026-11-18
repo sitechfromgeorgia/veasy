@@ -685,6 +685,27 @@ def _repair_scenes(story: dict, articles: list[str]) -> None:
         story["scenes"] = kept
 
 
+def _drop_pictograms(story: dict) -> None:
+    """N10: a story about a death or the crime family carries no pictograms, so remove them in code.
+
+    The checker bans a sign scene, a stat's icon and the motif for those stories, and the rule is
+    stated in the prompt but the model keeps a sign in: measured 2026-11-18, four repair passes each
+    returned one. Deleting the scene is what the checker asks for in the same sentence, and the video
+    reads the same without it because the narration still says everything.
+    """
+    from tt_shorts import news_check
+    why = news_check.no_pictograms(story)
+    if not why:
+        return
+    scenes = story.get("scenes") or []
+    kept = [sc for sc in scenes if not (isinstance(sc, dict) and sc.get("type") == "sign")]
+    for sc in kept:
+        if isinstance(sc, dict) and sc.get("type") == "stat":
+            sc.pop("icon", None)
+    story["scenes"] = kept
+    story.pop("motif", None)
+
+
 def _drop_short_scenes(story: dict) -> None:
     """K9: a scene that would flash by for fewer than six words is removed, not failed."""
     narration = story.get("narration", "")
@@ -862,6 +883,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     normalize_ka.fix_say_letters(story)
     _repair_scenes(story, articles)
     _fix_anchors(story)
+    _drop_pictograms(story)
     _drop_short_scenes(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
     # identity is added once, after every model pass (see below)
     problems = checks_of(story, articles, cluster)
@@ -900,6 +922,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _drop_unsourced_numbers(story, articles)
         _repair_scenes(story, articles)
         _fix_anchors(story)
+        _drop_pictograms(story)
         _drop_short_scenes(story)
         problems = checks_of(story, articles, cluster)
         if not _anchors_ok(story):
