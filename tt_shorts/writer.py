@@ -381,8 +381,15 @@ def _hard_anchor(story: dict) -> None:
     wanted = [max(mins[i], len(str(sc.get("at") or "").split())) for i, sc in enumerate(scenes)]
     scale = min(1.0, total / sum(wanted)) if sum(wanted) > total else 1.0
     takes = [max(mins[i], int(w * scale)) for i, w in enumerate(wanted)]
-    # hand the remainder to the last scene that can use it
-    takes[-1] += total - sum(takes)
+    # Spread any leftover words across the scenes instead of dumping them on the last one. Assigning
+    # the whole remainder to the final scene made one calendar scene 27.9 s long, which is the stillness
+    # rule failing on a cut that the anchor pass itself created.
+    leftover = total - sum(takes)
+    i = 0
+    while leftover > 0 and len(takes) > 0:
+        takes[i % len(takes)] += 1
+        leftover -= 1
+        i += 1
 
     pos = 0
     out = []
@@ -450,7 +457,8 @@ def _fix_dates(story: dict, cluster: dict) -> None:
 # 30-character end line reached the checker and failed the job on "at most 24" (measured 2026-11-18)
 # while every other field was clamped before the check ever saw it.
 _LIMITS = {"kicker": 24, "headline": 40, "label": 24, "big": 12, "unit": 8, "place": 30, "sub": 30,
-           "by": 40, "text": 200, "via": 32, "end": 24, "weekday": 20, "change": 24, "value": 12}
+           "by": 40, "text": 200, "via": 32, "end": 24, "weekday": 20, "change": 24, "value": 12,
+           "start": 24, "finish": 24, "to": 24, "from": 24, "when": 24, "where": 30}
 
 
 def _clamp(text: str, limit: int) -> str:
@@ -804,6 +812,54 @@ def _drop_pictograms(story: dict) -> None:
     story.pop("motif", None)
 
 
+def _fix_sign_verbs(story: dict) -> None:
+    """N10: a sign's verb must be one the narration actually says, or the sign goes.
+
+    The checker knows which Georgian stems mean rises/falls/moves/joins and rejects a sign whose own
+    part of the narration says none of them. The model picks the verb from the headline and keeps
+    picking it through four repairs (measured 2026-11-18: "moves" against a narration that says
+    neither გადავა nor გადაიტანეს). Trying every verb the narration supports keeps the sign; if none
+    matches, the scene is dropped, which is exactly what the checker's message asks for.
+    """
+    from tt_shorts import icons
+    scenes = story.get("scenes") or []
+    if not any(isinstance(sc, dict) and sc.get("type") == "sign" for sc in scenes):
+        return
+    out = []
+    for i, sc in enumerate(scenes):
+        if not isinstance(sc, dict) or sc.get("type") != "sign":
+            out.append(sc)
+            continue
+        part = _scene_part(story, i)
+        verb = sc.get("verb")
+        if verb in icons.VERBS and not icons.said(verb, part):
+            # pick a verb the narration does support, keeping the first one that matches
+            chosen = next((v for v in icons.VERBS if icons.said(v, part)), None)
+            if chosen is None:
+                continue  # no verb fits: the sign cannot show anything the narration says
+            sc["verb"] = chosen
+        out.append(sc)
+    story["scenes"] = out
+
+
+def _scene_part(story: dict, index: int) -> str:
+    """The slice of narration a scene is responsible for: from its anchor to the next scene's."""
+    narration = story.get("narration") or ""
+    scenes = story.get("scenes") or []
+    at = str((scenes[index] or {}).get("at") or "").strip()
+    start = narration.find(at) if at else -1
+    if start < 0:
+        return ""
+    nxt = ""
+    for j in range(index + 1, len(scenes)):
+        cand = str((scenes[j] or {}).get("at") or "").strip()
+        if cand:
+            nxt = cand
+            break
+    end = narration.find(nxt, start + len(at)) if nxt else -1
+    return narration[start:end] if end > start else narration[start:]
+
+
 def _drop_short_scenes(story: dict) -> None:
     """K9: a scene that would flash by for fewer than six words is removed, not failed."""
     narration = story.get("narration", "")
@@ -989,6 +1045,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     normalize_ka.fix_say_letters(story)
     _repair_scenes(story, articles)
     _drop_pictograms(story)
+    _fix_sign_verbs(story)
     _drop_short_scenes(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
     # Anchors come last: every pass above can delete a scene or rewrite the narration, and an anchor
     # fixed before that describes text that no longer exists. Measured 2026-11-18: K13 survived four
@@ -1040,8 +1097,10 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _drop_unsourced_numbers(story, articles)
         _repair_scenes(story, articles)
         _drop_pictograms(story)
+        _fix_sign_verbs(story)
         _drop_short_scenes(story)
         _drop_pictograms(story)
+        _fix_sign_verbs(story)
         _drop_short_scenes(story)
         _fix_anchors(story)
         if not _anchors_ok(story):
@@ -1052,6 +1111,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     if not _anchors_ok(story):
         # Last chance before failing: the repair above may itself have deleted or rewritten a scene.
         _drop_pictograms(story)
+        _fix_sign_verbs(story)
         _drop_short_scenes(story)
         _fix_anchors(story)
         if not _anchors_ok(story):
