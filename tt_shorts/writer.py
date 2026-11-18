@@ -159,12 +159,17 @@ def _call(prompt: str, model: str, max_tokens: int = 1800, tries: int = 3) -> st
             # "Key limit exceeded") failed every render while the working NVIDIA quota sat unused.
             # Measured 2026-11-16: the OpenRouter key was at $50.01 of $50.00 and 309 jobs were
             # sitting in failed. Any OpenRouter refusal now falls through to NVIDIA.
-            if url == ENDPOINT and e.code in (401, 402, 403, 429, 500, 502, 503):
+            # Any provider that refuses falls through to NVIDIA, not only OpenRouter. Measured
+            # 2026-11-18: Groq is now first, and its daily token cap (200,000 TPD, shared by every
+            # model on the key) was reached at 198,580, so every render died on 429 while the NVIDIA
+            # key sat idle with its own quota. A refused request is a reason to change route, not a
+            # reason to stop.
+            if e.code in (401, 402, 403, 429, 500, 502, 503) and name != "NVIDIA_API_KEY":
                 try:
                     return _nvidia(prompt, max_tokens)
                 except Exception as nv:
                     last = f"HTTP {e.code} and nvidia fallback failed: {nv}"
-                time.sleep(20 * (attempt + 1))
+                time.sleep(15 * (attempt + 1))
                 continue
         except (urllib.error.URLError, TimeoutError) as e:
             last = f"{type(e).__name__}: {e}"
@@ -618,7 +623,15 @@ def _clamp_texts(story: dict) -> None:
 
 
 def _repair_enabled() -> bool:
-    return os.environ.get("TT_REPAIR_SCENES", "") == "1"
+    """Structural repairs are on by default.
+
+    It defaulted to off and the tick set it, so every repair this file already knows how to make
+    (an anchor that only differs in punctuation, a scene whose anchor was invented) depended on one
+    environment string surviving three layers of shell. Measured 2026-11-18: the tick exports it, a
+    hand run does not, and the difference shows up as K13 failures with no cause. The switch stays
+    so a test can pin the old behaviour, but its absence now means on.
+    """
+    return os.environ.get("TT_REPAIR_SCENES", "1") != "0"
 
 
 def _repair_scenes(story: dict, articles: list[str]) -> None:
@@ -686,11 +699,17 @@ def _drop_short_scenes(story: dict) -> None:
             return
         starts.append(len(narration[:i].split()))
         pos = i + len(at)
-    keep = [0]
-    for i in range(1, len(scenes) - 1):
+    # Scene 0 was kept unconditionally, so a hook with five words before the next scene reached the
+    # checker and failed the render (measured 2026-11-18: K9 on scene 0 hook). The first scene gets
+    # the same test as the rest; dropping it just means the second scene opens the video, which is
+    # what a hook with no room for its own words should do.
+    keep = []
+    for i in range(0, len(scenes) - 1):
         need = 4 if scenes[i].get("type") == "end" else 6
         if starts[i + 1] - starts[i] >= need:
             keep.append(i)
+    if not keep:
+        keep = [0]
     keep.append(len(scenes) - 1)
     story["scenes"] = [scenes[i] for i in dict.fromkeys(keep)]
 
