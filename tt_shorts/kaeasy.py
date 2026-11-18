@@ -23,6 +23,7 @@ import re
 import sys
 
 DEFAULT_DIR = "/root/.hermes/shared-plugins/kaeasy"
+LEARNED_AGENTS = {"corpus-review", "human", "teacher"}
 AGENT = "tt-shorts"
 _mods = {}
 
@@ -91,11 +92,18 @@ def strict_rules():
 def check(text, mode):
     """kaeasy findings for one text as dicts {check, severity, message, snippet}; [] when kaeasy is missing.
 
-    Besides the deterministic linter, this reads kaeasy's shared mistakes memory: a pair the fleet has
-    already learned (wrong -> right) is an error wherever it appears again. Without this, a learned form
-    only reached the writer's prompt, so the same mistake could be published the next day and the
-    learning was never enforced (measured 2026-11-18: "მოქცევარი" learned from the corpus review still
-    passed the gate).
+    Besides the deterministic linter, this reports a learned wrong -> right pair as a finding. It is a
+    WARNING, not a block: `ka_check._blocking` accepts only the checks in `LINT_RULES` or in kaeasy's own
+    `STRICT`, and `learned` is in neither. An earlier commit claimed otherwise and was wrong.
+
+    That is deliberate for now. A learned pair is one model's opinion until it has been attested against
+    human-written Georgian and has fired as a warning for a few days without a human calling it wrong;
+    until then it must be visible and must not stop a story. The proofread gate at write time is what
+    actually holds a story, and it holds on one word only.
+
+    Only rows a language job produced (`LEARNED_AGENTS`) are read. The shared memory also holds 442
+    editor-pass diffs whose pairs are context edits ("შესახებ -> ბრალდებას", "ბრძანებას -> ბრძანება"),
+    and matched as substrings those fired on 22 of 34 published records.
     """
     findings = []
     lint = _load("lint")
@@ -109,31 +117,43 @@ def check(text, mode):
 
 
 def _learned_findings(text: str) -> list[dict]:
-    """Every learned wrong -> right pair that occurs in this text, as a finding of its own."""
+    """Learned wrong -> right pairs that occur in this text, as findings.
+
+    Only rows a language job produced (`LEARNED_AGENTS`) are rules. The shared memory also holds 442
+    editor-pass diffs whose pairs are context edits, not rules: "შესახებ -> ბრალდებას",
+    "ბრძანებას -> ბრძანება", "გამო -> გამოყენების შედეგად". Matched as substrings those fired on almost
+    every published text (measured 2026-11-19: 22 of 34 records, one true pair among 19).
+
+    Matching is whole-word with Georgian boundaries, so "გამო" cannot fire inside "გამოიყენა".
+    """
     if not text.strip():
         return []
     mem = _load("memory")
     if not mem:
         return []
     try:
-        rows = mem.top(500) if hasattr(mem, "top") else []
+        rows = mem.top(1000) if hasattr(mem, "top") else []
     except Exception:  # noqa: BLE001
         return []
-    out = []
-    seen = set()
+    out, seen = [], set()
     for row in rows or []:
-        wrong = str((row or {}).get("wrong") or "").strip()
-        right = str((row or {}).get("right") or "").strip()
+        row = row or {}
+        if str(row.get("agent") or "") not in LEARNED_AGENTS:
+            continue
+        wrong = str(row.get("wrong") or "").strip()
+        right = str(row.get("right") or "").strip()
         if not wrong or not right or wrong == right or wrong in seen:
             continue
-        start = text.find(wrong)
-        if start < 0:
+        if len(wrong.split()) > 1:
+            continue  # a phrase is context, never a rule
+        m = re.search(rf"(?<![ა-ჰA-Za-z0-9-]){re.escape(wrong)}(?![ა-ჰA-Za-z0-9])", text)
+        if not m:
             continue
         seen.add(wrong)
         out.append({"check": "learned", "severity": "error",
                     "message": f"ნასწავლი შესწორება: „{wrong}“ → „{right}“",
-                    "snippet": text[max(0, start - 40):start + len(wrong) + 40],
-                    "start": start, "end": start + len(wrong)})
+                    "snippet": text[max(0, m.start() - 40):m.end() + 40],
+                    "start": m.start(), "end": m.end()})
     return out
 
 
@@ -149,15 +169,29 @@ def ten_rules():
 
 
 def mistakes(limit=15):
-    """The fleet's most frequent Georgian mistakes as '- ❌ … → ✅ …' lines, or ''."""
+    """The fleet's Georgian mistakes worth showing a writer, as '- ❌ … → ✅ …' lines, or ''.
+
+    Only rows a language job produced. The shared memory also holds 442 editor-pass diffs whose pairs
+    are context edits; as prompt advice they teach a writer to swap a correct word for an unrelated one.
+    """
     mem = _load("memory")
     if not mem:
         return ""
     try:
-        rows = mem.top(limit)
-        return mem.as_markdown(rows) if rows else ""
+        rows = mem.top(200) or []
     except Exception as e:  # noqa: BLE001
         print(f"kaeasy: memory read failed: {e}", file=sys.stderr)
+        return ""
+    keep = [r for r in (rows or [])
+            if str((r or {}).get("agent") or "") in LEARNED_AGENTS
+            and str((r or {}).get("wrong") or "").strip()
+            and str((r or {}).get("right") or "").strip()
+            and len(str((r or {}).get("wrong")).split()) == 1]
+    if not keep:
+        return ""
+    try:
+        return mem.as_markdown(keep[:limit])
+    except Exception:  # noqa: BLE001
         return ""
 
 

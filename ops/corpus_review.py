@@ -105,7 +105,7 @@ def _apply(pairs: list[dict], day_text: str) -> tuple[list[dict], list[dict]]:
             continue
         try:
             saved = kaeasy.learn(p["wrong"], p["right"], reason=p.get("why") or "daily corpus review",
-                                 category="grammar", agent="corpus-review")
+                                 category="lexical", agent="corpus-review")
         except Exception as e:  # noqa: BLE001
             rejected.append({**p, "rejected": f"learn failed: {e}"})
             continue
@@ -125,7 +125,10 @@ def review(day: str | None = None, model: str | None = None, dry: bool = False) 
     answer = reader.ask(PROMPT + text, model=model, max_tokens=1500, json_out=True)
     pairs = _parse(answer)
     day_text = "\n".join(r.get("text", "") for r in records)
-    accepted, rejected = ([], [{"**": "dry"}] if dry else _apply(pairs, day_text))
+    if dry:
+        accepted, rejected = [], [{"note": "dry run, nothing written"}]
+    else:
+        accepted, rejected = _apply(pairs, day_text)
     report = {"day": day or records[0].get("day"), "records": len(records), "chars": len(text),
               "pairs": len(pairs), "accepted": accepted, "rejected": rejected}
     if not dry:
