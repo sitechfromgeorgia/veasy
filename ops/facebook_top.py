@@ -28,7 +28,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from tt_shorts import brand as packs, facebook, meta, queue, reel_cover, social_copy, store  # noqa: E402
+from tt_shorts import brand as packs, corpus, facebook, meta, queue, reel_cover, social_copy, store  # noqa: E402
 
 RECEIPTS = store.home() / "logs" / "fb-video-receipts.jsonl"
 BATCH = 6              # posts per run
@@ -261,6 +261,19 @@ def main() -> int:
                 "at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "cid": cid, "video_id": out.get("video_id")}
             _save(mark, state)
+            # The corpus holds what a reader actually saw. Written at publish, not at render, so a
+            # render that never went out never enters the record we later learn from (owner, 2026-11-18).
+            try:
+                corpus.record("caption", cid, "facebook", caption or "", permalink=str(out.get("permalink") or ""))
+                st = None
+                try:
+                    st = json.loads(pathlib.Path(job["story"]).read_text(encoding="utf-8"))
+                except Exception:  # noqa: BLE001
+                    pass
+                if isinstance(st, dict):
+                    corpus.record_story(st, surface="facebook")
+            except Exception:  # noqa: BLE001 - the corpus must never fail a publish
+                pass
             try:
                 cover_path = covers_dir / f"fb-reel-{pack['name']}-{cid}.jpg"
                 cover = reel_cover.from_story(

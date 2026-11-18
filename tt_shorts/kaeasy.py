@@ -89,15 +89,52 @@ def strict_rules():
 
 
 def check(text, mode):
-    """kaeasy findings for one text as dicts {check, severity, message, snippet}; [] when kaeasy is missing."""
+    """kaeasy findings for one text as dicts {check, severity, message, snippet}; [] when kaeasy is missing.
+
+    Besides the deterministic linter, this reads kaeasy's shared mistakes memory: a pair the fleet has
+    already learned (wrong -> right) is an error wherever it appears again. Without this, a learned form
+    only reached the writer's prompt, so the same mistake could be published the next day and the
+    learning was never enforced (measured 2026-11-18: "მოქცევარი" learned from the corpus review still
+    passed the gate).
+    """
+    findings = []
     lint = _load("lint")
-    if not lint or not (text or "").strip():
+    if lint and (text or "").strip():
+        try:
+            findings = [f.as_dict() if hasattr(f, "as_dict") else dict(f) for f in lint.check_text(text, mode=mode)]
+        except Exception as e:  # noqa: BLE001
+            print(f"kaeasy: check_text failed ({mode}): {e}", file=sys.stderr)
+    findings.extend(_learned_findings(text or ""))
+    return findings
+
+
+def _learned_findings(text: str) -> list[dict]:
+    """Every learned wrong -> right pair that occurs in this text, as a finding of its own."""
+    if not text.strip():
+        return []
+    mem = _load("memory")
+    if not mem:
         return []
     try:
-        return [f.as_dict() if hasattr(f, "as_dict") else dict(f) for f in lint.check_text(text, mode=mode)]
-    except Exception as e:  # noqa: BLE001
-        print(f"kaeasy: check_text failed ({mode}): {e}", file=sys.stderr)
+        rows = mem.top(500) if hasattr(mem, "top") else []
+    except Exception:  # noqa: BLE001
         return []
+    out = []
+    seen = set()
+    for row in rows or []:
+        wrong = str((row or {}).get("wrong") or "").strip()
+        right = str((row or {}).get("right") or "").strip()
+        if not wrong or not right or wrong == right or wrong in seen:
+            continue
+        start = text.find(wrong)
+        if start < 0:
+            continue
+        seen.add(wrong)
+        out.append({"check": "learned", "severity": "error",
+                    "message": f"ნასწავლი შესწორება: „{wrong}“ → „{right}“",
+                    "snippet": text[max(0, start - 40):start + len(wrong) + 40],
+                    "start": start, "end": start + len(wrong)})
+    return out
 
 
 def ten_rules():
@@ -166,3 +203,20 @@ def learn_edit(before, after, reason="ვიდეოს სცენარი�
         except Exception as e:  # noqa: BLE001
             print(f"kaeasy: learn failed: {e}", file=sys.stderr)
     return saved
+
+
+def learn(wrong: str, right: str, reason: str = "", category: str = "grammar", agent: str = "veasy"):
+    """Teach kaeasy one wrong -> right pair, the same shared memory the editor pass writes to.
+
+    The daily corpus review needs a single entry point: `learn_edit` only diffs two versions of one
+    text, and a reviewer has pairs without a diff. Same store, same agent attribution, so every agent
+    that reads kaeasy's memory (this lane and the others) refuses the wrong form from then on.
+    """
+    mem = _load("memory")
+    if not mem or os.environ.get("SHORTS_KAEASY_LEARN", "1") == "0":
+        return None
+    try:
+        return mem.learn(wrong, right, reason=reason or "corpus review", category=category, agent=agent)
+    except Exception as e:  # noqa: BLE001
+        print(f"kaeasy: learn failed: {e}", file=sys.stderr)
+        return None

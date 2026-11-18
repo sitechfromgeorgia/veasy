@@ -65,3 +65,47 @@ class SwitchTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CorpusTest(unittest.TestCase):
+    """The corpus is the material a daily review reads, so its shape matters more than its size."""
+
+    def setUp(self):
+        import tempfile, pathlib, os
+        self.tmp = tempfile.mkdtemp()
+        os.environ["TT_CORPUS_DIR"] = self.tmp
+        import importlib
+        from tt_shorts import corpus as c
+        importlib.reload(c)
+        self.c = c
+
+    def tearDown(self):
+        import os, shutil
+        os.environ.pop("TT_CORPUS_DIR", None)
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        import importlib
+        from tt_shorts import corpus as c
+        importlib.reload(c)
+
+    def test_a_record_is_written_once(self):
+        first = self.c.record("reel", "1", "test", "ეს არის საკმარისად გრძელი ქართული ტექსტი.")
+        second = self.c.record("reel", "1", "test", "ეს არის საკმარისად გრძელი ქართული ტექსტი.")
+        self.assertIsNotNone(first)
+        self.assertIsNone(second)
+        self.assertEqual(len(self.c.load()), 1)
+
+    def test_a_short_text_is_not_recorded(self):
+        self.assertIsNone(self.c.record("reel", "2", "test", "ორი სიტყვა."))
+
+    def test_a_story_records_narration_and_cards(self):
+        story = {"id": 7, "narration": "ეს არის საკმარისად გრძელი ქართული წინადადება აქ.",
+                 "scenes": [{"type": "stat", "label": "საკმარისად გრძელი იარლიყი ეკრანზე", "at": "ეს"}]}
+        got = self.c.record_story(story, surface="test")
+        kinds = {r["kind"] for r in got}
+        self.assertEqual(kinds, {"reel", "card"})
+
+    def test_digest_is_plain_text(self):
+        self.c.record("reel", "3", "test", "პირველი საკმარისად გრძელი ქართული ტექსტი აქ.")
+        d = self.c.digest()
+        self.assertIn("პირველი", d)
+        self.assertNotIn("{", d)

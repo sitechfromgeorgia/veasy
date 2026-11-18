@@ -96,6 +96,14 @@ def main() -> int:
                 if isinstance(state.get("messages"), dict) is False:
                     state["messages"] = {}
                 state["messages"][job["id"]] = int(mid)
+                # One corpus record per published text, so a daily reviewer reads what went out.
+                try:
+                    from tt_shorts import corpus
+                    corpus.record("caption", job.get("ref") or job["id"], "telegram", caption or "")
+                    if isinstance(story, dict):
+                        corpus.record_story(story, surface="telegram")
+                except Exception:  # noqa: BLE001 - the corpus must never fail a publish
+                    pass
                 MARK.parent.mkdir(parents=True, exist_ok=True)
                 MARK.write_text(json.dumps({"ids": sorted(posted_ids), "messages": state["messages"],
                                             "day": today, "count": count}), encoding="utf-8")
