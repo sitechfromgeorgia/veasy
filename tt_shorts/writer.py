@@ -20,7 +20,10 @@ from tt_shorts import (art, catalog, drawings, icons, illustrator, ka_check, kae
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STYLE = (ROOT / "tt_shorts" / "ka_style.md").read_text(encoding="utf-8")
+# The model name follows the provider: Groq serves qwen and gpt-oss under its own ids and answers a
+# vendor-qualified :free id with 404. _call picks the name from _provider() when this default is in use.
 MODEL = os.environ.get("SHORTS_WRITER_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free")
+GROQ_MODEL = os.environ.get("SHORTS_GROQ_MODEL", "qwen/qwen3.8-27b")
 # NVIDIA's own endpoint names the model without the vendor prefix and without the :free suffix.
 NVIDIA_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
 NVIDIA_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions"
@@ -79,11 +82,34 @@ class ChecksFailed(ValueError):
 SCHEMA = catalog.schema()
 
 
+GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
+
+
+def _groq_key() -> str:
+    """The free Groq key, from the profile env or the 0600 secret file."""
+    key = os.environ.get("GROQ_API_KEY", "").strip()
+    if key:
+        return key
+    try:
+        import pathlib as _p
+        return (_p.Path("/root/.secrets/groq_api_key").read_text(encoding="utf-8").strip())
+    except OSError:
+        return ""
+
+
 def _provider() -> tuple[str, str, dict, str, dict]:
     """(url, key, the request's extra keys, the key's name, extra headers): OpenRouter, or any OpenAI-format server
     named by SHORTS_WRITER_URL with SHORTS_WRITER_KEY (read when used: daily.py loads data/.env after importing this).
     The writer names itself there: an API behind Cloudflare refuses Python-urllib's default signature (error 1010)."""
     url = os.environ.get("SHORTS_WRITER_URL", "").rstrip("/")
+    # Groq first. The OpenCode seat is a monthly plan whose allowance is spent until 2026-11-22, and
+    # with it first every render died on 429 while a free Groq key with a daily allowance sat unused.
+    # Measured 2026-11-18 on extraction: groq qwen answered a Georgian batch in 1.3 s with clean
+    # Georgian names. The order here must mirror run_free_extraction.py's, or one lane starves while
+    # the other idles.
+    if not url and _groq_key():
+        return GROQ_ENDPOINT, _groq_key(), {"reasoning_effort": "none"}, \
+            "groq_api_key", {"User-Agent": "veasy-writer"}
     if not url and _opencode_key():
         return OPENCODE_ENDPOINT, _opencode_key(), {"reasoning_effort": "none"}, \
             "opencode_extraction_key", {"User-Agent": "veasy-writer",
@@ -105,6 +131,12 @@ def _provider() -> tuple[str, str, dict, str, dict]:
 
 def _call(prompt: str, model: str, max_tokens: int = 1800, tries: int = 3) -> str:
     url, key, extra, name, headers = _provider()
+    if name == "groq_api_key" and model == MODEL:
+        model = GROQ_MODEL  # the caller used the default; on Groq that name does not exist
+    if name == "groq_api_key" and model.startswith("openai/gpt-oss"):
+        # gpt-oss rejects reasoning_effort "none" with a 400 and accepts only low/medium/high; qwen
+        # takes the none flag that keeps a free tier from spending its day on hidden reasoning.
+        extra = {**extra, "reasoning_effort": "low"}
     if not key:
         raise RuntimeError(f"{name} is not set")
     body = {"model": model, "messages": [{"role": "user", "content": prompt}],
@@ -407,6 +439,44 @@ def _ka_forms(story: dict) -> None:
             continue
         for key, v in list(sc.items()):
             if isinstance(v, str):
+                sc[key] = fix(v)
+            elif isinstance(v, list):
+                sc[key] = [fix(x) if isinstance(x, str) else x for x in v]
+
+
+def _fix_separators(story: dict) -> None:
+    """Rewrite the punctuation the Georgian lint bans, instead of paying a repair call for it.
+
+    K12 forbids "!", "...", "…" and both dashes in anything we say or show, and K21 wants the
+    Georgian decimal comma rather than a point. Both are mechanical, and measured 2026-11-18 they
+    were the second and sixth most common reason a render died after four repairs that the model
+    kept undoing, because the rule is stated in the checker and never in the prompt.
+
+    A "!" becomes a full stop, an ellipsis becomes a comma, and 7.3% becomes 7,3%. Nothing here can
+    change what a sentence means; it only changes how the same sentence is punctuated.
+    """
+    def fix(text):
+        if not isinstance(text, str):
+            return text
+        out = text
+        # a decimal point between digits is the one place Georgian wants a comma
+        out = re.sub(r"(?<=\d)\.(?=\d)", ",", out)
+        out = out.replace("…", ",").replace("...", ",")
+        out = out.replace("!", ".")
+        out = re.sub(r"\s*[,;]\s*(?=[.!?]|$)", "", out)
+        out = re.sub(r"\s{2,}", " ", out)
+        return out.strip()
+
+    for key in ("headline", "hook", "title", "cta"):
+        if isinstance(story.get(key), str):
+            story[key] = fix(story[key])
+    if isinstance(story.get("narration"), str):
+        story["narration"] = fix(story["narration"])
+    for sc in story.get("scenes") or []:
+        if not isinstance(sc, dict):
+            continue
+        for key, v in list(sc.items()):
+            if isinstance(v, str) and key not in ("at", "type", "art"):
                 sc[key] = fix(v)
             elif isinstance(v, list):
                 sc[key] = [fix(x) if isinstance(x, str) else x for x in v]
@@ -767,6 +837,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _wrap_hook(story)  # the first pass too
     _clamp_texts(story)
     _no_dashes(story)
+    _fix_separators(story)
     _ka_forms(story)
     _spell_clock(story)
     normalize_ka.fix_say_letters(story)
@@ -803,6 +874,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _wrap_hook(story)
         _clamp_texts(story)
         _no_dashes(story)
+        _fix_separators(story)
         _ka_forms(story)
         _spell_clock(story)
         normalize_ka.fix_say_letters(story)
