@@ -31,11 +31,16 @@ sys.path.insert(0, str(ROOT))
 from tt_shorts import brand as packs, facebook, meta, queue, reel_cover, social_copy, store  # noqa: E402
 
 RECEIPTS = store.home() / "logs" / "fb-video-receipts.jsonl"
-BATCH = 3              # posts per run
-PAUSE_S = 120          # seconds between two posts inside one run
-MIN_GAP_MIN = 15       # minutes between runs
+BATCH = 6              # posts per run
+PAUSE_S = 90           # seconds between two posts inside one run
+MIN_GAP_MIN = 10       # minutes between runs
 LOCAL_TZ = dt.timezone(dt.timedelta(hours=4))   # the owner's calendar day, +04
-AGE_HOURS = 18         # same freshness rule as the Telegram video lane
+# The owner, 2026-11-18: "რილსები რომ ტელეგრამზე მოდის, ფეისბუქზე რატო არ დებ?" The two lanes were not
+# at parity: Telegram posts anything in its ledger and keeps the id forever, while this lane refused a
+# story older than 18 h, which is exactly the story the Telegram lane had already rendered and
+# published. Measured that day: 231 ids posted on Telegram, 57 on Facebook, 186 missing. A two-day
+# window lets a render that missed a batch still publish, while a story from last week stays out.
+AGE_HOURS = 48
 MAX_SECONDS = 90       # Reels hard limit; a longer render is not a reel
 
 

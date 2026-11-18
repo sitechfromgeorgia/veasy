@@ -6,6 +6,7 @@ usually -100..., or @username). Nothing is sent when it is unset, so local runs 
 import json
 import os
 import pathlib
+import urllib.parse
 import urllib.request
 
 
@@ -24,7 +25,7 @@ def bot_token() -> str:
     return os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
 
-def send_video(path, caption: str, chat: str | None = None, token: str | None = None, buttons=None) -> bool:
+def send_video(path, caption: str, chat: str | None = None, token: str | None = None, buttons=None) -> int:
     token = token or bot_token()
     chat = chat or os.environ.get("SHORTS_TELEGRAM_CHANNEL") or DEFAULT_CHANNEL
     path = pathlib.Path(path)
@@ -44,7 +45,13 @@ def send_video(path, caption: str, chat: str | None = None, token: str | None = 
                                  headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
     with urllib.request.urlopen(req, timeout=300) as r:
         data = json.load(r)
-    return bool(data.get("ok"))
+    if not data.get("ok"):
+        return 0
+    # The message id is the only handle that allows a later editMessageCaption. It was thrown away
+    # here, so a caption with a wrong word could not be corrected after publishing (measured
+    # 2026-11-18: a live reel kept "პატროლმა" for "პატრულმა" with no way to fix it). Returned as an int
+    # so a caller can still treat it as truthy.
+    return int(((data.get("result") or {}).get("message_id")) or 0)
 
 
 def main():
@@ -58,3 +65,19 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def edit_caption(message_id: int, caption: str, chat: str | None = None, token: str | None = None) -> bool:
+    """Fix a published caption by its message id. Telegram allows editing the caption of a channel post."""
+    token = token or bot_token()
+    chat = chat or os.environ.get("SHORTS_TELEGRAM_CHANNEL") or DEFAULT_CHANNEL
+    if not token or not chat or not message_id:
+        return False
+    body = urllib.parse.urlencode({"chat_id": chat, "message_id": int(message_id),
+                                   "caption": caption[:1000]}).encode()
+    req = urllib.request.Request(f"https://api.telegram.org/bot{token}/editMessageCaption", data=body)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return bool(json.load(r).get("ok"))
+    except Exception:  # noqa: BLE001
+        return False

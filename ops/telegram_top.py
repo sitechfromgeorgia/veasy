@@ -27,7 +27,9 @@ def main() -> int:
     cutoff = dt.datetime.now().timestamp() - 12 * 3600
     today = dt.date.today().isoformat()
     state = json.loads(MARK.read_text(encoding="utf-8")) if MARK.exists() else {}
-    posted_ids = set(state.get("ids") or [])  # survives midnight: an id is posted once, ever
+    posted_ids = set(state.get("ids") or [])
+    if not isinstance(state.get("messages"), dict):
+        state["messages"] = {}  # survives midnight: an id is posted once, ever
     # One shared ledger across the two lanes: the news cards (tg_news.py) and the video lane
     # used to post the same cluster twice (audit 2026-11-04: 25515/25527/25534).
     news_clusters: set[int] = set()
@@ -85,13 +87,18 @@ def main() -> int:
         buttons = [[{"text": "სრულად წაკითხვა", "url": link}],
                    [{"text": "tbilisi.today", "url": "https://tbilisi.today"}]]
         try:
-            if telegram.send_video(file, caption, buttons=buttons):
+            mid = telegram.send_video(file, caption, buttons=buttons)
+            if mid:
                 posted_ids.add(job["id"])
                 count += 1
                 sent += 1
+                # The message id is the only handle that lets a caption be corrected after publishing.
+                if isinstance(state.get("messages"), dict) is False:
+                    state["messages"] = {}
+                state["messages"][job["id"]] = int(mid)
                 MARK.parent.mkdir(parents=True, exist_ok=True)
-                MARK.write_text(json.dumps({"ids": sorted(posted_ids), "day": today, "count": count}),
-                                encoding="utf-8")
+                MARK.write_text(json.dumps({"ids": sorted(posted_ids), "messages": state["messages"],
+                                            "day": today, "count": count}), encoding="utf-8")
         except Exception as e:
             print(f"telegram: {type(e).__name__}: {e}")
     print(f"telegram: {sent} posted")
