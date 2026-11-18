@@ -120,7 +120,21 @@ def findings(story: dict, model: str | None = None) -> list[dict]:
         return []
     found = _parse(answer)
     # A finding about words that are not in the text is the reader's own invention.
-    return [f for f in found if f["span"] in text]
+    found = [f for f in found if f["span"] in text]
+    # And a word the newsroom writes is not a defect, whatever the reader says. This is the guard that
+    # would have stopped "შუა დერეფანი": 21 articles across 21 outlets carry "დერეფანი", so a reader that
+    # calls it a non-word is wrong by the only standard that matters. No index means no guard, and the
+    # reader's word stands, so the index is built on the same host and refreshed daily.
+    return [f for f in found if not _attested(f["span"])]
+
+
+def _attested(word: str) -> bool:
+    """Does human-written Georgian use this word? Missing index answers False (unknown, not attested)."""
+    try:
+        from ops import attest_index
+        return attest_index.attested(word)
+    except Exception:  # noqa: BLE001 - the reader must not fail because an index is missing
+        return False
 
 
 def blocking(story: dict, model: str | None = None) -> list[dict]:
