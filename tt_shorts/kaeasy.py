@@ -112,49 +112,7 @@ def check(text, mode):
             findings = [f.as_dict() if hasattr(f, "as_dict") else dict(f) for f in lint.check_text(text, mode=mode)]
         except Exception as e:  # noqa: BLE001
             print(f"kaeasy: check_text failed ({mode}): {e}", file=sys.stderr)
-    findings.extend(_learned_findings(text or ""))
     return findings
-
-
-def _learned_findings(text: str) -> list[dict]:
-    """Learned wrong -> right pairs that occur in this text, as findings.
-
-    Only rows a language job produced (`LEARNED_AGENTS`) are rules. The shared memory also holds 442
-    editor-pass diffs whose pairs are context edits, not rules: "შესახებ -> ბრალდებას",
-    "ბრძანებას -> ბრძანება", "გამო -> გამოყენების შედეგად". Matched as substrings those fired on almost
-    every published text (measured 2026-11-19: 22 of 34 records, one true pair among 19).
-
-    Matching is whole-word with Georgian boundaries, so "გამო" cannot fire inside "გამოიყენა".
-    """
-    if not text.strip():
-        return []
-    mem = _load("memory")
-    if not mem:
-        return []
-    try:
-        rows = mem.top(1000) if hasattr(mem, "top") else []
-    except Exception:  # noqa: BLE001
-        return []
-    out, seen = [], set()
-    for row in rows or []:
-        row = row or {}
-        if str(row.get("agent") or "") not in LEARNED_AGENTS:
-            continue
-        wrong = str(row.get("wrong") or "").strip()
-        right = str(row.get("right") or "").strip()
-        if not wrong or not right or wrong == right or wrong in seen:
-            continue
-        if len(wrong.split()) > 1:
-            continue  # a phrase is context, never a rule
-        m = re.search(rf"(?<![ა-ჰA-Za-z0-9-]){re.escape(wrong)}(?![ა-ჰA-Za-z0-9])", text)
-        if not m:
-            continue
-        seen.add(wrong)
-        out.append({"check": "learned", "severity": "error",
-                    "message": f"ნასწავლი შესწორება: „{wrong}“ → „{right}“",
-                    "snippet": text[max(0, m.start() - 40):m.end() + 40],
-                    "start": m.start(), "end": m.end()})
-    return out
 
 
 def ten_rules():

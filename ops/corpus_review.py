@@ -95,8 +95,15 @@ def _acceptable(pair: dict, day_text: str) -> tuple[bool, str]:
     return True, ""
 
 
-def _apply(pairs: list[dict], day_text: str) -> tuple[list[dict], list[dict]]:
-    """Write the acceptable pairs into kaeasy's shared memory."""
+def _propose(pairs: list[dict], day_text: str, day: str | None = None) -> tuple[list[dict], list[dict]]:
+    """Record the reader's findings as lesson candidates in kaeasy's ledger.
+
+    Until now a pair went straight into the shared memory, which is a prompt aid: it never had a state,
+    never waited for attestation and could never be retired. `lessons.propose` is the path that can:
+    the candidate is verified against the word index by `lessons.tick`, promoted to a warning, and only
+    then considered for the gate. A pair this lane cannot justify is refused at intake and reported.
+    """
+    from kaeasy import lessons as ka_lessons
     accepted, rejected = [], []
     for p in pairs:
         ok, why = _acceptable(p, day_text)
@@ -104,13 +111,27 @@ def _apply(pairs: list[dict], day_text: str) -> tuple[list[dict], list[dict]]:
             rejected.append({**p, "rejected": why})
             continue
         try:
-            saved = kaeasy.learn(p["wrong"], p["right"], reason=p.get("why") or "daily corpus review",
-                                 category="lexical", agent="corpus-review")
+            r = ka_lessons.propose(p["wrong"], p["right"], "nonword", why=p.get("why") or "",
+                                   quote=p.get("quote") or _quote_for(p["wrong"], day_text),
+                                   by="corpus-review", reader="agy", corpus_key=day)
         except Exception as e:  # noqa: BLE001
-            rejected.append({**p, "rejected": f"learn failed: {e}"})
+            rejected.append({**p, "rejected": f"propose failed: {e}"})
             continue
-        accepted.append({**p, "learned": bool(saved)})
+        if r.get("refused"):
+            rejected.append({**p, "rejected": r["refused"]})
+        else:
+            accepted.append({**p, "id": r.get("id"), "state": r.get("state")})
     return accepted, rejected
+
+
+def _quote_for(word: str, text: str) -> str:
+    """The sentence carrying the word, which is the evidence a lesson must hold."""
+    i = text.find(word)
+    if i < 0:
+        return ""
+    start = max(text.rfind(".", 0, i), text.rfind("\n", 0, i)) + 1
+    end = text.find(".", i)
+    return text[start:(end + 1 if end > 0 else i + len(word) + 40)].strip()
 
 
 def review(day: str | None = None, model: str | None = None, dry: bool = False) -> dict:
@@ -128,7 +149,7 @@ def review(day: str | None = None, model: str | None = None, dry: bool = False) 
     if dry:
         accepted, rejected = [], [{"note": "dry run, nothing written"}]
     else:
-        accepted, rejected = _apply(pairs, day_text)
+        accepted, rejected = _propose(pairs, day_text, day)
     report = {"day": day or records[0].get("day"), "records": len(records), "chars": len(text),
               "pairs": len(pairs), "accepted": accepted, "rejected": rejected}
     if not dry:
