@@ -60,7 +60,12 @@ def _text_of(story: dict) -> str:
         if not isinstance(sc, dict):
             continue
         for key, value in sc.items():
-            if key in ("at", "type", "art", "say"):
+            # "icon", "motif", "morph_from" and "art" are library names for drawings, never shown as
+            # words. Reading them as text produced a false finding on a live reel (measured 2026-11-18:
+            # "building-complex" named as English text when it is an icon key), and a false finding on
+            # a clean story is worse than a missed one.
+            if key in ("at", "type", "art", "say", "icon", "motif", "morph_from", "verb", "value",
+                       "unit", "style", "variant", "layout", "tone"):
                 continue
             if isinstance(value, str) and value.strip():
                 parts.append(value)
