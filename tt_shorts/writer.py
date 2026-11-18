@@ -463,9 +463,33 @@ def _fix_dates(story: dict, cluster: dict) -> None:
 # Every text field a scene can carry, with the limit the renderer enforces. "end" was missing, so a
 # 30-character end line reached the checker and failed the job on "at most 24" (measured 2026-11-18)
 # while every other field was clamped before the check ever saw it.
-_LIMITS = {"kicker": 24, "headline": 40, "label": 24, "big": 12, "unit": 8, "place": 30, "sub": 30,
-           "by": 40, "text": 200, "via": 32, "end": 24, "weekday": 20, "change": 24, "value": 12,
-           "start": 24, "finish": 24, "to": 24, "from": 24, "when": 24, "where": 30}
+# The per-field limits come from the brush catalogue, which is what the renderer enforces. This table
+# used to be a second copy and disagreed with it in both directions (label 24 against the catalogue's
+# 56 for a stat and 40 for a sign, "by" 40 against quote's 32, unit 8 against change's 16), so a field
+# could be clamped under the limit and still fail, or be loosened past what fits on screen.
+def _limits() -> dict:
+    """field -> the smallest limit any brush sets for it, plus a floor for fields the catalogue omits."""
+    from tt_shorts import catalog
+    out = {"kicker": 24, "headline": 40, "text": 200, "big": 12, "place": 30, "sub": 30,
+           "end": 24, "weekday": 20, "change": 24, "value": 12, "start": 24, "finish": 24,
+           "to": 24, "from": 24, "when": 24, "where": 30, "via": 32}
+    try:
+        for brush in (catalog.load_all() or {}).values():
+            for field, spec in ((brush or {}).get("slots") or {}).items():
+                lim = None
+                if isinstance(spec, dict):
+                    lim = spec.get("max")
+                    for inner in (spec.get("of") or {}).values():
+                        if isinstance(inner, dict) and inner.get("max"):
+                            lim = min(lim or inner["max"], inner["max"])
+                if isinstance(lim, int) and lim > 0:
+                    out[field] = min(out.get(field, lim), lim)
+    except Exception:
+        pass  # a catalogue that cannot be read must not break the writer
+    return out
+
+
+_LIMITS = _limits()
 
 
 def _clamp(text: str, limit: int) -> str:
@@ -604,7 +628,12 @@ def _no_dashes(story: dict) -> None:
     def fix(text):
         if not isinstance(text, str) or not _DASH_RE.search(text):
             return text
-        out = _DASH_RE.sub(", ", text)
+        # A dash between digits, or between a digit and a Georgian suffix letter, is a range or an
+        # ordinal and must become a hyphen: "24–ე" is "ოცდამეოთხე", while "24, ე" is unreadable and
+        # fails the spoken-text check instead (measured 2026-11-18, one of the KE samples).
+        out = re.sub(r"(?<=\d)\s*[\u2013\u2014]\s*(?=[\dა-ჰ])", "-", text)
+        out = re.sub(r"(?<=[ა-ჰ])\s*[\u2013\u2014]\s*(?=\d)", "-", out)
+        out = _DASH_RE.sub(", ", out)
         return re.sub(r"\s{2,}", " ", out).strip()
 
     # The narration was never passed through this, so a dash the writer put in the spoken text reached
@@ -720,14 +749,34 @@ def _spell_clock(story: dict) -> None:
 
 
 def _clamp_texts(story: dict) -> None:
-    """A text that is one character over its schema limit is a failed job, not a bad video:
-    clamp it at a word boundary before the checks see it."""
+    """A text one character over its schema limit is a failed job, not a bad video: clamp at a word
+    boundary before the checks see it.
+
+    The limit is the one the scene's own brush sets, not a global per-field minimum. Clamping a stat's
+    label to the smallest label any brush allows shortened text that would have fitted, while a field
+    the brush does not set at all still needs the floor from _LIMITS.
+    """
+    from tt_shorts import catalog
+    brushes = catalog.load_all() or {}
     for sc in story.get("scenes") or []:
         if not isinstance(sc, dict):
             continue
-        for key, limit in _LIMITS.items():
+        slots = (brushes.get(str(sc.get("type"))) or {}).get("slots") or {}
+        for key, floor in _LIMITS.items():
             v = sc.get(key)
-            if isinstance(v, str) and len(v) > limit:
+            if not isinstance(v, str):
+                continue
+            spec = slots.get(key)
+            limit = None
+            if isinstance(spec, dict):
+                limit = spec.get("max")
+                if not isinstance(limit, int):
+                    inner = [i.get("max") for i in (spec.get("of") or {}).values() if isinstance(i, dict)]
+                    inner = [i for i in inner if isinstance(i, int)]
+                    limit = min(inner) if inner else None
+            if not isinstance(limit, int):
+                limit = floor
+            if len(v) > limit:
                 sc[key] = _clamp(v, limit)
         lines = sc.get("lines")
         if isinstance(lines, list):
@@ -827,10 +876,15 @@ def _drop_unknown_icons(story: dict) -> None:
     needs.
     """
     from tt_shorts import icons
+    # The story's own motif is what icons.motif_problems reports, and this pass never looked at it:
+    # measured 2026-11-18, 9 jobs died on "story: motif ... is neither an icon name nor a Georgian word".
+    top = story.get("motif")
+    if isinstance(top, str) and top.strip() and not icons.resolve(top):
+        story.pop("motif", None)
     for sc in story.get("scenes") or []:
         if not isinstance(sc, dict):
             continue
-        for key in ("icon", "motif"):
+        for key in ("icon", "motif", "morph_from"):
             v = sc.get(key)
             if isinstance(v, str) and v.strip() and not icons.resolve(v):
                 sc.pop(key, None)
