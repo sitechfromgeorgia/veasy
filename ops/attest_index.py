@@ -79,8 +79,10 @@ def d1(sql: str, params: list | None = None) -> list[dict]:
             if e.code not in (429, 500, 502, 503, 504):
                 raise
             time.sleep(min(30, 2 ** attempt))
-        except (urllib.error.URLError, TimeoutError) as e:
-            last = str(e)
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
+            # ConnectionResetError is an OSError, not a URLError: measured 2026-11-19, a dropped socket
+            # ended a 90-day build at day 51 with the index half written. A socket failure is transient.
+            last = f"{type(e).__name__}: {e}"
             time.sleep(min(30, 2 ** attempt))
     raise RuntimeError(f"D1: gave up after {RETRIES} attempts ({last})")
 
@@ -138,8 +140,15 @@ def merge() -> dict:
     return meta
 
 
-def build(day: str, batch: int = BATCH) -> dict:
-    """Rebuild one day's slice from its own articles. Idempotent: the file is replaced, never added to."""
+def build(day: str, batch: int = BATCH, force: bool = False) -> dict:
+    """Rebuild one day's slice from its own articles. Idempotent: the file is replaced, never added to.
+
+    A day already on disk is skipped unless `force`, so a bootstrap that lost its socket at day 51
+    resumes instead of re-reading 51 days. A day is only written when its whole row set was read, so the
+    file on disk is always complete: skipping it is safe.
+    """
+    if not force and _day_path(day).exists() and _day_path(day).stat().st_size > 0:
+        return {"day": day, "articles": 0, "words": 0, "skipped": True}
     rows_total = 0
     index: dict[str, list[int]] = {}
     offset = 0
@@ -168,7 +177,7 @@ def build(day: str, batch: int = BATCH) -> dict:
     return {"day": day, "articles": rows_total, "words": len(index)}
 
 
-def build_range(days: int, batch: int = BATCH) -> dict:
+def build_range(days: int, batch: int = BATCH, force: bool = False) -> dict:
     """One file per day over a window, then a merge. A day already built is rebuilt from its own rows."""
     rows = d1("""SELECT DISTINCT date(COALESCE(published_at, fetched_at)) AS d
                  FROM articles
@@ -180,7 +189,7 @@ def build_range(days: int, batch: int = BATCH) -> dict:
         day = str(row.get("d") or "")
         if not day or day == "None":
             continue
-        out.append(build(day, batch=batch))
+        out.append(build(day, batch=batch, force=force))
     return {"days": out, "merged": merge()}
 
 
@@ -228,6 +237,7 @@ def main(argv: list[str] | None = None) -> int:
     b = sub.add_parser("build")
     b.add_argument("--days", type=int, default=None)
     b.add_argument("--day", default=None)
+    b.add_argument("--force", action="store_true", help="rebuild a day already on disk")
     sub.add_parser("merge")
     sub.add_parser("stats")
     lk = sub.add_parser("lookup")
@@ -235,9 +245,9 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     if a.cmd == "build":
         if a.day:
-            print(json.dumps({**build(a.day), "merged": merge()}, ensure_ascii=False, indent=1))
+            print(json.dumps({**build(a.day, force=a.force), "merged": merge()}, ensure_ascii=False, indent=1))
         elif a.days:
-            print(json.dumps(build_range(a.days), ensure_ascii=False, indent=1)[-2000:])
+            print(json.dumps(build_range(a.days, force=a.force), ensure_ascii=False, indent=1)[-2000:])
         else:
             print("give --day or --days")
             return 2
