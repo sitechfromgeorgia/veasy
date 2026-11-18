@@ -284,6 +284,16 @@ def _fix_anchors(story: dict) -> None:
             continue
         p = flat.find(fat, pos)
         if p < 0:
+            # The model sometimes invents an anchor that appears nowhere in the narration, and four
+            # repair passes do not fix it: measured 2026-11-18 on repeated K13 failures. Re-anchor to
+            # the next words of the narration instead. The cut still lands on real narration, the
+            # scene order is preserved, and the video keeps its own words rather than failing.
+            rest = narration[pos:]
+            words = list(re.finditer(r"\S+", rest))
+            if words:
+                take = min(max(1, len(at.split())), len(words))
+                sc["at"] = rest[words[0].start():words[take - 1].end()]
+                pos += words[take - 1].end()
             continue
         start = idx[p]
         want = len(fat.split())
@@ -368,6 +378,15 @@ _KA_WRONG_FORMS = [
 ]
 
 
+def _spell_clock(story: dict) -> None:
+    """The narration is spoken text: a digit there is a lint error, so clock times become words."""
+    if isinstance(story.get("narration"), str):
+        story["narration"] = spell_clock_times(story["narration"])
+    for sc in story.get("scenes") or []:
+        if isinstance(sc, dict) and isinstance(sc.get("say"), str):
+            sc["say"] = spell_clock_times(sc["say"])
+
+
 def _ka_forms(story: dict) -> None:
     """Rewrite known-wrong Georgian forms everywhere the writer puts text."""
     def fix(text):
@@ -446,15 +465,70 @@ def _drop_unsourced_numbers(story: dict, articles: list[str]) -> None:
     for sc in story.get("scenes") or []:
         if not isinstance(sc, dict):
             continue
-        for key in ("headline", "heading", "text", "caption", "label"):
+        # "value" is the numeric field a stat scene renders on its own line, and it was missing from
+        # this list: measured 2026-11-18 on three failed jobs, the checker named a number that lived in
+        # value while the stripper only walked the text fields, so four repair passes could never
+        # satisfy N2 and the job died. A number that is not in the source must go wherever it sits.
+        for key in ("headline", "heading", "text", "caption", "label", "value", "amount", "figure", "unit"):
             if isinstance(sc.get(key), str):
                 sc[key] = strip(sc[key])
+            elif isinstance(sc.get(key), (int, float)) and not isinstance(sc.get(key), bool):
+                # A numeric value cannot be edited into a sourced one; if the digits are not in the
+                # corpus the field is cleared and the scene loses its figure rather than the video.
+                if str(sc[key]) not in allowed:
+                    sc[key] = ""
         for key in ("items", "lines"):
             v = sc.get(key)
             if isinstance(v, list):
                 sc[key] = [strip(x) if isinstance(x, str) else x for x in v]
     if isinstance(story.get("narration"), str):
         story["narration"] = strip(story["narration"])
+
+
+def spell_clock_times(text: str) -> str:
+    """Rewrite an HH:MM clock time as Georgian words, because the lint forbids every digit in speech.
+
+    Measured 2026-11-18: "11:00" in the narration failed job after job and no repair pass ever
+    rewrote it, because the rule is stated nowhere in the writer's prompt. A clock time is the one
+    numeric shape whose words are mechanical, so convert it instead of asking for it again.
+
+    11:00 -> თერთმეტ საათზე; 09:30 -> ცხრა საათსა და ოცდაათ წუთზე. The number words come from kaeasy's
+    own cardinal(), which already handles the irregular thirties (ოცდაათი, not ოცდაი), so this file
+    does not keep a second copy of Georgian numerals that can drift from the one the lint uses.
+    """
+    if not isinstance(text, str) or ":" not in text:
+        return text
+    # tt_shorts.kaeasy loads the plugin's modules by path, so this is the same speaker the lint uses.
+    from tt_shorts import kaeasy  # noqa: WPS433
+
+    ka_speech = kaeasy._load("speech")  # noqa: SLF001 - the loader is this module's own contract
+    if ka_speech is None or not hasattr(ka_speech, "cardinal"):
+        return text
+
+    def count(n: int) -> str:
+        return ka_speech.cardinal(n)
+
+    def repl(m):
+        h, mi = int(m.group(1)), int(m.group(2))
+        if not (0 <= h <= 23 and 0 <= mi <= 59):
+            return m.group(0)
+        hour = "ერთ საათზე" if h == 1 else (lambda w: (w[:-1] if w.endswith("ი") else w) + " საათზე")(count(h))
+        if not mi:
+            return hour
+        return hour + " და " + (lambda w: w[:-1] if w.endswith("ი") else w)(count(mi)) + " წუთზე"
+
+    # consume the suffix a writer already put after the time, so the result does not read "საათზე საათიდან"
+    text = re.sub(r"\b([01]?\d|2[0-3]):([0-5]\d)\s*(?:საათზე|საათიდან|საათისთვის|-ზე)", repl, text)
+    return re.sub(r"\b([01]?\d|2[0-3]):([0-5]\d)\b", repl, text)
+
+
+def _spell_clock(story: dict) -> None:
+    """The narration is spoken text: a digit there is a lint error, so clock times become words."""
+    if isinstance(story.get("narration"), str):
+        story["narration"] = spell_clock_times(story["narration"])
+    for sc in story.get("scenes") or []:
+        if isinstance(sc, dict) and isinstance(sc.get("say"), str):
+            sc["say"] = spell_clock_times(sc["say"])
 
 
 def _clamp_texts(story: dict) -> None:
@@ -694,6 +768,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _clamp_texts(story)
     _no_dashes(story)
     _ka_forms(story)
+    _spell_clock(story)
     normalize_ka.fix_say_letters(story)
     _repair_scenes(story, articles)
     _fix_anchors(story)
@@ -729,6 +804,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _clamp_texts(story)
         _no_dashes(story)
         _ka_forms(story)
+        _spell_clock(story)
         normalize_ka.fix_say_letters(story)
         _drop_unsourced_numbers(story, articles)
         _repair_scenes(story, articles)

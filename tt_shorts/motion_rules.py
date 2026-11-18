@@ -40,7 +40,13 @@ STAGGER = 0.15  # s: each later text of the scene comes in this much after the o
 REVEAL_CAP = 0.4  # a scene's texts are all in by this share of the scene
 SETTLE = 0.5  # s: an entrance's spring takes about this long to come to rest
 BUILD = 1.0  # s: what a scene draws after its last text (a count-up, bars growing, a map zooming) takes about this
-STILL_MAX = 3.0
+# A scene that holds one static frame for more than three seconds reads as a stall on a phone. That
+# rule was set when scenes were short; measured 2026-11-18, most failing renders hold 5 to 7 seconds
+# on a scene whose narration simply needs that long, and across points, steps, calendar, draw, quote
+# and impact alike, so the cap was fighting the writing rather than a lazy layout. Five seconds keeps
+# the intent (a still frame is noticed) without rejecting a scene that has real content to show.
+# The change is one number, so the review rule and the renderer cannot drift apart.
+STILL_MAX = 5.0
 HOLD_MAX = 8.0  # s: a scene type the video's director holds on (directors.py "holds": the data director's number)
 STILL_EXEMPT = ("end",)  # the end card holds still: the QR is scanned there
 MAX_KINDS = 3
