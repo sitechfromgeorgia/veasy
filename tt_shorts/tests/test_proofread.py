@@ -109,3 +109,16 @@ class CorpusTest(unittest.TestCase):
         d = self.c.digest()
         self.assertIn("პირველი", d)
         self.assertNotIn("{", d)
+
+
+class SingleWordTest(unittest.TestCase):
+    """A phrase is never a coined word. The reader named "შუა დერეფანი" (Middle Corridor) as wrong and
+    blocked a legitimate story, so a multi-word span is refused in code, not only in the prompt."""
+
+    def test_a_multi_word_span_is_not_a_finding(self):
+        answer = '{"findings": [{"span": "შუა დერეფანი", "problem": "არ არსებობს", "fix": "შუა დირექტორი"}]}'
+        self.assertEqual(proofread._parse(answer), [])
+
+    def test_a_single_word_still_passes(self):
+        answer = '{"findings": [{"span": "მოქცევარი", "problem": "არ არსებობს", "fix": "მამაკაცი"}]}'
+        self.assertEqual(len(proofread._parse(answer)), 1)

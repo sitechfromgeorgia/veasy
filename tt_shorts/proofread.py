@@ -27,21 +27,27 @@ from tt_shorts import writer
 
 # One narrow instruction. The reader is asked for defects, not for style, and told to be silent when the
 # text is clean: a gate that always finds something is a gate that never passes.
-PROMPT = """შენ ხარ ქართული ტექსტის რედაქტორი. მოცემულია სიახლის ტექსტი რომელიც ვიდეოზე წაიკითხება.
+PROMPT = """შენ ხარ ქართული ტექსტის რედაქტორი, რომელიც ამოწმებს ერთ ტექსტს.
 
-შენი ამოცანაა იპოვო მხოლოდ სიტყვები, რომლებიც ქართულ ენაში **საერთოდ არ არსებობს** და არის გამოგონილი
-ან სხვა ენიდან არასწორად გადმოტანილი. მაგალითი: "მოქცევარი" არ არსებობს, სწორია "მამაკაცი" ან "მოხუცი".
+**მთავარი წესი: თუ ტექსტი სწორია, დააბრუნე ცარიელი სია.** ცრუ შეცდომა უარესია გამოტოვებულზე.
 
-მკაცრი წესები:
-- თუ სიტყვა ქართულ ლექსიკონში არის, ის არ არის შეცდომა, თუნდაც იშვიათი იყოს. "ჭრილობა", "მრავლობითი",
-  "დაუპირისპირდა", "გარდაიცვალა", "სამართალდამცველები" ყველა სწორი ქართული სიტყვაა.
-- არ შეამოწმო სტილი, ტონი, სიგრძე, ფაქტები ან გრამატიკული კონსტრუქცია.
-- არ შეამოწმო ციფრები, სახელები ან ბრენდები.
-- თუ ეჭვი გაქვს, არ დაწერო. ცრუ დადებითი უარესია გამოტოვებულზე.
-- თუ ყველა სიტყვა ნამდვილი ქართულია, დააბრუნე ცარიელი სია.
+დაწერე შეცდომა მხოლოდ მაშინ, როცა **ერთი სიტყვა** ქართულ ენაში საერთოდ არ არსებობს და ეს ცხადია.
+მაგალითი: "მოქცევარი" - ასეთი სიტყვა არ არის, სწორია "მამაკაცი" ან "მოხუცი".
+მაგალითი: "პატროლი" - არ არის, სწორია "პატრული".
+
+**არასდროს დაწერო:**
+- ორსიტყვიანი ან მრავალსიტყვიანი ფრაზა. ფრაზა ყოველთვის სწორია, თუ მისი სიტყვები ცალკე სწორია.
+  "შუა დერეფანი", "საგარეო საქმეთა სამინისტრო", "ეროვნული ბანკი" ყველა სწორია.
+- ტერმინი, პროფესიული სიტყვა ან დარგის ცნება (ეკონომიკა, იურიდიული, სამედიცინო, პოლიტიკური).
+- სახელი, გვარი, ბრენდი, ორგანიზაცია, ტოპონიმი.
+- ციფრი, თარიღი, ერთეული.
+- სიტყვა, რომელიც იშვიათია მაგრამ ლექსიკონში არის.
+- თუ ეჭვი გაქვს ერთი პროცენტითაც.
+
+**თუ შესწორება გიჭირს ან არ იცი ზუსტი სწორი ფორმა, არ დაწერო.** არასწორი შესწორება უარესია.
 
 უპასუხე მხოლოდ JSON-ით:
-{"findings": [{"span": "ზუსტად ის სიტყვა ტექსტიდან", "problem": "რატომ არ არსებობს", "fix": "რა უნდა იყოს"}]}
+{"findings": [{"span": "ზუსტად ერთი სიტყვა ტექსტიდან", "problem": "რატომ არ არსებობს", "fix": "სწორი ფორმა"}]}
 
 თუ ვერაფერი იპოვე: {"findings": []}
 
@@ -49,8 +55,11 @@ PROMPT = """შენ ხარ ქართული ტექსტის რ�
 """
 
 
-# A span must be at least this long to be worth a repair, and must actually occur in the text.
-MIN_SPAN = 2
+# A span must be one word, and must actually occur in the text. A multi-word span is the shape of a
+# guess: measured 2026-11-18, the reader named "შუა დერეფანი" (the Middle Corridor, a real trade term
+# in every Georgian newsroom) as non-existent and offered "შუა დირექტორი" as the fix. The gate blocked
+# a legitimate story. One word at a time is the only shape that has produced a true finding so far.
+MIN_SPAN = 3
 
 
 def _text_of(story: dict) -> str:
@@ -89,6 +98,10 @@ def _parse(answer: str) -> list[dict]:
             continue
         span = str(f.get("span") or "").strip()
         if len(span) < MIN_SPAN:
+            continue
+        # One word only. A multi-word span is a phrase, and phrases are never coined words: the reader
+        # named "შუა დერეფანი" as wrong and cost a legitimate story (measured 2026-11-18).
+        if len(span.split()) > 1:
             continue
         out.append({"span": span, "problem": str(f.get("problem") or "").strip(),
                     "fix": str(f.get("fix") or "").strip()})
