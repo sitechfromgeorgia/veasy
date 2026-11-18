@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from tt_shorts import art, drawings, icons, news_check, writer
+from tt_shorts import art, drawings, icons, news_check, normalise, writer
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FIXTURE = json.loads((ROOT / "tests" / "fixtures" / "24835.sources.json").read_text(encoding="utf-8"))
@@ -110,7 +110,7 @@ class Library(unittest.TestCase):
         answer = {k: v for k, v in gas_story().items() if k not in ("id", "date", "sources")}
         with mock.patch.object(writer, "_call", return_value=json.dumps(answer, ensure_ascii=False)), \
                 mock.patch.object(writer, "_edit", return_value=None), \
-                mock.patch.object(writer, "_anchors_ok", return_value=True):
+                mock.patch.object(normalise, "anchors_ok", return_value=True):
             story = writer.write({"id": 24835, "category": "society"}, FIXTURE, repairs=0,
                                  run_checks=lambda s, a, c: art.story_problems(s))
         self.assertEqual([s["type"] for s in story["scenes"]][1], "draw")

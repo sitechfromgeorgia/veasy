@@ -381,10 +381,13 @@ class WriteStory(unittest.TestCase):
         self.assertNotIn("concept", json.loads(pathlib.Path(result["story"]).read_text(encoding="utf-8")))
         self.assertEqual(variety.recent_concepts("tbilisi-today"), [])
 
-    def test_a_motif_no_icon_knows_goes_back_for_repair(self):
+    def test_a_motif_no_icon_knows_is_dropped_without_a_repair(self):
+        # Code settles it (normalise._drop_unknown_icons), so no repair call is spent on it. This test used to assert
+        # a repair whose prompt said "motif"; that repair was really for a stat the old pass dropped over „3,8".
         result, prompts = self.write([self.ideas(), {**self.draft, "motif": "ოქრო"}, self.draft, self.draft])
         self.assertEqual(result["problems"], [])
-        self.assertIn("motif", prompts[2])
+        self.assertFalse(any("წინა პასუხი უარყოფილია" in p for p in prompts))
+        self.assertNotIn("motif", json.loads(pathlib.Path(result["story"]).read_text(encoding="utf-8")))
 
     def test_a_failed_idea_step_never_loses_the_video(self):
         result, _ = self.write([{"ideas": []}, self.draft, self.draft])

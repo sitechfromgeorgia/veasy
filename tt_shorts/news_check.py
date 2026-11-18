@@ -191,16 +191,10 @@ def scene_part(story, i):
     from tt_shorts import normalize_ka
     narration = story.get("narration", "")
     toks = normalize_ka.tokens(narration)
-    keys = [_norm(t) for t in toks]
-    starts, after = [], 0
-    for s in story.get("scenes") or []:
-        want = [_norm(p) for p in normalize_ka.tokens(s.get("at") or "") if _norm(p)]
-        hit = next((k for k in range(after, len(keys) - len(want) + 1) if want and keys[k:k + len(want)] == want), None)
-        if hit is None:
-            return narration
-        starts.append(hit)
-        after = hit + 1
-    starts.append(len(toks))
+    starts = normalize_ka.segments(narration, [s.get("at") or "" for s in story.get("scenes") or []])
+    if starts is None:
+        return narration
+    starts = starts + [len(toks)]
     return " ".join(toks[starts[i]:starts[i + 1]])
 
 

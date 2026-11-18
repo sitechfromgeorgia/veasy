@@ -174,6 +174,32 @@ def tokens(text):
     return TOKENS.findall(text)
 
 
+def key(token):
+    """A token as an anchor compares it: lower case, letters and digits only (any script)."""
+    return re.sub(r"[\W_]", "", token.lower())
+
+
+def segments(narration, anchors):
+    """The one splitter: the token index each scene starts at, from its "at" anchor, or None when an anchor is
+    empty or not found in order.
+
+    Tokens are tokens(narration); an anchor matches when its keys equal the narration's keys there (punctuation
+    and case ignored), searching from one token after the previous scene's start. ka_check (K9), news_check
+    (N10-N13 slices) and normalise.py all read scene slices through this, so they can't disagree about where a
+    scene begins. The result is not checked to start at 0 (a narration may open before the first anchor)."""
+    keys = [key(t) for t in tokens(narration or "")]
+    starts, after = [], 0
+    for at in anchors:
+        want = [k for k in (key(p) for p in tokens(str(at or ""))) if k]
+        hit = next((i for i in range(after, len(keys) - len(want) + 1) if want and keys[i:i + len(want)] == want),
+                   None)
+        if hit is None:
+            return None
+        starts.append(hit)
+        after = hit + 1
+    return starts
+
+
 def learned_path():
     return pathlib.Path(os.environ.get("SHORTS_DATA", HERE.parent / "data")) / "lexicon_learned.json"
 

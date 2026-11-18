@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from tt_shorts import art, catalog, drawings, engine, icons, illustrator, motion_rules, vignettes, writer
+from tt_shorts import art, catalog, drawings, engine, icons, illustrator, motion_rules, normalise, vignettes, writer
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -342,7 +342,7 @@ class Illustrator(Home):
             return {**story, "drawn": True}, {}
         with mock.patch.object(writer, "_call", return_value=json.dumps(answer, ensure_ascii=False)), \
                 mock.patch.object(writer, "_edit", return_value=None), \
-                mock.patch.object(writer, "_anchors_ok", return_value=True), \
+                mock.patch.object(normalise, "anchors_ok", return_value=True), \
                 mock.patch.object(illustrator, "draw", side_effect=draw):
             story = writer.write({"id": 7, "category": "society"}, ["text"], repairs=0, run_checks=lambda s, a, c: [])
         self.assertEqual(seen, [self.story["narration"]])

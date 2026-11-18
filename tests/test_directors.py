@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from tt_shorts import brand, directors, engine, variety, writer
+from tt_shorts import brand, directors, engine, normalise, variety, writer
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FIXTURES = json.loads((ROOT / "tests" / "fixtures" / "sources.json").read_text(encoding="utf-8"))
@@ -172,7 +172,7 @@ class Assignment(unittest.TestCase):
         answer["director"] = "type"
         with mock.patch.object(writer, "_call", return_value=json.dumps(answer, ensure_ascii=False)), \
                 mock.patch.object(writer, "_edit", return_value=None), \
-                mock.patch.object(writer, "_anchors_ok", return_value=True):
+                mock.patch.object(normalise, "anchors_ok", return_value=True):
             story = writer.write({"id": 24835, "category": "society"}, FIXTURES["24835"], repairs=0,
                                  run_checks=lambda s, a, c: [])
         self.assertNotIn("director", story)

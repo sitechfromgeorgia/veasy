@@ -27,7 +27,7 @@ def load(path):
 
 
 def answer_of(story):
-    """A model's answer for a story: no data fields, every anchor word for word (writer._anchors_ok)."""
+    """A model's answer for a story: no data fields, every anchor word for word (normalise.anchors_ok)."""
     out = {k: v for k, v in copy.deepcopy(story).items() if k not in ("id", "date", "sources")}
     for sc in out["scenes"]:
         if sc["at"] not in out["narration"]:

@@ -121,17 +121,11 @@ def norm(s):
 
 def scene_words(story):
     """[(scene index, type, narration words until the next scene)] from the "at" anchors."""
-    toks = normalize_ka.tokens(story.get("narration", ""))
-    keys = [norm(t) for t in toks]
-    starts, after = [], 0
-    for s in story.get("scenes") or []:
-        want = [norm(p) for p in normalize_ka.tokens(s.get("at", "")) if norm(p)]
-        hit = next((i for i in range(after, len(keys) - len(want) + 1) if want and keys[i:i + len(want)] == want), None)
-        if hit is None:
-            return []  # check() already reports the bad anchor
-        starts.append(hit)
-        after = hit + 1
-    starts.append(len(toks))
+    narration = story.get("narration", "")
+    starts = normalize_ka.segments(narration, [s.get("at", "") for s in story.get("scenes") or []])
+    if starts is None:
+        return []  # check() already reports the bad anchor
+    starts = starts + [len(normalize_ka.tokens(narration))]
     return [(i, s.get("type"), starts[i + 1] - starts[i]) for i, s in enumerate(story.get("scenes") or [])]
 
 
