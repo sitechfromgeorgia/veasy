@@ -114,7 +114,8 @@ def findings(story: dict, model: str | None = None) -> list[dict]:
     if len(text) < 40:
         return []
     try:
-        answer = writer._call(PROMPT + text, model or writer.MODEL, max_tokens=900)
+        from tt_shorts import reader
+        answer = reader.ask(PROMPT + text, model=model, max_tokens=900, json_out=True)
     except Exception:  # noqa: BLE001 - a reader that cannot answer must not block publishing
         return []
     found = _parse(answer)

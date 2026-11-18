@@ -120,8 +120,9 @@ def review(day: str | None = None, model: str | None = None, dry: bool = False) 
         return {"day": day, "records": 0, "pairs": 0, "accepted": [], "rejected": [],
                 "note": "no corpus for this day"}
     text = corpus.digest(day)
-    from tt_shorts import writer
-    answer = writer._call(PROMPT + text, model or writer.MODEL, max_tokens=1500)
+    from tt_shorts import reader
+    # agy on the owner's subscription is the daily reader; the writer model is the fallback.
+    answer = reader.ask(PROMPT + text, model=model, max_tokens=1500, json_out=True)
     pairs = _parse(answer)
     day_text = "\n".join(r.get("text", "") for r in records)
     accepted, rejected = ([], [{"**": "dry"}] if dry else _apply(pairs, day_text))

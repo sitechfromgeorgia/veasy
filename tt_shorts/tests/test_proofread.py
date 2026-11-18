@@ -122,3 +122,34 @@ class SingleWordTest(unittest.TestCase):
     def test_a_single_word_still_passes(self):
         answer = '{"findings": [{"span": "მოქცევარი", "problem": "არ არსებობს", "fix": "მამაკაცი"}]}'
         self.assertEqual(len(proofread._parse(answer)), 1)
+
+
+class ReaderTest(unittest.TestCase):
+    """One reader contract, two backends. The review must not care which model answered."""
+
+    def test_status_names_the_backend(self):
+        from tt_shorts import reader
+        s = reader.status()
+        self.assertIn(s["backend"], ("agy", "writer"))
+        self.assertIn("model", s)
+        self.assertIsInstance(s["agy_present"], bool)
+
+    def test_explicit_override_wins(self):
+        import os
+        from tt_shorts import reader
+        os.environ["TT_READER"] = "writer"
+        try:
+            self.assertEqual(reader.backend(), "writer")
+        finally:
+            os.environ.pop("TT_READER", None)
+
+    def test_an_unavailable_binary_falls_back(self):
+        import os
+        from tt_shorts import reader
+        old = reader.AGY
+        reader.AGY = "/nonexistent/agy"
+        try:
+            self.assertFalse(reader.available())
+            self.assertEqual(reader.backend(), "writer")
+        finally:
+            reader.AGY = old
