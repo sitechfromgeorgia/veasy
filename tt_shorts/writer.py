@@ -819,6 +819,76 @@ def _drop_pictograms(story: dict) -> None:
     story.pop("motif", None)
 
 
+def _drop_unknown_icons(story: dict) -> None:
+    """An icon or motif the library cannot resolve is a dead scene, not a style choice.
+
+    Measured 2026-11-18: motif "მეგაფონი" resolved to nothing, and the checker refused the whole story.
+    The motif is decoration: removing it keeps the scene and its text, which is everything the viewer
+    needs.
+    """
+    from tt_shorts import icons
+    for sc in story.get("scenes") or []:
+        if not isinstance(sc, dict):
+            continue
+        for key in ("icon", "motif"):
+            v = sc.get(key)
+            if isinstance(v, str) and v.strip() and not icons.resolve(v):
+                sc.pop(key, None)
+        art = sc.get("art")
+        if isinstance(art, list):
+            kept = []
+            for node in art:
+                if isinstance(node, dict):
+                    v = node.get("icon") or node.get("motif")
+                    if isinstance(v, str) and v.strip() and not icons.resolve(v):
+                        continue
+                kept.append(node)
+            if kept:
+                sc["art"] = kept
+            else:
+                sc.pop("art", None)
+
+
+_LATIN_KA = {
+    "a": "ა", "b": "ბ", "c": "კ", "d": "დ", "e": "ე", "f": "ფ", "g": "გ", "h": "ჰ", "i": "ი",
+    "j": "ჯ", "k": "კ", "l": "ლ", "m": "მ", "n": "ნ", "o": "ო", "p": "პ", "q": "ქ", "r": "რ",
+    "s": "ს", "t": "ტ", "u": "უ", "v": "ვ", "w": "ვ", "x": "ქს", "y": "ი", "z": "ზ",
+}
+
+
+def _fix_unspoken_names(story: dict) -> None:
+    """K20: a Latin name gets a Georgian spoken form, or the voice reads Latin letters.
+
+    The checker lists the Latin tokens the narration still carries and asks for a "say" entry. Waiting
+    for a repair call is what failed before (measured 2026-11-18: "Wildberries" survived every pass),
+    and the transliteration is mechanical, so it is done here: a Latin word becomes Georgian letters in
+    the script's own dictation, and the written name stays Latin on screen.
+    """
+    from tt_shorts import normalize_ka
+    narration = story.get("narration") or ""
+    if not narration:
+        return
+    say = story.get("say") if isinstance(story.get("say"), dict) else {}
+    missing = normalize_ka.unspoken(narration, say)
+    for name in missing:
+        if not name or not name.isascii():
+            continue
+        # a known brand keeps its conventional Georgian spelling where we have one
+        known = {"wildberries": "ვაილდბერიზ", "openai": "ოუფენეი", "google": "გუგლი",
+                 "facebook": "ფეისბუქი", "youtube": "იუთუბი", "tiktok": "ტიკტოკი",
+                 "instagram": "ინსტაგრამი", "telegram": "ტელეგრამი", "amazon": "ამაზონი",
+                 "meta": "მეტა", "apple": "ეფლი", "microsoft": "მაიკროსოფტი"}
+        low = name.lower()
+        if low in known:
+            say[name] = known[low]
+            continue
+        ka = "".join(_LATIN_KA.get(ch, ch) for ch in low)
+        if ka and not normalize_ka.LATIN.search(ka):
+            say[name] = ka
+    if say:
+        story["say"] = say
+
+
 def _fix_long_text(story: dict) -> None:
     """A quote or point that runs into the like/share rail is clipped, not unreadable.
 
@@ -856,13 +926,17 @@ def _shorten_story(story: dict, target: int = 42) -> None:
     if words <= 0:
         return
     rate = 2.5  # words a second, the estimate the timing probe uses
-    while len(scenes) > 3 and words / rate > target:
+    MIN_S = 20  # the format's own floor is 18 s; stay clear of it
+    while len(scenes) > 3 and words / rate > target and (words / rate) > MIN_S:
         # drop the longest scene that is neither the hook nor the end
         candidates = [(len(str(sc.get("at") or "")), i) for i, sc in enumerate(scenes)
                       if sc.get("type") not in ("hook", "end")]
         if not candidates:
             break
         _, idx = max(candidates)
+        trial_words = words - len(str(scenes[idx].get("at") or "").split())
+        if trial_words / rate < MIN_S:
+            break  # the next cut would make the film too short to publish
         dropped = scenes.pop(idx)
         # its words leave the narration with it
         at = str(dropped.get("at") or "").strip()
@@ -1337,6 +1411,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _drop_unverbatim_quotes(story, articles)
     _spell_relative_days(story)
     _fix_em_marks(story)
+    _drop_unknown_icons(story)
+    _fix_unspoken_names(story)
     _fix_long_text(story)
     _shorten_story(story)
     _fix_repeats(story)
@@ -1398,6 +1474,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _drop_unverbatim_quotes(story, articles)
         _spell_relative_days(story)
         _fix_em_marks(story)
+        _drop_unknown_icons(story)
+        _fix_unspoken_names(story)
         _fix_long_text(story)
         _shorten_story(story)
         _fix_repeats(story)
@@ -1410,6 +1488,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _drop_unverbatim_quotes(story, articles)
         _spell_relative_days(story)
         _fix_em_marks(story)
+        _drop_unknown_icons(story)
+        _fix_unspoken_names(story)
         _fix_long_text(story)
         _shorten_story(story)
         _fix_repeats(story)
@@ -1430,6 +1510,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _drop_unverbatim_quotes(story, articles)
         _spell_relative_days(story)
         _fix_em_marks(story)
+        _drop_unknown_icons(story)
+        _fix_unspoken_names(story)
         _fix_long_text(story)
         _shorten_story(story)
         _fix_repeats(story)
