@@ -592,15 +592,21 @@ def _no_dashes(story: dict) -> None:
         out = _DASH_RE.sub(", ", text)
         return re.sub(r"\s{2,}", " ", out).strip()
 
+    # The narration was never passed through this, so a dash the writer put in the spoken text reached
+    # the checker every time: measured 2026-11-18, K12 and KE both reported the same em dash in the
+    # narration while every scene field was already clean.
+    for key in ("narration", "headline", "hook", "title", "cta"):
+        if isinstance(story.get(key), str):
+            story[key] = fix(story[key])
     for sc in story.get("scenes") or []:
         if not isinstance(sc, dict):
             continue
-        for key in ("headline", "heading", "text", "caption", "label"):
-            if key in sc:
-                sc[key] = fix(sc[key])
-        for key in ("items", "lines"):
-            v = sc.get(key)
-            if isinstance(v, list):
+        for key, v in list(sc.items()):
+            if key in ("at", "type", "art", "say"):
+                continue
+            if isinstance(v, str):
+                sc[key] = fix(v)
+            elif isinstance(v, list):
                 sc[key] = [fix(x) if isinstance(x, str) else x for x in v]
 
 
