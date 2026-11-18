@@ -380,16 +380,23 @@ def _hard_anchor(story: dict) -> None:
 
     wanted = [max(mins[i], len(str(sc.get("at") or "").split())) for i, sc in enumerate(scenes)]
     scale = min(1.0, total / sum(wanted)) if sum(wanted) > total else 1.0
+    # A scene holds its frame while its words are spoken, and the stillness rule allows five seconds.
+    # Georgian speech runs near 2.5 words a second, so a slice longer than about twelve words reads as
+    # a stall on a phone even when every word is needed. Excess words move to the next scene rather
+    # than making this one unrenderable, and the anchor is what decides where a cut falls.
+    MAX_WORDS = 12
     takes = [max(mins[i], int(w * scale)) for i, w in enumerate(wanted)]
-    # Spread any leftover words across the scenes instead of dumping them on the last one. Assigning
-    # the whole remainder to the final scene made one calendar scene 27.9 s long, which is the stillness
-    # rule failing on a cut that the anchor pass itself created.
     leftover = total - sum(takes)
     i = 0
-    while leftover > 0 and len(takes) > 0:
-        takes[i % len(takes)] += 1
-        leftover -= 1
+    while leftover > 0 and takes:
+        if takes[i % len(takes)] < MAX_WORDS:
+            takes[i % len(takes)] += 1
+            leftover -= 1
         i += 1
+        if i > MAX_WORDS * len(takes) * 4:  # every scene is at the cap; the rest cannot be placed
+            # grow the scene with the most room in its type minimum instead of looping forever
+            takes[takes.index(min(takes))] += leftover
+            break
 
     pos = 0
     out = []
@@ -812,6 +819,43 @@ def _drop_pictograms(story: dict) -> None:
     story.pop("motif", None)
 
 
+def _fix_change_scenes(story: dict) -> None:
+    """A "change" brush needs a before and an after object; a model that sends only a target loses the job.
+
+    Measured 2026-11-18: the scene carried type/at/kicker/target/change/when/unit and no "before", so the
+    catalogue's own structure check rejected it and four repairs kept sending the same shape because the
+    prompt asks for a change without spelling out the two objects. Downgrading to a plain stat keeps the
+    figure on screen with the fields the model did provide, which is the lesser loss than no video.
+    """
+    scenes = story.get("scenes") or []
+    out = []
+    for sc in scenes:
+        if not isinstance(sc, dict) or sc.get("type") != "change":
+            out.append(sc)
+            continue
+        before, after = sc.get("before"), sc.get("after")
+        if isinstance(before, dict) and isinstance(after, dict):
+            out.append(sc)
+            continue
+        # keep the number the model did give, as a stat the schema already knows
+        value = None
+        for key in ("target", "change", "value", "after"):
+            v = sc.get(key)
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                value = v
+                break
+            if isinstance(v, dict) and isinstance(v.get("value"), (int, float)):
+                value = v["value"]
+                break
+        if value is None:
+            continue  # nothing numeric survived: the scene cannot say anything
+        label = sc.get("label") or sc.get("kicker") or ""
+        out.append({"type": "stat", "at": sc.get("at"), "value": value,
+                    **({"label": label} if label else {}),
+                    **({"unit": sc["unit"]} if sc.get("unit") else {})})
+    story["scenes"] = out
+
+
 def _fix_sign_verbs(story: dict) -> None:
     """N10: a sign's verb must be one the narration actually says, or the sign goes.
 
@@ -1044,6 +1088,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _spell_clock(story)
     normalize_ka.fix_say_letters(story)
     _repair_scenes(story, articles)
+    _fix_change_scenes(story)
     _drop_pictograms(story)
     _fix_sign_verbs(story)
     _drop_short_scenes(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
@@ -1096,9 +1141,11 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         normalize_ka.fix_say_letters(story)
         _drop_unsourced_numbers(story, articles)
         _repair_scenes(story, articles)
+        _fix_change_scenes(story)
         _drop_pictograms(story)
         _fix_sign_verbs(story)
         _drop_short_scenes(story)
+        _fix_change_scenes(story)
         _drop_pictograms(story)
         _fix_sign_verbs(story)
         _drop_short_scenes(story)
@@ -1110,6 +1157,7 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
             problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if not _anchors_ok(story):
         # Last chance before failing: the repair above may itself have deleted or rewritten a scene.
+        _fix_change_scenes(story)
         _drop_pictograms(story)
         _fix_sign_verbs(story)
         _drop_short_scenes(story)
