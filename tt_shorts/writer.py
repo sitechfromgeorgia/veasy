@@ -341,6 +341,61 @@ def _fix_anchors(story: dict) -> None:
         pos = p + len(fat)
 
 
+def _hard_anchor(story: dict) -> None:
+    """Rebuild every anchor from the narration, word by word, in scene order.
+
+    The normalised search in _fix_anchors strips punctuation before matching, so a match can land in
+    the middle of a Georgian word: measured 2026-11-18, scene 4 of a six-scene story carried
+    "რდნენ. ქვები..." cut out of "დაუპირისპირდნენ". The anchor was then not a substring of the
+    narration, K13 failed, and four repairs could not fix it because the same normaliser produced the
+    same cut again.
+
+    This pass has no normalisation to get wrong: it takes the first N words of the remaining narration
+    for each scene, where N is the word count the scene already asked for. It cannot produce anything
+    that is not an exact slice, so it is the last word on anchors.
+    """
+    narration = story.get("narration") or ""
+    scenes = story.get("scenes") or []
+    if not narration or not scenes:
+        return
+    words = list(re.finditer(r"\S+", narration))
+    if not words:
+        return
+    # Distribute by what each scene type needs, not by what the writer asked for. A scene's own word
+    # count is the writer's guess, and giving every scene its guess left later scenes short of their
+    # type's minimum, which is the K9 failure this pass is meant to end. Each scene takes at least its
+    # catalogue minimum, and whatever is left over goes to the scenes that asked for more.
+    from tt_shorts import catalog as _catalog
+    needs = _catalog.min_words()
+    default = _catalog.MIN_WORDS_DEFAULT
+    mins = [max(1, needs.get(str(sc.get("type")), default)) for sc in scenes]
+    total = len(words)
+
+    # If the narration cannot cover every minimum, drop the scenes it cannot carry from the end.
+    while len(mins) > 2 and sum(mins) > total:
+        mins.pop(-2)
+        scenes = scenes[:-2] + scenes[-1:]
+    if sum(mins) > total:
+        return  # nothing sensible to rebuild; the caller reports the real shortage
+
+    wanted = [max(mins[i], len(str(sc.get("at") or "").split())) for i, sc in enumerate(scenes)]
+    scale = min(1.0, total / sum(wanted)) if sum(wanted) > total else 1.0
+    takes = [max(mins[i], int(w * scale)) for i, w in enumerate(wanted)]
+    # hand the remainder to the last scene that can use it
+    takes[-1] += total - sum(takes)
+
+    pos = 0
+    out = []
+    for sc, take in zip(scenes, takes):
+        if pos >= total:
+            break
+        take = min(take, total - pos)
+        sc["at"] = narration[words[pos].start():words[pos + take - 1].end()]
+        pos += take
+        out.append(sc)
+    story["scenes"] = out
+
+
 def _anchors_ok(story: dict) -> bool:
     """Every scene anchor must sit in the narration, in order (props.cut depends on it)."""
     narration = story.get("narration", "")
@@ -391,7 +446,11 @@ def _fix_dates(story: dict, cluster: dict) -> None:
 
 
 
-_LIMITS = {"kicker": 24, "headline": 40, "label": 24, "big": 12, "unit": 8, "place": 30, "sub": 30, "by": 40, "text": 200, "via": 32}
+# Every text field a scene can carry, with the limit the renderer enforces. "end" was missing, so a
+# 30-character end line reached the checker and failed the job on "at most 24" (measured 2026-11-18)
+# while every other field was clamped before the check ever saw it.
+_LIMITS = {"kicker": 24, "headline": 40, "label": 24, "big": 12, "unit": 8, "place": 30, "sub": 30,
+           "by": 40, "text": 200, "via": 32, "end": 24, "weekday": 20, "change": 24, "value": 12}
 
 
 def _clamp(text: str, limit: int) -> str:
@@ -443,6 +502,39 @@ def _ka_forms(story: dict) -> None:
         if not isinstance(sc, dict):
             continue
         for key, v in list(sc.items()):
+            if isinstance(v, str):
+                sc[key] = fix(v)
+            elif isinstance(v, list):
+                sc[key] = [fix(x) if isinstance(x, str) else x for x in v]
+
+
+def _drop_stray_latin(story: dict) -> None:
+    """K19: a plain English word in Georgian text is a defect, and the model keeps reintroducing it.
+
+    Measured 2026-11-18: "ardi" appeared in a calendar scene and survived four repairs, because the
+    prompt says to write Georgian and the checker enforces it, but no pass removes the word. A lone
+    lowercase Latin token inside otherwise Georgian text is never a product name (those are capitalised
+    and belong in "say"), so dropping it leaves a readable sentence and a clean lint.
+    """
+    def fix(text):
+        if not isinstance(text, str) or not text:
+            return text
+        if not re.search(r"[ა-ჰ]", text):
+            return text  # a Latin-only string is a name or a code, not Georgian text with a stray word
+        out = re.sub(r"(?<![A-Za-z0-9.@/_-])[a-z]{3,}(?![A-Za-z0-9.@/_])", "", text)
+        out = re.sub(r"\s{2,}", " ", out)
+        out = re.sub(r"\s+([,.;:!?])", r"\1", out)
+        return out.strip()
+
+    for key in ("headline", "hook", "title", "cta", "narration"):
+        if isinstance(story.get(key), str):
+            story[key] = fix(story[key])
+    for sc in story.get("scenes") or []:
+        if not isinstance(sc, dict):
+            continue
+        for key, v in list(sc.items()):
+            if key in ("at", "type", "art", "say"):
+                continue
             if isinstance(v, str):
                 sc[key] = fix(v)
             elif isinstance(v, list):
@@ -724,9 +816,16 @@ def _drop_short_scenes(story: dict) -> None:
     # checker and failed the render (measured 2026-11-18: K9 on scene 0 hook). The first scene gets
     # the same test as the rest; dropping it just means the second scene opens the video, which is
     # what a hook with no room for its own words should do.
+    # The threshold is per scene type and lives in the brush catalogue, which is what the checker reads
+    # (a drawing needs 8 words, a chart or a sign 7, the end card 4). A flat number here drifted from it
+    # both ways: 6 let a 7-word rail through to fail, and 8 dropped scenes the checker would have kept.
+    from tt_shorts import catalog as _catalog
+
+    needs = _catalog.min_words()
+    default = _catalog.MIN_WORDS_DEFAULT
     keep = []
     for i in range(0, len(scenes) - 1):
-        need = 4 if scenes[i].get("type") == "end" else 6
+        need = needs.get(str(scenes[i].get("type")), default)
         if starts[i + 1] - starts[i] >= need:
             keep.append(i)
     if not keep:
@@ -878,13 +977,25 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _clamp_texts(story)
     _no_dashes(story)
     _fix_separators(story)
+    _drop_stray_latin(story)
     _ka_forms(story)
     _spell_clock(story)
     normalize_ka.fix_say_letters(story)
     _repair_scenes(story, articles)
-    _fix_anchors(story)
     _drop_pictograms(story)
     _drop_short_scenes(story)  # the first pass too: a late end scene is a K9 failure that costs a repair call otherwise
+    # Anchors come last: every pass above can delete a scene or rewrite the narration, and an anchor
+    # fixed before that describes text that no longer exists. Measured 2026-11-18: K13 survived four
+    # repairs on a story whose anchors had been correct before _spell_clock rewrote the narration.
+    _fix_anchors(story)
+    if not _anchors_ok(story):
+        _hard_anchor(story)
+    # The hard anchor distributes words evenly, which can leave a scene one word short of its type's
+    # minimum while the checker demands it. Drop such a scene and rebuild: the narration still reads,
+    # because its words stay in the neighbouring scene's slice.
+    _drop_short_scenes(story)
+    if not _anchors_ok(story):
+        _hard_anchor(story)
     # identity is added once, after every model pass (see below)
     problems = checks_of(story, articles, cluster)
     if not _anchors_ok(story):
@@ -916,19 +1027,31 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _clamp_texts(story)
         _no_dashes(story)
         _fix_separators(story)
+        _drop_stray_latin(story)
         _ka_forms(story)
         _spell_clock(story)
         normalize_ka.fix_say_letters(story)
         _drop_unsourced_numbers(story, articles)
         _repair_scenes(story, articles)
-        _fix_anchors(story)
         _drop_pictograms(story)
         _drop_short_scenes(story)
+        _drop_pictograms(story)
+        _drop_short_scenes(story)
+        _fix_anchors(story)
+        if not _anchors_ok(story):
+            _hard_anchor(story)
         problems = checks_of(story, articles, cluster)
         if not _anchors_ok(story):
             problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if not _anchors_ok(story):
-        problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
+        # Last chance before failing: the repair above may itself have deleted or rewritten a scene.
+        _drop_pictograms(story)
+        _drop_short_scenes(story)
+        _fix_anchors(story)
+        if not _anchors_ok(story):
+            _hard_anchor(story)
+        if not _anchors_ok(story):
+            problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if any("): art: " in p for p in problems):  # a scene's own drawing that still fails is dropped (vignettes.py)
         story = vignettes.drop_bad(story)
         problems = checks_of(story, articles, cluster)
