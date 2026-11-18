@@ -819,6 +819,190 @@ def _drop_pictograms(story: dict) -> None:
     story.pop("motif", None)
 
 
+def _fix_repeats(story: dict) -> None:
+    """Two scenes of the same type in a row read as one long beat. Merge them.
+
+    The checker refuses a repeated type, and a repair pass tends to swap the second one for the same
+    type again. Merging keeps both texts and their words: the second scene's fields fill any the first
+    left empty, and the anchor of the merged scene is the first one's, which is where its narration
+    starts.
+    """
+    scenes = story.get("scenes") or []
+    out = []
+    for sc in scenes:
+        if not isinstance(sc, dict):
+            out.append(sc)
+            continue
+        if out and isinstance(out[-1], dict) and out[-1].get("type") == sc.get("type") and sc.get("type") not in ("hook", "end"):
+            first = out[-1]
+            for k, v in sc.items():
+                if k in ("at", "type"):
+                    continue
+                if k not in first or not first[k]:
+                    first[k] = v
+            # a merged scene must not claim more narration than its anchor's slice
+            continue
+        out.append(sc)
+    story["scenes"] = out
+
+
+def _fix_schema_gaps(story: dict) -> None:
+    """A brush's own required slots, filled or the scene is gone.
+
+    The catalogue defines what each brush must carry (`slots`, with `required`), and a model that omits a
+    required slot fails the structure check after spending its answer. Where a stand-in is honest it is
+    filled; where it is not, the scene goes. Measured 2026-11-18: a timeline without "end", a change
+    without "before".
+    """
+    out = []
+    for sc in story.get("scenes") or []:
+        if not isinstance(sc, dict):
+            out.append(sc)
+            continue
+        t = sc.get("type")
+        if t == "timeline":
+            if not sc.get("start"):
+                sc["start"] = sc.get("from") or sc.get("first") or ""
+            if not sc.get("end"):
+                # the last item's label is the end of a timeline; a timeline with no end has no story
+                items = sc.get("items") or []
+                last = items[-1] if items and isinstance(items[-1], dict) else {}
+                sc["end"] = last.get("label") or last.get("when") or ""
+            if not str(sc.get("start") or "").strip() or not str(sc.get("end") or "").strip():
+                continue
+        out.append(sc)
+    story["scenes"] = out
+
+
+def _fix_em_marks(story: dict) -> None:
+    """N11: an em mark and a link edge must be words the voice says in that scene's part of the narration.
+
+    The mark is a highlight, not content: when the phrase is not spoken there, dropping it costs a
+    highlight and keeps the scene, which is what the checker's own message allows. Measured 2026-11-18:
+    a stat marked "15" while its part of the narration never said the number.
+    """
+    from tt_shorts import marks, news_check
+    scenes = story.get("scenes") or []
+    for i, sc in enumerate(scenes):
+        if not isinstance(sc, dict):
+            continue
+        em = sc.get("em")
+        if isinstance(em, str) and em.strip():
+            part = news_check.scene_part(story, i) if hasattr(news_check, "scene_part") else ""
+            # two conditions, both fatal: the phrase must be on the scene's own text and spoken in its part
+            on_screen = marks.locate(sc) if hasattr(marks, "locate") else True
+            if (not on_screen) or (part and not marks.said(em, part)):
+                sc.pop("em", None)
+        edge = sc.get("edge")
+        if isinstance(edge, str) and edge.strip():
+            part = news_check.scene_part(story, i) if hasattr(news_check, "scene_part") else ""
+            if part and not marks.said(edge, part):
+                sc.pop("edge", None)
+
+
+_KA_MONTHS = ("იანვარს", "თებერვალს", "მარტს", "აპრილს", "მაისს", "ივნისს", "ივლისს",
+              "აგვისტოს", "სექტემბერს", "ოქტომბერს", "ნოემბერს", "დეკემბერს")
+
+
+def _spell_relative_days(story: dict, when=None) -> None:
+    """N4: a relative day ("დღეს", "გუშინ") is a defect; the date must be named or left out.
+
+    The writer is told, and the checker rejects it, but a repair pass returns "დღეს" again because the
+    source article was published that day and the model keeps the source's own wording. A named date
+    reads the same and is what a viewer watching tomorrow needs.
+    """
+    import datetime as _dt
+    today = when or _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=4)))
+    mapping = {}
+    for word, delta in (("დღეს", 0), ("გუშინ", -1), ("გუშინწინ", -2), ("ხვალ", 1), ("ზეგ", 2)):
+        d = today + _dt.timedelta(days=delta)
+        mapping[word] = f"{d.day} {_KA_MONTHS[d.month - 1]}"
+
+    def fix(text):
+        if not isinstance(text, str) or not text:
+            return text
+        out = text
+        for word in mapping:
+            # Dropping is the other outcome N4 allows, and it is the safe one: naming today's date adds a
+            # numeral the source never said, which N2 then rejects (measured 2026-11-18: "18" introduced
+            # by this very pass and flagged as unsourced a moment later).
+            out = re.sub(rf"(?<![ა-ჰ]){word}(?![ა-ჰ])[,\s]*", "", out)
+        out = re.sub(r"\s{2,}", " ", out)
+        out = re.sub(r"\s+([,.;:])", r"\1", out)
+        return out.strip()
+
+    for key in ("narration", "headline", "hook", "title"):
+        if isinstance(story.get(key), str):
+            story[key] = fix(story[key])
+    for sc in story.get("scenes") or []:
+        if not isinstance(sc, dict):
+            continue
+        for key, v in list(sc.items()):
+            if key in ("at", "type", "art", "say"):
+                continue
+            if isinstance(v, str):
+                sc[key] = fix(v)
+            elif isinstance(v, list):
+                sc[key] = [fix(x) if isinstance(x, str) else x for x in v]
+
+
+def _drop_unverbatim_quotes(story: dict, articles) -> None:
+    """N3: a quote must appear word for word in a source. A model that invents one cannot be repaired.
+
+    Measured 2026-11-18: a quote scene carried "პასუხები" which no article contains. The prompt asks for
+    a verbatim quote and four repairs return a fresh invention, so the cheaper and honest outcome is to
+    remove the quote scene and let the rest of the story stand. A story with one fewer scene still
+    publishes; a story with an invented quote does not, and should not.
+    """
+    from tt_shorts import news_check
+    scenes = story.get("scenes") or []
+    corpus = news_check.flat(" ".join(str(a.get("text") or a.get("content_text") or "")
+                                      if isinstance(a, dict) else str(a) for a in (articles or [])))
+    if not corpus:
+        return
+    # A quotation mark anywhere is checked the same way, and the narration is where most of them sit: a
+    # name the writer wrapped in „“ but the source states plainly fails K14 as well as N3.
+    narration = story.get("narration") or ""
+    for quoted in re.findall(r"„([^“”]+)[“”]", narration):
+        if news_check.flat(quoted) not in corpus:
+            narration = narration.replace(f"„{quoted}“", quoted).replace(f"„{quoted}“", quoted)
+    for quoted in re.findall(r"„([^“”]+)[“”]", narration):
+        if news_check.flat(quoted) not in corpus:
+            narration = narration.replace(f"„{quoted}“", "")
+    story["narration"] = re.sub(r"\s{2,}", " ", narration).strip()
+    out = []
+    for sc in scenes:
+        if isinstance(sc, dict) and sc.get("type") == "quote":
+            q = str(sc.get("quote") or sc.get("text") or "")
+            if q and news_check.flat(q) not in corpus:
+                # the same sentence is usually in the narration too; N3 reads both, so drop it there as well
+                narration = story.get("narration") or ""
+                if q in narration:
+                    story["narration"] = narration.replace(q, "").replace(",,", ",").strip()
+                continue  # invented: the scene cannot stand
+        out.append(sc)
+    story["scenes"] = out
+
+
+def _fix_first_scene(story: dict) -> None:
+    """The first scene must be a hook; the model sometimes opens with a stat or a timeline instead.
+
+    Measured 2026-11-18: a story whose first scene was a timeline was rejected outright, after the model
+    had already spent its answer. Renaming the opening scene to a hook keeps the words the model wrote
+    where it put them and satisfies the structure the engine requires, which is the only thing wrong.
+    """
+    scenes = story.get("scenes") or []
+    if not scenes or not isinstance(scenes[0], dict):
+        return
+    if scenes[0].get("type") == "hook":
+        return
+    scenes[0]["type"] = "hook"
+    # the hook brush reads "kicker"/"headline"/"text"; carry over whatever the opening scene wrote
+    for src, dst in (("label", "kicker"), ("title", "headline"), ("sub", "text")):
+        if scenes[0].get(src) and not scenes[0].get(dst):
+            scenes[0][dst] = scenes[0][src]
+
+
 def _fix_change_scenes(story: dict) -> None:
     """A "change" brush needs a before and an after object; a model that sends only a target loses the job.
 
@@ -1088,6 +1272,12 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _spell_clock(story)
     normalize_ka.fix_say_letters(story)
     _repair_scenes(story, articles)
+    _drop_unverbatim_quotes(story, articles)
+    _spell_relative_days(story)
+    _fix_em_marks(story)
+    _fix_repeats(story)
+    _fix_schema_gaps(story)
+    _fix_first_scene(story)
     _fix_change_scenes(story)
     _drop_pictograms(story)
     _fix_sign_verbs(story)
@@ -1141,10 +1331,22 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         normalize_ka.fix_say_letters(story)
         _drop_unsourced_numbers(story, articles)
         _repair_scenes(story, articles)
+        _drop_unverbatim_quotes(story, articles)
+        _spell_relative_days(story)
+        _fix_em_marks(story)
+        _fix_repeats(story)
+        _fix_schema_gaps(story)
+        _fix_first_scene(story)
         _fix_change_scenes(story)
         _drop_pictograms(story)
         _fix_sign_verbs(story)
         _drop_short_scenes(story)
+        _drop_unverbatim_quotes(story, articles)
+        _spell_relative_days(story)
+        _fix_em_marks(story)
+        _fix_repeats(story)
+        _fix_schema_gaps(story)
+        _fix_first_scene(story)
         _fix_change_scenes(story)
         _drop_pictograms(story)
         _fix_sign_verbs(story)
@@ -1157,6 +1359,12 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
             problems.append("K13: every scene \"at\" must be the exact first words of its part of the narration, in order")
     if not _anchors_ok(story):
         # Last chance before failing: the repair above may itself have deleted or rewritten a scene.
+        _drop_unverbatim_quotes(story, articles)
+        _spell_relative_days(story)
+        _fix_em_marks(story)
+        _fix_repeats(story)
+        _fix_schema_gaps(story)
+        _fix_first_scene(story)
         _fix_change_scenes(story)
         _drop_pictograms(story)
         _fix_sign_verbs(story)
