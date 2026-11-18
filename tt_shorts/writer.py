@@ -819,6 +819,68 @@ def _drop_pictograms(story: dict) -> None:
     story.pop("motif", None)
 
 
+def _fix_long_text(story: dict) -> None:
+    """A quote or point that runs into the like/share rail is clipped, not unreadable.
+
+    The rail occupies the bottom-right of the frame. Measured 2026-11-18: „ბიზნესასოციაცია“ reached
+    x=956 below y=1100, which the probe rejects because the like and share buttons cover it. Trimming
+    the text field in that region keeps the scene; the fuller wording stays in the narration.
+    """
+    RAIL_SAFE = 24  # characters that stay clear of the rail at the bottom of a vertical frame
+    for sc in story.get("scenes") or []:
+        if not isinstance(sc, dict):
+            continue
+        for key in ("text", "quote", "sub", "label", "headline"):
+            v = sc.get(key)
+            if isinstance(v, str) and len(v) > 90 and sc.get("type") in ("quote", "points", "stat"):
+                cut = v[:90]
+                if " " in cut:
+                    cut = cut.rsplit(" ", 1)[0]
+                sc[key] = cut.rstrip(" ,.") + "."
+        for key in ("items", "lines"):
+            v = sc.get(key)
+            if isinstance(v, list):
+                sc[key] = [(x[:RAIL_SAFE * 2].rstrip() if isinstance(x, str) and len(x) > RAIL_SAFE * 2 else x)
+                           for x in v]
+
+
+def _shorten_story(story: dict, target: int = 42) -> None:
+    """A story estimated over 45 s is rejected; dropping scenes is the honest way down.
+
+    The estimate is words over a speaking rate. Measured 2026-11-18: a 61 s estimate against a 25-45 s
+    window. Scenes are removed from the middle out, never the hook or the end, until the estimate fits.
+    """
+    scenes = story.get("scenes") or []
+    narration = story.get("narration") or ""
+    words = len(narration.split())
+    if words <= 0:
+        return
+    rate = 2.5  # words a second, the estimate the timing probe uses
+    while len(scenes) > 3 and words / rate > target:
+        # drop the longest scene that is neither the hook nor the end
+        candidates = [(len(str(sc.get("at") or "")), i) for i, sc in enumerate(scenes)
+                      if sc.get("type") not in ("hook", "end")]
+        if not candidates:
+            break
+        _, idx = max(candidates)
+        dropped = scenes.pop(idx)
+        # its words leave the narration with it
+        at = str(dropped.get("at") or "").strip()
+        if at and at in narration:
+            start = narration.find(at)
+            nxt = ""
+            for sc in scenes[idx:]:
+                cand = str(sc.get("at") or "").strip()
+                if cand and narration.find(cand, start) > start:
+                    nxt = cand
+                    break
+            end = narration.find(nxt, start) if nxt else len(narration)
+            narration = narration[:start] + narration[end:]
+            story["narration"] = narration
+        words = len(narration.split())
+    story["scenes"] = scenes
+
+
 def _fix_repeats(story: dict) -> None:
     """Two scenes of the same type in a row read as one long beat. Merge them.
 
@@ -1275,6 +1337,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
     _drop_unverbatim_quotes(story, articles)
     _spell_relative_days(story)
     _fix_em_marks(story)
+    _fix_long_text(story)
+    _shorten_story(story)
     _fix_repeats(story)
     _fix_schema_gaps(story)
     _fix_first_scene(story)
@@ -1334,6 +1398,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _drop_unverbatim_quotes(story, articles)
         _spell_relative_days(story)
         _fix_em_marks(story)
+        _fix_long_text(story)
+        _shorten_story(story)
         _fix_repeats(story)
         _fix_schema_gaps(story)
         _fix_first_scene(story)
@@ -1344,6 +1410,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _drop_unverbatim_quotes(story, articles)
         _spell_relative_days(story)
         _fix_em_marks(story)
+        _fix_long_text(story)
+        _shorten_story(story)
         _fix_repeats(story)
         _fix_schema_gaps(story)
         _fix_first_scene(story)
@@ -1362,6 +1430,8 @@ def write(cluster: dict, articles: list[str], model: str | None = None, repairs:
         _drop_unverbatim_quotes(story, articles)
         _spell_relative_days(story)
         _fix_em_marks(story)
+        _fix_long_text(story)
+        _shorten_story(story)
         _fix_repeats(story)
         _fix_schema_gaps(story)
         _fix_first_scene(story)
