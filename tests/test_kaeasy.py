@@ -46,7 +46,8 @@ FAKE_MEMORY = textwrap.dedent('''
         ROWS.append({"wrong": wrong, "right": right, "category": category, "agent": agent})
         return ROWS[-1]
     def top(limit=20, category=None):
-        return [{"wrong": "გააკეთა გადაწყვეტილება", "right": "მიიღო გადაწყვეტილება", "category": "calque", "count": 3}]
+        return [{"wrong": "გააკეთა", "right": "მიიღო", "category": "calque", "count": 3,
+                 "agent": "corpus-review"}]
     def as_markdown(rows):
         return "\\n".join(f"- ❌ {r['wrong']} → ✅ {r['right']}" for r in rows)
 ''')
@@ -104,7 +105,7 @@ class FakeKaeasy(unittest.TestCase):
     def test_writer_brief_is_free_and_includes_the_fleet_mistakes(self):
         brief = kaeasy.prompt_block()
         self.assertIn("1. Rule one.", brief)
-        self.assertIn("მიიღო გადაწყვეტილება", brief)
+        self.assertIn("მიიღო", brief)
         self.assertNotIn("## Language", brief)
 
     def test_editor_fixes_are_learned_as_short_phrases(self):
