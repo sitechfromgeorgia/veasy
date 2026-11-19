@@ -85,8 +85,17 @@ def screen_texts(story):
 
 
 def _kaeasy_findings(story):
-    """(where, finding) for every kaeasy finding: narration as article, screen text as social, the spoken text as
-    speech (numbers in words, brands in Georgian letters: what the voice will actually read)."""
+    """(where, mode, finding) for every kaeasy finding: narration as article, screen text as social, the spoken
+    text as speech (numbers in words, brands in Georgian letters: what the voice will actually read).
+
+    Learned findings are also RECORDED here, which is the missing half of the loop. `lessons.promote_due`
+    needs one firing outside the lesson's own evidence that a human judged ok, and nothing called
+    `record_firings()`, so no lesson could ever gather that evidence and every one of them sat in shadow
+    forever (found 2026-11-20). Recording happens at the one place every story passes through, so the
+    evidence is collected whatever produced the text.
+
+    A failure here must never stop a story: the record is bookkeeping, the findings are the product.
+    """
     narration = story.get("narration", "")
     say = story.get("say") if isinstance(story.get("say"), dict) else {}
     jobs = [("narration", narration, "article")] + [(w, t, "social") for w, t in screen_texts(story)]
@@ -96,7 +105,15 @@ def _kaeasy_findings(story):
         pass
     out = []
     for where, text, mode in jobs:
-        out += [(where, mode, f) for f in kaeasy.check(text, mode)]
+        found = kaeasy.check(text, mode)
+        out += [(where, mode, f) for f in found]
+    try:
+        ref = str(story.get("id") or story.get("slug") or "") or None
+        lessons_mod = kaeasy.lessons_module()
+        if lessons_mod and ref:
+            lessons_mod.record_firings([f for _, _, f in out], agent="veasy", ref=ref, mode="story")
+    except Exception as e:  # noqa: BLE001 - evidence collection must never break a render
+        print(f"kaeasy: record_firings failed: {type(e).__name__}: {e}", file=sys.stderr)
     return out
 
 

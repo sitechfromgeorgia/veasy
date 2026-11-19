@@ -64,6 +64,30 @@ def available():
     return _load("lint") is not None
 
 
+def lessons_module():
+    """kaeasy's lessons.py as a module, or None.
+
+    `lessons.py` uses relative imports (`from .memory import ...`), so it cannot be loaded the way
+    `_load` loads lint.py, which is standalone. It is imported through the package instead, with the
+    kaeasy directory's parent on sys.path. A failure here returns None: the gate keeps working without
+    the evidence log, and a missing log must never stop a render.
+    """
+    if "lessons" in _mods:
+        return _mods["lessons"]
+    mod = None
+    try:
+        import importlib
+        parent = str(directory().parent)
+        if parent not in sys.path:
+            sys.path.insert(0, parent)
+        mod = importlib.import_module("kaeasy.lessons")
+    except Exception as e:  # noqa: BLE001
+        print(f"kaeasy: lessons module unavailable: {type(e).__name__}: {e}", file=sys.stderr)
+        mod = None
+    _mods["lessons"] = mod
+    return mod
+
+
 def version():
     """'0.1.0+b7cca49' (plugin.yaml version + git commit when the folder is a clone), or None when missing."""
     if not available():

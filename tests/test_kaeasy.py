@@ -194,3 +194,31 @@ class PhraseLessonSurvives(unittest.TestCase):
         self.assertIn("მკვლელობა დაიწყო", block)
         self.assertIn("დაუფლა", block)
         self.assertNotIn("a b c d e", block)  # a five-word context diff is not advice
+
+
+class FiringEvidenceIsCollected(unittest.TestCase):
+    """A learned finding must be recorded, or no lesson can ever earn a promotion.
+
+    Found 2026-11-20: lessons.record_firings() existed and nothing called it, so firings/ stayed empty,
+    promote_due's "every outside firing judged ok" passed vacuously and a rule could reach enforced with
+    no evidence at all. This asserts the wiring, not the policy.
+    """
+
+    def test_record_firings_is_reached_from_ka_check(self):
+        import kaeasy as pkg  # the real package, not the shim
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        with mock.patch.dict(os.environ, {"KAEASY_DATA_DIR": tmp.name}):
+            lid = pkg.lessons.propose("მოქცევარი", "მამაკაცი", "nonword", why="t",
+                                      quote="მოქცევარი მოვიდა", by="corpus-review",
+                                      reader="agy", corpus_key="k")["id"]
+            pkg.lessons.approve(lid, "edo")
+            pkg.lessons.compile()
+            kaeasy.reset()
+            story = {"id": 4242, "narration": "მოქცევარი მოვიდა დღეს.", "say": {}}
+            p = ka_check.problems(story, {"title": "", "description": "", "text": ""})
+            rows = pkg.lessons.firings()
+        self.assertTrue(p, "the lesson should fire a blocking finding")
+        self.assertTrue(rows, "the firing should have been recorded")
+        self.assertEqual(rows[0]["id"], lid)
+        self.assertEqual(str(rows[0]["ref"]), "4242")
