@@ -139,15 +139,24 @@ def days() -> list[str]:
     return sorted(p.stem for p in CORPUS.glob("*.jsonl"))
 
 
-def digest(day: str | None = None, limit: int = 400) -> str:
+def digest(day: str | None = None, limit: int = 400, per_record: int = 1200) -> str:
     """A compact, model-readable dump of one day: the material a daily reviewer reads.
 
     It is deliberately plain: one record per block, no JSON noise, so a model spends its tokens on the
     Georgian rather than on syntax.
+
+    `per_record` caps each block. Measured 2026-11-19: with the site's articles in the corpus a day is
+    ~800 records and 690k chars, which is one call only if every record is trimmed. A full article body
+    is not more instructive than its first 1200 characters for a question about which words are wrong,
+    and the cap keeps 400 records under ~480k chars instead of 690k.
     """
     records = load(day)
     blocks = []
     for r in records[:limit]:
         head = f"[{r.get('kind')}/{r.get('surface')} {r.get('ref')}]"
-        blocks.append(f"{head}\n{r.get('text', '').strip()}")
+        text = str(r.get("text", "")).strip()
+        if per_record and len(text) > per_record:
+            cut = text.rfind(" ", 0, per_record)
+            text = text[:cut if cut > 0 else per_record] + " …"
+        blocks.append(f"{head}\n{text}")
     return "\n\n---\n\n".join(blocks)
