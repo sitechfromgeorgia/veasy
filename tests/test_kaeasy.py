@@ -158,3 +158,39 @@ class RealKaeasy(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PhraseLessonSurvives(unittest.TestCase):
+    """A phrase lesson must reach the writer's prompt, not just the gate.
+
+    Measured 2026-11-19: kaeasy learned to hold a fixed phrase, and veasy's own mistakes() filter
+    still dropped every row whose wrong form was not one word, so the writer never saw it.
+    """
+
+    def test_a_two_word_lesson_is_kept(self):
+        tmp = tempfile.TemporaryDirectory()
+        d = pathlib.Path(tmp.name)
+        mem = textwrap.dedent('''
+            ROWS = [
+                {"wrong": "მკვლელობა დაიწყო", "right": "საქმე აღიძრა", "category": "lexical",
+                 "count": 3, "agent": "corpus-review"},
+                {"wrong": "დაუფლა", "right": "დაეუფლა", "category": "lexical", "count": 2,
+                 "agent": "corpus-review"},
+                {"wrong": "a b c d e", "right": "x", "category": "style", "count": 1,
+                 "agent": "corpus-review"},
+            ]
+            def top(limit=20, category=None):
+                return ROWS
+            def as_markdown(rows):
+                return "\\n".join("- " + r["wrong"] + " -> " + r["right"] for r in rows)
+        ''')
+        (d / "memory.py").write_text(mem, encoding="utf-8")
+        (d / "plugin.yaml").write_text("name: kaeasy\nversion: 1.0.0\n", encoding="utf-8")
+        with mock.patch.dict(os.environ, {"KAEASY_DIR": str(d)}):
+            kaeasy.reset()
+            block = kaeasy.mistakes(10)
+        tmp.cleanup()
+        kaeasy.reset()
+        self.assertIn("მკვლელობა დაიწყო", block)
+        self.assertIn("დაუფლა", block)
+        self.assertNotIn("a b c d e", block)  # a five-word context diff is not advice

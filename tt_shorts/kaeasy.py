@@ -129,8 +129,14 @@ def ten_rules():
 def mistakes(limit=15):
     """The fleet's Georgian mistakes worth showing a writer, as '- ❌ … → ✅ …' lines, or ''.
 
-    Only rows a language job produced. The shared memory also holds 442 editor-pass diffs whose pairs
-    are context edits; as prompt advice they teach a writer to swap a correct word for an unrelated one.
+    Only rows a language job produced. The shared memory also holds editor-pass diffs whose pairs are
+    context edits; as prompt advice they teach a writer to swap a correct word for an unrelated one.
+
+    A fixed phrase is kept: the damage that ships is a collocation ("მკვლელობა დაიწყო"), and a writer
+    that only ever sees single-word advice cannot learn it. The old single-word filter here is why the
+    gate's phrase lessons would have stopped at the prompt even after kaeasy learned to hold them
+    (2026-11-19). The 2-4 word shape is the same one kaeasy's _is_fixed_phrase accepts, so an editor's
+    long context diff still cannot enter as advice.
     """
     mem = _load("memory")
     if not mem:
@@ -144,7 +150,7 @@ def mistakes(limit=15):
             if str((r or {}).get("agent") or "") in LEARNED_AGENTS
             and str((r or {}).get("wrong") or "").strip()
             and str((r or {}).get("right") or "").strip()
-            and len(str((r or {}).get("wrong")).split()) == 1]
+            and 1 <= len(str((r or {}).get("wrong")).split()) <= 4]
     if not keep:
         return ""
     try:
