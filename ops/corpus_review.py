@@ -124,6 +124,7 @@ def _propose(pairs: list[dict], day_text: str, day: str | None = None) -> tuple[
     then considered for the gate. A pair this lane cannot justify is refused at intake and reported.
     """
     from kaeasy import lessons as ka_lessons
+    from kaeasy import memory as ka_memory
     from tt_shorts import reader as ka_reader
     # Stamp the backend that actually answered. The old hardcoded reader="agy" was false whenever agy
     # returned nothing and the writer model produced the pairs (measured 2026-11-19), which makes a
@@ -146,6 +147,15 @@ def _propose(pairs: list[dict], day_text: str, day: str | None = None) -> tuple[
             rejected.append({**p, "rejected": r["refused"]})
         else:
             accepted.append({**p, "id": r.get("id"), "state": r.get("state")})
+            # The lesson log is the gate's memory; the prompt memory is the writer's. They are two
+            # different files and propose() only writes the first, so a lesson that reached the gate
+            # still never reached a writer's prompt (measured 2026-11-19: the writer saw one lesson
+            # from 3552 rows while the gate had learned several). Every accepted pair goes to both.
+            try:
+                ka_memory.learn(p["wrong"], p["right"], reason=p.get("why") or "corpus review",
+                                category="lexical", agent="corpus-review")
+            except Exception as e:  # noqa: BLE001 - the gate learned it; a memory failure is not fatal
+                print(f"memory write failed for {p['wrong']!r}: {type(e).__name__}: {e}", file=sys.stderr)
     return accepted, rejected
 
 
