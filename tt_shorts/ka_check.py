@@ -217,7 +217,11 @@ def problems(story, art):
     if kaeasy.available():
         seen = set()
         for where, mode, f in _kaeasy_findings(story):
-            key = (f["check"], f["snippet"])
+            # Deduplicate on the FINDING, not on the sentence. The snippet is the whole sentence, so two
+            # different defects in one sentence („ედავებდა ... ღობი“) shared a key and the second one was
+            # silently dropped, which is how a story could ship with one of its two learned mistakes
+            # unreported (found 2026-11-20). The word is what makes a finding distinct.
+            key = (f["check"], f.get("word") or f["message"], f["snippet"])
             if _blocking(f) and key not in seen:
                 seen.add(key)
                 rule = LINT_RULES.get(f["check"], "KE")  # KE: a kaeasy strict rule with no K number of its own

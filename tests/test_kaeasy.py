@@ -222,3 +222,31 @@ class FiringEvidenceIsCollected(unittest.TestCase):
         self.assertTrue(rows, "the firing should have been recorded")
         self.assertEqual(rows[0]["id"], lid)
         self.assertEqual(str(rows[0]["ref"]), "4242")
+
+
+class TwoDefectsInOneSentence(unittest.TestCase):
+    """Two learned defects in one sentence must both be reported.
+
+    Found 2026-11-20: ka_check deduplicated on (check, snippet), and the snippet is the whole sentence,
+    so "მან ედავებდა ოპიზიციას. ეზოში ძველი ღობი ჩამოვარდა." reported only the first. A story could ship
+    with one of its two learned mistakes unreported.
+    """
+
+    def test_both_are_blocking(self):
+        import kaeasy as pkg
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        with mock.patch.dict(os.environ, {"KAEASY_DATA_DIR": tmp.name}):
+            for wrong, right, quote in (("ედავებდა", "ედავებოდა", "მან ედავებდა ოპოზიციას."),
+                                        ("ღობი", "ღობე", "ეზოში ძველი ღობი ჩამოვარდა.")):
+                lid = pkg.lessons.propose(wrong, right, "nonword", why="t", quote=quote,
+                                          by="corpus-review", reader="agy", corpus_key="k")["id"]
+                pkg.lessons.approve(lid, "edo")
+            pkg.lessons.compile()
+            kaeasy.reset()
+            story = {"id": 777, "say": {},
+                     "narration": "მან ედავებდა ოპოზიციას. ეზოში ძველი ღობი ჩამოვარდა."}
+            p = ka_check.problems(story, {"title": "", "description": "", "text": ""})
+        self.assertEqual(len(p), 2, p)
+        self.assertTrue(any("ედავებდა" in x for x in p))
+        self.assertTrue(any("ღობი" in x for x in p))
