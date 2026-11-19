@@ -108,25 +108,38 @@ def _read_day(day: str) -> dict[str, list[int]]:
     return out
 
 
-def _write_day(day: str, index: dict[str, list[int]]) -> None:
+def _write_day(day: str, index: dict[str, dict[str, int]]) -> None:
+    """Write one day: `word<TAB>articles<TAB>distinct_outlets`.
+
+    The column stays two integers so every reader keeps working. What changes is that the second integer
+    is now the count of DISTINCT outlets that used the word that day, not a second copy of the article
+    count.
+    """
     DAYS.mkdir(parents=True, exist_ok=True)
     p = _day_path(day)
     tmp = p.with_suffix(".tsv.tmp")
     with tmp.open("w", encoding="utf-8") as fh:
-        for word in sorted(index, key=lambda w: (-index[w][0], w)):
-            fh.write(f"{word}\t{index[word][0]}\t{index[word][1]}\n")
+        for word in sorted(index, key=lambda w: (-sum(index[w].values()), w)):
+            per = index[word]
+            fh.write(f"{word}\t{sum(per.values())}\t{len(per)}\n")
     tmp.replace(p)
 
 
 def merge() -> dict:
-    """Rebuild `words.tsv` from the day files and report what it holds."""
+    """Rebuild `words.tsv` from the day files and report what it holds.
+
+    Outlets are maximised across days, never summed. Summing distinct-outlet counts from 91 days counts
+    the same outlet 91 times, which is how the index claimed 188 outlets for a word only one outlet
+    writes. The max is a lower bound on the true distinct count over the window, so it can only make
+    promotion harder, never easier, which is the safe direction for a gate that blocks videos.
+    """
     total: dict[str, list[int]] = {}
     days = sorted(p.stem for p in DAYS.glob("*.tsv")) if DAYS.exists() else []
     for day in days:
         for word, (count, outlets) in _read_day(day).items():
             slot = total.setdefault(word, [0, 0])
             slot[0] += count
-            slot[1] += outlets
+            slot[1] = max(slot[1], outlets)
     OUT.mkdir(parents=True, exist_ok=True)
     tmp = WORDS.with_suffix(".tsv.tmp")
     with tmp.open("w", encoding="utf-8") as fh:
@@ -150,7 +163,11 @@ def build(day: str, batch: int = BATCH, force: bool = False) -> dict:
     if not force and _day_path(day).exists() and _day_path(day).stat().st_size > 0:
         return {"day": day, "articles": 0, "words": 0, "skipped": True}
     rows_total = 0
-    index: dict[str, list[int]] = {}
+    # word -> {outlet: article_count}. The old shape was a single counter whose "outlets" column was
+    # incremented once per article (`slot[1] += 1`), so articles == outlets in all 283,665 rows and
+    # ATTEST_MIN_OUTLETS could never do anything. The outlet is already in the SELECT; only this
+    # bookkeeping was wrong.
+    index: dict[str, dict[str, int]] = {}
     offset = 0
     while True:
         rows = d1(f"""SELECT a.content_text AS body, a.source_slug AS outlet
@@ -163,13 +180,12 @@ def build(day: str, batch: int = BATCH, force: bool = False) -> dict:
             break
         for row in rows:
             rows_total += 1
-            tokens = set(TOKEN.findall(str(row.get("body") or "")))
-            for tok in tokens:
+            outlet = str(row.get("outlet") or "?")
+            for tok in set(TOKEN.findall(str(row.get("body") or ""))):
                 if len(tok) < MIN_LEN:
                     continue
-                slot = index.setdefault(tok, [0, 0])
-                slot[0] += 1
-                slot[1] += 1  # one article counts once, so a repeated word cannot inflate the outlet count
+                per = index.setdefault(tok, {})
+                per[outlet] = per.get(outlet, 0) + 1
         offset += batch
         if len(rows) < batch:
             break
