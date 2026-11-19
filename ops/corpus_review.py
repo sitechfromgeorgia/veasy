@@ -186,6 +186,7 @@ def review(day: str | None = None, model: str | None = None, dry: bool = False,
         return {"day": day, "records": 0, "pairs": 0, "accepted": [], "rejected": [],
                 "note": "no corpus for this day"}
     text = corpus.digest(day)
+    cov = corpus.coverage(day)
     from tt_shorts import reader
     # agy on the owner's subscription is the daily reader; the writer model is the fallback.
     pairs: list[dict] = []
@@ -227,7 +228,7 @@ def review(day: str | None = None, model: str | None = None, dry: bool = False,
         accepted, rejected = _propose(pairs, day_text, day)
     report = {"day": day or records[0].get("day"), "records": len(records), "chars": len(text),
               "chunks": chunks, "chunk_failures": failures, "reader": reader.last_backend(),
-              "pairs": len(pairs), "accepted": accepted, "rejected": rejected}
+              "coverage": cov, "pairs": len(pairs), "accepted": accepted, "rejected": rejected}
     if not dry:
         REPORTS.mkdir(parents=True, exist_ok=True)
         (REPORTS / f"{report['day']}.json").write_text(json.dumps(report, ensure_ascii=False, indent=1),

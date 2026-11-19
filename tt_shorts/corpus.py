@@ -139,20 +139,24 @@ def days() -> list[str]:
     return sorted(p.stem for p in CORPUS.glob("*.jsonl"))
 
 
-def digest(day: str | None = None, limit: int = 400, per_record: int = 1200) -> str:
+def digest(day: str | None = None, limit: int | None = None, per_record: int = 1200) -> str:
     """A compact, model-readable dump of one day: the material a daily reviewer reads.
 
     It is deliberately plain: one record per block, no JSON noise, so a model spends its tokens on the
     Georgian rather than on syntax.
 
-    `per_record` caps each block. Measured 2026-11-19: with the site's articles in the corpus a day is
-    ~800 records and 690k chars, which is one call only if every record is trimmed. A full article body
-    is not more instructive than its first 1200 characters for a question about which words are wrong,
-    and the cap keeps 400 records under ~480k chars instead of 690k.
+    `per_record` caps each block, because a full article body is not more instructive than its first
+    1200 characters for a question about which words are wrong.
+
+    `limit` defaults to None (every record). It used to default to 400, and that silently dropped 85% of
+    a day once the site's own text joined the corpus: 803 records in, 400 read, and the report never
+    said so (found 2026-11-20). Callers that want a bounded read now pass a number, and `coverage()`
+    below is how a run reports what it actually read.
     """
     records = load(day)
+    chosen = records if limit is None else records[:limit]
     blocks = []
-    for r in records[:limit]:
+    for r in chosen:
         head = f"[{r.get('kind')}/{r.get('surface')} {r.get('ref')}]"
         text = str(r.get("text", "")).strip()
         if per_record and len(text) > per_record:
@@ -160,3 +164,12 @@ def digest(day: str | None = None, limit: int = 400, per_record: int = 1200) -> 
             text = text[:cut if cut > 0 else per_record] + " …"
         blocks.append(f"{head}\n{text}")
     return "\n\n---\n\n".join(blocks)
+
+
+def coverage(day: str | None = None, per_record: int = 1200) -> dict:
+    """How much of a day a digest would actually carry. A report that does not print this is lying."""
+    records = load(day)
+    full = sum(len(str(r.get("text", "")).strip()) for r in records)
+    carried = sum(min(len(str(r.get("text", "")).strip()), per_record) for r in records)
+    return {"records": len(records), "chars_stored": full, "chars_in_digest": carried,
+            "ratio": round(carried / full, 3) if full else 0}
