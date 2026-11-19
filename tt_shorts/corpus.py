@@ -47,9 +47,9 @@ def _key(kind: str, ref: str, surface: str, text: str) -> str:
     return hashlib.sha1(f"{kind}|{ref}|{surface}|{text[:120]}".encode()).hexdigest()[:16]
 
 
-def seen(kind: str, ref: str, surface: str, text: str) -> bool:
+def seen(kind: str, ref: str, surface: str, text: str, day: str | None = None) -> bool:
     """Has this exact text already been recorded? Cheap, and it keeps a re-run from duplicating a day."""
-    path = _path()
+    path = _path(day)
     if not path.exists():
         return False
     key = _key(kind, ref, surface, text)
@@ -63,17 +63,23 @@ def seen(kind: str, ref: str, surface: str, text: str) -> bool:
     return False
 
 
-def record(kind: str, ref: str, surface: str, text: str, **extra) -> dict | None:
-    """Append one published text. kind: "reel" | "caption" | "article" | "news". surface names the lane."""
+def record(kind: str, ref: str, surface: str, text: str, day: str | None = None, **extra) -> dict | None:
+    """Append one published text. kind: "reel" | "caption" | "article" | "news". surface names the lane.
+
+    `day` files a record under the day it was published; without it the record lands on today. A backfill
+    of yesterday's articles must pass its own day, or 803 pieces publish into one file and yesterday's
+    review reads an empty corpus (measured 2026-11-19).
+    """
     text = (text or "").strip()
     if len(text) < 20:
         return None
-    if seen(kind, ref, surface, text):
+    day = day or _day()
+    if seen(kind, ref, surface, text, day):
         return None
-    rec = {"key": _key(kind, ref, surface, text), "day": _day(), "kind": kind, "ref": str(ref),
+    rec = {"key": _key(kind, ref, surface, text), "day": day, "kind": kind, "ref": str(ref),
            "surface": surface, "chars": len(text), "text": text, **extra}
     CORPUS.mkdir(parents=True, exist_ok=True)
-    with _path().open("a", encoding="utf-8") as fh:
+    with _path(day).open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
     return rec
 
