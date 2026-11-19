@@ -134,8 +134,16 @@ def _quote_for(word: str, text: str) -> str:
     return text[start:(end + 1 if end > 0 else i + len(word) + 40)].strip()
 
 
-def review(day: str | None = None, model: str | None = None, dry: bool = False) -> dict:
-    """Read one day's corpus, ask for defects, and teach kaeasy the ones worth teaching."""
+def review(day: str | None = None, model: str | None = None, dry: bool = False,
+           chunk_chars: int = 90000) -> dict:
+    """Read one day's corpus, ask for defects, and teach kaeasy the ones worth teaching.
+
+    A day is read in chunks rather than one call. Measured 2026-11-19: once the site's own articles joined
+    the corpus, a day's digest was 428k chars and the model refused it
+    ("Please reduce the length of the messages"), so the whole day was lost on one oversized request.
+    `chunk_chars` keeps each request well inside the window the writer is sized for; the chunks are read in
+    order and their pairs merged, so a long day costs several cheap calls instead of failing.
+    """
     records = corpus.load(day)
     if not records:
         return {"day": day, "records": 0, "pairs": 0, "accepted": [], "rejected": [],
@@ -143,14 +151,36 @@ def review(day: str | None = None, model: str | None = None, dry: bool = False) 
     text = corpus.digest(day)
     from tt_shorts import reader
     # agy on the owner's subscription is the daily reader; the writer model is the fallback.
-    answer = reader.ask(PROMPT + text, model=model, max_tokens=1500, json_out=True)
-    pairs = _parse(answer)
+    pairs: list[dict] = []
+    chunks, failures = 0, 0
+    for i in range(0, len(text), chunk_chars):
+        part = text[i:i + chunk_chars]
+        if len(part.strip()) < 500:  # a sliver at the end is not worth a call
+            continue
+        chunks += 1
+        try:
+            answer = reader.ask(PROMPT + part, model=model, max_tokens=1500, json_out=True)
+        except Exception as e:  # noqa: BLE001 - one bad chunk must not lose the rest of the day
+            failures += 1
+            print(f"chunk {chunks} failed: {type(e).__name__}: {str(e)[:160]}", file=sys.stderr)
+            continue
+        pairs.extend(_parse(answer))
+    # The same pair can be found twice across chunks (an outlet repeats a story); keep the first.
+    seen: set[tuple[str, str]] = set()
+    unique = []
+    for p in pairs:
+        key = (str(p.get("wrong") or "").casefold(), str(p.get("right") or "").casefold())
+        if key not in seen:
+            seen.add(key)
+            unique.append(p)
+    pairs = unique
     day_text = "\n".join(r.get("text", "") for r in records)
     if dry:
         accepted, rejected = [], [{"note": "dry run, nothing written"}]
     else:
         accepted, rejected = _propose(pairs, day_text, day)
     report = {"day": day or records[0].get("day"), "records": len(records), "chars": len(text),
+              "chunks": chunks, "chunk_failures": failures,
               "pairs": len(pairs), "accepted": accepted, "rejected": rejected}
     if not dry:
         REPORTS.mkdir(parents=True, exist_ok=True)
