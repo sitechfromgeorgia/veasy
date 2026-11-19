@@ -45,6 +45,11 @@ def ask(prompt: str, *, model: str | None = None, max_tokens: int = 1500, json_o
 
     json_out asks agy for its own JSON envelope so the answer can be read out of `response` rather than
     out of a terminal transcript; the text returned is always the model's answer and never the envelope.
+
+    A `model` names an agy model (gemini-4-neon-high, claude-opus-5-5-high). It must NOT be forwarded to
+    the writer fallback: the writer serves its own ids and answers 404 for an agy name (measured
+    2026-11-19: a review that asked for gemini-4-neon-high lost all five chunks this way, while the
+    caller reported a clean '0 pairs found'). The fallback runs on the writer's own model.
     """
     if backend() == "agy":
         answer = _agy(prompt, model=model, json_out=json_out)
@@ -53,7 +58,7 @@ def ask(prompt: str, *, model: str | None = None, max_tokens: int = 1500, json_o
         # An agy that answered nothing (a permission denial, a killed run) must not silently become an
         # empty answer: fall through to the writer model, which is slower but always present.
     from tt_shorts import writer
-    return writer._call(prompt, model or writer.MODEL, max_tokens=max_tokens)
+    return writer._call(prompt, writer.MODEL, max_tokens=max_tokens)
 
 
 def _agy(prompt: str, *, model: str | None = None, json_out: bool = False) -> str:

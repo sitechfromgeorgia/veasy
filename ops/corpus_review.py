@@ -175,6 +175,14 @@ def review(day: str | None = None, model: str | None = None, dry: bool = False,
             unique.append(p)
     pairs = unique
     day_text = "\n".join(r.get("text", "") for r in records)
+    # A day whose every chunk failed is not a clean day. Before this guard the run reported
+    # {"pairs": 0, "accepted": []} and read as "the Georgian was fine", which is how five failed chunks
+    # went unnoticed on 2026-11-19. Silence about a day must be earned by reading it.
+    if chunks == 0 or failures >= chunks:
+        return {"day": day or records[0].get("day"), "records": len(records), "chars": len(text),
+                "chunks": chunks, "chunk_failures": failures, "pairs": 0,
+                "accepted": [], "rejected": [],
+                "error": f"the reader failed on {failures} of {chunks} chunks: the day was not reviewed"}
     if dry:
         accepted, rejected = [], [{"note": "dry run, nothing written"}]
     else:
@@ -198,7 +206,9 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     r = review(a.day, a.model, a.dry)
     print(json.dumps(r, ensure_ascii=False, indent=1)[:4000])
-    return 0
+    # A day that was not read is a failure the caller must see: the cron wrapper prints one line and the
+    # platform watchdog treats a non-zero exit as a real stall. Exit 0 here would hide it as "clean".
+    return 3 if r.get("error") else 0
 
 
 if __name__ == "__main__":
