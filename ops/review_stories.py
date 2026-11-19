@@ -40,20 +40,28 @@ from tt_shorts import corpus  # noqa: E402
 PROMPT = """You are a Georgian copy editor for a newsroom. The text below is written by the newsroom
 itself (story headlines and summaries), not by a source outlet, so every error in it is ours.
 
-Find concrete Georgian mistakes. For each one return:
-  wrong   the exact substring as it appears in the text, copied character for character
-  right   the correct form
-  why     one sentence, in Georgian, naming the rule
-  quote   the whole sentence the wrong form came from, copied character for character
+Find ONLY mistakes that are checkable against a dictionary. A pair is accepted only if the wrong form
+does not exist as a Georgian word at all, and the right form does. Nothing else survives intake.
 
-Rules:
-- Prefer a mistake that repeats. A form used once may be a typo; a form used five times is a lesson.
-- Only real Georgian errors: wrong verb form, wrong case, a non-word, a calque, an inflection that does
-  not exist. Never report style, length, tone or a rewrite you would prefer.
-- If a word looks unusual but is a real Georgian word or a correct inflection, do not report it.
-- Copy `wrong` and `quote` exactly. A quote that does not appear in the text cannot be verified and
-  will be discarded, taking the lesson with it.
-- If the text is clean, return an empty list. Finding nothing is a valid and useful answer.
+Report a pair only when:
+1. The wrong form is NOT a Georgian word: a coinage, a non-word, a badly transliterated foreign word,
+   or two words fused that must be written apart (or the reverse).
+   Example: "მოქცევარი" is not a word, the right form is "მამაკაცი".
+   Example: "ევრო ბიუროკრატიის" must be written solid: "ევრობიუროკრატიის".
+2. The wrong form is ALWAYS wrong, not just in this sentence.
+
+Do NOT report:
+- anything about case, agreement, number, tense, voice or word order. Those depend on the sentence and
+  you cannot be trusted with them: in a measured run you "corrected" a correct passive into an active,
+  a correct genitive into a nominative, and put a plural after a numeral, which inverts the rule.
+- a word that exists in a dictionary, even if rare.
+- style, tone, length, punctuation.
+- a name, brand, number or term.
+
+The `wrong` form must be a substring of the text, copied character for character. The `quote` must be the
+whole sentence it came from, also exact. An inexact quote is discarded and takes the lesson with it.
+
+If the text is clean, return an empty list. Finding nothing is the correct answer most of the time.
 
 Return JSON: {"pairs": [{"wrong": "...", "right": "...", "why": "...", "quote": "..."}]}
 """
