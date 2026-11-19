@@ -40,11 +40,13 @@ def backend() -> str:
     return "agy" if available() else "writer"
 
 
-def ask(prompt: str, *, model: str | None = None, max_tokens: int = 1500, json_out: bool = False) -> str:
+def ask(prompt: str, *, model: str | None = None, max_tokens: int = 1500, json_out: bool = False,
+        schema: dict | None = None) -> str:
     """One question, one answer, whichever backend is configured.
 
     json_out asks agy for its own JSON envelope so the answer can be read out of `response` rather than
-    out of a terminal transcript; the text returned is always the model's answer and never the envelope.
+    out of a terminal transcript; `schema` goes further and makes it a single structured turn (see
+    _agy). The text returned is always the model's answer and never the envelope.
 
     A `model` names an agy model (gemini-4-neon-high, claude-opus-5-5-high). It must NOT be forwarded to
     the writer fallback: the writer serves its own ids and answers 404 for an agy name (measured
@@ -52,17 +54,43 @@ def ask(prompt: str, *, model: str | None = None, max_tokens: int = 1500, json_o
     caller reported a clean '0 pairs found'). The fallback runs on the writer's own model.
     """
     if backend() == "agy":
-        answer = _agy(prompt, model=model, json_out=json_out)
+        answer = _agy(prompt, model=model, json_out=json_out, schema=schema)
         if answer:
+            _set_backend("agy")
             return answer
         # An agy that answered nothing (a permission denial, a killed run) must not silently become an
         # empty answer: fall through to the writer model, which is slower but always present.
     from tt_shorts import writer
+    _set_backend("writer")
     return writer._call(prompt, writer.MODEL, max_tokens=max_tokens)
 
 
-def _agy(prompt: str, *, model: str | None = None, json_out: bool = False) -> str:
-    """Run `agy -p`. Empty string on any failure: the caller decides what a failure means."""
+_LAST_BACKEND = ""
+
+
+def _set_backend(name: str) -> None:
+    global _LAST_BACKEND
+    _LAST_BACKEND = name
+
+
+def last_backend() -> str:
+    """Which backend answered the most recent ask(). A report that stamps reader='agy' while the writer
+    fallback actually answered is a false provenance (measured 2026-11-19), so the caller asks."""
+    return _LAST_BACKEND or backend()
+
+
+def _agy(prompt: str, *, model: str | None = None, json_out: bool = False,
+         schema: dict | None = None) -> str:
+    """Run `agy -p`. Empty string on any failure: the caller decides what a failure means.
+
+    `schema` (a JSON-schema object) turns the call into ONE structured turn instead of an agent loop.
+    Measured 2026-11-19: without it agy behaved as an autonomous coding agent, burned its whole 240 s
+    budget on 41 tool calls and was SIGKILLed with no answer, so every daily review fell through to the
+    writer fallback and the lesson that got recorded was stamped reader="agy" while agy had said
+    nothing. With `--json-schema` the same model answers in one turn (num_turns 1, 101 s, 51k tokens)
+    and puts the object in `structured_output`; `--disable-slash-commands` keeps the prompt from being
+    expanded as a skill request.
+    """
     if not available():
         return ""
     cmd = [AGY, "-p", prompt, "--model", model or DEFAULT_MODEL,
@@ -71,13 +99,15 @@ def _agy(prompt: str, *, model: str | None = None, json_out: bool = False) -> st
            # the owner's own host inside a call we construct, with no repository or network target we did
            # not choose. Measured 2026-11-18: without it, every call returned an empty response.
            "--dangerously-skip-permissions"]
-    if json_out:
+    if schema is not None:
+        cmd += ["--json-schema", json.dumps(schema, ensure_ascii=False), "--disable-slash-commands"]
+    if json_out or schema is not None:
         cmd += ["--output-format", "json"]
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT, encoding="utf-8")
     except (subprocess.TimeoutExpired, OSError):
         return ""
-    if json_out:
+    if json_out or schema is not None:
         for line in (p.stdout or "").splitlines():
             line = line.strip()
             if not line.startswith("{"):
@@ -86,7 +116,13 @@ def _agy(prompt: str, *, model: str | None = None, json_out: bool = False) -> st
                 env = json.loads(line)
             except ValueError:
                 continue
-            if isinstance(env, dict) and "response" in env:
+            if not isinstance(env, dict):
+                continue
+            # A schema call answers in `structured_output`; a plain json call in `response`. Both are
+            # what the caller wants as text, so a caller that asked for JSON is never left with "".
+            if schema is not None and isinstance(env.get("structured_output"), (dict, list)):
+                return json.dumps(env["structured_output"], ensure_ascii=False)
+            if "response" in env:
                 return str(env.get("response") or "").strip()
         return ""
     return (p.stdout or "").strip()

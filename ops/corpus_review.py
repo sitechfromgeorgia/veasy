@@ -61,6 +61,26 @@ def _georgian(text: str) -> bool:
     return bool(re.search(r"[ა-ჰ]", text or "")) and not normalize_ka.LATIN.search(text or "")
 
 
+# The schema the reader must answer in. It is not documentation: `--json-schema` is what makes agy a
+# single structured turn instead of an agent loop (see tt_shorts/reader._agy), and it is what the parse
+# below can trust. The prompt asks for the same shape, so a backend that ignores the flag still matches.
+PAIRS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "pairs": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"wrong": {"type": "string"}, "right": {"type": "string"},
+                               "why": {"type": "string"}},
+                "required": ["wrong", "right"],
+            },
+        }
+    },
+    "required": ["pairs"],
+}
+
+
 def _parse(answer: str) -> list[dict]:
     m = re.search(r"\{.*\}", answer or "", re.S)
     if not m:
@@ -104,6 +124,11 @@ def _propose(pairs: list[dict], day_text: str, day: str | None = None) -> tuple[
     then considered for the gate. A pair this lane cannot justify is refused at intake and reported.
     """
     from kaeasy import lessons as ka_lessons
+    from tt_shorts import reader as ka_reader
+    # Stamp the backend that actually answered. The old hardcoded reader="agy" was false whenever agy
+    # returned nothing and the writer model produced the pairs (measured 2026-11-19), which makes a
+    # lesson's provenance unauditable.
+    who = ka_reader.last_backend()
     accepted, rejected = [], []
     for p in pairs:
         ok, why = _acceptable(p, day_text)
@@ -113,7 +138,7 @@ def _propose(pairs: list[dict], day_text: str, day: str | None = None) -> tuple[
         try:
             r = ka_lessons.propose(p["wrong"], p["right"], "nonword", why=p.get("why") or "",
                                    quote=p.get("quote") or _quote_for(p["wrong"], day_text),
-                                   by="corpus-review", reader="agy", corpus_key=day)
+                                   by="corpus-review", reader=who, corpus_key=day)
         except Exception as e:  # noqa: BLE001
             rejected.append({**p, "rejected": f"propose failed: {e}"})
             continue
@@ -135,14 +160,16 @@ def _quote_for(word: str, text: str) -> str:
 
 
 def review(day: str | None = None, model: str | None = None, dry: bool = False,
-           chunk_chars: int = 90000) -> dict:
+           chunk_chars: int = 24000) -> dict:
     """Read one day's corpus, ask for defects, and teach kaeasy the ones worth teaching.
 
     A day is read in chunks rather than one call. Measured 2026-11-19: once the site's own articles joined
     the corpus, a day's digest was 428k chars and the model refused it
     ("Please reduce the length of the messages"), so the whole day was lost on one oversized request.
-    `chunk_chars` keeps each request well inside the window the writer is sized for; the chunks are read in
-    order and their pairs merged, so a long day costs several cheap calls instead of failing.
+
+    `chunk_chars` is sized from the measured structured-turn cost, not from the model's window: one
+    47k-char prompt took 101 s and 51k tokens, and the reader's own timeout is 240 s, so a 90k chunk
+    would time out and fall back to the writer for every chunk. 24k keeps the call near a minute.
     """
     records = corpus.load(day)
     if not records:
@@ -159,7 +186,8 @@ def review(day: str | None = None, model: str | None = None, dry: bool = False,
             continue
         chunks += 1
         try:
-            answer = reader.ask(PROMPT + part, model=model, max_tokens=1500, json_out=True)
+            answer = reader.ask(PROMPT + part, model=model, max_tokens=1500, json_out=True,
+                                schema=PAIRS_SCHEMA)
         except Exception as e:  # noqa: BLE001 - one bad chunk must not lose the rest of the day
             failures += 1
             print(f"chunk {chunks} failed: {type(e).__name__}: {str(e)[:160]}", file=sys.stderr)
@@ -188,7 +216,7 @@ def review(day: str | None = None, model: str | None = None, dry: bool = False,
     else:
         accepted, rejected = _propose(pairs, day_text, day)
     report = {"day": day or records[0].get("day"), "records": len(records), "chars": len(text),
-              "chunks": chunks, "chunk_failures": failures,
+              "chunks": chunks, "chunk_failures": failures, "reader": reader.last_backend(),
               "pairs": len(pairs), "accepted": accepted, "rejected": rejected}
     if not dry:
         REPORTS.mkdir(parents=True, exist_ok=True)
