@@ -58,6 +58,27 @@ def story():
     return json.loads((ROOT / "stories" / "24835.json").read_text(encoding="utf-8"))
 
 
+
+def _real_kaeasy():
+    """The real kaeasy package, imported so it can be put back afterwards.
+
+    `import kaeasy` leaves a `kaeasy` entry in sys.modules for the rest of the process, and
+    tests/test_social_copy.py builds a temporary kaeasy package on a path, so a stale entry shadows the
+    fixture and that test fails while checking unrelated code (found 2026-11-20). Callers must pair this
+    with _drop_kaeasy().
+    """
+    import kaeasy as pkg  # noqa: PLC0415 - deliberately late: the shim must already be imported
+    return pkg
+
+
+def _drop_kaeasy():
+    """Remove every kaeasy module this test imported, so no other test inherits it."""
+    import sys
+    for name in [n for n in sys.modules if n == "kaeasy" or n.startswith("kaeasy.")]:
+        sys.modules.pop(name, None)
+
+
+
 class FakeKaeasy(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -205,7 +226,8 @@ class FiringEvidenceIsCollected(unittest.TestCase):
     """
 
     def test_record_firings_is_reached_from_ka_check(self):
-        import kaeasy as pkg  # the real package, not the shim
+        pkg = _real_kaeasy()
+        self.addCleanup(_drop_kaeasy)
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         with mock.patch.dict(os.environ, {"KAEASY_DATA_DIR": tmp.name}):
@@ -233,7 +255,8 @@ class TwoDefectsInOneSentence(unittest.TestCase):
     """
 
     def test_both_are_blocking(self):
-        import kaeasy as pkg
+        pkg = _real_kaeasy()
+        self.addCleanup(_drop_kaeasy)
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         with mock.patch.dict(os.environ, {"KAEASY_DATA_DIR": tmp.name}):
