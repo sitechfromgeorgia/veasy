@@ -67,25 +67,15 @@ def available():
 def lessons_module():
     """kaeasy's lessons.py as a module, or None.
 
-    `lessons.py` uses relative imports (`from .memory import ...`), so it cannot be loaded the way
-    `_load` loads lint.py, which is standalone. It is imported through the package instead, with the
-    kaeasy directory's parent on sys.path. A failure here returns None: the gate keeps working without
-    the evidence log, and a missing log must never stop a render.
+    Loaded the same standalone way as lint.py, by file path, so `sys.modules` is never given a
+    `kaeasy` package entry. Importing it as a package shadowed the temporary package that
+    tests/test_social_copy.py builds, which broke that test with no relation to the code it checks
+    (found 2026-11-20). lessons.py falls back to its own package imports when loaded this way.
+
+    A failure returns None: the gate keeps working without the evidence log, and a missing log must
+    never stop a render.
     """
-    if "lessons" in _mods:
-        return _mods["lessons"]
-    mod = None
-    try:
-        import importlib
-        parent = str(directory().parent)
-        if parent not in sys.path:
-            sys.path.insert(0, parent)
-        mod = importlib.import_module("kaeasy.lessons")
-    except Exception as e:  # noqa: BLE001
-        print(f"kaeasy: lessons module unavailable: {type(e).__name__}: {e}", file=sys.stderr)
-        mod = None
-    _mods["lessons"] = mod
-    return mod
+    return _load("lessons")
 
 
 def version():
